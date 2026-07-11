@@ -30,7 +30,7 @@ Schwung gemalt.
 - **Heute Abend** – persönliche Begrüßung, live tickender Countdown (Tage/Std/Min/Sek), Editorial-Laufband, „Der Abend in Zahlen“ mit Count-up, „Als Nächstes“-Karte, Kreis-Fortschritt, „Gut zu wissen“ (Einlass, Ort mit Routen-Link, Dresscode, Foto-Hinweis)
 - **Programm** – Timeline des Abends mit Live-Indikator (Empfang → Vortrag → Pitch → Mentor-Minuten → Live Painting → DJ)
 - **Menü** – das bewegte 3-Gang-Menü, elegant gesetzt (Beispielinhalte)
-- **Live** – Applaus-Meter für den Start-Up-Pitch, digitale **Bieterkarte** für die Versteigerung des Live Paintings (Max Leinfelder, Erlös wird gespendet)
+- **Live** – Applaus-Meter für den Start-Up-Pitch (mit Haptik und Tusche-Spritzern), **Pitch-Votum** („Würdest du investieren?“), digitale **Bieterkarte** mit persönlicher Nummer und **Schätzspiel** zum Erlös der Live-Painting-Versteigerung (Max Leinfelder, Erlös wird gespendet)
 - **Connect** – digitale Visitenkarte zum Teilen (Web Share / Zwischenablage), **Impuls-Karten** (Fragen, die Generationen ins Gespräch bringen), **Circle-Bingo** (3×3-Icebreaker: „Finde im Raum …“, volle Reihe = Bingo + Moment), **Mein Kreis** (Begegnungen des Abends festhalten), **Erkenntnis-Notiz** mit Autosave und **„Meinen Abend teilen“** (Recap aus Momenten, Applaus, Verbindungen, Bingo und Notiz)
 - **Swipe-Navigation** – zwischen den Bereichen wischen wie in einer nativen App
 
