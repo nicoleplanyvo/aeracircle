@@ -216,6 +216,18 @@
     .slide{position:relative;visibility:visible;opacity:1;transform:none;height:100vh}
     .slide + .slide{page-break-before:always}
     .slide .a{opacity:1;transform:none}
+    /* Verlaufs-/Kontur-Text rendert in PDF-Viewern unzuverlässig -> solide Farben */
+    .grad{background:none!important;-webkit-background-clip:initial!important;background-clip:initial!important;color:var(--ivory)!important}
+    .slide.paper{background:linear-gradient(178deg,var(--paper-hi) 0%,#e9e5dc 55%,var(--paper-lo) 100%)!important}
+    .slide.paper .grad{color:var(--paper-ink)!important}
+    .out{-webkit-text-stroke:0!important;color:rgba(245,243,239,.45)!important}
+    .slide.paper .out{color:rgba(22,22,24,.42)!important}
+    .ghostnum{-webkit-text-stroke:0!important;color:rgba(245,243,239,.07)!important}
+    .slide.paper .ghostnum{color:rgba(22,22,24,.09)!important}
+    .tl .t{-webkit-text-stroke:0!important;color:rgba(245,243,239,.5)!important}
+    .steps .row::before{-webkit-text-stroke:0!important;color:rgba(245,243,239,.42)!important}
+    .ticker .o{-webkit-text-stroke:0!important;color:var(--faint)!important}
+    .ticker-track{animation:none!important}
   }
   body.has-ticker #counter, body.has-ticker #hint{bottom:58px}
   @media (prefers-reduced-motion:reduce){
