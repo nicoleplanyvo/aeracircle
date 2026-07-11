@@ -1,8 +1,10 @@
 # THE CIRCLE · Teilnehmer-App
 
-Die digitale Begleiterin für **THE CIRCLE – connecting generations**: eine mobile Web-App
-für die Gäste des Abends, im Look des Event-Brandings (Schwarz-Weiß, Serifen-Typografie,
-Champagner-Akzent, Köln-Skyline).
+Die digitale Begleiterin für **THE CIRCLE – connecting generations**
+(16. September 2026 · ab 18:30 Uhr · Playa Cologne): eine mobile Web-App für die
+Gäste des Abends, im Atelier-Look des Events – Leinwand-Schwarz, Serifen-Typografie,
+handgemalte Pinselstriche (Canvas-gerendert), Zinnober als einziger Farbtupfer,
+skizzierte Köln-Skyline.
 
 ## Das Konzept: „Schließe deinen Kreis“
 
@@ -18,7 +20,9 @@ die einen goldenen Ring um sein Profil füllen:
 | Kunst | Beim Live Painting / der Versteigerung |
 | Verbindung | Beim Teilen der eigenen Karte |
 
-Ist der Kreis geschlossen, feiert die App das mit einer eigenen Animation.
+Der Ring ist ein **Enso** – ein Pinselstrich-Kreis, der pro Moment ein gemaltes
+Segment bekommt. Ist der Kreis geschlossen, wird er zu einem durchgehenden
+Zinnober-Schwung gemalt.
 
 ## Features
 
@@ -35,7 +39,8 @@ Alles läuft ohne Backend – der Stand jedes Gastes liegt lokal auf seinem Ger�
 
 Alle Inhalte stehen in `index.html`:
 
-- **Datum & Ablauf**: im `CONFIG`-Block am Anfang des `<script>` (`eventDate` ist aktuell ein Platzhalter, `timeline` enthält die Programmpunkte mit Uhrzeiten)
+- **Datum & Ablauf**: im `CONFIG`-Block am Anfang des `<script>` (`eventDate` steht auf dem 16.09.2026, die Uhrzeiten der `timeline` sind ein Vorschlag rund um den 18:30-Uhr-Einlass)
+- **Gastgeber & Partner**: im Abschnitt `colophon` auf der Startseite (Stand: neuland.ai, Conrad SE, Smart Velo, Dein Dach, Radeberger Gruppe / Haus Kölscher Brautradition, Merzenich Bäckereien, SKS (Yellowhive Group), fuchsrohrbach Rechtsanwälte)
 - **Menü**: im Abschnitt `<!-- MENÜ -->` (aktuell ein Beispielmenü)
 - **Impuls-Fragen**: Array `IMPULSE`
 - **Momente**: Array `MOMENTS`

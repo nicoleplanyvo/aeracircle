@@ -3,23 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a0a0b">
+<meta name="theme-color" content="#0d0c0a">
 <title>THE CIRCLE · connecting generations</title>
 <style>
   :root{
-    --ink:#0a0a0b;
-    --panel:#141416;
-    --panel-2:#1b1b1e;
-    --line:rgba(242,239,233,.14);
-    --line-soft:rgba(242,239,233,.07);
-    --ivory:#f2efe9;
-    --muted:#a09b90;
-    --faint:#6f6b62;
-    --gold:#c8a96a;
-    --gold-soft:rgba(200,169,106,.14);
+    --ink:#0d0c0a;          /* warmes Leinwand-Schwarz */
+    --ink-2:#131210;
+    --ivory:#efeae0;
+    --muted:#97907f;
+    --faint:#5f594c;
+    --paint:#e8542f;        /* AERA-Zinnober – der Farbtupfer */
+    --paint-dim:rgba(232,84,47,.55);
+    --line:rgba(239,234,224,.16);
+    --line-soft:rgba(239,234,224,.07);
     --serif:"Didot","Bodoni MT","Bodoni 72","Playfair Display",Georgia,"Times New Roman",serif;
     --sans:"Avenir Next","Avenir",Futura,"Century Gothic","Segoe UI",system-ui,sans-serif;
-    --nav-h:76px;
+    --hand:"Snell Roundhand","Savoye LET","Segoe Script","Bradley Hand",cursive;
+    --nav-h:72px;
+    /* handgezeichneter Rahmen */
+    --sketch:255px 15px 225px 15px / 15px 225px 15px 255px;
+    --sketch-2:15px 225px 15px 255px / 255px 15px 225px 15px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{-webkit-text-size-adjust:100%}
@@ -27,317 +30,355 @@
     background:var(--ink);
     color:var(--ivory);
     font-family:var(--sans);
-    font-weight:400;
-    letter-spacing:.01em;
     line-height:1.6;
     min-height:100dvh;
+    overflow-x:hidden;
   }
-  ::selection{background:var(--gold);color:var(--ink)}
+  ::selection{background:var(--paint);color:var(--ink)}
 
-  /* ambient grain + vignette */
+  /* Leinwand: grobes Korn + Vignette */
   body::before{
-    content:"";position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.05;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.085;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
   }
   body::after{
     content:"";position:fixed;inset:0;pointer-events:none;z-index:59;
-    background:radial-gradient(120% 90% at 50% 0%,transparent 55%,rgba(0,0,0,.5) 100%);
+    background:radial-gradient(130% 95% at 50% 0%,transparent 50%,rgba(0,0,0,.55) 100%);
   }
 
   #app{max-width:430px;margin:0 auto;min-height:100dvh;position:relative}
-  @media(min-width:700px){
-    #app{border-left:1px solid var(--line-soft);border-right:1px solid var(--line-soft)}
-  }
 
-  /* ---------- typography ---------- */
+  /* ---------- Typo-Rollen ---------- */
   .label{
-    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;
     color:var(--muted);font-weight:500;
   }
-  .label--gold{color:var(--gold)}
+  .label--paint{color:var(--paint)}
   .display{
-    font-family:var(--serif);font-weight:400;letter-spacing:.01em;
-    line-height:1.12;text-wrap:balance;
+    font-family:var(--serif);font-weight:400;line-height:1.04;text-wrap:balance;
+  }
+  .hand{
+    font-family:var(--hand);font-style:italic;color:var(--paint);
+    letter-spacing:.02em;font-size:1.25em;line-height:1.3;
   }
   .lede{color:var(--muted);font-size:15px}
 
-  /* ---------- header ---------- */
+  /* drei Punkte – das AERA-Echo als Trenner */
+  .dots{display:flex;gap:9px;justify-content:center;padding:26px 0 4px}
+  .dots i{
+    width:7px;height:7px;background:var(--paint);display:block;
+    border-radius:62% 38% 55% 45%/48% 60% 40% 52%;
+  }
+  .dots i:nth-child(2){transform:rotate(40deg) scale(.85)}
+  .dots i:nth-child(3){transform:rotate(-25deg) scale(1.1)}
+
+  /* ---------- Header ---------- */
   header{
     display:flex;align-items:center;justify-content:space-between;
-    padding:calc(env(safe-area-inset-top) + 18px) 22px 14px;
-    border-bottom:1px solid var(--line-soft);
-    position:sticky;top:0;background:linear-gradient(var(--ink) 70%,rgba(10,10,11,.85));
-    backdrop-filter:blur(8px);z-index:40;
+    padding:calc(env(safe-area-inset-top) + 16px) 22px 12px;
+    position:sticky;top:0;z-index:40;
+    background:linear-gradient(var(--ink) 60%,rgba(13,12,10,.82));
+    backdrop-filter:blur(8px);
   }
   .wordmark{display:flex;align-items:center;gap:10px}
-  .wordmark svg{width:26px;height:26px}
-  .wordmark b{
-    font-family:var(--serif);font-weight:400;font-size:17px;letter-spacing:.14em;
-  }
-  #ringMini{position:relative;width:34px;height:34px}
-  #ringMini svg{width:34px;height:34px;display:block}
+  .wordmark canvas{width:28px;height:28px}
+  .wordmark b{font-family:var(--serif);font-weight:400;font-size:16px;letter-spacing:.18em}
+  #ringMini{position:relative;width:38px;height:38px}
+  #ringMini canvas{width:38px;height:38px;display:block}
   #ringMini span{
     position:absolute;inset:0;display:grid;place-items:center;
-    font-size:10px;letter-spacing:.05em;color:var(--muted);
+    font-family:var(--serif);font-size:11px;color:var(--muted);
     font-variant-numeric:tabular-nums;
   }
 
-  main{padding:0 0 calc(var(--nav-h) + env(safe-area-inset-bottom) + 28px)}
+  main{padding:0 0 calc(var(--nav-h) + env(safe-area-inset-bottom) + 30px)}
   section[data-view]{display:none;animation:fadein .45s ease both}
   section[data-view].active{display:block}
   @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .pad{padding:26px 24px}
 
-  .pad{padding:26px 22px}
-  .rule{border:0;border-top:1px solid var(--line-soft);margin:0 22px}
+  /* Sektions-Titel: groß, gekippt annotiert */
+  .sect{padding:34px 24px 8px;position:relative}
+  .sect .hand{display:inline-block;transform:rotate(-2.5deg);margin-bottom:2px}
+  .sect h2{font-size:clamp(42px,12vw,54px);letter-spacing:-.01em}
+  .sect h2 em{font-style:italic}
 
-  /* ---------- home ---------- */
-  .hero{padding:38px 22px 30px;text-align:left;position:relative;overflow:hidden}
-  .hero .display{font-size:clamp(34px,9vw,42px);margin:10px 0 6px}
-  .hero .display i{font-style:italic;color:var(--gold)}
-  #skyline{display:block;width:100%;height:74px;margin-top:22px;opacity:.5}
-
-  .statusline{
-    display:flex;align-items:baseline;gap:10px;margin-top:16px;
-    font-size:14px;color:var(--muted);
-  }
-  .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);display:inline-block;
-    box-shadow:0 0 0 0 rgba(200,169,106,.5);animation:pulse 2.4s infinite}
-  @keyframes pulse{70%{box-shadow:0 0 0 9px rgba(200,169,106,0)}100%{box-shadow:0 0 0 0 rgba(200,169,106,0)}}
+  /* ---------- Hero ---------- */
+  .hero{padding:40px 24px 6px;position:relative}
+  .hero .label{display:block;margin-bottom:14px}
+  .hero h1{font-size:clamp(40px,11.5vw,52px)}
+  .hero h1 .name{position:relative;display:inline-block;font-style:italic;white-space:nowrap}
+  .hero h1 .name canvas{position:absolute;inset:-16px -24px;width:calc(100% + 48px);height:calc(100% + 32px);pointer-events:none}
+  .hero .lede{margin-top:14px}
+  .statusline{display:flex;align-items:baseline;gap:10px;margin-top:18px;font-size:14px;color:var(--muted)}
+  .dot{width:7px;height:7px;background:var(--paint);display:inline-block;flex:none;
+    border-radius:62% 38% 55% 45%/48% 60% 40% 52%}
   #countdown{font-variant-numeric:tabular-nums;color:var(--ivory)}
-
-  .card{
-    background:var(--panel);border:1px solid var(--line-soft);border-radius:2px;
-    padding:22px;margin:0 22px 14px;
+  .venue{
+    margin-top:10px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);
   }
-  .card .label{margin-bottom:10px;display:block}
-  .card h3{font-family:var(--serif);font-weight:400;font-size:22px;line-height:1.2;margin-bottom:6px}
-  .card p{color:var(--muted);font-size:14px}
+  #skyline{display:block;width:100%;height:84px;margin-top:18px}
+  .colophon{text-align:center;padding:8px 30px 36px}
+  .colophon .hand{display:inline-block;transform:rotate(-2deg)}
+  .colophon .hosts{font-family:var(--serif);font-size:18px;margin:8px 0 22px}
+  .colophon .partners{color:var(--muted);font-size:13px;line-height:1.8;margin-top:10px}
+  .colophon .partners em{color:var(--faint)}
 
-  /* circle progress card */
-  .circle-card{display:flex;align-items:center;gap:20px}
-  .circle-card .ringwrap{flex:0 0 auto;position:relative;width:104px;height:104px}
-  .circle-card .ringwrap svg{width:104px;height:104px;display:block}
-  .circle-card .ringwrap .num{
+  /* ---------- Enso-Karte ---------- */
+  .enso-block{padding:10px 24px 6px;display:flex;gap:18px;align-items:center}
+  .enso-block .ensowrap{flex:0 0 auto;position:relative;width:128px;height:128px;transform:rotate(-3deg)}
+  .enso-block canvas{width:128px;height:128px;display:block}
+  .enso-block .num{
     position:absolute;inset:0;display:grid;place-items:center;
-    font-family:var(--serif);font-size:26px;font-variant-numeric:tabular-nums;
+    font-family:var(--serif);font-size:30px;font-variant-numeric:tabular-nums;
   }
-  .circle-card .ringwrap .num small{font-size:12px;color:var(--faint);font-family:var(--sans);letter-spacing:.1em}
-  .moment-dots{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
-  .moment-dots span{
-    font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
-    border:1px solid var(--line);border-radius:99px;padding:4px 10px;color:var(--faint);
-  }
-  .moment-dots span.done{border-color:var(--gold);color:var(--gold);background:var(--gold-soft)}
+  .enso-block .num small{font-size:13px;color:var(--faint)}
+  .enso-side p{font-size:13.5px;color:var(--muted)}
+  .enso-side .hand{display:inline-block;transform:rotate(-2deg);margin-bottom:4px}
 
-  /* ---------- buttons ---------- */
+  /* Momente als Farbtupfer */
+  .daubs{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:12px}
+  .daub{
+    display:inline-flex;align-items:center;gap:7px;
+    font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);
+  }
+  .daub i{
+    width:11px;height:11px;display:block;border:1px solid var(--faint);
+    border-radius:62% 38% 55% 45%/48% 60% 40% 52%;transform:rotate(15deg);
+  }
+  .daub.done{color:var(--ivory)}
+  .daub.done i{background:var(--paint);border-color:var(--paint);transform:rotate(-20deg)}
+
+  /* ---------- Stücke / Karten (unregelmäßig) ---------- */
+  .piece{padding:26px 24px;position:relative}
+  .piece + .piece{margin-top:2px}
+  .piece h3{font-family:var(--serif);font-weight:400;font-size:24px;line-height:1.15;margin:4px 0 8px}
+  .piece p{color:var(--muted);font-size:14px}
+  .frame{
+    border:1px solid var(--line);border-radius:var(--sketch);
+    margin:14px 24px;padding:24px 22px;
+  }
+  .frame.alt{border-radius:var(--sketch-2)}
+  .tilt-l{transform:rotate(-.7deg)}
+  .tilt-r{transform:rotate(.6deg)}
+
+  /* ---------- Buttons: gestempelt ---------- */
   .btn{
     -webkit-appearance:none;appearance:none;cursor:pointer;
-    font-family:var(--sans);font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+    font-family:var(--sans);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
     background:transparent;color:var(--ivory);
-    border:1px solid var(--line);border-radius:2px;
-    padding:13px 20px;transition:border-color .25s,color .25s,background .25s;
-    display:inline-flex;align-items:center;gap:8px;justify-content:center;
-  }
-  .btn:hover,.btn:focus-visible{border-color:var(--gold);color:var(--gold)}
-  .btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
-  .btn--full{width:100%}
-  .btn--gold{border-color:var(--gold);color:var(--gold)}
-  .btn--gold:hover{background:var(--gold);color:var(--ink)}
-  .btn[disabled]{opacity:.45;pointer-events:none}
-  .btn.done{border-color:var(--gold);color:var(--gold);background:var(--gold-soft)}
-
-  /* ---------- timeline ---------- */
-  .timeline{padding:8px 22px 10px}
-  .t-item{
-    display:grid;grid-template-columns:64px 1fr;gap:0 18px;position:relative;
-    padding:20px 0;border-bottom:1px solid var(--line-soft);
-  }
-  .t-item:last-child{border-bottom:0}
-  .t-time{
-    font-variant-numeric:tabular-nums;font-size:14px;color:var(--faint);
-    padding-top:3px;letter-spacing:.06em;
-  }
-  .t-item.live .t-time{color:var(--gold)}
-  .t-body h3{font-family:var(--serif);font-weight:400;font-size:21px;line-height:1.2}
-  .t-body p{color:var(--muted);font-size:13.5px;margin-top:5px}
-  .t-live-tag{
-    display:none;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
-    color:var(--gold);margin-bottom:4px;
-  }
-  .t-item.live .t-live-tag{display:flex;align-items:center;gap:7px}
-  .t-item.past{opacity:.45}
-  .t-collect{margin-top:12px;padding:9px 16px;font-size:10.5px}
-
-  /* ---------- menu ---------- */
-  .menu-head{text-align:center;padding:40px 22px 10px}
-  .menu-head .display{font-size:34px}
-  .menu-head .label{margin-bottom:12px;display:block}
-  .course{text-align:center;padding:30px 30px}
-  .course + .course{border-top:1px solid var(--line-soft)}
-  .course .label{display:block;margin-bottom:12px}
-  .course h3{font-family:var(--serif);font-weight:400;font-size:24px;line-height:1.25}
-  .course p{color:var(--muted);font-size:14px;margin-top:8px;font-style:italic}
-  .course .pair{margin-top:14px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
-  .menu-note{text-align:center;color:var(--faint);font-size:12px;padding:6px 30px 34px;font-style:italic}
-
-  /* ---------- live: applause ---------- */
-  .applause{
-    position:relative;margin:16px 22px;padding:34px 22px 30px;text-align:center;
-    border:1px solid var(--line-soft);background:var(--panel);border-radius:2px;overflow:hidden;
-  }
-  #applauseBtn{
-    width:132px;height:132px;border-radius:50%;
-    border:1px solid var(--gold);background:radial-gradient(circle at 50% 35%,#232323,#151517);
-    color:var(--gold);font-family:var(--serif);font-size:17px;cursor:pointer;
-    transition:transform .08s ease;user-select:none;-webkit-user-select:none;
+    border:1px solid var(--line);border-radius:var(--sketch);
+    padding:13px 22px;transition:border-color .25s,color .25s,background .25s,transform .15s;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
     -webkit-tap-highlight-color:transparent;
   }
-  #applauseBtn:active{transform:scale(.93)}
-  #applauseBtn:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .btn:hover,.btn:focus-visible{border-color:var(--paint);color:var(--paint)}
+  .btn:focus-visible{outline:2px solid var(--paint);outline-offset:3px}
+  .btn:active{transform:scale(.97) rotate(-.5deg)}
+  .btn--full{width:100%}
+  .btn--paint{border-color:var(--paint-dim);color:var(--paint)}
+  .btn--paint:hover{background:var(--paint);color:var(--ink)}
+  .btn.done{border-color:var(--paint);color:var(--paint);background:rgba(232,84,47,.08)}
+
+  /* ---------- Timeline: Geister-Ziffern ---------- */
+  .timeline{padding:6px 24px 0}
+  .t-item{position:relative;padding:30px 0 26px;border-bottom:1px solid var(--line-soft)}
+  .t-item:last-child{border-bottom:0}
+  .t-ghost{
+    position:absolute;right:-6px;top:6px;z-index:0;
+    font-family:var(--serif);font-size:64px;line-height:1;
+    color:transparent;-webkit-text-stroke:1px rgba(239,234,224,.13);
+    font-variant-numeric:tabular-nums;pointer-events:none;user-select:none;
+  }
+  .t-item.live .t-ghost{-webkit-text-stroke:1px var(--paint-dim)}
+  .t-body{position:relative;z-index:1;max-width:82%}
+  .t-body h3{font-family:var(--serif);font-weight:400;font-size:24px;line-height:1.12}
+  .t-body p{color:var(--muted);font-size:13.5px;margin-top:6px}
+  .t-live-tag{display:none}
+  .t-item.live .t-live-tag{
+    display:inline-block;font-family:var(--hand);font-style:italic;color:var(--paint);
+    font-size:19px;transform:rotate(-3deg);margin-bottom:2px;
+  }
+  .t-item.past{opacity:.4}
+  .t-item.past h3{text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:var(--faint)}
+  .t-collect{margin-top:14px;padding:9px 16px;font-size:10px}
+
+  /* ---------- Menü: Galerie-Schilder ---------- */
+  .menu-head{text-align:center;padding:42px 26px 8px}
+  .menu-head .hand{display:inline-block;transform:rotate(-2deg);margin-bottom:6px}
+  .menu-head h2{font-size:clamp(32px,9vw,40px);line-height:1.15}
+  .course{position:relative;text-align:center;padding:34px 30px 30px}
+  .course .roman{
+    display:block;font-family:var(--serif);font-size:52px;line-height:1;
+    color:transparent;-webkit-text-stroke:1px rgba(239,234,224,.22);margin-bottom:8px;
+  }
+  .course h3{font-family:var(--serif);font-weight:400;font-size:25px;line-height:1.2}
+  .course p{color:var(--muted);font-size:14px;margin-top:8px;font-style:italic}
+  .course .pair{margin-top:12px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  .brushline{display:block;width:120px;height:14px;margin:0 auto}
+  .menu-note{text-align:center;color:var(--faint);font-size:12px;padding:18px 30px 36px;font-style:italic}
+
+  /* ---------- Live: Applaus als Farbe ---------- */
+  .studio{position:relative;padding:30px 24px 34px;text-align:center;overflow:hidden}
+  #splat{position:absolute;inset:0;pointer-events:none}
+  #applauseBtn{
+    position:relative;z-index:2;width:150px;height:150px;cursor:pointer;
+    -webkit-appearance:none;appearance:none;border:0;background:var(--paint);color:var(--ink);
+    font-family:var(--serif);font-style:italic;font-size:21px;
+    border-radius:57% 43% 48% 52%/49% 55% 45% 51%;
+    transform:rotate(-4deg);
+    transition:transform .08s ease,border-radius .2s;
+    user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
+  }
+  #applauseBtn:active{transform:rotate(2deg) scale(.9);border-radius:48% 52% 57% 43%/55% 45% 51% 49%}
+  #applauseBtn:focus-visible{outline:2px solid var(--ivory);outline-offset:4px}
   #applauseCount{
-    font-family:var(--serif);font-size:38px;margin-top:16px;
+    position:relative;z-index:2;font-family:var(--serif);font-size:44px;margin-top:18px;
     font-variant-numeric:tabular-nums;
   }
-  .spark{
-    position:absolute;font-family:var(--serif);color:var(--gold);pointer-events:none;
-    animation:rise 1.1s ease-out forwards;font-size:20px;
-  }
-  @keyframes rise{
-    from{opacity:1;transform:translateY(0) scale(1)}
-    to{opacity:0;transform:translateY(-110px) scale(1.5)}
-  }
+  .studio .label{position:relative;z-index:2}
 
-  /* paddle */
-  .paddle{
-    margin:14px 22px;padding:30px 22px;text-align:center;
-    border:1px solid var(--line-soft);background:var(--panel);border-radius:2px;
+  /* Lot-Schild (Bieterkarte) */
+  .lot{
+    margin:6px 24px 14px;padding:28px 24px;text-align:center;
+    border:1px solid var(--line);border-radius:var(--sketch-2);
+    transform:rotate(1.1deg);position:relative;
   }
+  .lot .hand{display:inline-block;transform:rotate(-2deg)}
   #paddleNo{
-    font-family:var(--serif);font-size:84px;line-height:1;color:var(--gold);
-    margin:10px 0 4px;font-variant-numeric:tabular-nums;display:none;
+    font-family:var(--serif);font-size:96px;line-height:1;color:var(--paint);
+    margin:6px 0 0;font-variant-numeric:tabular-nums;display:none;
   }
-  .paddle.raised #paddleNo{display:block}
-  .paddle.raised #paddleHint{display:none}
+  #paddleNo::before{content:"№ ";font-size:40px;color:var(--faint)}
+  .lot.raised #paddleNo{display:block}
+  .lot.raised #paddleHint{display:none}
+  .lot .btn{margin-top:16px}
 
-  /* ---------- connect ---------- */
+  .person{display:flex;gap:16px;align-items:flex-start;padding:22px 24px}
+  .person .init{
+    flex:0 0 auto;width:54px;height:54px;display:grid;place-items:center;
+    font-family:var(--serif);font-style:italic;font-size:20px;color:var(--paint);
+    border:1px solid var(--line);border-radius:62% 38% 55% 45%/48% 60% 40% 52%;
+    transform:rotate(-6deg);
+  }
+  .person h3{font-family:var(--serif);font-weight:400;font-size:20px}
+  .person p{color:var(--muted);font-size:13px;margin-top:4px}
+
+  /* ---------- Connect ---------- */
   .idcard{
-    margin:16px 22px;padding:28px 24px;border-radius:2px;position:relative;overflow:hidden;
-    background:linear-gradient(155deg,#1d1d20 0%,#121214 60%);
-    border:1px solid var(--line);
+    margin:14px 24px;padding:28px 24px;position:relative;
+    border:1px solid var(--line);border-radius:var(--sketch);
+    transform:rotate(-.8deg);background:var(--ink-2);
   }
-  .idcard::after{
-    content:"";position:absolute;right:-42px;top:-42px;width:150px;height:150px;
-    border:1px solid var(--line-soft);border-radius:50%;
-  }
-  .idcard .label{display:block;margin-bottom:18px}
-  .idcard h3{font-family:var(--serif);font-weight:400;font-size:30px;line-height:1.15}
+  .idcard .hand{display:inline-block;transform:rotate(-2deg);margin-bottom:10px}
+  .idcard h3{font-family:var(--serif);font-weight:400;font-size:32px;line-height:1.1}
   .idcard p{color:var(--muted);font-size:14px;margin-top:6px}
   .idcard .row{display:flex;gap:10px;margin-top:22px}
-  .idcard .row .btn{flex:1;padding:11px 8px;font-size:10.5px}
+  .idcard .row .btn{flex:1;padding:11px 8px;font-size:10px}
 
-  /* impulse deck */
   .impulse{
-    margin:16px 22px;min-height:240px;border-radius:2px;position:relative;
-    border:1px solid var(--line);background:var(--panel);
+    margin:14px 24px;min-height:250px;position:relative;cursor:pointer;
+    border:1px solid var(--line);border-radius:var(--sketch-2);
+    transform:rotate(1deg);background:var(--ink-2);
     display:flex;flex-direction:column;justify-content:space-between;
-    padding:24px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+    padding:22px 24px;-webkit-tap-highlight-color:transparent;
   }
-  .impulse::before{
-    content:"";position:absolute;inset:6px;border:1px solid var(--line-soft);border-radius:1px;pointer-events:none;
+  .impulse:focus-visible{outline:2px solid var(--paint);outline-offset:3px}
+  .impulse .q{
+    position:absolute;top:2px;right:16px;font-family:var(--serif);font-size:110px;
+    line-height:1;color:transparent;-webkit-text-stroke:1px rgba(239,234,224,.14);
+    pointer-events:none;user-select:none;
   }
   #impulseText{
-    font-family:var(--serif);font-size:24px;line-height:1.35;text-wrap:balance;
-    margin:26px 4px;transition:opacity .25s;
+    font-family:var(--serif);font-size:25px;line-height:1.3;text-wrap:balance;
+    margin:34px 2px 22px;transition:opacity .25s;font-style:italic;
   }
-  .impulse .foot{display:flex;justify-content:space-between;align-items:center}
-  .impulse .foot .label{font-size:10px}
+  .impulse .foot{display:flex;justify-content:space-between;align-items:baseline}
+  .impulse .foot .label{font-size:9.5px}
+  .impulse .foot .hand{font-size:17px}
 
-  /* ---------- persons ---------- */
-  .person{
-    display:flex;gap:16px;align-items:flex-start;margin:0 22px 14px;padding:20px;
-    background:var(--panel);border:1px solid var(--line-soft);border-radius:2px;
-  }
-  .person .init{
-    flex:0 0 auto;width:52px;height:52px;border-radius:50%;
-    border:1px solid var(--line);display:grid;place-items:center;
-    font-family:var(--serif);font-size:20px;color:var(--gold);
-  }
-  .person h3{font-family:var(--serif);font-weight:400;font-size:19px}
-  .person p{color:var(--muted);font-size:13px;margin-top:3px}
-
-  /* ---------- nav ---------- */
+  /* ---------- Nav: Worte statt Icons ---------- */
   nav{
     position:fixed;bottom:0;left:50%;transform:translateX(-50%);
     width:100%;max-width:430px;z-index:50;
-    background:rgba(12,12,13,.92);backdrop-filter:blur(14px);
+    background:rgba(13,12,10,.93);backdrop-filter:blur(14px);
     border-top:1px solid var(--line-soft);
-    display:grid;grid-template-columns:repeat(5,1fr);
-    padding:8px 6px calc(8px + env(safe-area-inset-bottom));height:auto;
+    display:grid;grid-template-columns:1fr 1fr auto 1fr 1fr;align-items:center;
+    padding:10px 8px calc(10px + env(safe-area-inset-bottom));
   }
   nav button{
     -webkit-appearance:none;appearance:none;background:none;border:0;cursor:pointer;
-    display:flex;flex-direction:column;align-items:center;gap:5px;
-    color:var(--faint);padding:7px 2px;transition:color .25s;
-    -webkit-tap-highlight-color:transparent;
+    color:var(--faint);padding:10px 2px 6px;position:relative;
+    font-family:var(--sans);font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    transition:color .25s;-webkit-tap-highlight-color:transparent;
   }
-  nav button:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:4px}
-  nav button span{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase}
-  nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.3}
+  nav button:focus-visible{outline:2px solid var(--paint);outline-offset:2px;border-radius:4px}
   nav button.active{color:var(--ivory)}
-  nav button.active svg{stroke:var(--gold)}
-  nav .navspiral svg{width:30px;height:30px;margin-top:-4px}
+  nav button::before{
+    content:"";position:absolute;top:0;left:50%;transform:translateX(-50%) rotate(20deg) scale(0);
+    width:8px;height:8px;background:var(--paint);
+    border-radius:62% 38% 55% 45%/48% 60% 40% 52%;
+    transition:transform .25s;
+  }
+  nav button.active::before{transform:translateX(-50%) rotate(-15deg) scale(1)}
+  nav .navspiral{padding:2px 14px 0}
+  nav .navspiral canvas{width:34px;height:34px;display:block;opacity:.55;transition:opacity .25s}
+  nav .navspiral.active canvas{opacity:1}
+  nav .navspiral::before{display:none}
 
-  /* ---------- onboarding ---------- */
+  /* ---------- Onboarding ---------- */
   #onboarding{
     position:fixed;inset:0;z-index:100;background:var(--ink);
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    padding:36px 30px;text-align:center;
+    padding:36px 32px;text-align:center;
   }
   #onboarding.hidden{display:none}
-  #obSpiral{width:88px;height:88px;margin-bottom:26px}
-  #obSpiral path{stroke-dasharray:900;stroke-dashoffset:900;animation:draw 2.4s ease forwards}
-  @keyframes draw{to{stroke-dashoffset:0}}
+  #obSpiral{width:110px;height:110px;margin-bottom:24px;transform:rotate(-6deg)}
   #onboarding h1{
-    font-family:var(--serif);font-weight:400;font-size:34px;letter-spacing:.16em;margin-bottom:4px;
+    font-family:var(--serif);font-weight:400;font-size:36px;letter-spacing:.14em;margin-bottom:2px;
   }
   #onboarding .sub{
-    font-size:13px;letter-spacing:.34em;text-transform:lowercase;color:var(--muted);margin-bottom:44px;
+    font-family:var(--hand);font-style:italic;font-size:20px;color:var(--paint);
+    transform:rotate(-2deg);margin-bottom:46px;
   }
-  #onboarding form{width:100%;max-width:320px;display:flex;flex-direction:column;gap:14px;text-align:left}
-  #onboarding label{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  #onboarding form{width:100%;max-width:320px;display:flex;flex-direction:column;gap:16px;text-align:left}
+  #onboarding label{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
   #onboarding input{
     -webkit-appearance:none;appearance:none;width:100%;
     background:transparent;border:0;border-bottom:1px solid var(--line);
-    color:var(--ivory);font-family:var(--serif);font-size:22px;padding:8px 2px 10px;
-    border-radius:0;transition:border-color .25s;
+    color:var(--ivory);font-family:var(--serif);font-style:italic;font-size:23px;
+    padding:8px 2px 10px;border-radius:0;transition:border-color .25s;
   }
-  #onboarding input:focus{outline:none;border-bottom-color:var(--gold)}
-  #onboarding .btn{margin-top:24px}
+  #onboarding input:focus{outline:none;border-bottom-color:var(--paint)}
+  #onboarding .btn{margin-top:22px}
 
-  /* ---------- circle complete overlay ---------- */
+  /* ---------- Kreis geschlossen ---------- */
   #complete{
-    position:fixed;inset:0;z-index:110;background:rgba(10,10,11,.96);
+    position:fixed;inset:0;z-index:110;background:rgba(13,12,10,.97);
     display:none;flex-direction:column;align-items:center;justify-content:center;
     text-align:center;padding:40px;
   }
-  #complete.show{display:flex;animation:fadein .6s ease both}
-  #complete svg{width:120px;height:120px;margin-bottom:28px}
-  #complete circle{
-    stroke-dasharray:302;stroke-dashoffset:302;animation:draw2 1.8s .2s ease forwards;
-  }
-  @keyframes draw2{to{stroke-dashoffset:0}}
-  #complete h2{font-family:var(--serif);font-weight:400;font-size:32px;margin-bottom:10px}
-  #complete p{color:var(--muted);max-width:300px;font-size:14px;margin-bottom:34px}
+  #complete.show{display:flex;animation:fadein .5s ease both}
+  #complete canvas{width:180px;height:180px;margin-bottom:24px;transform:rotate(-5deg)}
+  #complete h2{font-family:var(--serif);font-weight:400;font-size:34px;margin-bottom:10px}
+  #complete p{color:var(--muted);max-width:300px;font-size:14px;margin-bottom:32px}
 
-  /* ---------- toast ---------- */
+  /* ---------- Toast ---------- */
   #toast{
-    position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 18px);
-    left:50%;transform:translateX(-50%) translateY(20px);
-    background:var(--ivory);color:var(--ink);font-size:12.5px;letter-spacing:.06em;
-    padding:11px 22px;border-radius:99px;opacity:0;pointer-events:none;
-    transition:opacity .3s,transform .3s;z-index:120;white-space:nowrap;
+    position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px);
+    left:50%;transform:translateX(-50%) rotate(-1deg) translateY(20px);
+    background:var(--ivory);color:var(--ink);
+    font-family:var(--serif);font-style:italic;font-size:14px;
+    padding:11px 24px;border-radius:var(--sketch);
+    opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;z-index:120;
+    white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis;
   }
-  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast.show{opacity:1;transform:translateX(-50%) rotate(-1deg) translateY(0)}
+
+  /* Farbspritzer */
+  .fleck{position:absolute;pointer-events:none;background:var(--paint);z-index:1;
+    animation:settle .5s ease-out both}
+  @keyframes settle{from{opacity:0;transform:scale(.2)}to{opacity:var(--o,.8);transform:scale(1)}}
 
   @media (prefers-reduced-motion:reduce){
     *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
@@ -350,15 +391,11 @@
 
   <header>
     <div class="wordmark">
-      <svg viewBox="0 0 100 100" aria-hidden="true"><path class="spiralpath" fill="none" stroke="#f2efe9" stroke-width="7" stroke-linecap="round"></path></svg>
+      <canvas class="spiralcv" width="56" height="56" aria-hidden="true"></canvas>
       <b>THE&nbsp;CIRCLE</b>
     </div>
     <div id="ringMini" title="Dein Kreis">
-      <svg viewBox="0 0 36 36" aria-hidden="true">
-        <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(242,239,233,.12)" stroke-width="2"></circle>
-        <circle id="ringMiniFill" cx="18" cy="18" r="15.5" fill="none" stroke="#c8a96a" stroke-width="2"
-          stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="97.4" transform="rotate(-90 18 18)"></circle>
-      </svg>
+      <canvas id="ensoMini" width="76" height="76" aria-hidden="true"></canvas>
       <span id="ringMiniNum">0/6</span>
     </div>
   </header>
@@ -369,56 +406,65 @@
     <section data-view="home" class="active">
       <div class="hero">
         <span class="label">connecting generations</span>
-        <h1 class="display">Guten Abend,<br><i id="guestName">Gast</i>.</h1>
-        <p class="lede" id="heroLede">Schön, dass du Teil des Kreises bist.</p>
+        <h1 class="display">Guten Abend,<br><span class="name"><canvas id="nameLoop" aria-hidden="true"></canvas><span id="guestName">Gast</span></span>.</h1>
+        <p class="lede">Schön, dass du Teil des Kreises bist.</p>
         <div class="statusline">
-          <span class="dot" id="statusDot"></span>
+          <span class="dot"></span>
           <span id="statusText">–</span>
           <span id="countdown"></span>
         </div>
-        <svg id="skyline" viewBox="0 0 430 74" preserveAspectRatio="xMidYMax meet" aria-hidden="true"></svg>
+        <p class="venue">16. September 2026 · ab 18:30 Uhr · Playa Cologne</p>
+        <canvas id="skyline" aria-hidden="true"></canvas>
       </div>
 
-      <div class="card circle-card">
-        <div class="ringwrap">
-          <svg viewBox="0 0 104 104" aria-hidden="true">
-            <circle cx="52" cy="52" r="46" fill="none" stroke="rgba(242,239,233,.1)" stroke-width="2.5"></circle>
-            <circle id="ringBigFill" cx="52" cy="52" r="46" fill="none" stroke="#c8a96a" stroke-width="2.5"
-              stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289" transform="rotate(-90 52 52)"></circle>
-          </svg>
-          <div class="num"><span id="ringBigNum">0<small>&thinsp;/&thinsp;6</small></span></div>
+      <div class="enso-block">
+        <div class="ensowrap">
+          <canvas id="ensoBig" width="256" height="256" aria-hidden="true"></canvas>
+          <div class="num"><span id="ringBigNum">0<small>&hairsp;/&hairsp;6</small></span></div>
         </div>
-        <div>
-          <span class="label label--gold">Dein Kreis</span>
-          <p style="font-size:13.5px">Sechs Momente. Ein Abend. Sammle sie – und schließe deinen Kreis.</p>
-          <div class="moment-dots" id="momentDots"></div>
+        <div class="enso-side">
+          <span class="hand">dein Kreis</span>
+          <p>Sechs Momente, ein Pinselstrich pro Moment. Sammle sie – und schließe deinen Kreis.</p>
         </div>
       </div>
+      <div class="daubs" id="momentDots" style="padding:0 24px"></div>
 
-      <div class="card" id="nextUpCard">
+      <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+
+      <div class="piece tilt-l" id="nextUpCard">
         <span class="label">Als Nächstes</span>
         <h3 id="nextUpTitle">–</h3>
         <p id="nextUpDesc"></p>
       </div>
 
-      <div class="card">
+      <div class="frame tilt-r">
         <span class="label">Check-in</span>
-        <h3>Angekommen?</h3>
-        <p style="margin-bottom:16px">Melde dich im Kreis an und sichere dir deinen ersten Moment.</p>
+        <h3 style="font-family:var(--serif);font-weight:400;font-size:24px;margin:6px 0 8px">Angekommen?</h3>
+        <p style="color:var(--muted);font-size:14px;margin-bottom:18px">Melde dich im Kreis an und setz deinen ersten Strich.</p>
         <button class="btn btn--full" data-moment="ankommen">Ich bin da</button>
+      </div>
+
+      <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+
+      <div class="colophon">
+        <span class="hand">gemeinsam gemacht</span>
+        <p class="hosts">Ihre Marken Werkstatt · AERA · Public Cologne</p>
+        <span class="label">Partner des Abends</span>
+        <p class="partners">neuland.ai · Conrad SE · Smart Velo · Dein Dach · Radeberger Gruppe / Haus Kölscher Brautradition · Merzenich Bäckereien · SKS (Yellowhive Group) · fuchsrohrbach Rechtsanwälte<br><em>… weitere folgen</em></p>
       </div>
     </section>
 
     <!-- ============ PROGRAMM ============ -->
     <section data-view="programm">
-      <div class="pad" style="padding-bottom:6px">
-        <span class="label">Der Abend</span>
-        <h2 class="display" style="font-size:32px;margin-top:8px">Programm</h2>
-        <p class="lede" style="margin-top:6px">Der Rahmen ist besonders. Der Kern ist Verbindung.</p>
+      <div class="sect">
+        <span class="hand">der Abend</span>
+        <h2 class="display">Pro<em>gramm</em></h2>
+        <p class="lede" style="margin-top:10px">Der Rahmen ist besonders. Der Kern ist Verbindung.</p>
       </div>
       <div class="timeline" id="timeline"></div>
-      <div class="pad" style="padding-top:4px">
-        <div class="card" style="margin:0">
+      <div class="person">
+        <div class="init">AH</div>
+        <div>
           <span class="label">Moderation</span>
           <h3>Amiaz Habtu</h3>
           <p>Bekannt aus „Die Höhle der Löwen“ – mit Charme, Erfahrung und dem richtigen Gespür für Menschen führt er durch den Abend.</p>
@@ -429,74 +475,78 @@
     <!-- ============ MENÜ ============ -->
     <section data-view="menu">
       <div class="menu-head">
-        <span class="label">3-Gang-Menü</span>
-        <h2 class="display">Weil die besten Gespräche<br>mit Genuss verbunden sind</h2>
+        <span class="hand">drei Gänge, ein Abend</span>
+        <h2 class="display">Weil die besten Gespräche mit Genuss verbunden sind</h2>
       </div>
       <div class="course">
-        <span class="label label--gold">Erster Gang</span>
+        <span class="roman" aria-hidden="true">I</span>
         <h3>Gebeizter Saibling</h3>
         <p>Gurke · Dill · Buttermilch · Rheinischer Senf</p>
-        <span class="pair">Begleitung · Riesling Sekt Brut</span>
+        <span class="pair">Riesling Sekt Brut</span>
       </div>
+      <canvas class="brushline" width="240" height="28" aria-hidden="true"></canvas>
       <div class="course">
-        <span class="label label--gold">Zweiter Gang</span>
+        <span class="roman" aria-hidden="true">II</span>
         <h3>Rinderfilet vom Bergischen Weiderind</h3>
         <p>Selleriecreme · junge Karotte · Jus mit dunklem Kölsch</p>
-        <span class="pair">Begleitung · Spätburgunder, Ahr</span>
+        <span class="pair">Spätburgunder, Ahr</span>
       </div>
+      <canvas class="brushline" width="240" height="28" aria-hidden="true"></canvas>
       <div class="course">
-        <span class="label label--gold">Dritter Gang</span>
+        <span class="roman" aria-hidden="true">III</span>
         <h3>Valrhona-Schokolade &amp; Kirsche</h3>
         <p>Ganache · Amarena · Tonkabohne</p>
-        <span class="pair">Begleitung · Espresso Martini</span>
+        <span class="pair">Espresso Martini</span>
       </div>
       <p class="menu-note">Vegetarische Alternative bei jedem Gang – das Serviceteam berät dich gern.<br>Beispielmenü – die finale Karte folgt am Abend.</p>
     </section>
 
     <!-- ============ LIVE ============ -->
     <section data-view="live">
-      <div class="pad" style="padding-bottom:10px">
-        <span class="label">Mitmachen</span>
-        <h2 class="display" style="font-size:32px;margin-top:8px">Live im Raum</h2>
+      <div class="sect">
+        <span class="hand">mitmachen</span>
+        <h2 class="display">Live im <em>Raum</em></h2>
       </div>
 
-      <div class="applause" id="applauseBox">
-        <span class="label" style="display:block;margin-bottom:6px">Start-Up Pitch</span>
-        <p class="lede" style="margin-bottom:22px;font-size:13.5px">Ein Start-Up pitcht seine Idee. Zeig, was du davon hältst –<br>dein Applaus zählt.</p>
-        <button id="applauseBtn" aria-label="Applaus geben">Applaus</button>
+      <div class="studio">
+        <div id="splat"></div>
+        <span class="label" style="display:block;margin-bottom:8px">Start-Up Pitch</span>
+        <p class="lede" style="position:relative;z-index:2;margin-bottom:24px;font-size:13.5px">Eine Idee, drei Minuten. Dein Applaus ist Farbe –<br>trag sie auf.</p>
+        <button id="applauseBtn" aria-label="Applaus geben">Applaus!</button>
         <div id="applauseCount">0</div>
-        <span class="label" style="font-size:9.5px">Dein Applaus an diesem Abend</span>
+        <span class="label" style="font-size:9px">Dein Applaus an diesem Abend</span>
       </div>
 
-      <div class="paddle" id="paddleBox">
-        <span class="label" style="display:block;margin-bottom:8px">Live Painting · Versteigerung</span>
-        <p class="lede" id="paddleHint" style="font-size:13.5px;margin-bottom:18px">
-          Max Leinfelder malt heute live ein einzigartiges Werk. Es wird versteigert –
-          der Erlös wird vollständig gespendet. Hebe deine Bieterkarte, wenn du dabei sein willst.
+      <div class="lot" id="paddleBox">
+        <span class="hand">das Werk sucht ein Zuhause</span>
+        <p class="lede" id="paddleHint" style="font-size:13.5px;margin-top:10px">
+          Max Leinfelder malt heute live. Das Werk wird versteigert,
+          der Erlös vollständig gespendet. Heb deine Bieterkarte, wenn du dabei sein willst.
         </p>
         <div id="paddleNo">–</div>
-        <p class="lede" id="paddleSub" style="font-size:12px;display:none;margin-bottom:16px">Deine Bieterkarte. Zeig sie dem Moderator, wenn du bietest.</p>
-        <button class="btn btn--gold" id="paddleBtn">Bieterkarte heben</button>
+        <p class="lede" id="paddleSub" style="font-size:12px;display:none">Deine Bieterkarte – zeig sie dem Moderator.</p>
+        <button class="btn btn--paint" id="paddleBtn">Bieterkarte heben</button>
       </div>
 
       <div class="person">
         <div class="init">ML</div>
         <div>
+          <span class="label">Live Painting</span>
           <h3>Max Leinfelder</h3>
-          <p>Verarbeitet die Eindrücke unserer Zeit – politisch, gesellschaftskritisch und zugleich persönlich. Starke Bildsprache, haptische Stilmittel. Heute Abend entsteht sein Werk live vor deinen Augen.</p>
+          <p>Verarbeitet die Eindrücke unserer Zeit – politisch, gesellschaftskritisch, persönlich. Starke Bildsprache, haptische Stilmittel. Heute Abend entsteht sein Werk vor deinen Augen.</p>
         </div>
       </div>
     </section>
 
     <!-- ============ CONNECT ============ -->
     <section data-view="connect">
-      <div class="pad" style="padding-bottom:10px">
-        <span class="label">Mehr als eine Visitenkarte</span>
-        <h2 class="display" style="font-size:32px;margin-top:8px">Connect</h2>
+      <div class="sect">
+        <span class="hand">mehr als eine Visitenkarte</span>
+        <h2 class="display">Con<em>nect</em></h2>
       </div>
 
       <div class="idcard">
-        <span class="label label--gold">Deine Karte im Kreis</span>
+        <span class="hand">deine Karte im Kreis</span>
         <h3 id="cardName">–</h3>
         <p id="cardMeta">–</p>
         <div class="row">
@@ -505,25 +555,20 @@
         </div>
       </div>
 
-      <div class="pad" style="padding-bottom:6px;padding-top:14px">
-        <span class="label">Impulse</span>
-        <p class="lede" style="margin-top:6px;font-size:13.5px">
-          Eine Frage, die Generationen verbindet. Zieh eine Karte – und stell sie deinem Tischnachbarn.
-        </p>
-      </div>
       <div class="impulse" id="impulseCard" role="button" tabindex="0" aria-label="Neue Impulsfrage ziehen">
-        <span class="label label--gold">Impuls</span>
-        <div id="impulseText">Tippe, um eine Frage zu ziehen.</div>
+        <span class="q" aria-hidden="true">?</span>
+        <span class="label label--paint">Impuls</span>
+        <div id="impulseText">Tippe – und zieh eine Frage, die Generationen verbindet.</div>
         <div class="foot">
-          <span class="label">connecting generations</span>
-          <span class="label" id="impulseCount">·</span>
+          <span class="label">für deinen Tischnachbarn</span>
+          <span class="hand" id="impulseCount">zieh eine Karte</span>
         </div>
       </div>
 
-      <div class="card" style="margin-top:16px">
+      <div class="frame alt tilt-l" style="margin-top:20px">
         <span class="label">Mentor-Minuten</span>
-        <h3>Wenn Erfahrung auf Offenheit trifft</h3>
-        <p style="margin-bottom:16px">Ein Unternehmer teilt, was er sich damals gewünscht hätte zu wissen. Hör zu – und nimm dir eine Erkenntnis mit.</p>
+        <h3 style="font-family:var(--serif);font-weight:400;font-size:24px;margin:6px 0 8px">Wenn Erfahrung auf Offenheit trifft</h3>
+        <p style="color:var(--muted);font-size:14px;margin-bottom:18px">Ein Unternehmer teilt, was er sich damals gewünscht hätte zu wissen. Hör zu – und nimm dir eine Erkenntnis mit.</p>
         <button class="btn btn--full" data-moment="mentor">Meine Erkenntnis notiert</button>
       </div>
     </section>
@@ -531,18 +576,18 @@
   </main>
 
   <nav aria-label="Hauptnavigation">
-    <button data-nav="programm"><svg viewBox="0 0 24 24"><path d="M12 2v20M5 6h14M5 12h9M5 18h6" stroke-linecap="round"/></svg><span>Abend</span></button>
-    <button data-nav="menu"><svg viewBox="0 0 24 24"><path d="M8 2v8m4-8v8M8 6h4M8 10c0 2-2 2-2 4v8m10-20c-2 1-3 3-3 6 0 2 1 3 3 3v11" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Menü</span></button>
-    <button data-nav="home" class="navspiral active"><svg viewBox="0 0 100 100"><path class="spiralpath" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"></path></svg><span>Circle</span></button>
-    <button data-nav="live"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M5.5 5.5a9 9 0 0 0 0 13m13-13a9 9 0 0 1 0 13" stroke-linecap="round"/></svg><span>Live</span></button>
-    <button data-nav="connect"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3.2"/><circle cx="16.5" cy="14.5" r="3.2"/><path d="M10.4 11.2l3.7 1.9" stroke-linecap="round"/></svg><span>Connect</span></button>
+    <button data-nav="programm">Abend</button>
+    <button data-nav="menu">Menü</button>
+    <button data-nav="home" class="navspiral active" aria-label="Circle – Start"><canvas class="spiralcv" width="68" height="68" aria-hidden="true"></canvas></button>
+    <button data-nav="live">Live</button>
+    <button data-nav="connect">Connect</button>
   </nav>
 
 </div>
 
-<!-- onboarding -->
+<!-- Onboarding -->
 <div id="onboarding">
-  <svg id="obSpiral" viewBox="0 0 100 100" aria-hidden="true"><path class="spiralpath" fill="none" stroke="#f2efe9" stroke-width="5" stroke-linecap="round"></path></svg>
+  <canvas id="obSpiral" width="220" height="220" aria-hidden="true"></canvas>
   <h1>THE CIRCLE</h1>
   <div class="sub">connecting generations</div>
   <form id="obForm">
@@ -554,18 +599,16 @@
       <label for="obCompany">Unternehmen / Rolle <span style="opacity:.5;text-transform:none;letter-spacing:0">(optional)</span></label>
       <input id="obCompany" type="text" autocomplete="organization" maxlength="60" placeholder="z. B. AERA · Founder">
     </div>
-    <button class="btn btn--gold btn--full" type="submit">In den Kreis eintreten</button>
+    <button class="btn btn--paint btn--full" type="submit">In den Kreis eintreten</button>
   </form>
 </div>
 
-<!-- circle complete -->
+<!-- Kreis geschlossen -->
 <div id="complete" role="dialog" aria-modal="true" aria-label="Kreis geschlossen">
-  <svg viewBox="0 0 104 104" aria-hidden="true">
-    <circle cx="52" cy="52" r="48" fill="none" stroke="#c8a96a" stroke-width="2" stroke-linecap="round" transform="rotate(-90 52 52)"></circle>
-  </svg>
+  <canvas id="ensoDone" width="360" height="360" aria-hidden="true"></canvas>
   <h2>Dein Kreis ist geschlossen.</h2>
   <p>Sechs Momente, ein Abend, viele neue Verbindungen. Danke, dass du Teil von THE CIRCLE bist.</p>
-  <button class="btn btn--gold" id="completeClose">Weiter im Abend</button>
+  <button class="btn btn--paint" id="completeClose">Weiter im Abend</button>
 </div>
 
 <div id="toast" role="status" aria-live="polite"></div>
@@ -576,9 +619,9 @@
 /* ================= CONFIG =================
    Datum & Zeiten hier anpassen. */
 const CONFIG = {
-  eventDate: "2026-09-17",           // Platzhalter – finales Datum eintragen
+  eventDate: "2026-09-16",           // 16. September 2026, Playa Cologne
   timeline: [
-    { id:"empfang",  time:"18:30", title:"Empfang & Aperitif",           desc:"Ankommen über den Dächern von Köln. Erste Gespräche, erste Drinks." },
+    { id:"empfang",  time:"18:30", title:"Empfang & Aperitif",           desc:"Ankommen in der Playa Cologne. Erste Gespräche, erste Drinks." },
     { id:"opening",  time:"19:15", title:"Opening mit Amiaz Habtu",      desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
     { id:"vortrag",  time:"19:30", title:"Impuls-Vortrag",               desc:"Ein relevantes Thema, ein starker Gedanke – Mehrwert für jeden im Raum.", moment:"impuls", momentLabel:"Impuls mitgenommen" },
     { id:"gang1",    time:"20:00", title:"Erster Gang",                  desc:"Das bewegte Menü beginnt – neue Plätze, neue Gesichter." },
@@ -634,6 +677,7 @@ const persist = () => store.save(S);
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const PAINT = "#e8542f", IVORY = "#efeae0";
 
 function toast(msg){
   const t = $("#toast");
@@ -643,72 +687,198 @@ function toast(msg){
   toast._h = setTimeout(()=>t.classList.remove("show"), 2400);
 }
 function buzz(ms){ if(navigator.vibrate && !reduceMotion) navigator.vibrate(ms) }
-
-/* ================= SPIRAL (brand mark, drawn programmatically) ================= */
-function spiralPath(cx, cy, turns, a, b){
-  const pts = [];
-  const steps = 140;
-  for(let i=0;i<=steps;i++){
-    const t = i/steps * turns * 2*Math.PI;
-    const r = a * Math.exp(b*t);
-    pts.push([cx + r*Math.cos(t), cy + r*Math.sin(t)]);
-  }
-  return "M" + pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" L");
+function setupCanvas(cv){
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const w = cv.clientWidth || parseInt(cv.getAttribute("width"))/2;
+  const h = cv.clientHeight || parseInt(cv.getAttribute("height"))/2;
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  const ctx = cv.getContext("2d");
+  ctx.scale(dpr,dpr);
+  return [ctx,w,h];
 }
-$$(".spiralpath").forEach(p => p.setAttribute("d", spiralPath(50,50,2.6,1.7,0.192)));
 
-/* ================= SKYLINE (Köln, minimal line art) ================= */
-(function(){
-  const svg = $("#skyline");
-  const g = document.createElementNS("http://www.w3.org/2000/svg","path");
-  // stylized silhouette: buildings – Dom (two spires) – Colonius tower
-  const d = [
-    "M0,72 L0,52 L26,52 L26,60 L52,60 L52,44 L74,44 L74,64 L104,64 L104,50 L128,50 L128,72",
-    "M150,72 L150,40 L162,40 L166,30 L166,20 L171,8 L176,20 L176,30 L180,34 L184,30 L184,20 L189,8 L194,20 L194,30 L198,40 L210,40 L210,72",
-    "M236,72 L236,58 L262,58 L262,48 L286,48 L286,66 L312,66 L312,54 L338,54 L338,72",
-    "M366,72 L366,34 L369,34 L369,22 L364,22 L374,16 L384,22 L379,22 L379,34 L382,34 L382,72",
-    "M404,72 L404,56 L430,56 L430,72"
-  ].join(" ");
-  g.setAttribute("d", d);
-  g.setAttribute("fill","none");
-  g.setAttribute("stroke","rgba(242,239,233,.55)");
-  g.setAttribute("stroke-width","1");
-  svg.appendChild(g);
-})();
+/* ================= PINSEL ================= */
+/* Ein Bogen als Tusche-Strich: viele überlagerte Tupfer mit Zittern,
+   Deckkraft-Variation und trockenen Stellen. */
+function brushArc(ctx, cx, cy, r, a0, a1, w, color, alpha){
+  const len = Math.abs(a1-a0)*r;
+  const steps = Math.max(24, Math.round(len*1.7));
+  for(let pass=0; pass<3; pass++){
+    for(let i=0;i<=steps;i++){
+      const t = i/steps;
+      if(Math.random() < 0.07) continue;               // trockener Pinsel
+      const a = a0 + (a1-a0)*t;
+      const taper = Math.sin(Math.min(t*3.2,1) * Math.PI/2) * Math.sin(Math.min((1-t)*2.2,1) * Math.PI/2);
+      const rr = r + (Math.random()-.5)*w*.85;
+      const size = w*.5*taper*(.45+Math.random()*.6);
+      if(size<=0) continue;
+      ctx.globalAlpha = alpha*(.16+Math.random()*.2);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx+rr*Math.cos(a), cy+rr*Math.sin(a), size, 0, 7);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* Enso: n von total Segmenten gemalt; voll = ein durchgehender Schwung */
+function drawEnso(cv, n, total, opts){
+  const o = Object.assign({lineFrac:.16, gap:.10, color:IVORY, full:false}, opts);
+  const [ctx,w,h] = setupCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const cx=w/2, cy=h/2, r=w/2*.72, lw=w*o.lineFrac;
+  if(o.full || n>=total){
+    const start=-Math.PI*.62;
+    brushArc(ctx,cx,cy,r,start,start+Math.PI*1.94,lw*1.15,o.color===IVORY?PAINT:o.color,1.15);
+  } else {
+    const seg = (Math.PI*2)/total;
+    for(let i=0;i<total;i++){
+      if(i>=n) continue;
+      const a0=-Math.PI/2+i*seg+seg*o.gap, a1=-Math.PI/2+(i+1)*seg-seg*o.gap;
+      brushArc(ctx,cx,cy,r,a0,a1,lw,o.color,1);
+    }
+    /* die noch offenen Segmente als hauchdünne Vorzeichnung */
+    for(let i=n;i<total;i++){
+      const a0=-Math.PI/2+i*seg+seg*.28, a1=-Math.PI/2+(i+1)*seg-seg*.28;
+      ctx.globalAlpha=.26; ctx.strokeStyle=IVORY; ctx.lineWidth=1;
+      ctx.setLineDash([2,5]);
+      ctx.beginPath(); ctx.arc(cx,cy,r,a0,a1); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+    }
+  }
+}
+
+/* Logarithmische Spirale als Pinselstrich (Logo) */
+function drawSpiral(cv, frac){
+  const [ctx,w,h] = setupCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const cx=w/2, cy=h/2, T=2.55*Math.PI*2;
+  const steps = Math.round(150*(frac==null?1:frac));
+  const rmax = w/2*.82, a = rmax/Math.exp(.185*T);
+  for(let pass=0; pass<3; pass++){
+    for(let i=0;i<=steps;i++){
+      const t = i/150*T;
+      if(Math.random()<0.06) continue;
+      const r = a*Math.exp(.185*t);
+      const size = (w*.028)*(.35+.65*(t/T))*(.5+Math.random()*.6);
+      ctx.globalAlpha = .22+Math.random()*.2;
+      ctx.fillStyle = IVORY;
+      ctx.beginPath();
+      ctx.arc(cx+r*Math.cos(t)+(Math.random()-.5)*1.4, cy+r*Math.sin(t)+(Math.random()-.5)*1.4, size, 0, 7);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha=1;
+}
+
+/* Kringel um den Namen */
+function drawNameLoop(){
+  const cv = $("#nameLoop"); if(!cv) return;
+  const [ctx,w,h] = setupCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const cx=w/2, cy=h/2, rx=w/2-6, ry=h/2-4;
+  ctx.strokeStyle = PAINT; ctx.lineWidth = 1.8; ctx.globalAlpha=.85;
+  ctx.lineCap="round";
+  ctx.beginPath();
+  const loops = 1.75, steps = 90;
+  for(let i=0;i<=steps;i++){
+    const t = i/steps*loops*Math.PI*2 - Math.PI*.2;
+    const jx=(Math.random()-.5)*2.5, jy=(Math.random()-.5)*2.5;
+    const drift = 1 - (i/steps)*.09;
+    const x=cx+rx*drift*Math.cos(t)+jx, y=cy+ry*drift*Math.sin(t)+jy;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.stroke(); ctx.globalAlpha=1;
+}
+
+/* Skyline als Skizze (zwei zittrige Durchgänge) */
+function drawSkyline(){
+  const cv = $("#skyline"); if(!cv) return;
+  const [ctx,w,h] = setupCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const base = [
+    [0,52],[26,52],[26,60],[52,60],[52,44],[74,44],[74,64],[104,64],[104,50],[128,50],[128,72],
+    [150,72],[150,40],[162,40],[166,30],[166,20],[171,8],[176,20],[176,30],[180,34],
+    [184,30],[184,20],[189,8],[194,20],[194,30],[198,40],[210,40],[210,72],
+    [236,72],[236,58],[262,58],[262,48],[286,48],[286,66],[312,66],[312,54],[338,54],[338,72],
+    [366,72],[366,34],[369,34],[369,22],[364,22],[374,16],[384,22],[379,22],[379,34],[382,34],[382,72],
+    [404,72],[404,56],[430,56]
+  ];
+  const sx = w/430, sy = (h-8)/74;
+  for(let pass=0; pass<2; pass++){
+    ctx.strokeStyle = "rgba(239,234,224,"+(pass?".38":".22")+")";
+    ctx.lineWidth = pass? .9 : 1.3;
+    ctx.lineJoin="round";ctx.lineCap="round";
+    ctx.beginPath();
+    base.forEach((p,i)=>{
+      const x=p[0]*sx+(Math.random()-.5)*2.2, y=p[1]*sy+(Math.random()-.5)*2.2+4;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  }
+  /* ein Farbtupfer über dem Dom */
+  ctx.fillStyle=PAINT;ctx.globalAlpha=.9;
+  ctx.beginPath();ctx.arc(180*sx, 6, 2.6, 0, 7);ctx.fill();
+  ctx.globalAlpha=1;
+}
+
+/* Pinsel-Trennlinie (Menü) */
+function drawBrushlines(){
+  $$(".brushline").forEach(cv=>{
+    const [ctx,w,h] = setupCanvas(cv);
+    ctx.clearRect(0,0,w,h);
+    for(let i=0;i<60;i++){
+      const t=i/60;
+      if(Math.random()<.12) continue;
+      const taper=Math.sin(t*Math.PI);
+      ctx.globalAlpha=.12+Math.random()*.18;
+      ctx.fillStyle=IVORY;
+      ctx.beginPath();
+      ctx.arc(6+t*(w-12), h/2+(Math.random()-.5)*3+Math.sin(t*6)*1.5, 1.4*taper*(.5+Math.random()), 0, 7);
+      ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  });
+}
 
 /* ================= NAV ================= */
 function show(view){
   $$("section[data-view]").forEach(s => s.classList.toggle("active", s.dataset.view===view));
   $$("nav button").forEach(b => b.classList.toggle("active", b.dataset.nav===view));
   window.scrollTo({top:0, behavior: reduceMotion ? "auto" : "smooth"});
+  if(view==="menu") requestAnimationFrame(drawBrushlines);
+  if(view==="home") requestAnimationFrame(()=>{ drawSkyline(); drawNameLoop(); renderRing(); });
 }
 $$("nav button").forEach(b => b.addEventListener("click", ()=>show(b.dataset.nav)));
 
-/* ================= RING / MOMENTS ================= */
+/* ================= RING / MOMENTE ================= */
 function momentCount(){ return MOMENTS.filter(m => S.moments[m.id]).length }
 
 function renderRing(){
   const n = momentCount();
-  const frac = n / MOMENTS.length;
-  $("#ringMiniFill").style.strokeDashoffset = (97.4 * (1-frac)).toFixed(1);
+  drawEnso($("#ensoMini"), n, MOMENTS.length, {lineFrac:.14});
+  drawEnso($("#ensoBig"),  n, MOMENTS.length, {lineFrac:.15});
   $("#ringMiniNum").textContent = n + "/6";
-  $("#ringBigFill").style.strokeDashoffset = (289 * (1-frac)).toFixed(1);
-  $("#ringBigNum").innerHTML = n + "<small>&thinsp;/&thinsp;6</small>";
+  $("#ringBigNum").innerHTML = n + "<small>&hairsp;/&hairsp;6</small>";
   const dots = $("#momentDots");
   dots.innerHTML = "";
   MOMENTS.forEach(m=>{
     const el = document.createElement("span");
-    el.textContent = m.label;
-    if(S.moments[m.id]) el.classList.add("done");
+    el.className = "daub" + (S.moments[m.id] ? " done" : "");
+    el.innerHTML = "<i></i>" + m.label;
     dots.appendChild(el);
   });
   $$("[data-moment]").forEach(btn=>{
     const id = btn.dataset.moment;
-    if(S.moments[id]){ btn.classList.add("done"); btn.textContent = "✓ Moment gesammelt"; }
+    if(S.moments[id]){ btn.classList.add("done"); btn.textContent = "✓ Moment gesetzt"; }
   });
   if(n === MOMENTS.length && !S.completeShown){
     S.completeShown = true; persist();
-    setTimeout(()=>$("#complete").classList.add("show"), 500);
+    setTimeout(()=>{
+      $("#complete").classList.add("show");
+      drawEnso($("#ensoDone"), 6, 6, {full:true, lineFrac:.15});
+    }, 500);
     buzz([40,60,40]);
   }
 }
@@ -718,7 +888,7 @@ function collect(id, msg){
   S.moments[id] = Date.now(); persist();
   renderRing();
   buzz(30);
-  toast(msg || "Moment gesammelt – dein Kreis wächst.");
+  toast(msg || "Ein Strich mehr – dein Kreis wächst.");
 }
 $$("[data-moment]").forEach(btn=>{
   btn.addEventListener("click", ()=>collect(btn.dataset.moment));
@@ -740,15 +910,16 @@ function renderTimeline(){
     if(now >= start && now < end) liveIdx = i;
     if(nextIdx === -1 && now < start) nextIdx = i;
   });
+  const eventOver = liveIdx===-1 && nextIdx===-1;
   CONFIG.timeline.forEach((it,i)=>{
     const div = document.createElement("div");
-    div.className = "t-item" + (i===liveIdx ? " live" : (liveIdx > i || (liveIdx===-1 && nextIdx===-1) ? " past" : ""));
+    div.className = "t-item" + (i===liveIdx ? " live" : ((liveIdx > i) || (eventOver) ? " past" : ""));
     div.innerHTML =
-      '<div class="t-time">'+it.time+'</div>'+
+      '<span class="t-ghost">'+it.time+'</span>'+
       '<div class="t-body">'+
-        '<div class="t-live-tag"><span class="dot"></span> Jetzt</div>'+
+        '<span class="t-live-tag">jetzt!</span>'+
         '<h3>'+it.title+'</h3><p>'+it.desc+'</p>'+
-        (it.moment ? '<button class="btn t-collect" data-tl-moment="'+it.moment+'">'+(S.moments[it.moment] ? "✓ Moment gesammelt" : (it.momentLabel||"Moment sammeln"))+'</button>' : "")+
+        (it.moment ? '<button class="btn t-collect" data-tl-moment="'+it.moment+'">'+(S.moments[it.moment] ? "✓ Moment gesetzt" : (it.momentLabel||"Moment sammeln"))+'</button>' : "")+
       '</div>';
     wrap.appendChild(div);
   });
@@ -756,7 +927,6 @@ function renderTimeline(){
     if(S.moments[b.dataset.tlMoment]) b.classList.add("done");
     b.addEventListener("click", ()=>{ collect(b.dataset.tlMoment); renderTimeline(); });
   });
-  // next up card
   const src = liveIdx !== -1 ? CONFIG.timeline[liveIdx] : (nextIdx !== -1 ? CONFIG.timeline[nextIdx] : null);
   if(src){
     $("#nextUpCard").querySelector(".label").textContent = liveIdx !== -1 ? "Jetzt" : "Als Nächstes";
@@ -781,7 +951,7 @@ function renderStatus(){
     st.textContent = "Der Kreis öffnet sich in";
     cd.textContent = d > 0 ? d+" Tagen · "+h+" Std" : (h>0 ? h+" Std · "+m+" Min" : m+" Min");
   } else if(now < new Date(last.getTime()+120*60000)){
-    st.textContent = "Der Kreis ist geöffnet – heute Abend, über den Dächern von Köln.";
+    st.textContent = "Der Kreis ist geöffnet – heute Abend in der Playa Cologne.";
     cd.textContent = "";
   } else {
     st.textContent = "Der Abend ist Geschichte – die Verbindungen bleiben.";
@@ -789,28 +959,35 @@ function renderStatus(){
   }
 }
 
-/* ================= APPLAUSE ================= */
+/* ================= APPLAUS = FARBE ================= */
 const applauseBtn = $("#applauseBtn");
 function renderApplause(){ $("#applauseCount").textContent = S.applause }
-applauseBtn.addEventListener("click", e=>{
+function fleck(container){
+  const f = document.createElement("span");
+  f.className = "fleck";
+  const s = 3 + Math.random()*14;
+  f.style.width = s+"px"; f.style.height = s*(0.6+Math.random()*.8)+"px";
+  f.style.left = (8+Math.random()*84)+"%";
+  f.style.top  = (6+Math.random()*80)+"%";
+  f.style.setProperty("--o", (.25+Math.random()*.6).toFixed(2));
+  f.style.borderRadius = Math.round(40+Math.random()*25)+"% "+Math.round(40+Math.random()*25)+"% "+Math.round(40+Math.random()*25)+"% "+Math.round(40+Math.random()*25)+"%";
+  f.style.transform = "rotate("+Math.round(Math.random()*360)+"deg)";
+  container.appendChild(f);
+  const flecks = container.children;
+  if(flecks.length > 46) container.removeChild(flecks[0]);
+}
+applauseBtn.addEventListener("click", ()=>{
   S.applause++; persist();
   renderApplause();
   buzz(12);
-  if(S.applause >= 5) collect("pitch", "Dein Applaus zählt – Moment gesammelt.");
+  if(S.applause >= 5) collect("pitch", "Dein Applaus zählt – ein Strich mehr im Kreis.");
   if(!reduceMotion){
-    const box = $("#applauseBox");
-    const s = document.createElement("span");
-    s.className = "spark";
-    s.textContent = ["✦","✧","*"][Math.floor(Math.random()*3)];
-    const r = box.getBoundingClientRect();
-    s.style.left = (50 + (Math.random()*36-18)) + "%";
-    s.style.top = (applauseBtn.offsetTop + 20 + Math.random()*40) + "px";
-    box.appendChild(s);
-    setTimeout(()=>s.remove(), 1100);
+    const n = 1+Math.floor(Math.random()*3);
+    for(let i=0;i<n;i++) fleck($("#splat"));
   }
 });
 
-/* ================= PADDLE ================= */
+/* ================= BIETERKARTE ================= */
 function paddleNumber(name){
   let h = 0;
   for(const c of name) h = (h*31 + c.charCodeAt(0)) >>> 0;
@@ -831,7 +1008,7 @@ $("#paddleBtn").addEventListener("click", ()=>{
   S.paddle = true; persist();
   renderPaddle();
   buzz(30);
-  toast("Karte "+paddleNumber(S.name||"Gast")+" – viel Erfolg beim Bieten.");
+  toast("№ "+paddleNumber(S.name||"Gast")+" – viel Erfolg beim Bieten.");
 });
 
 /* ================= CONNECT ================= */
@@ -845,15 +1022,16 @@ $("#shareBtn").addEventListener("click", async ()=>{
   try{
     if(navigator.share){ await navigator.share({ title:"THE CIRCLE", text }); }
     else { await navigator.clipboard.writeText(text); toast("Karte kopiert – füge sie in eine Nachricht ein."); }
-    collect("verbindung", "Neue Verbindung – Moment gesammelt.");
-  }catch(e){ /* share dismissed */ }
+    collect("verbindung", "Neue Verbindung – ein Strich mehr im Kreis.");
+  }catch(e){ /* Teilen abgebrochen */ }
 });
 $("#editBtn").addEventListener("click", ()=>{
   $("#onboarding").classList.remove("hidden");
   $("#obName").value = S.name; $("#obCompany").value = S.company;
+  drawSpiral($("#obSpiral"));
 });
 
-/* impulse deck */
+/* Impuls-Karten */
 let lastImpulse = -1;
 function drawImpulse(){
   let i;
@@ -865,7 +1043,7 @@ function drawImpulse(){
     el.textContent = "„" + IMPULSE[i] + "“";
     el.style.opacity = 1;
     S.impulseSeen++; persist();
-    $("#impulseCount").textContent = S.impulseSeen + (S.impulseSeen === 1 ? " Karte" : " Karten");
+    $("#impulseCount").textContent = S.impulseSeen + (S.impulseSeen === 1 ? ". Karte" : ". Karte");
   }, reduceMotion ? 0 : 220);
   buzz(15);
 }
@@ -880,19 +1058,35 @@ $("#obForm").addEventListener("submit", e=>{
   persist();
   $("#onboarding").classList.add("hidden");
   renderCard();
+  requestAnimationFrame(()=>{ drawNameLoop(); });
   toast("Willkommen im Kreis, " + S.name.split(" ")[0] + ".");
 });
 if(S.name) $("#onboarding").classList.add("hidden");
+else {
+  /* Spirale malt sich beim Eintreten */
+  if(reduceMotion){ drawSpiral($("#obSpiral")); }
+  else {
+    let f = 0;
+    (function step(){
+      f += 0.02;
+      drawSpiral($("#obSpiral"), Math.min(f,1));
+      if(f < 1) requestAnimationFrame(step);
+    })();
+  }
+}
 
 /* ================= INIT ================= */
 renderCard();
-renderRing();
 renderApplause();
 renderPaddle();
 renderTimeline();
 renderStatus();
-if(S.impulseSeen) $("#impulseCount").textContent = S.impulseSeen + (S.impulseSeen === 1 ? " Karte" : " Karten");
+$$(".spiralcv").forEach(cv=>drawSpiral(cv));
+requestAnimationFrame(()=>{ drawSkyline(); drawNameLoop(); renderRing(); drawBrushlines(); });
+if(S.impulseSeen) $("#impulseCount").textContent = S.impulseSeen + ". Karte";
 setInterval(()=>{ renderTimeline(); renderStatus(); }, 30000);
+let rsz;
+addEventListener("resize", ()=>{ clearTimeout(rsz); rsz=setTimeout(()=>{ drawSkyline(); drawNameLoop(); renderRing(); drawBrushlines(); $$(".spiralcv").forEach(cv=>drawSpiral(cv)); },200); });
 {
   const v = new URLSearchParams(location.search).get("view");
   if(v && document.querySelector('section[data-view="'+v+'"]')) show(v);
