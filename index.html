@@ -401,8 +401,67 @@
   }
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+  /* ---------- Motion: Scroll-Reveals ---------- */
+  .rv{opacity:0;transform:translateY(22px)}
+  .rv.in{
+    opacity:1;transform:none;
+    transition:opacity .8s ease,transform .8s cubic-bezier(.16,.8,.26,1);
+    transition-delay:var(--d,0ms);
+  }
+
+  /* Laufband */
+  .ticker{
+    overflow:hidden;margin-top:26px;padding:13px 0;
+    border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);
+  }
+  .ticker-track{display:inline-flex;white-space:nowrap;will-change:transform;animation:tick 26s linear infinite}
+  .tgroup{display:inline-flex}
+  .ticker span{
+    font-family:var(--disp);font-weight:500;font-size:11px;letter-spacing:.3em;
+    text-transform:uppercase;color:var(--muted);
+  }
+  .ticker span::after{content:"—";margin:0 1.4em;opacity:.3;-webkit-text-stroke:0;color:var(--faint)}
+  .ticker .o{color:transparent;-webkit-text-stroke:1px rgba(245,243,239,.45)}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  /* Countdown-Ziffern */
+  .count-grid{display:flex;gap:6px;margin-top:16px}
+  .count-grid .cell{
+    flex:1;text-align:center;padding:13px 2px 10px;
+    border:1px solid var(--line-soft);
+    background:linear-gradient(180deg,var(--panel-hi),var(--panel-lo));
+  }
+  .count-grid b{
+    display:block;font-family:var(--disp);font-weight:600;
+    font-size:clamp(25px,7.5vw,32px);line-height:1;font-variant-numeric:tabular-nums;
+  }
+  .count-grid span{font-size:8px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)}
+
+  /* Der Abend in Zahlen */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:22px 24px 4px}
+  .stats > div{text-align:center;padding:18px 2px 13px;border:1px solid var(--line-soft)}
+  .stats b{display:block;font-family:var(--disp);font-weight:600;font-size:30px;line-height:1;margin-bottom:3px}
+  .stats span{font-size:7.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+
+  /* Gut zu wissen */
+  .facts .row{
+    display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+    padding:13px 0;border-bottom:1px solid var(--line-soft);
+  }
+  .facts .row:last-child{border-bottom:0;padding-bottom:2px}
+  .facts .k{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);flex:none}
+  .facts .v{font-size:13px;color:var(--ivory);text-align:right}
+  .facts a{color:var(--ivory);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--faint)}
+
+  /* Applaus-Glow */
+  #applauseBtn{box-shadow:0 0 26px rgba(245,243,239,.12);animation:breathe 3.4s ease-in-out infinite}
+  @keyframes breathe{50%{box-shadow:0 0 52px rgba(245,243,239,.3)}}
+
+  #skyline,.t-ghost{will-change:transform}
+
   @media (prefers-reduced-motion:reduce){
     *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+    .rv{opacity:1;transform:none}
   }
 </style>
 </head>
@@ -426,21 +485,32 @@
     <!-- ============ HOME ============ -->
     <section data-view="home" class="active">
       <div class="hero">
-        <span class="label">connecting generations</span>
-        <h1>Guten Abend,
+        <span class="label rv">connecting generations</span>
+        <h1 class="rv" style="--d:70ms">Guten Abend,
           <span class="name grad" id="guestName">Gast</span>
         </h1>
-        <p class="lede">Schön, dass du Teil des Kreises bist.</p>
-        <div class="statusline">
+        <p class="lede rv" style="--d:140ms">Schön, dass du Teil des Kreises bist.</p>
+        <div class="statusline rv" style="--d:200ms">
           <span class="dot"></span>
           <span id="statusText">–</span>
-          <span id="countdown"></span>
         </div>
-        <p class="venue">16. September 2026 · ab 18:30 Uhr · Playa Cologne</p>
+        <div class="count-grid rv" id="countGrid" style="--d:260ms">
+          <div class="cell"><b class="grad" id="cdD">–</b><span>Tage</span></div>
+          <div class="cell"><b class="grad" id="cdH">–</b><span>Std</span></div>
+          <div class="cell"><b class="grad" id="cdM">–</b><span>Min</span></div>
+          <div class="cell"><b class="grad" id="cdS">–</b><span>Sek</span></div>
+        </div>
+        <p class="venue rv" style="--d:320ms">16. September 2026 · ab 18:30 Uhr · Playa Cologne</p>
         <canvas id="skyline" aria-hidden="true"></canvas>
       </div>
 
-      <div class="enso-block">
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker-track">
+          <span class="tgroup"><span>The Circle</span><span class="o">Connecting Generations</span><span>16 · 09 · 2026</span><span class="o">Playa Cologne</span></span><span class="tgroup"><span>The Circle</span><span class="o">Connecting Generations</span><span>16 · 09 · 2026</span><span class="o">Playa Cologne</span></span>
+        </div>
+      </div>
+
+      <div class="enso-block rv">
         <div class="ensowrap">
           <canvas id="ensoBig" width="248" height="248" aria-hidden="true"></canvas>
           <div class="num"><span id="ringBigNum">0<small>&hairsp;/&hairsp;6</small></span></div>
@@ -450,23 +520,40 @@
           <p>Sechs Momente, ein Strich pro Moment. Sammle sie – und schließe deinen Kreis.</p>
         </div>
       </div>
-      <div class="chips" id="momentDots"></div>
+      <div class="chips rv" id="momentDots" style="--d:80ms"></div>
 
-      <div class="piece" id="nextUpCard" style="margin-top:14px">
+      <div class="stats rv" id="stats">
+        <div><b class="grad" data-count="3">0</b><span>Generationen</span></div>
+        <div><b class="grad" data-count="6">0</b><span>Momente</span></div>
+        <div><b class="grad" data-count="3">0</b><span>Gänge</span></div>
+        <div><b class="grad" data-count="1">0</b><span>Werk</span></div>
+      </div>
+
+      <div class="piece rv" id="nextUpCard" style="margin-top:10px">
         <span class="label">Als Nächstes</span>
         <h3 id="nextUpTitle">–</h3>
         <p id="nextUpDesc"></p>
       </div>
       <hr class="hairline">
 
-      <div class="panel">
+      <div class="panel rv">
         <span class="label">Check-in</span>
         <h3>Angekommen?</h3>
         <p style="margin-bottom:18px">Melde dich im Kreis an und setz deinen ersten Strich.</p>
         <button class="btn btn--full" data-moment="ankommen">Ich bin da</button>
       </div>
 
-      <div class="colophon">
+      <div class="panel rv">
+        <span class="label" style="display:block;margin-bottom:14px">Gut zu wissen</span>
+        <div class="facts">
+          <div class="row"><span class="k">Einlass</span><span class="v">ab 18:30 Uhr</span></div>
+          <div class="row"><span class="k">Ort</span><span class="v">Playa Cologne · <a href="https://maps.google.com/?q=Playa+Cologne" target="_blank" rel="noopener">Route</a></span></div>
+          <div class="row"><span class="k">Dresscode</span><span class="v">Smart Elegant</span></div>
+          <div class="row"><span class="k">Foto &amp; Film</span><span class="v">Der Abend wird begleitet</span></div>
+        </div>
+      </div>
+
+      <div class="colophon rv">
         <span class="label">Eine Veranstaltung von</span>
         <p class="hosts">Ihre Marken Werkstatt · AERA · Public Cologne</p>
         <span class="label">Partner des Abends</span>
@@ -477,13 +564,13 @@
     <!-- ============ PROGRAMM ============ -->
     <section data-view="programm">
       <div class="sect">
-        <span class="label">Der Abend</span>
-        <h2 class="display"><span class="grad">Pro</span><span class="out">gramm</span></h2>
+        <span class="label rv">Der Abend</span>
+        <h2 class="display rv" style="--d:60ms"><span class="grad">Pro</span><span class="out">gramm</span></h2>
         <p class="lede">Der Rahmen ist besonders. Der Kern ist Verbindung.</p>
       </div>
       <div class="timeline" id="timeline"></div>
       <hr class="hairline">
-      <div class="person">
+      <div class="person rv">
         <div class="init">AH</div>
         <div>
           <span class="label">Moderation</span>
@@ -495,25 +582,25 @@
 
     <!-- ============ MENÜ ============ -->
     <section data-view="menu">
-      <div class="menu-head">
+      <div class="menu-head rv">
         <span class="label">3-Gang-Menü</span>
         <h2>Weil die besten Gespräche mit Genuss verbunden sind</h2>
       </div>
-      <div class="course">
+      <div class="course rv">
         <span class="roman" aria-hidden="true">I</span>
         <h3>Gebeizter Saibling</h3>
         <p>Gurke · Dill · Buttermilch · Rheinischer Senf</p>
         <span class="pair">Riesling Sekt Brut</span>
       </div>
       <canvas class="brushline" width="260" height="28" aria-hidden="true"></canvas>
-      <div class="course">
+      <div class="course rv">
         <span class="roman" aria-hidden="true">II</span>
         <h3>Rinderfilet vom Bergischen Weiderind</h3>
         <p>Selleriecreme · junge Karotte · Jus mit dunklem Kölsch</p>
         <span class="pair">Spätburgunder, Ahr</span>
       </div>
       <canvas class="brushline" width="260" height="28" aria-hidden="true"></canvas>
-      <div class="course">
+      <div class="course rv">
         <span class="roman" aria-hidden="true">III</span>
         <h3>Valrhona-Schokolade &amp; Kirsche</h3>
         <p>Ganache · Amarena · Tonkabohne</p>
@@ -525,11 +612,11 @@
     <!-- ============ LIVE ============ -->
     <section data-view="live">
       <div class="sect">
-        <span class="label">Mitmachen</span>
-        <h2 class="display grad">Live</h2>
+        <span class="label rv">Mitmachen</span>
+        <h2 class="display grad rv" style="--d:60ms">Live</h2>
       </div>
 
-      <div class="studio">
+      <div class="studio rv">
         <div id="splat"></div>
         <span class="label" style="display:block;margin-bottom:8px">Start-Up Pitch</span>
         <p class="lede" style="position:relative;z-index:2;margin-bottom:26px;font-size:13px">Eine Idee, drei Minuten.<br>Dein Applaus zählt.</p>
@@ -538,7 +625,7 @@
         <span class="label" style="font-size:8.5px">Dein Applaus an diesem Abend</span>
       </div>
 
-      <div class="lot" id="paddleBox">
+      <div class="lot rv" id="paddleBox">
         <span class="label">Live Painting · Versteigerung</span>
         <p class="lede" id="paddleHint" style="font-size:13px">
           Max Leinfelder malt heute live. Das Werk wird versteigert,
@@ -549,7 +636,7 @@
         <button class="btn btn--solid" id="paddleBtn">Bieterkarte heben</button>
       </div>
 
-      <div class="person">
+      <div class="person rv">
         <div class="init">ML</div>
         <div>
           <span class="label">Live Painting</span>
@@ -562,11 +649,11 @@
     <!-- ============ CONNECT ============ -->
     <section data-view="connect">
       <div class="sect">
-        <span class="label">Mehr als eine Visitenkarte</span>
-        <h2 class="display"><span class="grad">Con</span><span class="out">nect</span></h2>
+        <span class="label rv">Mehr als eine Visitenkarte</span>
+        <h2 class="display rv" style="--d:60ms"><span class="grad">Con</span><span class="out">nect</span></h2>
       </div>
 
-      <div class="idcard">
+      <div class="idcard rv">
         <span class="label">Deine Karte im Kreis</span>
         <h3 id="cardName">–</h3>
         <p id="cardMeta">–</p>
@@ -576,7 +663,7 @@
         </div>
       </div>
 
-      <div class="impulse" id="impulseCard" role="button" tabindex="0" aria-label="Neue Impulsfrage ziehen">
+      <div class="impulse rv" id="impulseCard" role="button" tabindex="0" aria-label="Neue Impulsfrage ziehen">
         <span class="q" aria-hidden="true">?</span>
         <span class="label">Impuls</span>
         <div id="impulseText">Tippe – und zieh eine Frage, die Generationen verbindet.</div>
@@ -586,7 +673,7 @@
         </div>
       </div>
 
-      <div class="panel" style="margin-top:20px">
+      <div class="panel rv" style="margin-top:20px">
         <span class="label">Mentor-Minuten</span>
         <h3>Wenn Erfahrung auf Offenheit trifft</h3>
         <p style="margin-bottom:18px">Ein Unternehmer teilt, was er sich damals gewünscht hätte zu wissen. Hör zu – und nimm dir eine Erkenntnis mit.</p>
@@ -710,8 +797,11 @@ function toast(msg){
 function buzz(ms){ if(navigator.vibrate && !reduceMotion) navigator.vibrate(ms) }
 function setupCanvas(cv){
   const dpr = Math.min(devicePixelRatio || 1, 2);
-  const w = cv.clientWidth || parseInt(cv.getAttribute("width"))/2;
-  const h = cv.clientHeight || parseInt(cv.getAttribute("height"))/2;
+  let w = cv.clientWidth, h = cv.clientHeight;
+  if(!w || !h){
+    w = (parseInt(cv.getAttribute("width")) || 40)/2;
+    h = (parseInt(cv.getAttribute("height")) || 40)/2;
+  }
   cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
   const ctx = cv.getContext("2d");
   ctx.scale(dpr,dpr);
@@ -745,7 +835,7 @@ function brushArc(ctx, cx, cy, r, a0, a1, w, color, alpha){
 
 /* Enso: n von total Segmenten gemalt; voll = ein durchgehender Schwung */
 function drawEnso(cv, n, total, opts){
-  const o = Object.assign({lineFrac:.15, gap:.10, color:IVORY, full:false}, opts);
+  const o = Object.assign({lineFrac:.15, gap:.10, color:IVORY, full:false, lastFrac:1}, opts);
   const [ctx,w,h] = setupCanvas(cv);
   ctx.clearRect(0,0,w,h);
   const cx=w/2, cy=h/2, r=w/2*.72, lw=w*o.lineFrac;
@@ -756,7 +846,8 @@ function drawEnso(cv, n, total, opts){
     const seg = (Math.PI*2)/total;
     for(let i=0;i<total;i++){
       if(i>=n) continue;
-      const a0=-Math.PI/2+i*seg+seg*o.gap, a1=-Math.PI/2+(i+1)*seg-seg*o.gap;
+      let a0=-Math.PI/2+i*seg+seg*o.gap, a1=-Math.PI/2+(i+1)*seg-seg*o.gap;
+      if(i===n-1 && o.lastFrac<1) a1 = a0 + (a1-a0)*o.lastFrac;
       brushArc(ctx,cx,cy,r,a0,a1,lw,o.color,1);
     }
     /* offene Segmente als hauchdünne Vorzeichnung */
@@ -795,7 +886,7 @@ function drawSpiral(cv, frac){
 
 /* Skyline: klare, feine Linie */
 function drawSkyline(){
-  const cv = $("#skyline"); if(!cv) return;
+  const cv = $("#skyline"); if(!cv || !cv.clientWidth) return;
   const [ctx,w,h] = setupCanvas(cv);
   ctx.clearRect(0,0,w,h);
   const base = [
@@ -885,7 +976,21 @@ function renderRing(){
 function collect(id, msg){
   if(S.moments[id]) return;
   S.moments[id] = Date.now(); persist();
-  renderRing();
+  const n = momentCount();
+  if(reduceMotion || n >= MOMENTS.length){
+    renderRing();
+  } else {
+    /* das neue Segment malt sich als Strich */
+    const t0 = performance.now();
+    (function step(t){
+      const p = Math.min((t-t0)/520, 1);
+      const frac = 1-Math.pow(1-p,2.4);
+      drawEnso($("#ensoBig"),  n, MOMENTS.length, {lineFrac:.15, lastFrac:frac});
+      drawEnso($("#ensoMini"), n, MOMENTS.length, {lineFrac:.14, lastFrac:frac});
+      if(p < 1) requestAnimationFrame(step);
+      else renderRing();
+    })(t0);
+  }
   buzz(30);
   toast(msg || "Ein Strich mehr – dein Kreis wächst.");
 }
@@ -910,9 +1015,13 @@ function renderTimeline(){
     if(nextIdx === -1 && now < start) nextIdx = i;
   });
   const eventOver = liveIdx===-1 && nextIdx===-1;
+  const first = !renderTimeline._done;
+  renderTimeline._done = true;
   CONFIG.timeline.forEach((it,i)=>{
     const div = document.createElement("div");
-    div.className = "t-item" + (i===liveIdx ? " live" : ((liveIdx > i) || (eventOver) ? " past" : ""));
+    div.className = "t-item" + (i===liveIdx ? " live" : ((liveIdx > i) || (eventOver) ? " past" : ""))
+      + (first ? " rv" : "");
+    if(first) div.style.setProperty("--d", Math.min(i*70,350)+"ms");
     div.innerHTML =
       '<span class="t-ghost">'+it.time+'</span>'+
       '<div class="t-body">'+
@@ -922,6 +1031,7 @@ function renderTimeline(){
       '</div>';
     wrap.appendChild(div);
   });
+  if(first && typeof watchReveals === "function") watchReveals(wrap);
   $$("[data-tl-moment]").forEach(b=>{
     if(S.moments[b.dataset.tlMoment]) b.classList.add("done");
     b.addEventListener("click", ()=>{ collect(b.dataset.tlMoment); renderTimeline(); });
@@ -943,18 +1053,21 @@ function renderStatus(){
   const first = eventTime(CONFIG.timeline[0].time);
   const last  = eventTime(CONFIG.timeline[CONFIG.timeline.length-1].time);
   const now = new Date();
-  const st = $("#statusText"), cd = $("#countdown");
+  const st = $("#statusText"), grid = $("#countGrid");
   if(now < first){
-    const ms = first - now;
-    const d = Math.floor(ms/86400000), h = Math.floor(ms%86400000/3600000), m = Math.floor(ms%3600000/60000);
     st.textContent = "Der Kreis öffnet sich in";
-    cd.textContent = d > 0 ? d+" Tagen · "+h+" Std" : (h>0 ? h+" Std · "+m+" Min" : m+" Min");
+    grid.style.display = "flex";
+    const ms = first - now;
+    $("#cdD").textContent = Math.floor(ms/86400000);
+    $("#cdH").textContent = String(Math.floor(ms%86400000/3600000)).padStart(2,"0");
+    $("#cdM").textContent = String(Math.floor(ms%3600000/60000)).padStart(2,"0");
+    $("#cdS").textContent = String(Math.floor(ms%60000/1000)).padStart(2,"0");
   } else if(now < new Date(last.getTime()+120*60000)){
     st.textContent = "Der Kreis ist geöffnet – heute Abend in der Playa Cologne.";
-    cd.textContent = "";
+    grid.style.display = "none";
   } else {
     st.textContent = "Der Abend ist Geschichte – die Verbindungen bleiben.";
-    cd.textContent = "";
+    grid.style.display = "none";
   }
 }
 
@@ -1071,6 +1184,58 @@ else {
   }
 }
 
+/* ================= MOTION ================= */
+/* Scroll-Reveals */
+const revealIO = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){ e.target.classList.add("in"); revealIO.unobserve(e.target); }
+  });
+},{threshold:.1, rootMargin:"0px 0px -6% 0px"});
+function watchReveals(scope){
+  (scope||document).querySelectorAll(".rv:not(.in)").forEach(el=>revealIO.observe(el));
+}
+
+/* Der Abend in Zahlen: Count-up beim Einscrollen */
+const statsIO = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(!e.isIntersecting) return;
+    statsIO.unobserve(e.target);
+    e.target.querySelectorAll("[data-count]").forEach(b=>{
+      const target = +b.dataset.count;
+      if(reduceMotion){ b.textContent = target; return; }
+      const t0 = performance.now();
+      (function f(t){
+        const p = Math.min((t-t0)/900, 1);
+        b.textContent = Math.round(target*(1-Math.pow(1-p,3)));
+        if(p<1) requestAnimationFrame(f);
+      })(t0);
+    });
+  });
+},{threshold:.4});
+if($("#stats")) statsIO.observe($("#stats"));
+
+/* Parallax: Skyline schwebt, Geister-Zeiten driften */
+if(!reduceMotion){
+  let scrollPending = false;
+  addEventListener("scroll", ()=>{
+    if(scrollPending) return;
+    scrollPending = true;
+    requestAnimationFrame(()=>{
+      scrollPending = false;
+      const vh = innerHeight;
+      const sk = $("#skyline");
+      if(sk && sk.getBoundingClientRect().bottom > 0){
+        sk.style.transform = "translateY(" + Math.min(scrollY*.22, 70).toFixed(1) + "px)";
+      }
+      $$(".t-ghost").forEach(g=>{
+        const r = g.parentElement.getBoundingClientRect();
+        if(r.bottom < 0 || r.top > vh) return;
+        g.style.transform = "translateX(" + (((r.top + r.height/2)/vh - .5) * -36).toFixed(1) + "px)";
+      });
+    });
+  }, {passive:true});
+}
+
 /* ================= INIT ================= */
 renderCard();
 renderApplause();
@@ -1078,9 +1243,10 @@ renderPaddle();
 renderTimeline();
 renderStatus();
 $$(".spiralcv").forEach(cv=>drawSpiral(cv));
-requestAnimationFrame(()=>{ drawSkyline(); renderRing(); drawBrushlines(); });
+requestAnimationFrame(()=>{ drawSkyline(); renderRing(); drawBrushlines(); watchReveals(); });
 if(S.impulseSeen) $("#impulseCount").textContent = "№ " + S.impulseSeen;
-setInterval(()=>{ renderTimeline(); renderStatus(); }, 30000);
+setInterval(renderTimeline, 30000);
+setInterval(renderStatus, 1000);
 let rsz;
 addEventListener("resize", ()=>{ clearTimeout(rsz); rsz=setTimeout(()=>{ drawSkyline(); renderRing(); drawBrushlines(); $$(".spiralcv").forEach(cv=>drawSpiral(cv)); },200); });
 {

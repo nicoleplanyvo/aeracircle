@@ -27,14 +27,22 @@ Schwung gemalt.
 
 ## Features
 
-- **Heute Abend** – persönliche Begrüßung, Countdown bzw. Live-Status, „Als Nächstes“-Karte, Kreis-Fortschritt
+- **Heute Abend** – persönliche Begrüßung, live tickender Countdown (Tage/Std/Min/Sek), Editorial-Laufband, „Der Abend in Zahlen“ mit Count-up, „Als Nächstes“-Karte, Kreis-Fortschritt, „Gut zu wissen“ (Einlass, Ort mit Routen-Link, Dresscode, Foto-Hinweis)
 - **Programm** – Timeline des Abends mit Live-Indikator (Empfang → Vortrag → Pitch → Mentor-Minuten → Live Painting → DJ)
 - **Menü** – das bewegte 3-Gang-Menü, elegant gesetzt (Beispielinhalte)
 - **Live** – Applaus-Meter für den Start-Up-Pitch, digitale **Bieterkarte** für die Versteigerung des Live Paintings (Max Leinfelder, Erlös wird gespendet)
 - **Connect** – digitale Visitenkarte zum Teilen (Web Share / Zwischenablage) und **Impuls-Karten**: Fragen, die Generationen ins Gespräch bringen
 
+**Motion:** Scroll-Reveals mit Stagger auf allen Blöcken, Parallax auf der
+Skyline, seitlich driftende Geister-Uhrzeiten in der Timeline, animiert
+gemalte Enso-Segmente beim Sammeln, pulsierender Applaus-Button.
+`prefers-reduced-motion` wird durchgängig respektiert.
+
 Alles läuft ohne Backend – der Stand jedes Gastes liegt lokal auf seinem Gerät
 (`localStorage`). Kein Login, keine Datenweitergabe, kein Tracking.
+
+> Platzhalter neben dem Menü: der **Dresscode** („Smart Elegant“) und die
+> Programm-Uhrzeiten sind Vorschläge – bitte final bestätigen.
 
 ## Anpassen
 
