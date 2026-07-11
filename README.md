@@ -44,6 +44,15 @@ Alles läuft ohne Backend – der Stand jedes Gastes liegt lokal auf seinem Ger�
 > Platzhalter neben dem Menü: der **Dresscode** („Smart Elegant“) und die
 > Programm-Uhrzeiten sind Vorschläge – bitte final bestätigen.
 
+## Logos
+
+Die **Veranstalter-Logos** (Ihre Marken Werkstatt, AERA, Public Cologne) und
+das Spiral-Logo stammen aus der Event-Präsentation und sind als WebP-Data-URIs
+eingebettet. Die **Partner** stehen als einheitliche Wortmarken-Kacheln im
+`partner-grid` – sobald die echten Logo-Dateien der Partner vorliegen, einfach
+in einer Kachel das `<b>…</b>` durch `<img src="data:image/webp;base64,…">`
+ersetzen (max-height 30 px empfohlen, am besten weiße/negative Logovarianten).
+
 ## Anpassen
 
 Alle Inhalte stehen in `index.html`:
