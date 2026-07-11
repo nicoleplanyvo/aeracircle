@@ -420,6 +420,68 @@
   }
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+  /* ---------- Interaktion: Bingo, Kontakte, Notiz, Votum, Tipp ---------- */
+  .bingo{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:16px}
+  .bingo button{
+    -webkit-appearance:none;appearance:none;cursor:pointer;aspect-ratio:1;
+    border:1px solid var(--line-soft);background:linear-gradient(180deg,var(--panel-hi),var(--panel-lo));
+    color:var(--muted);font-family:var(--sans);font-size:8.5px;letter-spacing:.1em;
+    text-transform:uppercase;line-height:1.5;padding:6px;
+    transition:background .2s,color .2s,border-color .2s,transform .15s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .bingo button:active{transform:scale(.94)}
+  .bingo button:focus-visible{outline:2px solid var(--ivory);outline-offset:2px}
+  .bingo button.hit{background:var(--ivory);color:var(--ink);border-color:var(--ivory);font-weight:500}
+
+  .contact-form{display:flex;gap:8px;margin-top:16px;align-items:flex-end}
+  .contact-form input{
+    flex:1;min-width:0;background:transparent;border:0;border-bottom:1px solid var(--line);
+    color:var(--ivory);font-family:var(--sans);font-size:13px;padding:9px 2px;border-radius:0;
+  }
+  .contact-form input:focus{outline:none;border-bottom-color:var(--ivory)}
+  .contact-form .btn{padding:11px 16px;font-size:9.5px;flex:none}
+  .contact{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line-soft)}
+  .contact:last-child{border-bottom:0}
+  .contact .ci{
+    flex:none;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);
+    display:grid;place-items:center;font-family:var(--disp);font-weight:500;font-size:13px;
+  }
+  .contact .cb{min-width:0}
+  .contact .cb b{display:block;font-family:var(--disp);font-weight:500;font-size:14px;letter-spacing:.02em}
+  .contact .cb span{font-size:11.5px;color:var(--faint)}
+  .contact .cx{
+    margin-left:auto;background:none;border:0;color:var(--faint);font-size:18px;
+    cursor:pointer;padding:4px 8px;line-height:1;
+  }
+  .contact .cx:hover,.contact .cx:focus-visible{color:var(--ivory)}
+
+  .notes textarea{
+    width:100%;min-height:100px;margin-top:14px;
+    background:transparent;border:1px solid var(--line-soft);
+    color:var(--ivory);font-family:var(--serif);font-style:italic;font-size:17px;line-height:1.55;
+    padding:14px;resize:vertical;border-radius:0;
+  }
+  .notes textarea:focus{outline:none;border-color:var(--line)}
+  .notes textarea::placeholder{color:var(--faint)}
+
+  .vote-row{display:flex;gap:8px;margin-top:16px}
+  .vote-row .btn{flex:1;padding:12px 4px;font-size:9px}
+  .vote-row .btn.sel{background:var(--ivory);color:var(--ink);border-color:var(--ivory)}
+
+  .tipp-row{display:flex;gap:8px;margin-top:16px}
+  .tipp-row input{
+    flex:1;min-width:0;background:transparent;border:1px solid var(--line-soft);
+    color:var(--ivory);font-family:var(--disp);font-weight:500;font-size:17px;
+    padding:10px 14px;border-radius:0;font-variant-numeric:tabular-nums;
+  }
+  .tipp-row input:focus{outline:none;border-color:var(--line)}
+  .tipp-row .btn{flex:none}
+  #tippShow{
+    font-family:var(--disp);font-weight:600;font-size:26px;margin-top:14px;display:none;
+    font-variant-numeric:tabular-nums;
+  }
+
   /* ---------- Motion: Scroll-Reveals ---------- */
   .rv{opacity:0;transform:translateY(22px)}
   .rv.in{
@@ -658,6 +720,17 @@
         <span class="label" style="font-size:8.5px">Dein Applaus an diesem Abend</span>
       </div>
 
+      <div class="panel rv">
+        <span class="label">Dein Votum</span>
+        <h3>Würdest du investieren?</h3>
+        <p>Kein Handzeichen nötig – dein Bauchgefühl zählt.</p>
+        <div class="vote-row">
+          <button class="btn" data-vote="ja">Sofort</button>
+          <button class="btn" data-vote="vielleicht">Vielleicht</button>
+          <button class="btn" data-vote="nein">Heute nicht</button>
+        </div>
+      </div>
+
       <div class="lot rv" id="paddleBox">
         <span class="label">Live Painting · Versteigerung</span>
         <p class="lede" id="paddleHint" style="font-size:13px">
@@ -667,6 +740,17 @@
         <div id="paddleNo" class="grad">–</div>
         <p class="lede" id="paddleSub" style="font-size:11.5px;display:none;margin-top:6px">Deine Bieterkarte – zeig sie dem Moderator.</p>
         <button class="btn btn--solid" id="paddleBtn">Bieterkarte heben</button>
+      </div>
+
+      <div class="panel rv">
+        <span class="label">Schätzspiel</span>
+        <h3>Was bringt das Werk?</h3>
+        <p>Tippe den Erlös der Versteigerung – aufgelöst wird live im Raum. Der gesamte Erlös wird gespendet.</p>
+        <div class="tipp-row">
+          <input type="number" id="tippInput" inputmode="numeric" min="1" placeholder="z. B. 5000">
+          <button class="btn" id="tippBtn">€ tippen</button>
+        </div>
+        <div id="tippShow" class="grad"></div>
       </div>
 
       <div class="person rv">
@@ -706,11 +790,40 @@
         </div>
       </div>
 
+      <div class="panel rv" id="bingoPanel">
+        <span class="label">Circle-Bingo</span>
+        <h3>Finde im Raum &hellip;</h3>
+        <p>Tippe an, was du gefunden hast. Eine volle Reihe schließt den Kreis ein Stück mehr.</p>
+        <div class="bingo" id="bingoGrid" role="group" aria-label="Circle-Bingo"></div>
+      </div>
+
+      <div class="panel rv">
+        <span class="label">Mein Kreis</span>
+        <h3>Wen hast du getroffen?</h3>
+        <p>Halte deine Begegnungen fest – sie gehören dir, nur auf deinem Gerät.</p>
+        <div class="contact-form">
+          <input id="cName" type="text" maxlength="40" placeholder="Name" aria-label="Name">
+          <input id="cFirm" type="text" maxlength="40" placeholder="Firma / Notiz" aria-label="Firma oder Notiz">
+          <button class="btn" id="cAdd">+</button>
+        </div>
+        <div class="contact-list" id="contactList"></div>
+      </div>
+
+      <div class="panel rv notes">
+        <span class="label">Meine Erkenntnis</span>
+        <h3>Was nimmst du mit?</h3>
+        <textarea id="notesArea" maxlength="500" placeholder="Ein Satz, der bleibt &hellip;"></textarea>
+      </div>
+
       <div class="panel rv" style="margin-top:20px">
         <span class="label">Mentor-Minuten</span>
         <h3>Wenn Erfahrung auf Offenheit trifft</h3>
         <p style="margin-bottom:18px">Ein Unternehmer teilt, was er sich damals gewünscht hätte zu wissen. Hör zu – und nimm dir eine Erkenntnis mit.</p>
         <button class="btn btn--full" data-moment="mentor">Meine Erkenntnis notiert</button>
+      </div>
+
+      <div style="padding:6px 24px 10px">
+        <button class="btn btn--solid btn--full rv" id="recapBtn">Meinen Abend teilen</button>
       </div>
     </section>
 
@@ -806,7 +919,8 @@ const store = {
   load(){ try{ return JSON.parse(localStorage.getItem("circle.v1")) || {} }catch(e){ return {} } },
   save(s){ localStorage.setItem("circle.v1", JSON.stringify(s)) }
 };
-let S = Object.assign({ name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false }, store.load());
+let S = Object.assign({ name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
+  contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0 }, store.load());
 /* Demo/Vorschau: ?name=Anna&firma=AERA überspringt das Onboarding */
 {
   const q = new URLSearchParams(location.search);
@@ -1191,6 +1305,157 @@ function drawImpulse(){
 }
 $("#impulseCard").addEventListener("click", drawImpulse);
 $("#impulseCard").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); drawImpulse(); } });
+
+/* ================= CIRCLE-BINGO ================= */
+const BINGO = [
+  "Andere Generation","In Köln geboren","Gleiches Hobby",
+  "Gründer:in","Stand schon auf der Bühne","Hat einen Rat für dich",
+  "Hat dich überrascht","Gemeinsamer Bekannter","Dein freier Moment"
+];
+const BINGO_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function bingoLineCount(){
+  return BINGO_LINES.filter(l => l.every(i => S.bingo[i])).length;
+}
+function renderBingo(){
+  const grid = $("#bingoGrid");
+  grid.innerHTML = "";
+  BINGO.forEach((txt,i)=>{
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = txt;
+    b.setAttribute("aria-pressed", !!S.bingo[i]);
+    if(S.bingo[i]) b.classList.add("hit");
+    b.addEventListener("click", ()=>{
+      const before = bingoLineCount();
+      if(S.bingo[i]) delete S.bingo[i]; else S.bingo[i] = true;
+      persist();
+      renderBingo();
+      buzz(12);
+      const after = bingoLineCount();
+      if(after > before && after > (S.bingoLines||0)){
+        S.bingoLines = after; persist();
+        buzz([40,60,40]);
+        toast("Bingo – der Kreis wirkt.");
+        collect("verbindung", "Bingo! Neue Verbindungen – ein Strich mehr im Kreis.");
+      }
+    });
+    grid.appendChild(b);
+  });
+}
+renderBingo();
+
+/* ================= MEIN KREIS (Kontakte) ================= */
+function renderContacts(){
+  const list = $("#contactList");
+  list.innerHTML = "";
+  S.contacts.forEach((c,idx)=>{
+    const row = document.createElement("div");
+    row.className = "contact";
+    const ci = document.createElement("span"); ci.className = "ci";
+    ci.textContent = c.n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();
+    const cb = document.createElement("div"); cb.className = "cb";
+    const b = document.createElement("b"); b.textContent = c.n;
+    cb.appendChild(b);
+    if(c.f){ const s = document.createElement("span"); s.textContent = c.f; cb.appendChild(s); }
+    const x = document.createElement("button"); x.className = "cx"; x.textContent = "×";
+    x.setAttribute("aria-label", c.n + " entfernen");
+    x.addEventListener("click", ()=>{ S.contacts.splice(idx,1); persist(); renderContacts(); });
+    row.append(ci, cb, x);
+    list.appendChild(row);
+  });
+}
+$("#cAdd").addEventListener("click", ()=>{
+  const n = $("#cName").value.trim(), f = $("#cFirm").value.trim();
+  if(!n){ $("#cName").focus(); return; }
+  S.contacts.push({n, f}); persist();
+  $("#cName").value = ""; $("#cFirm").value = "";
+  renderContacts();
+  buzz(15);
+  if(S.contacts.length === 1) collect("verbindung", "Erste Begegnung notiert – ein Strich mehr im Kreis.");
+  else toast("Im Kreis festgehalten.");
+});
+renderContacts();
+
+/* ================= ERKENNTNIS-NOTIZ ================= */
+{
+  const ta = $("#notesArea");
+  ta.value = S.notes || "";
+  let saveT;
+  ta.addEventListener("input", ()=>{
+    clearTimeout(saveT);
+    saveT = setTimeout(()=>{ S.notes = ta.value.trim(); persist(); }, 400);
+  });
+  ta.addEventListener("blur", ()=>{ if(ta.value.trim()) toast("Notiert – nur für dich."); });
+}
+
+/* ================= PITCH-VOTUM ================= */
+function renderVote(){
+  $$("[data-vote]").forEach(b => b.classList.toggle("sel", S.vote === b.dataset.vote));
+}
+$$("[data-vote]").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    S.vote = (S.vote === b.dataset.vote) ? null : b.dataset.vote;
+    persist(); renderVote(); buzz(15);
+    if(S.vote) toast({ja:"Notiert: Du würdest investieren.",vielleicht:"Notiert: Vielleicht.",nein:"Notiert: Heute nicht."}[S.vote]);
+  });
+});
+renderVote();
+
+/* ================= ERLÖS-TIPP ================= */
+function renderTipp(){
+  if(S.tipp){
+    $("#tippShow").style.display = "block";
+    $("#tippShow").textContent = "Dein Tipp: " + Number(S.tipp).toLocaleString("de-DE") + " €";
+    $("#tippBtn").textContent = "Ändern";
+  }
+}
+$("#tippBtn").addEventListener("click", ()=>{
+  const v = parseInt($("#tippInput").value, 10);
+  if(!v || v < 1){ $("#tippInput").focus(); return; }
+  S.tipp = v; persist();
+  $("#tippInput").value = "";
+  renderTipp(); buzz(15);
+  toast("Tipp gesetzt: " + v.toLocaleString("de-DE") + " € – Auflösung live.");
+});
+renderTipp();
+
+/* ================= RECAP: MEIN ABEND ================= */
+$("#recapBtn").addEventListener("click", async ()=>{
+  const parts = [
+    "THE CIRCLE · 16.09.2026 · Playa Cologne",
+    "Mein Abend: " + momentCount() + "/6 Momente im Kreis",
+    S.applause ? S.applause + "× Applaus" : null,
+    S.contacts.length ? S.contacts.length + (S.contacts.length===1?" neue Verbindung":" neue Verbindungen") : null,
+    S.bingoLines ? "Circle-Bingo: " + S.bingoLines + (S.bingoLines===1?" Reihe":" Reihen") : null,
+    S.notes ? "Meine Erkenntnis: „" + S.notes.slice(0,120) + "“" : null,
+    "connecting generations."
+  ].filter(Boolean);
+  const text = parts.join(" — ");
+  try{
+    if(navigator.share){ await navigator.share({ title:"THE CIRCLE", text }); }
+    else { await navigator.clipboard.writeText(text); toast("Dein Abend liegt in der Zwischenablage."); }
+  }catch(e){ /* abgebrochen */ }
+});
+
+/* ================= SWIPE-NAVIGATION ================= */
+{
+  const ORDER = ["programm","menu","home","live","connect"];
+  let sx=0, sy=0, swiping=false;
+  addEventListener("touchstart", e=>{
+    if(e.target.closest("input,textarea,button,a,.bingo")) { swiping=false; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; swiping = true;
+  }, {passive:true});
+  addEventListener("touchend", e=>{
+    if(!swiping) return;
+    swiping = false;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if(Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
+    const cur = ORDER.indexOf(document.querySelector("section[data-view].active").dataset.view);
+    const next = cur + (dx < 0 ? 1 : -1);
+    if(next >= 0 && next < ORDER.length){ show(ORDER[next]); buzz(8); }
+  }, {passive:true});
+}
 
 /* ================= ONBOARDING ================= */
 $("#obForm").addEventListener("submit", e=>{

@@ -31,7 +31,8 @@ Schwung gemalt.
 - **Programm** – Timeline des Abends mit Live-Indikator (Empfang → Vortrag → Pitch → Mentor-Minuten → Live Painting → DJ)
 - **Menü** – das bewegte 3-Gang-Menü, elegant gesetzt (Beispielinhalte)
 - **Live** – Applaus-Meter für den Start-Up-Pitch, digitale **Bieterkarte** für die Versteigerung des Live Paintings (Max Leinfelder, Erlös wird gespendet)
-- **Connect** – digitale Visitenkarte zum Teilen (Web Share / Zwischenablage) und **Impuls-Karten**: Fragen, die Generationen ins Gespräch bringen
+- **Connect** – digitale Visitenkarte zum Teilen (Web Share / Zwischenablage), **Impuls-Karten** (Fragen, die Generationen ins Gespräch bringen), **Circle-Bingo** (3×3-Icebreaker: „Finde im Raum …“, volle Reihe = Bingo + Moment), **Mein Kreis** (Begegnungen des Abends festhalten), **Erkenntnis-Notiz** mit Autosave und **„Meinen Abend teilen“** (Recap aus Momenten, Applaus, Verbindungen, Bingo und Notiz)
+- **Swipe-Navigation** – zwischen den Bereichen wischen wie in einer nativen App
 
 **Motion:** Scroll-Reveals mit Stagger auf allen Blöcken, Parallax auf der
 Skyline, seitlich driftende Geister-Uhrzeiten in der Timeline, animiert
