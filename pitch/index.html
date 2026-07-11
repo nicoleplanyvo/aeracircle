@@ -213,8 +213,8 @@
   @media print{
     body{overflow:visible;background:#141416}
     body::before,#progress,#counter,#hint{display:none}
-    .slide{position:relative;visibility:visible;opacity:1;transform:none;height:100vh;page-break-after:always}
-    .slide:last-child{page-break-after:auto}
+    .slide{position:relative;visibility:visible;opacity:1;transform:none;height:100vh}
+    .slide + .slide{page-break-before:always}
     .slide .a{opacity:1;transform:none}
   }
   body.has-ticker #counter, body.has-ticker #hint{bottom:58px}
