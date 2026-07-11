@@ -2,9 +2,9 @@
 
 Die digitale Begleiterin für **THE CIRCLE – connecting generations**
 (16. September 2026 · ab 18:30 Uhr · Playa Cologne): eine mobile Web-App für die
-Gäste des Abends, im Atelier-Look des Events – Leinwand-Schwarz, Serifen-Typografie,
-handgemalte Pinselstriche (Canvas-gerendert), Zinnober als einziger Farbtupfer,
-skizzierte Köln-Skyline.
+Gäste des Abends, im monochromen Editorial-Look des Events – rauchige
+Schwarz-Weiß-Verläufe, Uppercase-Didone mit Silber-Verlauf (Cormorant),
+Tusche-Enso (Canvas-gerendert), das Menü als helles Blatt mit schwarzer Schrift.
 
 ## Das Konzept: „Schließe deinen Kreis“
 
@@ -20,9 +20,9 @@ die einen goldenen Ring um sein Profil füllen:
 | Kunst | Beim Live Painting / der Versteigerung |
 | Verbindung | Beim Teilen der eigenen Karte |
 
-Der Ring ist ein **Enso** – ein Pinselstrich-Kreis, der pro Moment ein gemaltes
+Der Ring ist ein **Enso** – ein Tusche-Kreis, der pro Moment ein gemaltes
 Segment bekommt. Ist der Kreis geschlossen, wird er zu einem durchgehenden
-Zinnober-Schwung gemalt.
+Schwung gemalt.
 
 ## Features
 
