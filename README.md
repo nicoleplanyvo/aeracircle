@@ -64,6 +64,31 @@ Alle Inhalte stehen in `index.html`:
 - **Impuls-Fragen**: Array `IMPULSE`
 - **Momente**: Array `MOMENTS`
 
+## Live-Modus (alle Gäste gemeinsam)
+
+Mit dem mitgelieferten Mini-Server wird aus der App eine Echtzeit-Erfahrung
+für den ganzen Raum – **eine Node-Datei, null Abhängigkeiten**:
+
+```bash
+node server/circle-server.js        # dient App + Live-API auf Port 8080
+PORT=3000 node server/circle-server.js
+```
+
+Damit kommen dazu:
+
+- **Applaus im ganzen Raum** – alle Geräte zählen zusammen (Live-Zähler)
+- **Live-Votum** – „Würdest du investieren?“ mit Balken und echten Stimmen
+- **Auktions-Board** – Höchstgebot mit Bieterkarten-Nummer, Bieten per
+  +100/+250/+500-Buttons direkt vom Platz
+- **„Gerade im Kreis“** – Zähler der verbundenen Geräte
+
+Die App erkennt den Server automatisch (gleiche Domain) – ohne Server läuft
+alles unverändert lokal weiter. Alternativ eine externe Server-URL in
+`CONFIG.liveServer` eintragen (z. B. Render/Railway/Fly, oder ein Laptop im
+Venue-WLAN). Der Zustand wird in `server/live-state.json` gesichert und
+übersteht Neustarts. Kein Login – gedacht für den privaten Abend hinter einer
+nicht erratbaren URL.
+
 ## Deployment
 
 Eine einzige Datei, keine Abhängigkeiten, kein Build:

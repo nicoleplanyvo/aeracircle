@@ -482,6 +482,24 @@
     font-variant-numeric:tabular-nums;
   }
 
+  /* ---------- Live-Ebene (Server verbunden) ---------- */
+  #roomRow{display:none;margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft);position:relative;z-index:2}
+  #roomApplause{
+    font-family:var(--disp);font-weight:600;font-size:34px;line-height:1;
+    font-variant-numeric:tabular-nums;margin-bottom:4px;
+  }
+  #voteLive{display:none;margin-top:18px}
+  .vbar{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .vbar>span{flex:0 0 76px;font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .vbar .track{flex:1;height:4px;background:var(--line-soft);overflow:hidden}
+  .vbar .track i{display:block;height:100%;background:var(--ivory);width:0;transition:width .5s ease}
+  .vbar b{flex:0 0 30px;text-align:right;font-family:var(--disp);font-weight:500;font-size:13px;font-variant-numeric:tabular-nums}
+  #bidBoard{display:none;margin-top:20px;padding-top:16px;border-top:1px solid var(--line-soft)}
+  #bidLead{font-family:var(--disp);font-weight:600;font-size:clamp(30px,9vw,38px);line-height:1;font-variant-numeric:tabular-nums}
+  #bidMeta{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-top:6px;display:block}
+  .bid-row{display:none;gap:8px;margin-top:14px}
+  .bid-row .btn{flex:1;padding:12px 4px;font-size:9.5px}
+
   /* ---------- Motion: Scroll-Reveals ---------- */
   .rv{opacity:0;transform:translateY(22px)}
   .rv.in{
@@ -709,6 +727,7 @@
       <div class="sect">
         <span class="label rv">Mitmachen</span>
         <h2 class="display grad rv" style="--d:60ms">Live</h2>
+        <p class="lede" id="liveGuests" style="display:none;margin-top:10px">Gerade im Kreis: <b>–</b> Geräte</p>
       </div>
 
       <div class="studio rv">
@@ -718,6 +737,10 @@
         <button id="applauseBtn" aria-label="Applaus geben">Applaus</button>
         <div id="applauseCount">0</div>
         <span class="label" style="font-size:8.5px">Dein Applaus an diesem Abend</span>
+        <div id="roomRow">
+          <div id="roomApplause" class="grad">0</div>
+          <span class="label" style="font-size:8.5px">Applaus im ganzen Raum</span>
+        </div>
       </div>
 
       <div class="panel rv">
@@ -728,6 +751,11 @@
           <button class="btn" data-vote="ja">Sofort</button>
           <button class="btn" data-vote="vielleicht">Vielleicht</button>
           <button class="btn" data-vote="nein">Heute nicht</button>
+        </div>
+        <div id="voteLive">
+          <div class="vbar"><span>Sofort</span><div class="track"><i id="vb-ja"></i></div><b id="vc-ja">0</b></div>
+          <div class="vbar"><span>Vielleicht</span><div class="track"><i id="vb-vielleicht"></i></div><b id="vc-vielleicht">0</b></div>
+          <div class="vbar"><span>Heute nicht</span><div class="track"><i id="vb-nein"></i></div><b id="vc-nein">0</b></div>
         </div>
       </div>
 
@@ -740,6 +768,15 @@
         <div id="paddleNo" class="grad">–</div>
         <p class="lede" id="paddleSub" style="font-size:11.5px;display:none;margin-top:6px">Deine Bieterkarte – zeig sie dem Moderator.</p>
         <button class="btn btn--solid" id="paddleBtn">Bieterkarte heben</button>
+        <div id="bidBoard">
+          <div id="bidLead" class="grad">–</div>
+          <span id="bidMeta">führt</span>
+        </div>
+        <div class="bid-row" id="bidRow">
+          <button class="btn" data-inc="100">+ 100 €</button>
+          <button class="btn" data-inc="250">+ 250 €</button>
+          <button class="btn" data-inc="500">+ 500 €</button>
+        </div>
       </div>
 
       <div class="panel rv">
@@ -874,6 +911,7 @@
    Datum & Zeiten hier anpassen. */
 const CONFIG = {
   eventDate: "2026-09-16",           // 16. September 2026, Playa Cologne
+  liveServer: "",                    // leer = gleiche Domain (server/circle-server.js); sonst z. B. "https://circle-live.onrender.com"
   timeline: [
     { id:"empfang",  time:"18:30", title:"Empfang & Aperitif",           desc:"Ankommen in der Playa Cologne. Erste Gespräche, erste Drinks." },
     { id:"opening",  time:"19:15", title:"Opening mit Amiaz Habtu",      desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
@@ -1242,6 +1280,14 @@ applauseBtn.addEventListener("click", ()=>{
     const n = 1+Math.floor(Math.random()*3);
     for(let i=0;i<n;i++) fleck($("#splat"));
   }
+  if(LIVE.on){                       // gebündelt in den Raum senden
+    LIVE.pending++;
+    clearTimeout(LIVE.timer);
+    LIVE.timer = setTimeout(()=>{
+      const n = LIVE.pending; LIVE.pending = 0;
+      LIVE.post("/api/live/applause", {n}).catch(()=>{});
+    }, 350);
+  }
 });
 
 /* ================= BIETERKARTE ================= */
@@ -1394,9 +1440,11 @@ function renderVote(){
 }
 $$("[data-vote]").forEach(b=>{
   b.addEventListener("click", ()=>{
+    const prev = S.vote;
     S.vote = (S.vote === b.dataset.vote) ? null : b.dataset.vote;
     persist(); renderVote(); buzz(15);
     if(S.vote) toast({ja:"Notiert: Du würdest investieren.",vielleicht:"Notiert: Vielleicht.",nein:"Notiert: Heute nicht."}[S.vote]);
+    if(LIVE.on) LIVE.post("/api/live/vote", {vote:S.vote, prev}).catch(()=>{});
   });
 });
 renderVote();
@@ -1435,6 +1483,63 @@ $("#recapBtn").addEventListener("click", async ()=>{
     if(navigator.share){ await navigator.share({ title:"THE CIRCLE", text }); }
     else { await navigator.clipboard.writeText(text); toast("Dein Abend liegt in der Zwischenablage."); }
   }catch(e){ /* abgebrochen */ }
+});
+
+/* ================= LIVE-EBENE (optional, mit Server) ================= */
+const LIVE = { on:false, d:null, pending:0, timer:null, post:null };
+{
+  const base = (CONFIG.liveServer || "").replace(/\/$/, "");
+  const api = p => base + p;
+  LIVE.post = (p, body) => fetch(api(p), {
+    method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
+  });
+  const ctl = new AbortController();
+  const t = setTimeout(()=>ctl.abort(), 3000);
+  fetch(api("/api/live/health"), {signal:ctl.signal})
+    .then(r => { clearTimeout(t); if(r.ok) connect(); })
+    .catch(()=>{ /* kein Server – alles bleibt lokal */ });
+  function connect(){
+    const es = new EventSource(api("/api/live/stream"));
+    es.onmessage = e => {
+      LIVE.on = true;
+      try{ LIVE.d = JSON.parse(e.data); }catch(err){ return; }
+      renderLiveState();
+    };
+  }
+}
+function renderLiveState(){
+  const d = LIVE.d; if(!d) return;
+  const g = $("#liveGuests");
+  g.style.display = "block";
+  g.querySelector("b").textContent = d.guests;
+  $("#roomRow").style.display = "block";
+  $("#roomApplause").textContent = (d.applause||0).toLocaleString("de-DE");
+  const total = d.votes.ja + d.votes.vielleicht + d.votes.nein;
+  $("#voteLive").style.display = "block";
+  ["ja","vielleicht","nein"].forEach(k=>{
+    $("#vb-"+k).style.width = total ? (d.votes[k]/total*100).toFixed(1)+"%" : "0%";
+    $("#vc-"+k).textContent = d.votes[k];
+  });
+  $("#bidRow").style.display = "flex";
+  if(d.bid){
+    $("#bidBoard").style.display = "block";
+    $("#bidLead").textContent = d.bid.amount.toLocaleString("de-DE") + " €";
+    $("#bidMeta").textContent = "Höchstgebot · Karte № " + (d.bid.paddle || "–");
+  }
+}
+$$("#bidRow [data-inc]").forEach(b=>{
+  b.addEventListener("click", async ()=>{
+    if(!LIVE.on) return;
+    if(!S.paddle){ toast("Heb zuerst deine Bieterkarte."); buzz(20); return; }
+    const current = LIVE.d && LIVE.d.bid ? LIVE.d.bid.amount : 0;
+    const amount = current + parseInt(b.dataset.inc, 10);
+    const paddle = String(paddleNumber(S.name || "Gast"));
+    try{
+      const r = await LIVE.post("/api/live/bid", {amount, paddle, name:S.name});
+      if(r.status === 409) toast("Überboten – im Raum liegt schon mehr.");
+      else { buzz(25); toast("Dein Gebot: " + amount.toLocaleString("de-DE") + " € · Karte № " + paddle); }
+    }catch(e){ /* offline */ }
+  });
 });
 
 /* ================= SWIPE-NAVIGATION ================= */
