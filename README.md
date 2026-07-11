@@ -3,8 +3,9 @@
 Die digitale Begleiterin für **THE CIRCLE – connecting generations**
 (16. September 2026 · ab 18:30 Uhr · Playa Cologne): eine mobile Web-App für die
 Gäste des Abends, im monochromen Editorial-Look des Events – rauchige
-Schwarz-Weiß-Verläufe, Uppercase-Didone mit Silber-Verlauf (Cormorant),
-Tusche-Enso (Canvas-gerendert), das Menü als helles Blatt mit schwarzer Schrift.
+Schwarz-Weiß-Verläufe, Display-Typo in Clash Display (Uppercase, Silber-Verlauf,
+Solid/Outline-Mix), Cormorant kursiv als leiser Kontrapunkt, Tusche-Enso
+(Canvas-gerendert), das Menü als helles Blatt mit schwarzer Schrift.
 
 ## Das Konzept: „Schließe deinen Kreis“
 
