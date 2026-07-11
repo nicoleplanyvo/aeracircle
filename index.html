@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>THE CIRCLE · connecting generations</title>
+<style>
+  :root{
+    --ink:#0a0a0b;
+    --panel:#141416;
+    --panel-2:#1b1b1e;
+    --line:rgba(242,239,233,.14);
+    --line-soft:rgba(242,239,233,.07);
+    --ivory:#f2efe9;
+    --muted:#a09b90;
+    --faint:#6f6b62;
+    --gold:#c8a96a;
+    --gold-soft:rgba(200,169,106,.14);
+    --serif:"Didot","Bodoni MT","Bodoni 72","Playfair Display",Georgia,"Times New Roman",serif;
+    --sans:"Avenir Next","Avenir",Futura,"Century Gothic","Segoe UI",system-ui,sans-serif;
+    --nav-h:76px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--ink);
+    color:var(--ivory);
+    font-family:var(--sans);
+    font-weight:400;
+    letter-spacing:.01em;
+    line-height:1.6;
+    min-height:100dvh;
+  }
+  ::selection{background:var(--gold);color:var(--ink)}
+
+  /* ambient grain + vignette */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:60;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  }
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:59;
+    background:radial-gradient(120% 90% at 50% 0%,transparent 55%,rgba(0,0,0,.5) 100%);
+  }
+
+  #app{max-width:430px;margin:0 auto;min-height:100dvh;position:relative}
+  @media(min-width:700px){
+    #app{border-left:1px solid var(--line-soft);border-right:1px solid var(--line-soft)}
+  }
+
+  /* ---------- typography ---------- */
+  .label{
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--muted);font-weight:500;
+  }
+  .label--gold{color:var(--gold)}
+  .display{
+    font-family:var(--serif);font-weight:400;letter-spacing:.01em;
+    line-height:1.12;text-wrap:balance;
+  }
+  .lede{color:var(--muted);font-size:15px}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:calc(env(safe-area-inset-top) + 18px) 22px 14px;
+    border-bottom:1px solid var(--line-soft);
+    position:sticky;top:0;background:linear-gradient(var(--ink) 70%,rgba(10,10,11,.85));
+    backdrop-filter:blur(8px);z-index:40;
+  }
+  .wordmark{display:flex;align-items:center;gap:10px}
+  .wordmark svg{width:26px;height:26px}
+  .wordmark b{
+    font-family:var(--serif);font-weight:400;font-size:17px;letter-spacing:.14em;
+  }
+  #ringMini{position:relative;width:34px;height:34px}
+  #ringMini svg{width:34px;height:34px;display:block}
+  #ringMini span{
+    position:absolute;inset:0;display:grid;place-items:center;
+    font-size:10px;letter-spacing:.05em;color:var(--muted);
+    font-variant-numeric:tabular-nums;
+  }
+
+  main{padding:0 0 calc(var(--nav-h) + env(safe-area-inset-bottom) + 28px)}
+  section[data-view]{display:none;animation:fadein .45s ease both}
+  section[data-view].active{display:block}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .pad{padding:26px 22px}
+  .rule{border:0;border-top:1px solid var(--line-soft);margin:0 22px}
+
+  /* ---------- home ---------- */
+  .hero{padding:38px 22px 30px;text-align:left;position:relative;overflow:hidden}
+  .hero .display{font-size:clamp(34px,9vw,42px);margin:10px 0 6px}
+  .hero .display i{font-style:italic;color:var(--gold)}
+  #skyline{display:block;width:100%;height:74px;margin-top:22px;opacity:.5}
+
+  .statusline{
+    display:flex;align-items:baseline;gap:10px;margin-top:16px;
+    font-size:14px;color:var(--muted);
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);display:inline-block;
+    box-shadow:0 0 0 0 rgba(200,169,106,.5);animation:pulse 2.4s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 9px rgba(200,169,106,0)}100%{box-shadow:0 0 0 0 rgba(200,169,106,0)}}
+  #countdown{font-variant-numeric:tabular-nums;color:var(--ivory)}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line-soft);border-radius:2px;
+    padding:22px;margin:0 22px 14px;
+  }
+  .card .label{margin-bottom:10px;display:block}
+  .card h3{font-family:var(--serif);font-weight:400;font-size:22px;line-height:1.2;margin-bottom:6px}
+  .card p{color:var(--muted);font-size:14px}
+
+  /* circle progress card */
+  .circle-card{display:flex;align-items:center;gap:20px}
+  .circle-card .ringwrap{flex:0 0 auto;position:relative;width:104px;height:104px}
+  .circle-card .ringwrap svg{width:104px;height:104px;display:block}
+  .circle-card .ringwrap .num{
+    position:absolute;inset:0;display:grid;place-items:center;
+    font-family:var(--serif);font-size:26px;font-variant-numeric:tabular-nums;
+  }
+  .circle-card .ringwrap .num small{font-size:12px;color:var(--faint);font-family:var(--sans);letter-spacing:.1em}
+  .moment-dots{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .moment-dots span{
+    font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+    border:1px solid var(--line);border-radius:99px;padding:4px 10px;color:var(--faint);
+  }
+  .moment-dots span.done{border-color:var(--gold);color:var(--gold);background:var(--gold-soft)}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    -webkit-appearance:none;appearance:none;cursor:pointer;
+    font-family:var(--sans);font-size:12px;letter-spacing:.2em;text-transform:uppercase;
+    background:transparent;color:var(--ivory);
+    border:1px solid var(--line);border-radius:2px;
+    padding:13px 20px;transition:border-color .25s,color .25s,background .25s;
+    display:inline-flex;align-items:center;gap:8px;justify-content:center;
+  }
+  .btn:hover,.btn:focus-visible{border-color:var(--gold);color:var(--gold)}
+  .btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+  .btn--full{width:100%}
+  .btn--gold{border-color:var(--gold);color:var(--gold)}
+  .btn--gold:hover{background:var(--gold);color:var(--ink)}
+  .btn[disabled]{opacity:.45;pointer-events:none}
+  .btn.done{border-color:var(--gold);color:var(--gold);background:var(--gold-soft)}
+
+  /* ---------- timeline ---------- */
+  .timeline{padding:8px 22px 10px}
+  .t-item{
+    display:grid;grid-template-columns:64px 1fr;gap:0 18px;position:relative;
+    padding:20px 0;border-bottom:1px solid var(--line-soft);
+  }
+  .t-item:last-child{border-bottom:0}
+  .t-time{
+    font-variant-numeric:tabular-nums;font-size:14px;color:var(--faint);
+    padding-top:3px;letter-spacing:.06em;
+  }
+  .t-item.live .t-time{color:var(--gold)}
+  .t-body h3{font-family:var(--serif);font-weight:400;font-size:21px;line-height:1.2}
+  .t-body p{color:var(--muted);font-size:13.5px;margin-top:5px}
+  .t-live-tag{
+    display:none;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--gold);margin-bottom:4px;
+  }
+  .t-item.live .t-live-tag{display:flex;align-items:center;gap:7px}
+  .t-item.past{opacity:.45}
+  .t-collect{margin-top:12px;padding:9px 16px;font-size:10.5px}
+
+  /* ---------- menu ---------- */
+  .menu-head{text-align:center;padding:40px 22px 10px}
+  .menu-head .display{font-size:34px}
+  .menu-head .label{margin-bottom:12px;display:block}
+  .course{text-align:center;padding:30px 30px}
+  .course + .course{border-top:1px solid var(--line-soft)}
+  .course .label{display:block;margin-bottom:12px}
+  .course h3{font-family:var(--serif);font-weight:400;font-size:24px;line-height:1.25}
+  .course p{color:var(--muted);font-size:14px;margin-top:8px;font-style:italic}
+  .course .pair{margin-top:14px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .menu-note{text-align:center;color:var(--faint);font-size:12px;padding:6px 30px 34px;font-style:italic}
+
+  /* ---------- live: applause ---------- */
+  .applause{
+    position:relative;margin:16px 22px;padding:34px 22px 30px;text-align:center;
+    border:1px solid var(--line-soft);background:var(--panel);border-radius:2px;overflow:hidden;
+  }
+  #applauseBtn{
+    width:132px;height:132px;border-radius:50%;
+    border:1px solid var(--gold);background:radial-gradient(circle at 50% 35%,#232323,#151517);
+    color:var(--gold);font-family:var(--serif);font-size:17px;cursor:pointer;
+    transition:transform .08s ease;user-select:none;-webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #applauseBtn:active{transform:scale(.93)}
+  #applauseBtn:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  #applauseCount{
+    font-family:var(--serif);font-size:38px;margin-top:16px;
+    font-variant-numeric:tabular-nums;
+  }
+  .spark{
+    position:absolute;font-family:var(--serif);color:var(--gold);pointer-events:none;
+    animation:rise 1.1s ease-out forwards;font-size:20px;
+  }
+  @keyframes rise{
+    from{opacity:1;transform:translateY(0) scale(1)}
+    to{opacity:0;transform:translateY(-110px) scale(1.5)}
+  }
+
+  /* paddle */
+  .paddle{
+    margin:14px 22px;padding:30px 22px;text-align:center;
+    border:1px solid var(--line-soft);background:var(--panel);border-radius:2px;
+  }
+  #paddleNo{
+    font-family:var(--serif);font-size:84px;line-height:1;color:var(--gold);
+    margin:10px 0 4px;font-variant-numeric:tabular-nums;display:none;
+  }
+  .paddle.raised #paddleNo{display:block}
+  .paddle.raised #paddleHint{display:none}
+
+  /* ---------- connect ---------- */
+  .idcard{
+    margin:16px 22px;padding:28px 24px;border-radius:2px;position:relative;overflow:hidden;
+    background:linear-gradient(155deg,#1d1d20 0%,#121214 60%);
+    border:1px solid var(--line);
+  }
+  .idcard::after{
+    content:"";position:absolute;right:-42px;top:-42px;width:150px;height:150px;
+    border:1px solid var(--line-soft);border-radius:50%;
+  }
+  .idcard .label{display:block;margin-bottom:18px}
+  .idcard h3{font-family:var(--serif);font-weight:400;font-size:30px;line-height:1.15}
+  .idcard p{color:var(--muted);font-size:14px;margin-top:6px}
+  .idcard .row{display:flex;gap:10px;margin-top:22px}
+  .idcard .row .btn{flex:1;padding:11px 8px;font-size:10.5px}
+
+  /* impulse deck */
+  .impulse{
+    margin:16px 22px;min-height:240px;border-radius:2px;position:relative;
+    border:1px solid var(--line);background:var(--panel);
+    display:flex;flex-direction:column;justify-content:space-between;
+    padding:24px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  }
+  .impulse::before{
+    content:"";position:absolute;inset:6px;border:1px solid var(--line-soft);border-radius:1px;pointer-events:none;
+  }
+  #impulseText{
+    font-family:var(--serif);font-size:24px;line-height:1.35;text-wrap:balance;
+    margin:26px 4px;transition:opacity .25s;
+  }
+  .impulse .foot{display:flex;justify-content:space-between;align-items:center}
+  .impulse .foot .label{font-size:10px}
+
+  /* ---------- persons ---------- */
+  .person{
+    display:flex;gap:16px;align-items:flex-start;margin:0 22px 14px;padding:20px;
+    background:var(--panel);border:1px solid var(--line-soft);border-radius:2px;
+  }
+  .person .init{
+    flex:0 0 auto;width:52px;height:52px;border-radius:50%;
+    border:1px solid var(--line);display:grid;place-items:center;
+    font-family:var(--serif);font-size:20px;color:var(--gold);
+  }
+  .person h3{font-family:var(--serif);font-weight:400;font-size:19px}
+  .person p{color:var(--muted);font-size:13px;margin-top:3px}
+
+  /* ---------- nav ---------- */
+  nav{
+    position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+    width:100%;max-width:430px;z-index:50;
+    background:rgba(12,12,13,.92);backdrop-filter:blur(14px);
+    border-top:1px solid var(--line-soft);
+    display:grid;grid-template-columns:repeat(5,1fr);
+    padding:8px 6px calc(8px + env(safe-area-inset-bottom));height:auto;
+  }
+  nav button{
+    -webkit-appearance:none;appearance:none;background:none;border:0;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:5px;
+    color:var(--faint);padding:7px 2px;transition:color .25s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  nav button:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:4px}
+  nav button span{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase}
+  nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.3}
+  nav button.active{color:var(--ivory)}
+  nav button.active svg{stroke:var(--gold)}
+  nav .navspiral svg{width:30px;height:30px;margin-top:-4px}
+
+  /* ---------- onboarding ---------- */
+  #onboarding{
+    position:fixed;inset:0;z-index:100;background:var(--ink);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:36px 30px;text-align:center;
+  }
+  #onboarding.hidden{display:none}
+  #obSpiral{width:88px;height:88px;margin-bottom:26px}
+  #obSpiral path{stroke-dasharray:900;stroke-dashoffset:900;animation:draw 2.4s ease forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  #onboarding h1{
+    font-family:var(--serif);font-weight:400;font-size:34px;letter-spacing:.16em;margin-bottom:4px;
+  }
+  #onboarding .sub{
+    font-size:13px;letter-spacing:.34em;text-transform:lowercase;color:var(--muted);margin-bottom:44px;
+  }
+  #onboarding form{width:100%;max-width:320px;display:flex;flex-direction:column;gap:14px;text-align:left}
+  #onboarding label{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  #onboarding input{
+    -webkit-appearance:none;appearance:none;width:100%;
+    background:transparent;border:0;border-bottom:1px solid var(--line);
+    color:var(--ivory);font-family:var(--serif);font-size:22px;padding:8px 2px 10px;
+    border-radius:0;transition:border-color .25s;
+  }
+  #onboarding input:focus{outline:none;border-bottom-color:var(--gold)}
+  #onboarding .btn{margin-top:24px}
+
+  /* ---------- circle complete overlay ---------- */
+  #complete{
+    position:fixed;inset:0;z-index:110;background:rgba(10,10,11,.96);
+    display:none;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:40px;
+  }
+  #complete.show{display:flex;animation:fadein .6s ease both}
+  #complete svg{width:120px;height:120px;margin-bottom:28px}
+  #complete circle{
+    stroke-dasharray:302;stroke-dashoffset:302;animation:draw2 1.8s .2s ease forwards;
+  }
+  @keyframes draw2{to{stroke-dashoffset:0}}
+  #complete h2{font-family:var(--serif);font-weight:400;font-size:32px;margin-bottom:10px}
+  #complete p{color:var(--muted);max-width:300px;font-size:14px;margin-bottom:34px}
+
+  /* ---------- toast ---------- */
+  #toast{
+    position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 18px);
+    left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ivory);color:var(--ink);font-size:12.5px;letter-spacing:.06em;
+    padding:11px 22px;border-radius:99px;opacity:0;pointer-events:none;
+    transition:opacity .3s,transform .3s;z-index:120;white-space:nowrap;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <header>
+    <div class="wordmark">
+      <svg viewBox="0 0 100 100" aria-hidden="true"><path class="spiralpath" fill="none" stroke="#f2efe9" stroke-width="7" stroke-linecap="round"></path></svg>
+      <b>THE&nbsp;CIRCLE</b>
+    </div>
+    <div id="ringMini" title="Dein Kreis">
+      <svg viewBox="0 0 36 36" aria-hidden="true">
+        <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(242,239,233,.12)" stroke-width="2"></circle>
+        <circle id="ringMiniFill" cx="18" cy="18" r="15.5" fill="none" stroke="#c8a96a" stroke-width="2"
+          stroke-linecap="round" stroke-dasharray="97.4" stroke-dashoffset="97.4" transform="rotate(-90 18 18)"></circle>
+      </svg>
+      <span id="ringMiniNum">0/6</span>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ============ HOME ============ -->
+    <section data-view="home" class="active">
+      <div class="hero">
+        <span class="label">connecting generations</span>
+        <h1 class="display">Guten Abend,<br><i id="guestName">Gast</i>.</h1>
+        <p class="lede" id="heroLede">Schön, dass du Teil des Kreises bist.</p>
+        <div class="statusline">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">–</span>
+          <span id="countdown"></span>
+        </div>
+        <svg id="skyline" viewBox="0 0 430 74" preserveAspectRatio="xMidYMax meet" aria-hidden="true"></svg>
+      </div>
+
+      <div class="card circle-card">
+        <div class="ringwrap">
+          <svg viewBox="0 0 104 104" aria-hidden="true">
+            <circle cx="52" cy="52" r="46" fill="none" stroke="rgba(242,239,233,.1)" stroke-width="2.5"></circle>
+            <circle id="ringBigFill" cx="52" cy="52" r="46" fill="none" stroke="#c8a96a" stroke-width="2.5"
+              stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="289" transform="rotate(-90 52 52)"></circle>
+          </svg>
+          <div class="num"><span id="ringBigNum">0<small>&thinsp;/&thinsp;6</small></span></div>
+        </div>
+        <div>
+          <span class="label label--gold">Dein Kreis</span>
+          <p style="font-size:13.5px">Sechs Momente. Ein Abend. Sammle sie – und schließe deinen Kreis.</p>
+          <div class="moment-dots" id="momentDots"></div>
+        </div>
+      </div>
+
+      <div class="card" id="nextUpCard">
+        <span class="label">Als Nächstes</span>
+        <h3 id="nextUpTitle">–</h3>
+        <p id="nextUpDesc"></p>
+      </div>
+
+      <div class="card">
+        <span class="label">Check-in</span>
+        <h3>Angekommen?</h3>
+        <p style="margin-bottom:16px">Melde dich im Kreis an und sichere dir deinen ersten Moment.</p>
+        <button class="btn btn--full" data-moment="ankommen">Ich bin da</button>
+      </div>
+    </section>
+
+    <!-- ============ PROGRAMM ============ -->
+    <section data-view="programm">
+      <div class="pad" style="padding-bottom:6px">
+        <span class="label">Der Abend</span>
+        <h2 class="display" style="font-size:32px;margin-top:8px">Programm</h2>
+        <p class="lede" style="margin-top:6px">Der Rahmen ist besonders. Der Kern ist Verbindung.</p>
+      </div>
+      <div class="timeline" id="timeline"></div>
+      <div class="pad" style="padding-top:4px">
+        <div class="card" style="margin:0">
+          <span class="label">Moderation</span>
+          <h3>Amiaz Habtu</h3>
+          <p>Bekannt aus „Die Höhle der Löwen“ – mit Charme, Erfahrung und dem richtigen Gespür für Menschen führt er durch den Abend.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ MENÜ ============ -->
+    <section data-view="menu">
+      <div class="menu-head">
+        <span class="label">3-Gang-Menü</span>
+        <h2 class="display">Weil die besten Gespräche<br>mit Genuss verbunden sind</h2>
+      </div>
+      <div class="course">
+        <span class="label label--gold">Erster Gang</span>
+        <h3>Gebeizter Saibling</h3>
+        <p>Gurke · Dill · Buttermilch · Rheinischer Senf</p>
+        <span class="pair">Begleitung · Riesling Sekt Brut</span>
+      </div>
+      <div class="course">
+        <span class="label label--gold">Zweiter Gang</span>
+        <h3>Rinderfilet vom Bergischen Weiderind</h3>
+        <p>Selleriecreme · junge Karotte · Jus mit dunklem Kölsch</p>
+        <span class="pair">Begleitung · Spätburgunder, Ahr</span>
+      </div>
+      <div class="course">
+        <span class="label label--gold">Dritter Gang</span>
+        <h3>Valrhona-Schokolade &amp; Kirsche</h3>
+        <p>Ganache · Amarena · Tonkabohne</p>
+        <span class="pair">Begleitung · Espresso Martini</span>
+      </div>
+      <p class="menu-note">Vegetarische Alternative bei jedem Gang – das Serviceteam berät dich gern.<br>Beispielmenü – die finale Karte folgt am Abend.</p>
+    </section>
+
+    <!-- ============ LIVE ============ -->
+    <section data-view="live">
+      <div class="pad" style="padding-bottom:10px">
+        <span class="label">Mitmachen</span>
+        <h2 class="display" style="font-size:32px;margin-top:8px">Live im Raum</h2>
+      </div>
+
+      <div class="applause" id="applauseBox">
+        <span class="label" style="display:block;margin-bottom:6px">Start-Up Pitch</span>
+        <p class="lede" style="margin-bottom:22px;font-size:13.5px">Ein Start-Up pitcht seine Idee. Zeig, was du davon hältst –<br>dein Applaus zählt.</p>
+        <button id="applauseBtn" aria-label="Applaus geben">Applaus</button>
+        <div id="applauseCount">0</div>
+        <span class="label" style="font-size:9.5px">Dein Applaus an diesem Abend</span>
+      </div>
+
+      <div class="paddle" id="paddleBox">
+        <span class="label" style="display:block;margin-bottom:8px">Live Painting · Versteigerung</span>
+        <p class="lede" id="paddleHint" style="font-size:13.5px;margin-bottom:18px">
+          Max Leinfelder malt heute live ein einzigartiges Werk. Es wird versteigert –
+          der Erlös wird vollständig gespendet. Hebe deine Bieterkarte, wenn du dabei sein willst.
+        </p>
+        <div id="paddleNo">–</div>
+        <p class="lede" id="paddleSub" style="font-size:12px;display:none;margin-bottom:16px">Deine Bieterkarte. Zeig sie dem Moderator, wenn du bietest.</p>
+        <button class="btn btn--gold" id="paddleBtn">Bieterkarte heben</button>
+      </div>
+
+      <div class="person">
+        <div class="init">ML</div>
+        <div>
+          <h3>Max Leinfelder</h3>
+          <p>Verarbeitet die Eindrücke unserer Zeit – politisch, gesellschaftskritisch und zugleich persönlich. Starke Bildsprache, haptische Stilmittel. Heute Abend entsteht sein Werk live vor deinen Augen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONNECT ============ -->
+    <section data-view="connect">
+      <div class="pad" style="padding-bottom:10px">
+        <span class="label">Mehr als eine Visitenkarte</span>
+        <h2 class="display" style="font-size:32px;margin-top:8px">Connect</h2>
+      </div>
+
+      <div class="idcard">
+        <span class="label label--gold">Deine Karte im Kreis</span>
+        <h3 id="cardName">–</h3>
+        <p id="cardMeta">–</p>
+        <div class="row">
+          <button class="btn" id="shareBtn">Teilen</button>
+          <button class="btn" id="editBtn">Bearbeiten</button>
+        </div>
+      </div>
+
+      <div class="pad" style="padding-bottom:6px;padding-top:14px">
+        <span class="label">Impulse</span>
+        <p class="lede" style="margin-top:6px;font-size:13.5px">
+          Eine Frage, die Generationen verbindet. Zieh eine Karte – und stell sie deinem Tischnachbarn.
+        </p>
+      </div>
+      <div class="impulse" id="impulseCard" role="button" tabindex="0" aria-label="Neue Impulsfrage ziehen">
+        <span class="label label--gold">Impuls</span>
+        <div id="impulseText">Tippe, um eine Frage zu ziehen.</div>
+        <div class="foot">
+          <span class="label">connecting generations</span>
+          <span class="label" id="impulseCount">·</span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <span class="label">Mentor-Minuten</span>
+        <h3>Wenn Erfahrung auf Offenheit trifft</h3>
+        <p style="margin-bottom:16px">Ein Unternehmer teilt, was er sich damals gewünscht hätte zu wissen. Hör zu – und nimm dir eine Erkenntnis mit.</p>
+        <button class="btn btn--full" data-moment="mentor">Meine Erkenntnis notiert</button>
+      </div>
+    </section>
+
+  </main>
+
+  <nav aria-label="Hauptnavigation">
+    <button data-nav="programm"><svg viewBox="0 0 24 24"><path d="M12 2v20M5 6h14M5 12h9M5 18h6" stroke-linecap="round"/></svg><span>Abend</span></button>
+    <button data-nav="menu"><svg viewBox="0 0 24 24"><path d="M8 2v8m4-8v8M8 6h4M8 10c0 2-2 2-2 4v8m10-20c-2 1-3 3-3 6 0 2 1 3 3 3v11" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Menü</span></button>
+    <button data-nav="home" class="navspiral active"><svg viewBox="0 0 100 100"><path class="spiralpath" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"></path></svg><span>Circle</span></button>
+    <button data-nav="live"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M5.5 5.5a9 9 0 0 0 0 13m13-13a9 9 0 0 1 0 13" stroke-linecap="round"/></svg><span>Live</span></button>
+    <button data-nav="connect"><svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3.2"/><circle cx="16.5" cy="14.5" r="3.2"/><path d="M10.4 11.2l3.7 1.9" stroke-linecap="round"/></svg><span>Connect</span></button>
+  </nav>
+
+</div>
+
+<!-- onboarding -->
+<div id="onboarding">
+  <svg id="obSpiral" viewBox="0 0 100 100" aria-hidden="true"><path class="spiralpath" fill="none" stroke="#f2efe9" stroke-width="5" stroke-linecap="round"></path></svg>
+  <h1>THE CIRCLE</h1>
+  <div class="sub">connecting generations</div>
+  <form id="obForm">
+    <div>
+      <label for="obName">Wie dürfen wir dich nennen?</label>
+      <input id="obName" type="text" autocomplete="given-name" required maxlength="40" placeholder="Dein Name">
+    </div>
+    <div>
+      <label for="obCompany">Unternehmen / Rolle <span style="opacity:.5;text-transform:none;letter-spacing:0">(optional)</span></label>
+      <input id="obCompany" type="text" autocomplete="organization" maxlength="60" placeholder="z. B. AERA · Founder">
+    </div>
+    <button class="btn btn--gold btn--full" type="submit">In den Kreis eintreten</button>
+  </form>
+</div>
+
+<!-- circle complete -->
+<div id="complete" role="dialog" aria-modal="true" aria-label="Kreis geschlossen">
+  <svg viewBox="0 0 104 104" aria-hidden="true">
+    <circle cx="52" cy="52" r="48" fill="none" stroke="#c8a96a" stroke-width="2" stroke-linecap="round" transform="rotate(-90 52 52)"></circle>
+  </svg>
+  <h2>Dein Kreis ist geschlossen.</h2>
+  <p>Sechs Momente, ein Abend, viele neue Verbindungen. Danke, dass du Teil von THE CIRCLE bist.</p>
+  <button class="btn btn--gold" id="completeClose">Weiter im Abend</button>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+/* ================= CONFIG =================
+   Datum & Zeiten hier anpassen. */
+const CONFIG = {
+  eventDate: "2026-09-17",           // Platzhalter – finales Datum eintragen
+  timeline: [
+    { id:"empfang",  time:"18:30", title:"Empfang & Aperitif",           desc:"Ankommen über den Dächern von Köln. Erste Gespräche, erste Drinks." },
+    { id:"opening",  time:"19:15", title:"Opening mit Amiaz Habtu",      desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
+    { id:"vortrag",  time:"19:30", title:"Impuls-Vortrag",               desc:"Ein relevantes Thema, ein starker Gedanke – Mehrwert für jeden im Raum.", moment:"impuls", momentLabel:"Impuls mitgenommen" },
+    { id:"gang1",    time:"20:00", title:"Erster Gang",                  desc:"Das bewegte Menü beginnt – neue Plätze, neue Gesichter." },
+    { id:"pitch",    time:"20:30", title:"Start-Up Pitch",               desc:"Eine Idee, drei Minuten, dein Applaus. Öffne den Live-Bereich und mach mit." },
+    { id:"gang2",    time:"20:50", title:"Zweiter Gang",                 desc:"Weiter geht’s – die Tischordnung mischt den Kreis neu." },
+    { id:"mentor",   time:"21:20", title:"Mentor-Minuten",               desc:"Wenn Erfahrung auf Offenheit trifft – ein Unternehmer teilt, was er damals gern gewusst hätte." },
+    { id:"auktion",  time:"21:45", title:"Live Painting · Versteigerung", desc:"Max Leinfelders Werk entsteht live – und findet jetzt sein Zuhause. Der Erlös wird gespendet.", moment:"kunst", momentLabel:"Kunst erlebt" },
+    { id:"gang3",    time:"22:10", title:"Dritter Gang",                 desc:"Süßer Abschluss, bevor die Nacht beginnt." },
+    { id:"dj",       time:"22:45", title:"DJ & Ausklang",                desc:"Der Abend endet, wie er begonnen hat: mit Atmosphäre." }
+  ]
+};
+
+const MOMENTS = [
+  { id:"ankommen",   label:"Angekommen" },
+  { id:"impuls",     label:"Impuls" },
+  { id:"pitch",      label:"Applaus" },
+  { id:"mentor",     label:"Erkenntnis" },
+  { id:"kunst",      label:"Kunst" },
+  { id:"verbindung", label:"Verbindung" }
+];
+
+const IMPULSE = [
+  "Welcher Rat hat dich am meisten geprägt – und von wem kam er?",
+  "Was kann meine Generation von deiner lernen?",
+  "Welches Risiko hat sich für dich am meisten gelohnt?",
+  "Was hättest du mit 25 gern gewusst?",
+  "Worauf bist du stolz, das in keinem Lebenslauf steht?",
+  "Welche Gewohnheit hat dein Leben am stärksten verändert?",
+  "Wen würdest du gern einen Tag lang begleiten – und warum?",
+  "Was war dein größter Irrtum über Erfolg?",
+  "Welche Tür ist zugegangen, damit eine bessere aufgehen konnte?",
+  "Was würdest du heute anfangen, wenn Scheitern unmöglich wäre?",
+  "Welcher Mensch hat an dich geglaubt, bevor du es selbst getan hast?",
+  "Was bedeutet für dich Zukunft gestalten – ganz konkret?",
+  "Welches Buch, welcher Film oder welcher Song hat deine Sicht verändert?",
+  "Was gibst du weiter, das man dir einmal gegeben hat?"
+];
+
+/* ================= STATE ================= */
+const store = {
+  load(){ try{ return JSON.parse(localStorage.getItem("circle.v1")) || {} }catch(e){ return {} } },
+  save(s){ localStorage.setItem("circle.v1", JSON.stringify(s)) }
+};
+let S = Object.assign({ name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false }, store.load());
+/* Demo/Vorschau: ?name=Anna&firma=AERA überspringt das Onboarding */
+{
+  const q = new URLSearchParams(location.search);
+  if(q.get("name")){ S.name = q.get("name"); S.company = q.get("firma") || S.company; }
+}
+const persist = () => store.save(S);
+
+/* ================= HELPERS ================= */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._h);
+  toast._h = setTimeout(()=>t.classList.remove("show"), 2400);
+}
+function buzz(ms){ if(navigator.vibrate && !reduceMotion) navigator.vibrate(ms) }
+
+/* ================= SPIRAL (brand mark, drawn programmatically) ================= */
+function spiralPath(cx, cy, turns, a, b){
+  const pts = [];
+  const steps = 140;
+  for(let i=0;i<=steps;i++){
+    const t = i/steps * turns * 2*Math.PI;
+    const r = a * Math.exp(b*t);
+    pts.push([cx + r*Math.cos(t), cy + r*Math.sin(t)]);
+  }
+  return "M" + pts.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" L");
+}
+$$(".spiralpath").forEach(p => p.setAttribute("d", spiralPath(50,50,2.6,1.7,0.192)));
+
+/* ================= SKYLINE (Köln, minimal line art) ================= */
+(function(){
+  const svg = $("#skyline");
+  const g = document.createElementNS("http://www.w3.org/2000/svg","path");
+  // stylized silhouette: buildings – Dom (two spires) – Colonius tower
+  const d = [
+    "M0,72 L0,52 L26,52 L26,60 L52,60 L52,44 L74,44 L74,64 L104,64 L104,50 L128,50 L128,72",
+    "M150,72 L150,40 L162,40 L166,30 L166,20 L171,8 L176,20 L176,30 L180,34 L184,30 L184,20 L189,8 L194,20 L194,30 L198,40 L210,40 L210,72",
+    "M236,72 L236,58 L262,58 L262,48 L286,48 L286,66 L312,66 L312,54 L338,54 L338,72",
+    "M366,72 L366,34 L369,34 L369,22 L364,22 L374,16 L384,22 L379,22 L379,34 L382,34 L382,72",
+    "M404,72 L404,56 L430,56 L430,72"
+  ].join(" ");
+  g.setAttribute("d", d);
+  g.setAttribute("fill","none");
+  g.setAttribute("stroke","rgba(242,239,233,.55)");
+  g.setAttribute("stroke-width","1");
+  svg.appendChild(g);
+})();
+
+/* ================= NAV ================= */
+function show(view){
+  $$("section[data-view]").forEach(s => s.classList.toggle("active", s.dataset.view===view));
+  $$("nav button").forEach(b => b.classList.toggle("active", b.dataset.nav===view));
+  window.scrollTo({top:0, behavior: reduceMotion ? "auto" : "smooth"});
+}
+$$("nav button").forEach(b => b.addEventListener("click", ()=>show(b.dataset.nav)));
+
+/* ================= RING / MOMENTS ================= */
+function momentCount(){ return MOMENTS.filter(m => S.moments[m.id]).length }
+
+function renderRing(){
+  const n = momentCount();
+  const frac = n / MOMENTS.length;
+  $("#ringMiniFill").style.strokeDashoffset = (97.4 * (1-frac)).toFixed(1);
+  $("#ringMiniNum").textContent = n + "/6";
+  $("#ringBigFill").style.strokeDashoffset = (289 * (1-frac)).toFixed(1);
+  $("#ringBigNum").innerHTML = n + "<small>&thinsp;/&thinsp;6</small>";
+  const dots = $("#momentDots");
+  dots.innerHTML = "";
+  MOMENTS.forEach(m=>{
+    const el = document.createElement("span");
+    el.textContent = m.label;
+    if(S.moments[m.id]) el.classList.add("done");
+    dots.appendChild(el);
+  });
+  $$("[data-moment]").forEach(btn=>{
+    const id = btn.dataset.moment;
+    if(S.moments[id]){ btn.classList.add("done"); btn.textContent = "✓ Moment gesammelt"; }
+  });
+  if(n === MOMENTS.length && !S.completeShown){
+    S.completeShown = true; persist();
+    setTimeout(()=>$("#complete").classList.add("show"), 500);
+    buzz([40,60,40]);
+  }
+}
+
+function collect(id, msg){
+  if(S.moments[id]) return;
+  S.moments[id] = Date.now(); persist();
+  renderRing();
+  buzz(30);
+  toast(msg || "Moment gesammelt – dein Kreis wächst.");
+}
+$$("[data-moment]").forEach(btn=>{
+  btn.addEventListener("click", ()=>collect(btn.dataset.moment));
+});
+$("#completeClose").addEventListener("click", ()=>$("#complete").classList.remove("show"));
+
+/* ================= TIMELINE ================= */
+function eventTime(hhmm){
+  return new Date(CONFIG.eventDate + "T" + hhmm + ":00");
+}
+function renderTimeline(){
+  const wrap = $("#timeline");
+  wrap.innerHTML = "";
+  const now = new Date();
+  let liveIdx = -1, nextIdx = -1;
+  CONFIG.timeline.forEach((it,i)=>{
+    const start = eventTime(it.time);
+    const end = i+1 < CONFIG.timeline.length ? eventTime(CONFIG.timeline[i+1].time) : new Date(start.getTime()+90*60000);
+    if(now >= start && now < end) liveIdx = i;
+    if(nextIdx === -1 && now < start) nextIdx = i;
+  });
+  CONFIG.timeline.forEach((it,i)=>{
+    const div = document.createElement("div");
+    div.className = "t-item" + (i===liveIdx ? " live" : (liveIdx > i || (liveIdx===-1 && nextIdx===-1) ? " past" : ""));
+    div.innerHTML =
+      '<div class="t-time">'+it.time+'</div>'+
+      '<div class="t-body">'+
+        '<div class="t-live-tag"><span class="dot"></span> Jetzt</div>'+
+        '<h3>'+it.title+'</h3><p>'+it.desc+'</p>'+
+        (it.moment ? '<button class="btn t-collect" data-tl-moment="'+it.moment+'">'+(S.moments[it.moment] ? "✓ Moment gesammelt" : (it.momentLabel||"Moment sammeln"))+'</button>' : "")+
+      '</div>';
+    wrap.appendChild(div);
+  });
+  $$("[data-tl-moment]").forEach(b=>{
+    if(S.moments[b.dataset.tlMoment]) b.classList.add("done");
+    b.addEventListener("click", ()=>{ collect(b.dataset.tlMoment); renderTimeline(); });
+  });
+  // next up card
+  const src = liveIdx !== -1 ? CONFIG.timeline[liveIdx] : (nextIdx !== -1 ? CONFIG.timeline[nextIdx] : null);
+  if(src){
+    $("#nextUpCard").querySelector(".label").textContent = liveIdx !== -1 ? "Jetzt" : "Als Nächstes";
+    $("#nextUpTitle").textContent = src.time + " · " + src.title;
+    $("#nextUpDesc").textContent = src.desc;
+  } else {
+    $("#nextUpCard").querySelector(".label").textContent = "Der Abend";
+    $("#nextUpTitle").textContent = "Danke für diesen Abend";
+    $("#nextUpDesc").textContent = "THE CIRCLE – bis zum nächsten Mal.";
+  }
+}
+
+/* ================= COUNTDOWN / STATUS ================= */
+function renderStatus(){
+  const first = eventTime(CONFIG.timeline[0].time);
+  const last  = eventTime(CONFIG.timeline[CONFIG.timeline.length-1].time);
+  const now = new Date();
+  const st = $("#statusText"), cd = $("#countdown");
+  if(now < first){
+    const ms = first - now;
+    const d = Math.floor(ms/86400000), h = Math.floor(ms%86400000/3600000), m = Math.floor(ms%3600000/60000);
+    st.textContent = "Der Kreis öffnet sich in";
+    cd.textContent = d > 0 ? d+" Tagen · "+h+" Std" : (h>0 ? h+" Std · "+m+" Min" : m+" Min");
+  } else if(now < new Date(last.getTime()+120*60000)){
+    st.textContent = "Der Kreis ist geöffnet – heute Abend, über den Dächern von Köln.";
+    cd.textContent = "";
+  } else {
+    st.textContent = "Der Abend ist Geschichte – die Verbindungen bleiben.";
+    cd.textContent = "";
+  }
+}
+
+/* ================= APPLAUSE ================= */
+const applauseBtn = $("#applauseBtn");
+function renderApplause(){ $("#applauseCount").textContent = S.applause }
+applauseBtn.addEventListener("click", e=>{
+  S.applause++; persist();
+  renderApplause();
+  buzz(12);
+  if(S.applause >= 5) collect("pitch", "Dein Applaus zählt – Moment gesammelt.");
+  if(!reduceMotion){
+    const box = $("#applauseBox");
+    const s = document.createElement("span");
+    s.className = "spark";
+    s.textContent = ["✦","✧","*"][Math.floor(Math.random()*3)];
+    const r = box.getBoundingClientRect();
+    s.style.left = (50 + (Math.random()*36-18)) + "%";
+    s.style.top = (applauseBtn.offsetTop + 20 + Math.random()*40) + "px";
+    box.appendChild(s);
+    setTimeout(()=>s.remove(), 1100);
+  }
+});
+
+/* ================= PADDLE ================= */
+function paddleNumber(name){
+  let h = 0;
+  for(const c of name) h = (h*31 + c.charCodeAt(0)) >>> 0;
+  return 11 + (h % 88);
+}
+function renderPaddle(){
+  const box = $("#paddleBox");
+  if(S.paddle){
+    box.classList.add("raised");
+    $("#paddleNo").textContent = paddleNumber(S.name || "Gast");
+    $("#paddleSub").style.display = "block";
+    $("#paddleBtn").textContent = "Bieterkarte gehoben";
+    $("#paddleBtn").classList.add("done");
+  }
+}
+$("#paddleBtn").addEventListener("click", ()=>{
+  if(S.paddle) return;
+  S.paddle = true; persist();
+  renderPaddle();
+  buzz(30);
+  toast("Karte "+paddleNumber(S.name||"Gast")+" – viel Erfolg beim Bieten.");
+});
+
+/* ================= CONNECT ================= */
+function renderCard(){
+  $("#cardName").textContent = S.name || "Gast";
+  $("#cardMeta").textContent = S.company || "THE CIRCLE · Gast des Abends";
+  $("#guestName").textContent = S.name || "Gast";
+}
+$("#shareBtn").addEventListener("click", async ()=>{
+  const text = S.name + (S.company ? " · " + S.company : "") + " — wir haben uns bei THE CIRCLE in Köln getroffen. connecting generations.";
+  try{
+    if(navigator.share){ await navigator.share({ title:"THE CIRCLE", text }); }
+    else { await navigator.clipboard.writeText(text); toast("Karte kopiert – füge sie in eine Nachricht ein."); }
+    collect("verbindung", "Neue Verbindung – Moment gesammelt.");
+  }catch(e){ /* share dismissed */ }
+});
+$("#editBtn").addEventListener("click", ()=>{
+  $("#onboarding").classList.remove("hidden");
+  $("#obName").value = S.name; $("#obCompany").value = S.company;
+});
+
+/* impulse deck */
+let lastImpulse = -1;
+function drawImpulse(){
+  let i;
+  do{ i = Math.floor(Math.random()*IMPULSE.length) } while(i === lastImpulse && IMPULSE.length > 1);
+  lastImpulse = i;
+  const el = $("#impulseText");
+  el.style.opacity = 0;
+  setTimeout(()=>{
+    el.textContent = "„" + IMPULSE[i] + "“";
+    el.style.opacity = 1;
+    S.impulseSeen++; persist();
+    $("#impulseCount").textContent = S.impulseSeen + (S.impulseSeen === 1 ? " Karte" : " Karten");
+  }, reduceMotion ? 0 : 220);
+  buzz(15);
+}
+$("#impulseCard").addEventListener("click", drawImpulse);
+$("#impulseCard").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); drawImpulse(); } });
+
+/* ================= ONBOARDING ================= */
+$("#obForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  S.name = $("#obName").value.trim();
+  S.company = $("#obCompany").value.trim();
+  persist();
+  $("#onboarding").classList.add("hidden");
+  renderCard();
+  toast("Willkommen im Kreis, " + S.name.split(" ")[0] + ".");
+});
+if(S.name) $("#onboarding").classList.add("hidden");
+
+/* ================= INIT ================= */
+renderCard();
+renderRing();
+renderApplause();
+renderPaddle();
+renderTimeline();
+renderStatus();
+if(S.impulseSeen) $("#impulseCount").textContent = S.impulseSeen + (S.impulseSeen === 1 ? " Karte" : " Karten");
+setInterval(()=>{ renderTimeline(); renderStatus(); }, 30000);
+{
+  const v = new URLSearchParams(location.search).get("view");
+  if(v && document.querySelector('section[data-view="'+v+'"]')) show(v);
+}
+</script>
+</body>
+</html>
