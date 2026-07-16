@@ -89,6 +89,30 @@ Venue-WLAN). Der Zustand wird in `server/live-state.json` gesichert und
 übersteht Neustarts. Kein Login – gedacht für den privaten Abend hinter einer
 nicht erratbaren URL.
 
+## NFC-Armbänder & Stationen (Handy in der Tasche)
+
+Für minimale Screentime: Jeder Gast trägt ein **passives NFC-Armband** (nur eine
+ID, kein Akku). Im Raum stehen **Stationen** – günstige Android-Tablets im Browser,
+die `station.html` im Vollbild zeigen und das Armband per **Web-NFC** lesen. Der
+Gast legt nur auf, das Handy kann in der Tasche bleiben.
+
+- **Aufruf:** `…/station` zeigt die Stationsauswahl; `…/station?station=applause`
+  öffnet eine konkrete Station (checkin · applause · vote-ja/-vielleicht/-nein ·
+  bid · impuls · mentor · kunst · verbindung).
+- **Ablauf:** Am Check-in tippt der Gast seinen Namen einmal ein (Band → Gast).
+  Danach genügt an jeder Station das Auflegen: Applaus zählt, das Votum wird zur
+  physischen Abstimmung (drei Stelen), Gebote steigen um 250 €, Momente füllen den Kreis.
+- **Server:** führt ein Gäste-Register (`Band-ID → Gast` mit Namen, Momenten,
+  Applaus, Votum). Stations-Taps speisen zugleich die aggregierte Live-Ansicht der App.
+- **Hardware:** Silikon-NFC-Armbänder (~0,50–2 €, brandbar) + je Station ein
+  Android-Tablet. Kein Custom-Gerät, keine App im Store. iPhones können *nicht* als
+  Leser dienen (kein Web-NFC) – Stationen daher Android; Gäste-Handys sind egal.
+- **Demo:** Jede Station hat einen Knopf „Tap simulieren“ (rotierende Demo-Gäste),
+  um die Stationen ohne Armband vorzuführen – ideal fürs Pitch-Gespräch.
+
+Endpunkte: `POST /api/station/register {band,name}` · `POST /api/station/tap
+{band,station[,inc]}` · `GET /api/guest?band=…`.
+
 ## Deployment
 
 Eine einzige Datei, keine Abhängigkeiten, kein Build:
