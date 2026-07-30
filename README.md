@@ -39,6 +39,24 @@ Skyline, seitlich driftende Geister-Uhrzeiten in der Timeline, animiert
 gemalte Enso-Segmente beim Sammeln, pulsierender Applaus-Button.
 `prefers-reduced-motion` wird durchgängig respektiert.
 
+**Einladung** – der Weg in den Kreis (`?invite=…`, im Demo-Modus automatisch):
+persönlicher Einladungslink mit Gastgeber-Absender („Georg Schäfer lädt dich
+ein“), Zusage/Absage, vorausfüllbare Daten, Zahlungsschritt (100 €, im
+Livebetrieb Stripe – Demo berechnet nichts) und Ticket-Nummer. Dazu der
+**Gastgeber-Bereich** auf der Startseite (Demo): drei persönliche Einladungs-
+Slots, Status zugesagt/offen/abgesagt, Link kopieren, frei gewordene Plätze
+neu vergeben.
+
+**Demo-Modus** (`?demo=1` oder `CONFIG.demo`): simulierte Raum-Daten (Applaus,
+Votum, Auktion mit Gegenbietern, Geräte-Zähler), Vorspul-Chip durch die Phasen
+des Abends und automatisch aktiver Einladungsflow – die „Demo-PWA mit
+Platzhalterdaten“ für die Abstimmung mit dem Event-Team.
+
+**Screentime-Steuerung** (`CONFIG.gates`): Live-Funktionen öffnen nur in ihrem
+Programmfenster (Applaus/Votum zum Pitch, Bieten zur Versteigerung); außerhalb
+zeigt die App elegante Pausen-Overlays („Der Raum hat Pause – bis dahin: gute
+Gespräche.“).
+
 Alles läuft ohne Backend – der Stand jedes Gastes liegt lokal auf seinem Gerät
 (`localStorage`). Kein Login, keine Datenweitergabe, kein Tracking.
 
