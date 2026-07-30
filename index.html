@@ -420,6 +420,27 @@
   }
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+  /* ---------- Screentime-Steuerung + Demo ---------- */
+  .gated{position:relative}
+  .gated .gate{
+    position:absolute;inset:0;z-index:5;display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    text-align:center;padding:24px;
+  }
+  .gated.locked .gate{display:flex}
+  .gated.locked > :not(.gate){opacity:.18;filter:blur(2.5px) grayscale(.5);pointer-events:none}
+  .gate b{font-family:var(--disp);font-weight:500;font-size:15px;letter-spacing:.14em;text-transform:uppercase}
+  .gate span{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);max-width:26em;line-height:1.9}
+  .gate i{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--faint);letter-spacing:.02em}
+  #demoChip{
+    position:fixed;left:14px;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px);
+    z-index:65;padding:10px 14px;border:0;cursor:pointer;
+    background:var(--ivory);color:var(--ink);
+    font-family:var(--sans);font-size:9px;letter-spacing:.2em;text-transform:uppercase;font-weight:500;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #demoChip:active{transform:scale(.97)}
+
   /* ---------- Interaktion: Bingo, Kontakte, Notiz, Votum, Tipp ---------- */
   .bingo{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:16px}
   .bingo button{
@@ -730,7 +751,12 @@
         <p class="lede" id="liveGuests" style="display:none;margin-top:10px">Gerade im Kreis: <b>–</b> Geräte</p>
       </div>
 
-      <div class="studio rv">
+      <div class="studio rv gated" data-gate="pitch">
+        <div class="gate" aria-hidden="true">
+          <b>Der Raum hat Pause</b>
+          <span>Öffnet um 20:30 mit dem Start-Up Pitch</span>
+          <i>Bis dahin: gute Gespräche.</i>
+        </div>
         <div id="splat"></div>
         <span class="label" style="display:block;margin-bottom:8px">Start-Up Pitch</span>
         <p class="lede" style="position:relative;z-index:2;margin-bottom:26px;font-size:13px">Eine Idee, drei Minuten.<br>Dein Applaus zählt.</p>
@@ -743,7 +769,11 @@
         </div>
       </div>
 
-      <div class="panel rv">
+      <div class="panel rv gated" data-gate="pitch">
+        <div class="gate" aria-hidden="true">
+          <b>Noch geschlossen</b>
+          <span>Das Votum öffnet mit dem Pitch um 20:30</span>
+        </div>
         <span class="label">Dein Votum</span>
         <h3>Würdest du investieren?</h3>
         <p>Kein Handzeichen nötig – dein Bauchgefühl zählt.</p>
@@ -759,7 +789,12 @@
         </div>
       </div>
 
-      <div class="lot rv" id="paddleBox">
+      <div class="lot rv gated" data-gate="auktion" id="paddleBox">
+        <div class="gate" aria-hidden="true">
+          <b>Das Werk entsteht noch</b>
+          <span>Die Versteigerung öffnet um 21:45</span>
+          <i>Schau Max beim Malen zu.</i>
+        </div>
         <span class="label">Live Painting · Versteigerung</span>
         <p class="lede" id="paddleHint" style="font-size:13px">
           Max Leinfelder malt heute live. Das Werk wird versteigert,
@@ -912,6 +947,11 @@
 const CONFIG = {
   eventDate: "2026-09-16",           // 16. September 2026, Playa Cologne
   liveServer: "",                    // leer = gleiche Domain (server/circle-server.js); sonst z. B. "https://circle-live.onrender.com"
+  demo: false,                       // true oder ?demo=1: Vorführmodus mit Platzhalterdaten
+  gates: {                           // Screentime-Steuerung: Live-Funktionen nur im Programmfenster
+    pitch:   { from: "20:30", to: "20:50" },
+    auktion: { from: "21:45", to: "22:10" }
+  },
   timeline: [
     { id:"empfang",  time:"18:30", title:"Empfang & Aperitif",           desc:"Ankommen in der Playa Cologne. Erste Gespräche, erste Drinks." },
     { id:"opening",  time:"19:15", title:"Opening mit Amiaz Habtu",      desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
@@ -1191,7 +1231,7 @@ function eventTime(hhmm){
 function renderTimeline(){
   const wrap = $("#timeline");
   wrap.innerHTML = "";
-  const now = new Date();
+  const now = nowLive();
   let liveIdx = -1, nextIdx = -1;
   CONFIG.timeline.forEach((it,i)=>{
     const start = eventTime(it.time);
@@ -1237,7 +1277,7 @@ function renderTimeline(){
 function renderStatus(){
   const first = eventTime(CONFIG.timeline[0].time);
   const last  = eventTime(CONFIG.timeline[CONFIG.timeline.length-1].time);
-  const now = new Date();
+  const now = nowLive();
   const st = $("#statusText"), grid = $("#countGrid");
   if(now < first){
     st.textContent = "Der Kreis öffnet sich in";
@@ -1254,6 +1294,33 @@ function renderStatus(){
     st.textContent = "Der Abend ist Geschichte – die Verbindungen bleiben.";
     grid.style.display = "none";
   }
+  renderGates();
+}
+
+/* ================= SCREENTIME-STEUERUNG ================= */
+function inWindow(g){
+  const n = nowLive();
+  return n >= eventTime(g.from) && n < eventTime(g.to);
+}
+function renderGates(){
+  $$("[data-gate]").forEach(el=>{
+    const g = CONFIG.gates[el.dataset.gate];
+    if(g) el.classList.toggle("locked", !inWindow(g));
+  });
+}
+
+/* ================= DEMO-MODUS (Platzhalterdaten) ================= */
+const DEMO = CONFIG.demo || new URLSearchParams(location.search).get("demo") === "1";
+const DEMO_STOPS = [
+  { t:"17:30", label:"Vor dem Abend" },
+  { t:"19:36", label:"Impuls läuft" },
+  { t:"20:33", label:"Pitch live" },
+  { t:"21:52", label:"Versteigerung" },
+  { t:"22:50", label:"Ausklang" }
+];
+let demoStop = 2;
+function nowLive(){
+  return DEMO ? eventTime(DEMO_STOPS[demoStop].t) : new Date();
 }
 
 /* ================= APPLAUS ================= */
@@ -1529,6 +1596,23 @@ function renderLiveState(){
 }
 $$("#bidRow [data-inc]").forEach(b=>{
   b.addEventListener("click", async ()=>{
+    if(!LIVE.on && DEMO){
+      if(!S.paddle){ toast("Heb zuerst deine Bieterkarte."); buzz(20); return; }
+      const cur = LIVE.d && LIVE.d.bid ? LIVE.d.bid.amount : 0;
+      const amount = cur + parseInt(b.dataset.inc, 10);
+      const paddle = String(paddleNumber(S.name || "Gast"));
+      demoSim.bid = { amount, paddle, name: S.name };
+      LIVE.d = demoSim; renderLiveState();
+      buzz(25); toast("Dein Gebot: " + amount.toLocaleString("de-DE") + " € · Karte № " + paddle);
+      setTimeout(()=>{
+        if(demoSim.bid && demoSim.bid.paddle === paddle){
+          demoSim.bid = { amount: amount + 250, paddle: "47", name: "S. König" };
+          LIVE.d = demoSim; renderLiveState();
+          toast("Überboten – Karte № 47 hält dagegen."); buzz([30,50,30]);
+        }
+      }, 4200);
+      return;
+    }
     if(!LIVE.on) return;
     if(!S.paddle){ toast("Heb zuerst deine Bieterkarte."); buzz(20); return; }
     const current = LIVE.d && LIVE.d.bid ? LIVE.d.bid.amount : 0;
@@ -1541,6 +1625,48 @@ $$("#bidRow [data-inc]").forEach(b=>{
     }catch(e){ /* offline */ }
   });
 });
+
+/* ================= DEMO-SIMULATION ================= */
+const demoSim = {
+  applause: 412,
+  votes: { ja: 31, vielleicht: 9, nein: 4 },
+  guests: 87,
+  bid: { amount: 3250, paddle: "47", name: "S. König" },
+  bids: []
+};
+if(DEMO){
+  const rnd = (a,b)=>a+Math.floor(Math.random()*(b-a+1));
+  // Vorspul-Chip: durch die Phasen des Abends springen
+  const chip = document.createElement("button");
+  chip.id = "demoChip";
+  const setChip = ()=>{ chip.textContent = "Demo · " + DEMO_STOPS[demoStop].t + " " + DEMO_STOPS[demoStop].label + " · ▸"; };
+  setChip();
+  chip.addEventListener("click", ()=>{
+    demoStop = (demoStop + 1) % DEMO_STOPS.length;
+    setChip(); buzz(15);
+    renderTimeline(); renderStatus();
+    toast(DEMO_STOPS[demoStop].t + " Uhr – " + DEMO_STOPS[demoStop].label);
+  });
+  document.body.appendChild(chip);
+  // Raum-Simulation: Applaus, Stimmen, Gegenbieter
+  setInterval(()=>{
+    if(LIVE.on) return;                 // echter Server gewinnt immer
+    demoSim.guests = 84 + rnd(0,6);
+    if(inWindow(CONFIG.gates.pitch)){
+      demoSim.applause += rnd(2,9);
+      if(Math.random() < .5) demoSim.votes.ja++;
+      if(Math.random() < .22) demoSim.votes.vielleicht++;
+      if(Math.random() < .08) demoSim.votes.nein++;
+    }
+    if(inWindow(CONFIG.gates.auktion) && Math.random() < .18){
+      demoSim.bid = { amount: demoSim.bid.amount + 250, paddle: String(rnd(11,98)), name: "Gast" };
+    }
+    LIVE.d = demoSim;
+    renderLiveState();
+  }, 1800);
+  LIVE.d = demoSim;
+  setTimeout(renderLiveState, 500);
+}
 
 /* ================= SWIPE-NAVIGATION ================= */
 {
