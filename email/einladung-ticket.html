@@ -7,89 +7,104 @@
 <meta name="supported-color-schemes" content="dark">
 <title>THE CIRCLE &middot; Einladung</title>
 <!--
-  THE CIRCLE - Einladungs-Template (Ticket 100 EUR via Stripe)
-  Versand ueber Lettermint. Platzhalter (Merge-Variablen):
-    {{name}}         Vorname/Name des Gastes
-    {{gastgeber}}    Wer einlaedt (z. B. Georg Schaefer / Merzenich Baeckereien)
-    {{link}}         persoenlicher Einladungslink in die App (einmalig)
-    {{logo_url}}     gehostetes Spiral-Logo (weiss, PNG/WebP ~240px)
-    {{abmelden_url}} Abmeldelink (Pflicht)
+  THE CIRCLE - Einladungs-Template (mit Beitrag, Zahlung folgt nach Klick via Stripe)
+  CI: S/W-Fotografie (Koeln), klassische Serife (Didot-Stil), Spirale, dunkler Grund.
+  Ton: zurueckhaltend, exklusiv - der Beitrag ist eine Zeile, kein Verkaufsblock.
+  Versand ueber Lettermint. Merge-Variablen:
+    {{name}}            Vorname des Gastes
+    {{gastgeber}}       Wer einlaedt (z. B. Georg Schaefer)
+    {{link}}            persoenlicher Einladungslink (einmalig; Zahlung via Stripe folgt dort)
+    {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
+    {{logo_url}}        gehostetes Spiral-Logo (weiss, ~240px)
+    {{abmelden_url}}    Abmeldelink (Pflicht)
 -->
 </head>
-<body style="margin:0;padding:0;background-color:#131316;">
-  <!-- Preheader (unsichtbar) -->
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Dein persönlicher Platz bei THE CIRCLE – 16. September, Playa Cologne.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+<body style="margin:0;padding:0;background-color:#0f0f11;">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Ein Abend im kleinen Kreis – dein Platz bei THE CIRCLE ist reserviert.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#131316;">
-    <tr><td align="center" style="padding:36px 12px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0f0f11;">
+    <tr><td align="center" style="padding:28px 12px;">
 
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#131316;">
 
-        <!-- Logo + Wortmarke -->
-        <tr><td align="center" style="padding:16px 40px 6px 40px;">
-          <img src="{{logo_url}}" width="72" height="" alt="" style="display:block;border:0;">
-        </td></tr>
-        <tr><td align="center" style="padding:14px 40px 4px 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:22px;letter-spacing:8px;color:#f5f3ef;">THE&nbsp;CIRCLE</div>
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:5px;color:#a5a19a;text-transform:lowercase;padding-top:6px;">connecting&nbsp;generations</div>
+        <!-- S/W-Koeln-Header (Deck-Covershot) -->
+        <tr><td>
+          <img src="{{header_img_url}}" width="600" alt="THE CIRCLE &ndash; &uuml;ber den D&auml;chern von K&ouml;ln"
+               style="display:block;width:100%;height:auto;border:0;">
         </td></tr>
 
-        <!-- Hairline -->
-        <tr><td style="padding:26px 40px 0 40px;"><div style="border-top:1px solid #33333a;font-size:0;line-height:0;">&nbsp;</div></td></tr>
-
-        <!-- Eyebrow + Headline -->
-        <tr><td align="center" style="padding:30px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:4px;color:#a5a19a;text-transform:uppercase;">Pers&ouml;nliche Einladung</div>
+        <!-- Spirale + Wortmarke -->
+        <tr><td align="center" style="padding:36px 40px 0 40px;">
+          <img src="{{logo_url}}" width="60" alt="" style="display:block;border:0;">
         </td></tr>
-        <tr><td align="center" style="padding:14px 40px 8px 40px;">
-          <div style="font-family:Georgia,'Times New Roman',serif;font-size:34px;line-height:1.25;color:#f5f3ef;">
+        <tr><td align="center" style="padding:18px 40px 2px 40px;">
+          <div style="font-family:'Didot','Bodoni 72','Playfair Display',Georgia,'Times New Roman',serif;font-size:32px;letter-spacing:9px;color:#f5f3ef;">THE&nbsp;CIRCLE</div>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:6px;color:#a5a19a;padding-top:8px;">connecting&nbsp;generations</div>
+        </td></tr>
+
+        <tr><td style="padding:30px 64px 0 64px;"><div style="border-top:1px solid #2e2e34;font-size:0;line-height:0;">&nbsp;</div></td></tr>
+
+        <!-- Einladung -->
+        <tr><td align="center" style="padding:32px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#a5a19a;text-transform:uppercase;">Auf pers&ouml;nliche Einladung</div>
+        </td></tr>
+        <tr><td align="center" style="padding:16px 40px 0 40px;">
+          <div style="font-family:'Didot','Bodoni 72','Playfair Display',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.3;color:#f5f3ef;">
             {{gastgeber}}<br>l&auml;dt dich ein, {{name}}.
           </div>
         </td></tr>
 
-        <!-- Fakten -->
-        <tr><td align="center" style="padding:18px 40px 6px 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:3px;color:#a5a19a;text-transform:uppercase;line-height:2.1;">
-            16. September 2026 &middot; ab 18:30 Uhr<br>Playa Cologne
+        <!-- Ein Satz zum Abend -->
+        <tr><td align="center" style="padding:22px 60px 0 60px;">
+          <div style="font-family:'Didot','Bodoni 72','Playfair Display',Georgia,'Times New Roman',serif;font-size:18px;line-height:1.75;color:#a5a19a;">
+            Ein Abend im kleinen Kreis, &uuml;ber den D&auml;chern von K&ouml;ln:
+            handverlesene G&auml;ste &uuml;ber Generationen hinweg, ein Men&uuml; in drei G&auml;ngen &mdash;
+            und ein Werk von Max Leinfelder, das vor deinen Augen entsteht.
           </div>
         </td></tr>
 
-              <!-- Preis -->
-              <tr><td align="center" style="padding:8px 40px 2px 40px;">
-                <div style="font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.5;color:#a5a19a;font-style:italic;">Dein Platz im Kreis</div>
-                <div style="font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:40px;line-height:1.2;color:#f5f3ef;letter-spacing:1px;">100&#8201;&euro;</div>
-              </td></tr>
+        <!-- Fakten -->
+        <tr><td align="center" style="padding:26px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:3px;color:#d8d4cc;text-transform:uppercase;line-height:2.2;">
+            Mittwoch, 16. September 2026 &middot; ab 18:30 Uhr<br>Playa Cologne
+          </div>
+        </td></tr>
+
+        <tr><td align="center" style="padding:26px 56px 0 56px;">
+          <div style="font-family:'Didot','Bodoni 72','Playfair Display',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#d8d4cc;">
+            Dein Platz ist bereits f&uuml;r dich reserviert.<br>
+            Der Abend versteht sich mit einem Beitrag von 100&nbsp;Euro.
+          </div>
+        </td></tr>
 
         <!-- CTA -->
-        <tr><td align="center" style="padding:26px 40px 10px 40px;">
+        <tr><td align="center" style="padding:30px 40px 8px 40px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-            <td align="center" bgcolor="#f5f3ef" style="border-radius:0;">
+            <td align="center" style="border:1px solid #f5f3ef;">
               <a href="{{link}}" target="_blank"
-                 style="display:inline-block;padding:17px 44px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;letter-spacing:4px;text-transform:uppercase;color:#131316;text-decoration:none;">Platz sichern · 100 €</a>
+                 style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:normal;letter-spacing:5px;text-transform:uppercase;color:#f5f3ef;text-decoration:none;">Einladung annehmen</a>
             </td>
           </tr></table>
         </td></tr>
-        <tr><td align="center" style="padding:4px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:2px;color:#6d6a64;text-transform:uppercase;line-height:1.9;">Sichere Zahlung &uuml;ber Stripe &middot; Karte oder Apple&nbsp;Pay &middot; der Erl&ouml;s flie&szlig;t direkt an den Veranstalter</div>
+        <tr><td align="center" style="padding:6px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2px;color:#6d6a64;text-transform:uppercase;line-height:2;">Deine Zusage dauert eine Minute &middot; dein Link ist pers&ouml;nlich und einmalig</div>
         </td></tr>
 
-        <!-- Zitat -->
-        <tr><td align="center" style="padding:30px 48px 0 48px;">
-          <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:16px;line-height:1.6;color:#a5a19a;">
-            &bdquo;Der Rahmen ist besonders. Der Kern ist Verbindung.&ldquo;
+        <!-- Deck-Zitat -->
+        <tr><td align="center" style="padding:32px 52px 0 52px;">
+          <div style="font-family:'Didot','Bodoni 72','Playfair Display',Georgia,'Times New Roman',serif;font-style:italic;font-size:18px;line-height:1.6;color:#a5a19a;">
+            &bdquo;Der Rahmen ist besonders.<br>Der Kern ist Verbindung.&ldquo;
           </div>
         </td></tr>
 
-        <!-- Hairline -->
-        <tr><td style="padding:30px 40px 0 40px;"><div style="border-top:1px solid #33333a;font-size:0;line-height:0;">&nbsp;</div></td></tr>
+        <tr><td style="padding:32px 64px 0 64px;"><div style="border-top:1px solid #2e2e34;font-size:0;line-height:0;">&nbsp;</div></td></tr>
 
         <!-- Footer -->
-        <tr><td align="center" style="padding:22px 40px 8px 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:2px;color:#6d6a64;text-transform:uppercase;line-height:2;">
-            Eine Veranstaltung von<br>Ihre Marken Werkstatt &middot; AERA &middot; Public Cologne
-          </div>
+        <tr><td align="center" style="padding:24px 40px 6px 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#6d6a64;text-transform:uppercase;">Eine Veranstaltung von</div>
+          <div style="font-family:'Didot','Bodoni 72','Playfair Display',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#a5a19a;padding-top:8px;">Ihre Marken Werkstatt &middot; AERA &middot; Public Cologne</div>
         </td></tr>
-        <tr><td align="center" style="padding:6px 40px 26px 40px;">
+        <tr><td align="center" style="padding:8px 40px 32px 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#6d6a64;line-height:1.9;">
             Diese Einladung ist pers&ouml;nlich und nicht &uuml;bertragbar.<br>
             <a href="{{abmelden_url}}" style="color:#6d6a64;text-decoration:underline;">Keine E-Mails mehr zu THE CIRCLE erhalten</a>
