@@ -40,12 +40,37 @@ gemalte Enso-Segmente beim Sammeln, pulsierender Applaus-Button.
 `prefers-reduced-motion` wird durchgängig respektiert.
 
 **Einladung** – der Weg in den Kreis (`?invite=…`, im Demo-Modus automatisch):
-persönlicher Einladungslink mit Gastgeber-Absender („Georg Schäfer lädt dich
-ein“), Zusage/Absage, vorausfüllbare Daten, Zahlungsschritt (100 €, im
-Livebetrieb Stripe – Demo berechnet nichts) und Ticket-Nummer. Dazu der
-**Gastgeber-Bereich** auf der Startseite (Demo): drei persönliche Einladungs-
-Slots, Status zugesagt/offen/abgesagt, Link kopieren, frei gewordene Plätze
-neu vergeben.
+die Einladung kommt von **THE CIRCLE selbst**, nie von einer einzelnen Person.
+Zwei Varianten (`?typ=ticket` mit 100-€-Beitrag über Stripe, `?typ=ehrengast`
+nur Zusage), Zusage/Absage, Daten-Schritt und Ticket-Nummer. Der Daten-Schritt
+erfasst neben Name und Unternehmen auch **E-Mail** (Pflicht – dorthin geht
+später der App-Zugang), **Mobilnummer**, **bevorzugte Ernährung** (Alles /
+Vegetarisch / Vegan / Pescetarisch) und **Unverträglichkeiten** – diese
+Angaben wandern automatisch in die App: Kontaktdaten auf die Connect-Karte
+(inkl. Teilen-Text), die Ernährungsnotiz ans Menü („Für dich notiert … die
+Küche weiß Bescheid.“). Dazu die **Platz-Vergabe** auf der Startseite (Demo):
+drei persönliche Slots, Status zugesagt/offen/abgesagt, Link kopieren, frei
+gewordene Plätze neu vergeben – die Einladung selbst versendet immer das Haus.
+
+## Einladungsmanagement (Lettermint · Stripe · gestaffelt)
+
+Die Kommunikation läuft **in Wellen, nicht in einem Rutsch** – und die App
+wird erst spät kommuniziert, ausschließlich an Gäste, die zugesagt haben:
+
+| Welle | Template | Empfänger | Zeitpunkt |
+|---|---|---|---|
+| 1 · Einladung | `email/einladung-ticket.html` / `email/einladung-ehrengast.html` | Gästeliste | Wochen vorher |
+| 2 · App-Zugang | `email/app-zugang.html` | **nur Zusagen / bezahlte Tickets** | wenige Tage vorher |
+| 3 · Erinnerung | (folgt) | nur Gäste im Kreis | Vortag |
+
+Alle Templates sind tabellenbasiert, e-mail-sicher und im Deck-CI (S/W-Köln-
+Header `email/assets/circle-header.jpg`, klassische Serife, dunkler Grund).
+Merge-Variablen ({{name}}, {{link}}, …) stehen im Kopf jeder Datei; der
+App-Zugangs-Link aus Welle 2 öffnet die App bereits **mit den Daten aus der
+Zusage vorbereitet**. `monitor.html` ist der Blick für alle Beteiligten:
+Lettermint-Versandstand, Öffnungs-/Klickraten, Zusagen, Stripe-Umsatz und die
+Wellen-Planung – Demo-Daten, im Livebetrieb gespeist über Lettermint- und
+Stripe-Webhooks.
 
 **Demo-Modus** (`?demo=1` oder `CONFIG.demo`): simulierte Raum-Daten (Applaus,
 Votum, Auktion mit Gegenbietern, Geräte-Zähler), Vorspul-Chip durch die Phasen

@@ -431,6 +431,16 @@
     padding:8px 2px 10px;border-radius:0;
   }
   .inv-step input:focus{outline:none;border-bottom-color:var(--ivory)}
+  .inv-step .fieldnote{font-size:9px;letter-spacing:.14em;text-transform:none;color:var(--faint);margin-top:5px;display:block}
+  .inv-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .inv-chips button{
+    -webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;
+    border:1px solid var(--line);color:var(--muted);border-radius:0;
+    font-family:var(--disp);font-weight:500;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;
+    padding:9px 14px;transition:color .2s,border-color .2s,background .2s;
+  }
+  .inv-chips button.on{border-color:var(--ivory);color:var(--ink);background:var(--ivory)}
+  .inv-formnote{font-family:var(--serif);font-style:italic;font-size:12.5px;color:var(--faint);margin-top:14px;line-height:1.6;text-align:left}
   .inv-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px;margin-top:2vh}
   .payline{
     width:100%;max-width:320px;border:1px solid var(--line-soft);
@@ -757,7 +767,7 @@
       </div>
 
       <div class="panel rv" id="hostPanel" style="display:none">
-        <span class="label">Gastgeber-Bereich</span>
+        <span class="label">Platz-Vergabe</span>
         <h3>Deine Plätze im Kreis</h3>
         <p>Du vergibst drei Plätze – die Einladung selbst kommt von THE CIRCLE. Du siehst live, wer zugesagt hat; freie Plätze vergibst du neu.</p>
         <div id="hostSlots" style="margin-top:8px"></div>
@@ -830,6 +840,7 @@
         <p>Ganache · Amarena · Tonkabohne</p>
         <span class="pair">Espresso Martini</span>
       </div>
+      <p class="menu-note" id="menuPref" style="display:none"></p>
       <p class="menu-note">Vegetarische Alternative bei jedem Gang – das Serviceteam berät dich gern.<br>Beispielmenü – die finale Karte folgt am Abend.</p>
     </section>
 
@@ -936,6 +947,7 @@
         <span class="label">Deine Karte im Kreis</span>
         <h3 id="cardName">–</h3>
         <p id="cardMeta">–</p>
+        <p id="cardContact" style="display:none;font-size:11px;color:var(--faint);letter-spacing:.05em;margin-top:6px"></p>
         <div class="row">
           <button class="btn" id="shareBtn">Teilen</button>
           <button class="btn" id="editBtn">Bearbeiten</button>
@@ -1025,17 +1037,40 @@
   <div class="inv-step" data-step="daten">
     <span class="label">Fast im Kreis</span>
     <h1>Deine <span class="grad">Daten</span></h1>
-    <p class="who" style="margin-bottom:3vh">Dein Gastgeber hat dich angemeldet – prüf kurz, ob alles stimmt.</p>
+    <p class="who" style="margin-bottom:3vh">Einmal hinterlegt – der Abend ist damit für dich vorbereitet.</p>
     <form id="invForm">
       <div>
         <label for="invName">Name</label>
         <input id="invName" type="text" maxlength="40" required autocomplete="name">
       </div>
       <div>
+        <label for="invMail">E-Mail</label>
+        <input id="invMail" type="email" maxlength="80" required autocomplete="email" inputmode="email">
+        <span class="fieldnote">Für deine Bestätigung – und näher am Abend deinen persönlichen Zugang.</span>
+      </div>
+      <div>
+        <label for="invPhone">Mobil <span style="opacity:.5;text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input id="invPhone" type="tel" maxlength="30" autocomplete="tel" inputmode="tel">
+      </div>
+      <div>
         <label for="invFirm">Unternehmen / Rolle <span style="opacity:.5;text-transform:none;letter-spacing:0">(optional)</span></label>
         <input id="invFirm" type="text" maxlength="60" autocomplete="organization">
       </div>
-      <button class="btn btn--solid btn--full" type="submit" style="margin-top:2vh">Weiter zur Zahlung</button>
+      <div>
+        <label id="invDietLabel">Bevorzugte Ernährung</label>
+        <div class="inv-chips" id="invDiet" role="group" aria-labelledby="invDietLabel">
+          <button type="button" data-diet="alles">Alles</button>
+          <button type="button" data-diet="vegetarisch">Vegetarisch</button>
+          <button type="button" data-diet="vegan">Vegan</button>
+          <button type="button" data-diet="pescetarisch">Pescetarisch</button>
+        </div>
+      </div>
+      <div>
+        <label for="invAllergy">Unverträglichkeiten / Allergien <span style="opacity:.5;text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input id="invAllergy" type="text" maxlength="120" placeholder="z. B. Nüsse, Laktose, Gluten">
+      </div>
+      <button class="btn btn--solid btn--full" type="submit" id="invFormNext" style="margin-top:2vh">Weiter zur Zahlung</button>
+      <p class="inv-formnote">Deine Angaben gehen später automatisch in deine App zum Abend – Karte, Menü und Ticket sind dann schon für dich eingerichtet. Sichtbar nur für das Event-Team.</p>
     </form>
   </div>
 
@@ -1064,9 +1099,9 @@
     <h1>Du bist <span class="grad">im Kreis.</span></h1>
     <div class="inv-ticket grad" id="invTicket">№ –</div>
     <div class="inv-btns">
-      <button class="btn btn--solid btn--full" id="invEnter">Zur App</button>
+      <button class="btn btn--solid btn--full" id="invEnter">Vorschau der App ansehen</button>
     </div>
-    <p class="inv-note">Deine Einladung, dein Ticket und der Abend – alles in einer App. Kein Download, kein Login.</p>
+    <p class="inv-note">Für heute ist das alles. Wenige Tage vor dem Abend erhältst du per E-Mail deinen persönlichen Zugang zur App des Abends – sie geht nur an die Gäste, die im Kreis sind. Kein Download, kein Login.</p>
   </div>
 
   <div class="inv-step" data-step="absage">
@@ -1556,9 +1591,24 @@ function renderCard(){
   $("#cardName").textContent = S.name || "Gast";
   $("#cardMeta").textContent = S.company || "THE CIRCLE · Gast des Abends";
   $("#guestName").textContent = S.name || "Gast";
+  /* Kontaktdaten aus der Einladung – automatisch auf der Karte */
+  const contact = [S.mail, S.phone].filter(Boolean).join(" · ");
+  $("#cardContact").textContent = contact;
+  $("#cardContact").style.display = contact ? "block" : "none";
+}
+/* Ernährung aus der Einladung – automatisch am Menü notiert */
+function renderMenuPref(){
+  const el = $("#menuPref");
+  const diet = S.diet && S.diet !== "alles" ? S.diet[0].toUpperCase() + S.diet.slice(1) : "";
+  const parts = [diet, S.allergy ? "ohne " + S.allergy : ""].filter(Boolean);
+  if(parts.length){
+    el.textContent = "Für dich notiert: " + parts.join(" · ") + " — die Küche weiß Bescheid.";
+    el.style.display = "block";
+  } else { el.style.display = "none"; }
 }
 $("#shareBtn").addEventListener("click", async ()=>{
-  const text = S.name + (S.company ? " · " + S.company : "") + " — wir haben uns bei THE CIRCLE in Köln getroffen. connecting generations.";
+  const contact = [S.mail, S.phone].filter(Boolean).join(" · ");
+  const text = S.name + (S.company ? " · " + S.company : "") + (contact ? " · " + contact : "") + " — wir haben uns bei THE CIRCLE in Köln getroffen. connecting generations.";
   try{
     if(navigator.share){ await navigator.share({ title:"THE CIRCLE", text }); }
     else { await navigator.clipboard.writeText(text); toast("Karte kopiert – füge sie in eine Nachricht ein."); }
@@ -1852,13 +1902,25 @@ if(DEMO){
       ? "Dein Platz ist eine Einladung des Hauses —<br>es genügt ein Wort."
       : "Dein Platz ist bereits für dich reserviert.<br>Der Abend versteht sich mit einem Beitrag von 100&nbsp;Euro.";
     $("#invYes").textContent = ehrengast ? "Zusagen" : "Einladung annehmen";
+    $("#invFormNext").textContent = ehrengast ? "Zusage abschließen" : "Weiter zur Zahlung";
     $("#invTypToggle").textContent = "Demo · " + (ehrengast ? "Ticket-Variante" : "Ehrengast-Variante") + " ansehen";
   }
   if(invited && !S.name){
     $("#onboarding").classList.add("hidden");
     $("#invite").classList.remove("hidden");
     $("#invName").value = q.get("name") || "";      // persönlicher Link: Name vorausgefüllt
+    $("#invMail").value = q.get("mail") || "";
   }
+  /* Ernährungs-Präferenz (wandert automatisch in die App: Karte & Menü) */
+  let invDiet = S.diet || "";
+  $$("#invDiet button").forEach(b=>{
+    b.classList.toggle("on", b.dataset.diet === invDiet);
+    b.addEventListener("click", ()=>{
+      invDiet = (invDiet === b.dataset.diet) ? "" : b.dataset.diet;
+      $$("#invDiet button").forEach(x=>x.classList.toggle("on", x.dataset.diet === invDiet));
+      buzz(8);
+    });
+  });
   renderInvTyp();
   if(DEMO){
     $("#invTypToggle").style.display = "inline-flex";
@@ -1874,7 +1936,12 @@ if(DEMO){
     e.preventDefault();
     const n = $("#invName").value.trim();
     if(!n){ $("#invName").focus(); return; }
-    S.name = n; S.company = $("#invFirm").value.trim(); persist();
+    const mail = $("#invMail").value.trim();
+    if(!mail){ $("#invMail").focus(); return; }
+    S.name = n; S.company = $("#invFirm").value.trim();
+    S.mail = mail; S.phone = $("#invPhone").value.trim();
+    S.diet = invDiet; S.allergy = $("#invAllergy").value.trim();
+    persist();
     if(invTyp === "zusage"){                       // Ehrengast: keine Zahlung
       $("#invTicket").textContent = "№ " + paddleNumber(S.name);
       invShow("fertig"); buzz([40,60,40]);
@@ -1892,7 +1959,7 @@ if(DEMO){
   });
   $("#invEnter").addEventListener("click", ()=>{
     $("#invite").classList.add("hidden");
-    renderCard(); renderRing(); renderPaddle();
+    renderCard(); renderRing(); renderPaddle(); renderMenuPref();
     toast("Willkommen im Kreis, " + S.name.split(" ")[0] + ".");
   });
 }
@@ -2025,6 +2092,7 @@ if(!reduceMotion){
 
 /* ================= INIT ================= */
 renderCard();
+renderMenuPref();
 renderApplause();
 renderPaddle();
 renderTimeline();

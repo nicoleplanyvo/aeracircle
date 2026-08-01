@@ -63,6 +63,19 @@
     font-variant-numeric:tabular-nums;color:var(--ivory)}
   .kpi span{font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);display:block;margin-top:6px}
 
+  /* Kommunikations-Wellen */
+  .waves{border:1px solid var(--line-soft);background:linear-gradient(180deg,var(--panel-hi),var(--panel-lo));
+    padding:20px 24px;margin-top:8px;backdrop-filter:blur(6px)}
+  .wave{display:flex;align-items:baseline;gap:16px;padding:12px 0;border-top:1px solid var(--line-soft);flex-wrap:wrap}
+  .wave:first-of-type{border-top:0}
+  .wave .wn{flex:0 0 74px;font-family:var(--serif);font-weight:600;font-size:19px;color:var(--ivory)}
+  .wave .wt{flex:1 1 240px;min-width:200px}
+  .wave .wt b{display:block;font-family:var(--disp);font-weight:500;font-size:13.5px;letter-spacing:.02em}
+  .wave .wt span{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .wave .ws{flex:0 0 auto;font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
+    border:1px solid var(--line-soft);padding:4px 10px;color:var(--muted)}
+  .wave.live .ws{background:var(--ivory);border-color:var(--ivory);color:var(--ink);font-weight:500}
+
   .grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:8px;margin-top:8px}
   @media(max-width:840px){.grid2{grid-template-columns:1fr}}
   .panel{border:1px solid var(--line-soft);background:linear-gradient(180deg,var(--panel-hi),var(--panel-lo));padding:24px}
@@ -132,6 +145,25 @@
     <div class="kpi"><b data-n="66">0</b><span>Geklickt · 45&thinsp;%</span></div>
     <div class="kpi"><b data-n="58">0</b><span>Zugesagt</span></div>
     <div class="kpi"><b data-n="41">0</b><span>Bezahlt</span></div>
+  </div>
+
+  <div class="waves">
+    <span class="label">Gestaffelte Kommunikation · nicht alles in einem Rutsch</span>
+    <div class="wave live">
+      <span class="wn">Welle 1</span>
+      <div class="wt"><b>Die Einladung</b><span>einladung-ticket · einladung-ehrengast · an die Gästeliste</span></div>
+      <span class="ws">Läuft · seit 15.08.</span>
+    </div>
+    <div class="wave">
+      <span class="wn">Welle 2</span>
+      <div class="wt"><b>Der App-Zugang</b><span>app-zugang · nur an Zusagen &amp; bezahlte Tickets · Stand heute: 58 Empfänger</span></div>
+      <span class="ws">Geplant · 11.09.</span>
+    </div>
+    <div class="wave">
+      <span class="wn">Welle 3</span>
+      <div class="wt"><b>Der Tag davor</b><span>Erinnerung mit Anfahrt &amp; Einlass · nur an Gäste im Kreis</span></div>
+      <span class="ws">Geplant · 15.09.</span>
+    </div>
   </div>
 
   <div class="grid2">
