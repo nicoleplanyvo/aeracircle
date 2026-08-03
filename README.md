@@ -1,11 +1,22 @@
 # THE CIRCLE · Teilnehmer-App
 
 Die digitale Begleiterin für **THE CIRCLE – connecting generations**
-(16. September 2026 · ab 18:30 Uhr · Playa Cologne): eine mobile Web-App für die
-Gäste des Abends, im monochromen Editorial-Look des Events – rauchige
-Schwarz-Weiß-Verläufe, Display-Typo in Clash Display (Uppercase, Silber-Verlauf,
-Solid/Outline-Mix), Cormorant kursiv als leiser Kontrapunkt, Tusche-Enso
-(Canvas-gerendert), das Menü als helles Blatt mit schwarzer Schrift.
+(THE CIRCLE N°1 · 16. September 2026 · 18:00–23:00 Uhr · Playa Cologne): eine
+mobile Web-App für die Gäste des Abends – im **offiziellen CI von
+the-circle-cologne.de**: Trajan-Kapitalis für Headlines (im Web als
+eingebettetes Cinzel, Fallback Trajan Pro 3/Georgia), Montserrat als
+Grundschrift, das offizielle Spiral-Logo (horizontal, negativ), Pill-Buttons –
+und die Farbwelten der Website: Navy `#122648` als Grund, Koralle `#ff6b6c`
+für Headlines/Akzente, Bordeaux `#741a33` für die Einladung, Sand `#d8d3c3`
+mit dunklem Bordeaux für das Menü, Blau `#13a4ef` für Info-Pills. Cormorant
+kursiv bleibt als leiser Kontrapunkt in Notizzeilen, dazu das Tusche-Enso
+(Canvas-gerendert).
+
+> **CI-Quelle:** Homepage + Logo kamen von Anne Schäfer (IMW); die exakten
+> Regeln stehen im Minimanual – Feinheiten (z. B. weitere Farbpaarungen,
+> Logo-Schutzraum) bitte damit abgleichen. Trajan Pro 3 ist eine
+> Adobe-Fonts-Lizenz und kann nicht eingebettet werden; Cinzel ist das freie
+> Äquivalent im gleichen Kapitalis-Duktus.
 
 ## Das Konzept: „Schließe deinen Kreis“
 
@@ -63,8 +74,11 @@ wird erst spät kommuniziert, ausschließlich an Gäste, die zugesagt haben:
 | 2 · App-Zugang | `email/app-zugang.html` | **nur Zusagen / bezahlte Tickets** | wenige Tage vorher |
 | 3 · Erinnerung | (folgt) | nur Gäste im Kreis | Vortag |
 
-Alle Templates sind tabellenbasiert, e-mail-sicher und im Deck-CI (S/W-Köln-
-Header `email/assets/circle-header.jpg`, klassische Serife, dunkler Grund).
+Alle Templates sind tabellenbasiert, e-mail-sicher und im offiziellen CI:
+Welle 1 in der Bordeaux-Welt (#741a33, Koralle-Headline, Koralle-Pill-CTA),
+Welle 2 in der Navy-Welt (#122648), S/W-Köln-Header
+`email/assets/circle-header.jpg`, Schrift-Stack Trajan Pro 3/Cinzel/Georgia
+(E-Mails können keine Webfonts laden – Georgia ist der sichere Fallback).
 Merge-Variablen ({{name}}, {{link}}, …) stehen im Kopf jeder Datei; der
 App-Zugangs-Link aus Welle 2 öffnet die App bereits **mit den Daten aus der
 Zusage vorbereitet**. `monitor.html` ist der Blick für alle Beteiligten:
@@ -90,19 +104,22 @@ Alles läuft ohne Backend – der Stand jedes Gastes liegt lokal auf seinem Ger�
 
 ## Logos
 
-Die **Veranstalter-Logos** (Ihre Marken Werkstatt, AERA, Public Cologne) und
-das Spiral-Logo stammen aus der Event-Präsentation und sind als WebP-Data-URIs
-eingebettet. Die **Partner** stehen als einheitliche Wortmarken-Kacheln im
-`partner-grid` – sobald die echten Logo-Dateien der Partner vorliegen, einfach
-in einer Kachel das `<b>…</b>` durch `<img src="data:image/webp;base64,…">`
-ersetzen (max-height 30 px empfohlen, am besten weiße/negative Logovarianten).
+Das **offizielle THE-CIRCLE-Logo** (`logo-horizontal-neg-rgb.svg` von der
+Website) ist als SVG-Data-URI eingebettet (JS-Konstante `BRANDLOGO`, wird an
+alle `img.brandlogo` verteilt). Die **Veranstalter-Logos** (Ihre Marken
+Werkstatt, AERA, Public Cologne) stammen aus der Event-Präsentation. Die
+**Partner** (Stand Website: neuland.ai, Conrad, Dein Dach, DEKRA, jto,
+Merzenich, sion, SKS) stehen als Wortmarken-Kacheln im `partner-grid` – die
+echten Logo-Dateien liegen auf the-circle-cologne.de unter
+`/wp-content/uploads/` (weiße Hintergründe; für die dunkle App am besten
+negative Varianten anfragen).
 
 ## Anpassen
 
 Alle Inhalte stehen in `index.html`:
 
-- **Datum & Ablauf**: im `CONFIG`-Block am Anfang des `<script>` (`eventDate` steht auf dem 16.09.2026, die Uhrzeiten der `timeline` sind ein Vorschlag rund um den 18:30-Uhr-Einlass)
-- **Gastgeber & Partner**: im Abschnitt `colophon` auf der Startseite (Stand: neuland.ai, Conrad SE, Smart Velo, Dein Dach, Radeberger Gruppe / Haus Kölscher Brautradition, Merzenich Bäckereien, SKS (Yellowhive Group), fuchsrohrbach Rechtsanwälte)
+- **Datum & Ablauf**: im `CONFIG`-Block am Anfang des `<script>` (`eventDate` steht auf dem 16.09.2026, die Uhrzeiten der `timeline` sind ein Vorschlag im offiziellen Rahmen 18:00–23:00 Uhr)
+- **Gastgeber & Partner**: im Abschnitt `colophon` auf der Startseite (Stand Website: neuland.ai, Conrad, Dein Dach, DEKRA, jto, Merzenich, sion, SKS)
 - **Menü**: im Abschnitt `<!-- MENÜ -->` (aktuell ein Beispielmenü)
 - **Impuls-Fragen**: Array `IMPULSE`
 - **Momente**: Array `MOMENTS`
