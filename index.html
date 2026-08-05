@@ -433,6 +433,16 @@
   }
   .inv-step input:focus{outline:none;border-bottom-color:var(--ivory)}
   .inv-step .fieldnote{font-size:9px;letter-spacing:.14em;text-transform:none;color:var(--faint);margin-top:5px;display:block}
+  /* Die Einladung lebt in der Bordeaux-Welt: alle Grautöne dort in Rosé */
+  #invite{--muted:#eccad4;--faint:#c795a5;--line:rgba(242,203,215,.45);--line-soft:rgba(242,203,215,.16)}
+  #invite .inv-step form{
+    background:linear-gradient(180deg,rgba(248,247,244,.07),rgba(248,247,244,.02));
+    border:1px solid var(--line-soft);
+    padding:26px 22px 24px;
+  }
+  #invite .inv-step input:focus{border-bottom-color:var(--coral)}
+  #invite .inv-step input{caret-color:var(--coral)}
+  #invite .inv-chips button:hover{border-color:var(--rosa);color:var(--ivory)}
   .inv-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
   .inv-chips button{
     -webkit-appearance:none;appearance:none;background:transparent;cursor:pointer;
