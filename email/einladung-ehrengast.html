@@ -13,7 +13,13 @@
   Ton: zurueckhaltend, exklusiv - der Beitrag ist eine Zeile, kein Verkaufsblock.
   Versand ueber Lettermint. Merge-Variablen:
     {{name}}            Vorname des Gastes
-    {{link}}            persoenlicher Einladungslink (einmalig; Zahlung via Stripe folgt dort)
+    {{link}}            persoenlicher Link auf die Landing Page (landing.html):
+                        https://<domain>/einladung?t=<TOKEN>
+                        Dort stehen alle Infos zum Abend; von dort laeuft auch
+                        die Zusage und - beim Ticket-Pool - der Stripe-Checkout.
+                        Die Spalte 'link' aus
+                          node server/circle-server.js export
+                        liefert genau diese URLs fuer den Lettermint-Import.
     {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
     {{logo_url}}        offizielles Logo (logo-horizontal-neg-rgb.svg, negativ)
     {{abmelden_url}}    Abmeldelink (Pflicht)

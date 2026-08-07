@@ -1,31 +1,64 @@
 #!/usr/bin/env node
 /*
- * THE CIRCLE – Live-Server
- * Eine Datei, keine Abhängigkeiten. Dient App + Stations-Seite aus und liefert
- * die Echtzeit-Ebene: Raum-Applaus, Live-Votum, Auktions-Board, Gäste-Zähler.
+ * THE CIRCLE – Einladungs- & Live-Server
+ * Eine Datei, keine Abhängigkeiten.
  *
- * NFC-Armbänder ("nur Band, Handy optional"):
- *   Jeder Gast trägt ein passives NFC-Armband (nur eine ID). Stationen sind
- *   Android-Tablets im Browser (station.html), die das Band per Web-NFC lesen
- *   und den Tap an den Server melden. Der Server führt ein Gäste-Register
- *   (Band-ID -> Gast) und bucht Check-in, Applaus, Votum, Gebot und Momente.
+ * Er macht zwei Dinge:
  *
- *   node server/circle-server.js          → http://localhost:8080
- *   PORT=3000 node server/circle-server.js
+ * 1) EINLADUNG (vor dem Abend)
+ *    Gästeliste kommt als CSV in Pools (je Veranstalter/Partner eine Liste).
+ *    Jeder Gast bekommt einen unerratbaren Token; der Lettermint-Link führt auf
+ *    die Landing Page (landing.html) mit den Event-Infos. Dort sagt der Gast zu:
+ *      · Ehrengäste  -> reine Zusage
+ *      · Ticket-Pool -> Stripe Checkout über 100 € (echte Session, keine SDK)
+ *    Die Stripe-Webhooks buchen die Zahlung zurück ins Register.
+ *
+ *      node server/circle-server.js import gaeste.csv    → Pools einlesen
+ *      node server/circle-server.js export               → Stand als CSV
+ *
+ * 2) LIVE (am Abend)
+ *    Echtzeit-Ebene der App: Raum-Applaus, Live-Votum, Auktions-Board,
+ *    Gäste-Zähler. (Die NFC-Stationen sind derzeit geparkt – es zählen die
+ *    Handys der Gäste; station.html bleibt für später liegen.)
+ *
+ *      node server/circle-server.js          → http://localhost:8080
+ *      PORT=3000 node server/circle-server.js
+ *
+ * Konfiguration über Umgebungsvariablen (alles optional – ohne Stripe-Key
+ * läuft der Zusage-Teil weiter, der Zahlungsschritt meldet dann "nicht
+ * konfiguriert"):
+ *      PUBLIC_URL             öffentliche Basis-URL (für Stripe-Rückkehr)
+ *      STRIPE_SECRET_KEY      sk_live_… / sk_test_…
+ *      STRIPE_WEBHOOK_SECRET  whsec_… (Signaturprüfung der Webhooks)
+ *      TICKET_PRICE           Ticketpreis in Cent (Default 10000 = 100 €)
+ *      ADMIN_TOKEN            schützt /api/admin/* (Monitor-Daten)
+ *
+ * DATENSCHUTZ: Im Register stehen Namen, E-Mail-Adressen und – wenn der Gast
+ * sie angibt – Unverträglichkeiten. Das sind personenbezogene und teils
+ * Gesundheitsdaten. Deshalb: ADMIN_TOKEN setzen, HTTPS verwenden,
+ * live-state.json nicht ins Repo (steht in .gitignore) und nach dem Event
+ * löschen bzw. auf das Nötige eindampfen.
  *
  * Zustand liegt im Speicher und wird alle 2 s nach live-state.json
- * gesichert (übersteht Neustarts). Kein Auth – gedacht für den privaten
- * Event-Abend hinter einer nicht erratbaren URL.
+ * gesichert (übersteht Neustarts).
  */
 "use strict";
 
 const http = require("http");
+const https = require("https");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
 const PORT = process.env.PORT || 8080;
 const ROOT = path.join(__dirname, "..");
 const STATE_FILE = path.join(__dirname, "live-state.json");
+
+const PUBLIC_URL = (process.env.PUBLIC_URL || "http://localhost:" + PORT).replace(/\/$/, "");
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || "";
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+const TICKET_PRICE = parseInt(process.env.TICKET_PRICE, 10) || 10000;   // Cent
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
 
 const VOTES = ["ja", "vielleicht", "nein"];
 const MOMENTS_TOTAL = 6;
@@ -44,10 +77,14 @@ let state = {
   votes: { ja: 0, vielleicht: 0, nein: 0 },
   bid: null,            // { amount, paddle, name, t }
   bids: [],             // letzte Gebote, neueste zuerst
-  guests: {}            // bandId -> { name, table, moments:{}, applause, vote, t }
+  guests: {},           // bandId -> { name, table, moments:{}, applause, vote, t }
+  invites: {},          // token -> Gast der Einladungsliste (siehe importRows)
+  feed: []              // Ereignis-Log für den Monitor, neueste zuerst
 };
 try { Object.assign(state, JSON.parse(fs.readFileSync(STATE_FILE, "utf8"))); } catch (e) { /* frischer Start */ }
 if (!state.guests) state.guests = {};
+if (!state.invites) state.invites = {};
+if (!state.feed) state.feed = [];
 
 let dirty = false;
 setInterval(() => {
@@ -105,6 +142,11 @@ function readBody(req, res, cb) {
 
 const clean = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f<>&"\']/g, "").trim().slice(0, n);
 
+/* Fuer Freitext von Gaesten: Namen duerfen & und ' enthalten ("Falk & Cie",
+ * "O'Brien"). Steuerzeichen und spitze Klammern fliegen raus; ausgegeben wird
+ * ohnehin nur ueber textContent bzw. JSON, nie ueber innerHTML. */
+const cleanText = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, n);
+
 function paddleFrom(band) {       // stabile Bieterkarten-Nummer aus der Band-ID
   let h = 0;
   for (const c of band) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -131,6 +173,274 @@ function serveFile(res, file, type) {
     res.writeHead(200, { "Content-Type": type });
     res.end(buf);
   });
+}
+
+/* ================= EINLADUNG: Pools, Gästeliste, Zusagen ================= */
+
+/* Ein Gast der Einladungsliste:
+ *   { token, pool, typ:"ticket"|"ehrengast", name, email, firma,
+ *     status:"offen"|"zugesagt"|"bezahlt"|"abgesagt",
+ *     mail:{sent,delivered,opened,clicked},          <- Lettermint-Webhooks
+ *     daten:{phone,diet,allergy},                    <- vom Gast selbst
+ *     zahlung:{sessionId,paymentIntent,amount,paidAt},
+ *     ticketNr }
+ */
+
+const newToken = () => crypto.randomBytes(9).toString("base64url");   // 12 Zeichen, unerratbar
+
+function ticketNumber(token) {                 // stabile Nummer aus dem Token
+  let h = 0;
+  for (const c of token) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return "№ " + String(11 + (h % 88)).padStart(3, "0");
+}
+
+function logEvent(art, gast, detail) {
+  state.feed.unshift({ t: Date.now(), art, gast: gast || "", detail: detail || "" });
+  state.feed = state.feed.slice(0, 200);
+  dirty = true;
+}
+
+function inviteLink(token) { return PUBLIC_URL + "/einladung?t=" + token; }
+
+/* Was die Landing Page sehen darf – ohne fremde Daten */
+function pubInvite(inv) {
+  return {
+    token: inv.token,
+    typ: inv.typ,
+    status: inv.status,
+    name: inv.name,
+    firma: inv.firma || "",
+    email: inv.email || "",
+    pool: inv.pool,
+    preis: inv.typ === "ticket" ? TICKET_PRICE : 0,
+    ticketNr: inv.status === "zugesagt" || inv.status === "bezahlt" ? inv.ticketNr : "",
+    zahlungMoeglich: !!STRIPE_KEY
+  };
+}
+
+function findInvite(token) {
+  const t = String(token || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
+  return t && state.invites[t] ? state.invites[t] : null;
+}
+
+/* --- CSV --- */
+function parseCSV(text) {
+  const head = text.split(/\r?\n/, 1)[0] || "";
+  const sep = (head.split(";").length > head.split(",").length) ? ";" : ",";
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else if (c === '"') { inQuotes = true; }
+    else if (c === sep) { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); field = ""; rows.push(row); row = []; }
+    else if (c !== "\r") { field += c; }
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(f => f.trim() !== ""));
+}
+
+/* Erwartete Spalten (Reihenfolge egal, Groß/Klein egal):
+ *   pool, typ, name, email, firma
+ * typ: "ticket" (100 € über Stripe) oder "ehrengast" (nur Zusage).
+ * Fehlt typ, gilt der Pool-Default aus poolTyp() – sonst "ticket".
+ * Wiederholter Import aktualisiert bestehende Gäste (Schlüssel: E-Mail).
+ */
+function importRows(rows) {
+  const header = rows[0].map(h => h.trim().toLowerCase());
+  const col = name => header.indexOf(name);
+  const iPool = col("pool"), iTyp = col("typ"), iName = col("name"),
+        iMail = col("email") >= 0 ? col("email") : col("e-mail"), iFirma = col("firma");
+  if (iName < 0 || iMail < 0) throw new Error("CSV braucht mindestens die Spalten 'name' und 'email'");
+
+  const byMail = {};
+  for (const inv of Object.values(state.invites)) if (inv.email) byMail[inv.email.toLowerCase()] = inv;
+
+  let neu = 0, aktualisiert = 0;
+  for (const r of rows.slice(1)) {
+    const email = clean(r[iMail], 120).toLowerCase();
+    if (!email || email.indexOf("@") < 0) continue;
+    const pool = cleanText(iPool >= 0 ? r[iPool] : "", 40) || "Allgemein";
+    const typRaw = clean(iTyp >= 0 ? r[iTyp] : "", 20).toLowerCase();
+    const typ = (typRaw === "ehrengast" || typRaw === "zusage" || typRaw === "gast des hauses")
+      ? "ehrengast" : (typRaw === "ticket" ? "ticket" : poolTyp(pool));
+
+    let inv = byMail[email];
+    if (inv) {
+      inv.pool = pool; inv.typ = typ;
+      inv.name = cleanText(r[iName], 60) || inv.name;
+      if (iFirma >= 0) inv.firma = cleanText(r[iFirma], 80);
+      aktualisiert++;
+    } else {
+      const token = newToken();
+      inv = state.invites[token] = {
+        token, pool, typ,
+        name: cleanText(r[iName], 60), email,
+        firma: iFirma >= 0 ? cleanText(r[iFirma], 80) : "",
+        status: "offen",
+        mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
+        daten: {},
+        zahlung: null,
+        ticketNr: ticketNumber(token),
+        t: Date.now()
+      };
+      byMail[email] = inv;
+      neu++;
+    }
+  }
+  dirty = true;
+  return { neu, aktualisiert, gesamt: Object.keys(state.invites).length };
+}
+
+/* Pool-Defaults: Ehrengast-Pools brauchen kein Ticket. Namen frei erweiterbar. */
+function poolTyp(pool) {
+  return /ehrengast|gast des hauses|presse|jury|speaker|kuenstler|künstler/i.test(pool)
+    ? "ehrengast" : "ticket";
+}
+
+function poolStats() {
+  const pools = {};
+  for (const inv of Object.values(state.invites)) {
+    const p = pools[inv.pool] || (pools[inv.pool] = {
+      pool: inv.pool, typ: inv.typ, gesamt: 0,
+      versendet: 0, geoeffnet: 0, geklickt: 0,
+      zugesagt: 0, bezahlt: 0, abgesagt: 0, offen: 0, umsatz: 0
+    });
+    p.gesamt++;
+    if (inv.mail.sent) p.versendet++;
+    if (inv.mail.opened) p.geoeffnet++;
+    if (inv.mail.clicked) p.geklickt++;
+    if (inv.status === "zugesagt" || inv.status === "bezahlt") p.zugesagt++;
+    if (inv.status === "bezahlt") { p.bezahlt++; p.umsatz += (inv.zahlung && inv.zahlung.amount) || 0; }
+    if (inv.status === "abgesagt") p.abgesagt++;
+    if (inv.status === "offen") p.offen++;
+  }
+  return Object.values(pools).sort((a, b) => b.gesamt - a.gesamt);
+}
+
+function gesamtStats() {
+  const all = Object.values(state.invites);
+  const zaehl = f => all.filter(f).length;
+  return {
+    gesamt: all.length,
+    versendet: zaehl(i => i.mail.sent),
+    zugestellt: zaehl(i => i.mail.delivered),
+    geoeffnet: zaehl(i => i.mail.opened),
+    geklickt: zaehl(i => i.mail.clicked),
+    zugesagt: zaehl(i => i.status === "zugesagt" || i.status === "bezahlt"),
+    bezahlt: zaehl(i => i.status === "bezahlt"),
+    abgesagt: zaehl(i => i.status === "abgesagt"),
+    umsatz: all.reduce((s, i) => s + ((i.zahlung && i.zahlung.amount) || 0), 0)
+  };
+}
+
+/* ================= STRIPE (ohne SDK, reine HTTPS-Aufrufe) ================= */
+
+/* Verschachtelte Parameter form-encodieren: {a:{b:1}} -> a[b]=1 */
+function formEncode(obj, prefix, out) {
+  out = out || [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined || v === null) continue;
+    const key = prefix ? prefix + "[" + k + "]" : k;
+    if (typeof v === "object") formEncode(v, key, out);
+    else out.push(encodeURIComponent(key) + "=" + encodeURIComponent(v));
+  }
+  return out.join("&");
+}
+
+function stripeRequest(pfad, params, cb) {
+  if (!STRIPE_KEY) return cb(new Error("STRIPE_SECRET_KEY fehlt"));
+  const body = formEncode(params);
+  const req = https.request({
+    hostname: "api.stripe.com",
+    path: "/v1/" + pfad,
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + STRIPE_KEY,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Length": Buffer.byteLength(body),
+      "Stripe-Version": "2024-06-20"
+    }
+  }, r => {
+    let raw = "";
+    r.on("data", c => raw += c);
+    r.on("end", () => {
+      let data;
+      try { data = JSON.parse(raw); } catch (e) { return cb(new Error("Stripe-Antwort unlesbar")); }
+      if (r.statusCode >= 400) return cb(new Error((data.error && data.error.message) || "Stripe-Fehler"));
+      cb(null, data);
+    });
+  });
+  req.on("error", cb);
+  req.write(body);
+  req.end();
+}
+
+function createCheckout(inv, cb) {
+  stripeRequest("checkout/sessions", {
+    mode: "payment",
+    locale: "de",
+    customer_email: inv.email,
+    client_reference_id: inv.token,
+    success_url: inviteLink(inv.token) + "&bezahlt=1",
+    cancel_url: inviteLink(inv.token),
+    metadata: { token: inv.token, pool: inv.pool, name: inv.name },
+    payment_intent_data: {
+      description: "THE CIRCLE N°1 · 16.09.2026 · " + inv.name,
+      metadata: { token: inv.token, pool: inv.pool }
+    },
+    line_items: {
+      0: {
+        quantity: 1,
+        price_data: {
+          currency: "eur",
+          unit_amount: TICKET_PRICE,
+          product_data: {
+            name: "THE CIRCLE N°1 – 16. September 2026",
+            description: "Persönliche Einladung · 1 Platz · Playa Cologne"
+          }
+        }
+      }
+    }
+  }, cb);
+}
+
+/* Webhook-Signatur nach Stripe-Schema: HMAC-SHA256 über "timestamp.payload" */
+function webhookGueltig(sigHeader, rawBody) {
+  if (!STRIPE_WEBHOOK_SECRET) return false;
+  const teile = {};
+  for (const p of String(sigHeader || "").split(",")) {
+    const i = p.indexOf("=");
+    if (i > 0) (teile[p.slice(0, i).trim()] ||= []).push(p.slice(i + 1).trim());
+  }
+  const ts = teile.t && teile.t[0];
+  if (!ts || !teile.v1) return false;
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;         // Replay-Schutz
+  const erwartet = crypto.createHmac("sha256", STRIPE_WEBHOOK_SECRET)
+    .update(ts + "." + rawBody).digest("hex");
+  const a = Buffer.from(erwartet, "utf8");
+  return teile.v1.some(v => {
+    const b = Buffer.from(v, "utf8");
+    return b.length === a.length && crypto.timingSafeEqual(a, b);
+  });
+}
+
+function zahlungBuchen(token, session) {
+  const inv = findInvite(token);
+  if (!inv) return;
+  if (inv.status === "bezahlt") return;                                      // idempotent
+  inv.status = "bezahlt";
+  inv.zahlung = {
+    sessionId: session.id,
+    paymentIntent: session.payment_intent || "",
+    amount: session.amount_total || TICKET_PRICE,
+    paidAt: Date.now()
+  };
+  logEvent("bezahlt", inv.name, inv.pool);
+  dirty = true;
 }
 
 /* ---------- Server ---------- */
@@ -286,7 +596,135 @@ const server = http.createServer((req, res) => {
     return json(res, 200, { ok: true, guest: g });
   }
 
+  /* --- Einladungs-API (Landing Page) --- */
+
+  // Gast zum persönlichen Link laden
+  if (req.method === "GET" && url === "/api/invite") {
+    const inv = findInvite(q.get("t"));
+    if (!inv) return json(res, 404, { error: "Diese Einladung kennen wir nicht." });
+    if (!inv.mail.clicked) { inv.mail.clicked = Date.now(); logEvent("geklickt", inv.name, inv.pool); }
+    return json(res, 200, { ok: true, gast: pubInvite(inv) });
+  }
+
+  // Zusagen / absagen (+ die Angaben des Gastes)
+  if (req.method === "POST" && url === "/api/invite/rsvp") {
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv) return json(res, 404, { error: "unbekannte Einladung" });
+
+      if (body.absage) {
+        inv.status = "abgesagt";
+        logEvent("abgesagt", inv.name, inv.pool);
+        dirty = true;
+        return json(res, 200, { ok: true, gast: pubInvite(inv) });
+      }
+
+      if (body.name)   inv.name = cleanText(body.name, 60);
+      if (body.firma !== undefined) inv.firma = cleanText(body.firma, 80);
+      inv.daten = {
+        phone:   cleanText(body.phone, 30),
+        diet:    cleanText(body.diet, 20),
+        allergy: cleanText(body.allergy, 120)
+      };
+
+      // Ehrengäste sind mit der Zusage fertig, Ticket-Gäste erst nach Zahlung
+      if (inv.typ === "ehrengast") {
+        if (inv.status !== "bezahlt") inv.status = "zugesagt";
+        logEvent("zugesagt", inv.name, inv.pool);
+      } else if (inv.status === "offen" || inv.status === "abgesagt") {
+        inv.status = "zugesagt";                    // zugesagt, Zahlung offen
+        logEvent("zugesagt", inv.name, inv.pool);
+      }
+      dirty = true;
+      json(res, 200, { ok: true, gast: pubInvite(inv) });
+    });
+  }
+
+  // Stripe-Checkout starten -> Landing Page leitet auf die zurückgegebene URL
+  if (req.method === "POST" && url === "/api/invite/checkout") {
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv) return json(res, 404, { error: "unbekannte Einladung" });
+      if (inv.typ !== "ticket") return json(res, 400, { error: "Für dich ist kein Beitrag fällig." });
+      if (inv.status === "bezahlt") return json(res, 200, { ok: true, bereitsBezahlt: true });
+      if (!STRIPE_KEY) return json(res, 503, { error: "Zahlung ist noch nicht scharf geschaltet (STRIPE_SECRET_KEY fehlt)." });
+
+      createCheckout(inv, (err, session) => {
+        if (err) return json(res, 502, { error: err.message });
+        inv.zahlung = Object.assign({}, inv.zahlung, { sessionId: session.id });
+        dirty = true;
+        json(res, 200, { ok: true, url: session.url });
+      });
+    });
+  }
+
+  // Stripe-Webhook: Zahlung buchen (Rohkörper für die Signaturprüfung)
+  if (req.method === "POST" && url === "/api/stripe/webhook") {
+    let raw = "";
+    req.on("data", c => { raw += c; if (raw.length > 1_000_000) req.destroy(); });
+    req.on("end", () => {
+      if (!webhookGueltig(req.headers["stripe-signature"], raw)) {
+        return json(res, 400, { error: "Signatur ungültig" });
+      }
+      let evt;
+      try { evt = JSON.parse(raw); } catch (e) { return json(res, 400, { error: "bad json" }); }
+      const obj = (evt.data && evt.data.object) || {};
+      if (evt.type === "checkout.session.completed" && obj.payment_status === "paid") {
+        zahlungBuchen((obj.metadata && obj.metadata.token) || obj.client_reference_id, obj);
+      }
+      json(res, 200, { received: true });          // Stripe erwartet 2xx
+    });
+    return;
+  }
+
+  // Lettermint-Webhook: Versand-/Öffnungs-/Klickstatus in die Liste schreiben
+  if (req.method === "POST" && url === "/api/lettermint/webhook") {
+    return readBody(req, res, body => {
+      const email = String(body.email || body.recipient || "").toLowerCase();
+      const typ = String(body.event || body.type || "").toLowerCase();
+      const inv = Object.values(state.invites).find(i => i.email === email);
+      if (!inv) return json(res, 200, { ok: true, ignoriert: true });
+      const map = { sent: "sent", delivered: "delivered", opened: "opened", open: "opened", clicked: "clicked", click: "clicked" };
+      const feld = map[typ];
+      if (feld && !inv.mail[feld]) {
+        inv.mail[feld] = Date.now();
+        logEvent(feld === "sent" ? "versendet" : feld === "delivered" ? "zugestellt" : feld === "opened" ? "geöffnet" : "geklickt", inv.name, inv.pool);
+        dirty = true;
+      }
+      json(res, 200, { ok: true });
+    });
+  }
+
+  /* --- Admin (Monitor). Mit ADMIN_TOKEN geschützt, sobald einer gesetzt ist --- */
+  if (url.startsWith("/api/admin/")) {
+    if (ADMIN_TOKEN && q.get("key") !== ADMIN_TOKEN) return json(res, 401, { error: "kein Zugriff" });
+
+    if (url === "/api/admin/pools") {
+      return json(res, 200, {
+        ok: true,
+        gesamt: gesamtStats(),
+        pools: poolStats(),
+        feed: state.feed.slice(0, 30)
+      });
+    }
+    // Versandliste für Lettermint: Name, E-Mail, Typ, persönlicher Link
+    if (url === "/api/admin/versandliste") {
+      const zeilen = [["pool", "typ", "name", "email", "link", "status"]];
+      for (const inv of Object.values(state.invites)) {
+        zeilen.push([inv.pool, inv.typ, inv.name, inv.email, inviteLink(inv.token), inv.status]);
+      }
+      res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
+      return res.end(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n"));
+    }
+  }
+
   /* --- Statik --- */
+  if (req.method === "GET" && (url === "/einladung" || url === "/landing.html")) {
+    return serveFile(res, "landing.html", "text/html; charset=utf-8");
+  }
+  if (req.method === "GET" && (url === "/monitor" || url === "/monitor.html")) {
+    return serveFile(res, "monitor.html", "text/html; charset=utf-8");
+  }
   if (req.method === "GET" && (url === "/station" || url === "/station.html")) {
     return serveFile(res, "station.html", "text/html; charset=utf-8");
   }
@@ -298,8 +736,40 @@ const server = http.createServer((req, res) => {
   res.end("not found");
 });
 
+/* ---------- CLI: Gästeliste rein, Versandliste raus ---------- */
+const [befehl, arg] = process.argv.slice(2);
+
+if (befehl === "import") {
+  if (!arg) { console.error("Aufruf: node server/circle-server.js import gaeste.csv"); process.exit(1); }
+  let ergebnis;
+  try {
+    ergebnis = importRows(parseCSV(fs.readFileSync(arg, "utf8")));
+  } catch (e) { console.error("Import fehlgeschlagen: " + e.message); process.exit(1); }
+  fs.writeFileSync(STATE_FILE, JSON.stringify(state));
+  console.log(`Import: ${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert, ${ergebnis.gesamt} Gäste gesamt.`);
+  for (const p of poolStats()) console.log(`  ${p.pool.padEnd(24)} ${String(p.gesamt).padStart(4)}  (${p.typ})`);
+  console.log("\nVersandliste für Lettermint:  node server/circle-server.js export > versand.csv");
+  process.exit(0);
+}
+
+if (befehl === "export") {
+  const zeilen = [["pool", "typ", "name", "email", "link", "status"]];
+  for (const inv of Object.values(state.invites)) {
+    zeilen.push([inv.pool, inv.typ, inv.name, inv.email, inviteLink(inv.token), inv.status]);
+  }
+  process.stdout.write(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n") + "\n");
+  process.exit(0);
+}
+
 server.listen(PORT, () => {
-  console.log("THE CIRCLE Live-Server läuft auf http://localhost:" + PORT);
-  console.log("  App:       http://localhost:" + PORT + "/");
-  console.log("  Stationen: http://localhost:" + PORT + "/station");
+  const stats = gesamtStats();
+  console.log("THE CIRCLE läuft auf " + PUBLIC_URL);
+  console.log("  Landing Page:  " + PUBLIC_URL + "/einladung?t=TOKEN");
+  console.log("  App (Abend):   " + PUBLIC_URL + "/");
+  console.log("  Gästeliste:    " + stats.gesamt + " Einladungen, " + stats.zugesagt + " zugesagt, " + stats.bezahlt + " bezahlt");
+  console.log("  Stripe:        " + (STRIPE_KEY
+    ? (STRIPE_KEY.startsWith("sk_live") ? "LIVE-Modus" : "Test-Modus")
+      + (STRIPE_WEBHOOK_SECRET ? " · Webhook aktiv" : " · ACHTUNG: STRIPE_WEBHOOK_SECRET fehlt")
+    : "nicht konfiguriert (Zusagen gehen, Zahlung nicht)"));
+  if (!ADMIN_TOKEN) console.log("  Hinweis:       ADMIN_TOKEN nicht gesetzt – /api/admin/* ist offen.");
 });

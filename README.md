@@ -8,9 +8,9 @@ eingebettetes Cinzel, Fallback Trajan Pro 3/Georgia), Montserrat als
 Grundschrift, das offizielle Spiral-Logo (horizontal, negativ), Pill-Buttons –
 und die Farbwelten der Website: Navy `#122648` als Grund, Koralle `#ff6b6c`
 für Headlines/Akzente, Bordeaux `#741a33` für die Einladung, Sand `#d8d3c3`
-mit dunklem Bordeaux für das Menü, Blau `#13a4ef` für Info-Pills. Cormorant
-kursiv bleibt als leiser Kontrapunkt in Notizzeilen, dazu das Tusche-Enso
-(Canvas-gerendert).
+mit dunklem Bordeaux für das Menü, Blau `#13a4ef` für Info-Pills. Wie auf der
+Website gibt es keine kursiven Serifen – nur Trajan-Kapitalis und Montserrat.
+Dazu das Tusche-Enso (Canvas-gerendert).
 
 > **CI-Quelle:** Homepage + Logo kamen von Anne Schäfer (IMW); die exakten
 > Regeln stehen im Minimanual – Feinheiten (z. B. weitere Farbpaarungen,
@@ -50,7 +50,9 @@ Skyline, seitlich driftende Geister-Uhrzeiten in der Timeline, animiert
 gemalte Enso-Segmente beim Sammeln, pulsierender Applaus-Button.
 `prefers-reduced-motion` wird durchgängig respektiert.
 
-**Einladung** – der Weg in den Kreis (`?invite=…`, im Demo-Modus automatisch):
+**Einladung in der App** – der Flow als Vorführung im Demo-Modus (`?invite=…`).
+Im Livebetrieb läuft die Einladung über die **Landing Page** (siehe unten);
+die App ist Welle 2 und öffnet erst kurz vor dem Abend. Der Ablauf:
 die Einladung kommt von **THE CIRCLE selbst**, nie von einer einzelnen Person.
 Zwei Varianten (`?typ=ticket` mit 100-€-Beitrag über Stripe, `?typ=ehrengast`
 nur Zusage), Zusage/Absage, Daten-Schritt und Ticket-Nummer. Der Daten-Schritt
@@ -63,14 +65,14 @@ Küche weiß Bescheid.“). Dazu die **Platz-Vergabe** auf der Startseite (Demo)
 drei persönliche Slots, Status zugesagt/offen/abgesagt, Link kopieren, frei
 gewordene Plätze neu vergeben – die Einladung selbst versendet immer das Haus.
 
-## Einladungsmanagement (Lettermint · Stripe · gestaffelt)
+## Einladungsmanagement (Pools · Landing Page · Stripe · Lettermint)
 
 Die Kommunikation läuft **in Wellen, nicht in einem Rutsch** – und die App
 wird erst spät kommuniziert, ausschließlich an Gäste, die zugesagt haben:
 
 | Welle | Template | Empfänger | Zeitpunkt |
 |---|---|---|---|
-| 1 · Einladung | `email/einladung-ticket.html` / `email/einladung-ehrengast.html` | Gästeliste | Wochen vorher |
+| 1 · Einladung | `email/einladung-ticket.html` / `email/einladung-ehrengast.html` | Gästeliste (alle Pools) | Wochen vorher |
 | 2 · App-Zugang | `email/app-zugang.html` | **nur Zusagen / bezahlte Tickets** | wenige Tage vorher |
 | 3 · Erinnerung | (folgt) | nur Gäste im Kreis | Vortag |
 
@@ -79,12 +81,93 @@ Welle 1 in der Bordeaux-Welt (#741a33, Koralle-Headline, Koralle-Pill-CTA),
 Welle 2 in der Navy-Welt (#122648), S/W-Köln-Header
 `email/assets/circle-header.jpg`, Schrift-Stack Trajan Pro 3/Cinzel/Georgia
 (E-Mails können keine Webfonts laden – Georgia ist der sichere Fallback).
-Merge-Variablen ({{name}}, {{link}}, …) stehen im Kopf jeder Datei; der
-App-Zugangs-Link aus Welle 2 öffnet die App bereits **mit den Daten aus der
-Zusage vorbereitet**. `monitor.html` ist der Blick für alle Beteiligten:
-Lettermint-Versandstand, Öffnungs-/Klickraten, Zusagen, Stripe-Umsatz und die
-Wellen-Planung – Demo-Daten, im Livebetrieb gespeist über Lettermint- und
-Stripe-Webhooks.
+
+### Die Gästeliste kommt in Pools
+
+Jeder Veranstalter und Partner liefert seine eigene Liste. Der Import legt sie
+als **Pools** ab und vergibt pro Gast einen unerratbaren Token:
+
+```bash
+node server/circle-server.js import gaesteliste.csv     # Vorlage: server/gaesteliste-vorlage.csv
+node server/circle-server.js export > versand.csv       # Liste für Lettermint (enthält die Links)
+```
+
+Spalten: `pool, typ, name, email, firma` (Semikolon oder Komma, Reihenfolge
+egal). `typ` ist `ticket` (100 € über Stripe) oder `ehrengast` (nur Zusage);
+fehlt die Spalte, leitet der Import den Typ aus dem Pool-Namen ab (alles mit
+„Ehrengast", „Presse", „Jury", „Speaker" wird Ehrengast, der Rest Ticket).
+Ein erneuter Import aktualisiert bestehende Gäste – Schlüssel ist die E-Mail,
+Tokens und Zusagen bleiben erhalten.
+
+`versand.csv` enthält die Spalte `link` – genau diese URL gehört in
+Lettermint als `{{link}}`.
+
+### Die Landing Page (`landing.html`)
+
+Der Link aus der Einladungsmail führt **nicht** direkt in die App, sondern auf
+die Landing Page: `https://<domain>/einladung?t=<TOKEN>`. Sie ist im
+Farbkapitel-Rhythmus der Website aufgebaut (Bordeaux → Sand → Navy → Bordeaux)
+und trägt alle Infos zum Abend:
+
+01 Das Event · 02 Der Abend (die fünf Programmpunkte) · 03 Die Köpfe (Amiaz
+Habtu, Max Leinfelder, Ien Bäumler) · 04 Ort & Zeit · 05 Deine Antwort.
+
+Im letzten Kapitel passiert die eigentliche Arbeit – abhängig vom Pool-Typ:
+
+- **Ehrengast** → Formular, Zusage, fertig.
+- **Ticket** → Formular, dann **Stripe Checkout** über 100 €. Nach der Zahlung
+  kommt der Gast auf die Landing Page zurück und sieht seine Ticket-Nummer.
+
+Erfasst werden Name, E-Mail (Pflicht – dorthin geht später der App-Zugang),
+Mobil, Unternehmen, **bevorzugte Ernährung** und **Unverträglichkeiten**. Diese
+Angaben wandern automatisch in die App zum Abend (Kontaktdaten auf die
+Connect-Karte, Ernährung als Notiz ans Menü).
+
+Ohne Server geöffnet (`landing.html?demo=1`, optional `&typ=ehrengast`) läuft
+alles als Vorführung – es wird nichts berechnet.
+
+### Stripe
+
+Der Server erzeugt die Checkout-Session direkt über die Stripe-API (kein SDK,
+keine Abhängigkeit) und verbucht die Zahlung über den Webhook:
+
+```bash
+PUBLIC_URL=https://the-circle-cologne.de \
+STRIPE_SECRET_KEY=sk_live_… \
+STRIPE_WEBHOOK_SECRET=whsec_… \
+ADMIN_TOKEN=<langes-geheimnis> \
+node server/circle-server.js
+```
+
+Im Stripe-Dashboard einen Webhook auf `https://<domain>/api/stripe/webhook`
+anlegen und das Ereignis `checkout.session.completed` abonnieren. Die
+Signatur wird geprüft (HMAC-SHA256, 5-Minuten-Fenster gegen Replays), die
+Buchung ist idempotent – ein doppelt zugestelltes Ereignis zählt nicht doppelt.
+`TICKET_PRICE` (in Cent, Default `10000`) ändert den Beitrag an einer Stelle.
+
+Ohne `STRIPE_SECRET_KEY` läuft alles andere weiter; der Zahlungsschritt meldet
+dann sauber, dass er noch nicht scharf geschaltet ist.
+
+### Lettermint
+
+Für die Öffnungs- und Klickraten einen Webhook auf
+`https://<domain>/api/lettermint/webhook` legen (erwartet `email` und `event`
+mit `sent`/`delivered`/`opened`/`clicked`). Klicks erkennt der Server ohnehin
+selbst, sobald der Gast die Landing Page öffnet.
+
+### Der Monitor (`monitor.html`)
+
+Der Blick für alle Beteiligten: Versandstand, Öffnungs-/Klickraten, Zusagen,
+Stripe-Umsatz, die Wellen-Planung und die **Pool-Übersicht** (wer wie viele
+Gäste eingeladen hat und wie viele davon zugesagt bzw. bezahlt haben). Läuft
+der Server, holt sich der Monitor die echten Zahlen über
+`/monitor?key=<ADMIN_TOKEN>`; sonst zeigt er Demo-Daten.
+
+> **Datenschutz:** Im Register stehen Namen, E-Mail-Adressen und – wenn Gäste
+> sie angeben – Unverträglichkeiten, also personenbezogene und teils
+> Gesundheitsdaten. Deshalb: `ADMIN_TOKEN` setzen, nur über HTTPS betreiben,
+> `server/live-state.json` bleibt aus dem Repo (`.gitignore`) und wird nach dem
+> Event gelöscht bzw. auf das Nötige eingedampft.
 
 **Demo-Modus** (`?demo=1` oder `CONFIG.demo`): simulierte Raum-Daten (Applaus,
 Votum, Auktion mit Gegenbietern, Geräte-Zähler), Vorspul-Chip durch die Phasen
@@ -113,6 +196,17 @@ Merzenich, sion, SKS) stehen als Wortmarken-Kacheln im `partner-grid` – die
 echten Logo-Dateien liegen auf the-circle-cologne.de unter
 `/wp-content/uploads/` (weiße Hintergründe; für die dunkle App am besten
 negative Varianten anfragen).
+
+## Die Dateien
+
+| Datei | Wofür |
+|---|---|
+| `landing.html` | **Welle 1** – Landing Page mit Event-Infos, Zusage und Stripe-Checkout (Ziel der Einladungsmail) |
+| `index.html` | **Welle 2** – die App zum Abend (Programm, Menü, Live, Connect) |
+| `monitor.html` | Einladungs-Monitor: Wellen, Pools, Funnel, Umsatz |
+| `email/*.html` | Lettermint-Templates der drei Wellen |
+| `server/circle-server.js` | Gästeregister mit Pools, Stripe, Webhooks, Live-Ebene |
+| `server/gaesteliste-vorlage.csv` | Spaltenvorlage für die Pool-Listen |
 
 ## Anpassen
 

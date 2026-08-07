@@ -85,6 +85,23 @@
   .panel{backdrop-filter:blur(6px)}
   .kpi{backdrop-filter:blur(6px)}
 
+  /* Pools */
+  .pools{margin-top:8px}
+  .prow{display:flex;align-items:center;gap:14px;padding:13px 0;border-top:1px solid var(--line-soft);flex-wrap:wrap}
+  .prow:first-of-type{border-top:0}
+  .prow .pname{flex:1 1 180px;min-width:150px}
+  .prow .pname b{display:block;font-family:var(--sans);font-weight:600;font-size:14px;letter-spacing:.01em}
+  .prow .pname span{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+  .prow .ptrack{flex:2 1 160px;height:14px;background:var(--line-soft);position:relative;overflow:hidden;min-width:120px}
+  .prow .ptrack i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,#0f6fa8,#13a4ef);transition:width 1.1s cubic-bezier(.16,.8,.26,1)}
+  .prow .ptrack i.bez{background:linear-gradient(90deg,#c4494f,var(--coral))}
+  .prow .pnum{flex:0 0 auto;display:flex;gap:16px;font-variant-numeric:tabular-nums}
+  .prow .pnum div{text-align:right;min-width:52px}
+  .prow .pnum b{display:block;font-family:var(--serif);font-weight:600;font-size:17px;line-height:1.1}
+  .prow .pnum span{font-size:7.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  .quelle{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin-top:16px}
+  .quelle b{color:var(--blau);font-weight:600}
+
   /* Funnel */
   .frow{display:flex;align-items:center;gap:14px;padding:9px 0}
   .frow .fk{flex:0 0 130px;font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
@@ -166,6 +183,20 @@
       <div class="wt"><b>Der Tag davor</b><span>Erinnerung mit Anfahrt &amp; Einlass · nur an Gäste im Kreis</span></div>
       <span class="ws">Geplant · 15.09.</span>
     </div>
+  </div>
+
+  <div class="panel" style="margin-top:8px">
+    <span class="label">Woher die Gäste kommen</span>
+    <h2>Die Pools</h2>
+    <div class="pools" id="pools">
+      <div class="prow"><div class="pname"><b>AERA</b><span>Ticket · 100 €</span></div><div class="ptrack"><i data-w="42"></i></div><div class="pnum"><div><b>38</b><span>Eingeladen</span></div><div><b>16</b><span>Zugesagt</span></div><div><b>14</b><span>Bezahlt</span></div></div></div>
+      <div class="prow"><div class="pname"><b>Ihre Marken Werkstatt</b><span>Ticket · 100 €</span></div><div class="ptrack"><i data-w="38"></i></div><div class="pnum"><div><b>34</b><span>Eingeladen</span></div><div><b>13</b><span>Zugesagt</span></div><div><b>12</b><span>Bezahlt</span></div></div></div>
+      <div class="prow"><div class="pname"><b>Public Cologne</b><span>Ticket · 100 €</span></div><div class="ptrack"><i data-w="37"></i></div><div class="pnum"><div><b>30</b><span>Eingeladen</span></div><div><b>11</b><span>Zugesagt</span></div><div><b>10</b><span>Bezahlt</span></div></div></div>
+      <div class="prow"><div class="pname"><b>Partner · Conrad</b><span>Ticket · 100 €</span></div><div class="ptrack"><i data-w="33"></i></div><div class="pnum"><div><b>12</b><span>Eingeladen</span></div><div><b>4</b><span>Zugesagt</span></div><div><b>3</b><span>Bezahlt</span></div></div></div>
+      <div class="prow"><div class="pname"><b>Partner · neuland.ai</b><span>Ticket · 100 €</span></div><div class="ptrack"><i data-w="30"></i></div><div class="pnum"><div><b>10</b><span>Eingeladen</span></div><div><b>3</b><span>Zugesagt</span></div><div><b>2</b><span>Bezahlt</span></div></div></div>
+      <div class="prow"><div class="pname"><b>Ehrengäste des Hauses</b><span>Zusage · kein Ticket</span></div><div class="ptrack"><i data-w="46" class="bez"></i></div><div class="pnum"><div><b>24</b><span>Eingeladen</span></div><div><b>11</b><span>Zugesagt</span></div><div><b>—</b><span>Bezahlt</span></div></div></div>
+    </div>
+    <p class="quelle" id="quelle">Quelle: Demo-Daten · Live speist sich die Tabelle aus <b>node server/circle-server.js</b> (CSV-Import je Pool)</p>
   </div>
 
   <div class="grid2">
@@ -250,8 +281,76 @@ function countUp(el, target, fmt){
 addEventListener("load", ()=>{
   document.querySelectorAll("[data-n]").forEach(el => countUp(el, +el.dataset.n, n => n));
   document.querySelectorAll("[data-money]").forEach(el => countUp(el, +el.dataset.money, n => n.toLocaleString("de-DE") + " €"));
-  requestAnimationFrame(()=>document.querySelectorAll(".frow i").forEach(i => i.style.width = i.dataset.w + "%"));
+  requestAnimationFrame(()=>{
+    document.querySelectorAll(".frow i, .ptrack i").forEach(i => i.style.width = i.dataset.w + "%");
+  });
+  liveDatenHolen();
 });
+
+/* Läuft der Einladungs-Server, ersetzen echte Zahlen die Demo-Daten.
+   Aufruf mit ?key=<ADMIN_TOKEN>, wenn der Server einen verlangt. */
+async function liveDatenHolen(){
+  const key = new URLSearchParams(location.search).get("key");
+  try{
+    const r = await fetch("/api/admin/pools" + (key ? "?key=" + encodeURIComponent(key) : ""));
+    if(!r.ok) return;
+    const d = await r.json();
+    if(!d.ok || !d.pools.length) return;
+    poolsRendern(d.pools);
+    kpisSetzen(d.gesamt);
+    feedRendern(d.feed);
+    document.querySelector("#quelle").innerHTML = "Quelle: <b>Live</b> · " + d.gesamt.gesamt + " Einladungen aus " + d.pools.length + " Pools";
+    document.querySelector(".demo-tag").textContent = "Live-Daten";
+  }catch(e){ /* kein Server – Demo-Daten bleiben stehen */ }
+}
+
+const txt = (el, s) => { el.textContent = s; return el; };
+function zelle(wert, label){
+  const d = document.createElement("div");
+  txt(d.appendChild(document.createElement("b")), wert);
+  txt(d.appendChild(document.createElement("span")), label);
+  return d;
+}
+function poolsRendern(pools){
+  const box = document.querySelector("#pools");
+  box.innerHTML = "";
+  for(const p of pools){
+    const row = document.createElement("div"); row.className = "prow";
+    const name = document.createElement("div"); name.className = "pname";
+    txt(name.appendChild(document.createElement("b")), p.pool);
+    txt(name.appendChild(document.createElement("span")), p.typ === "ehrengast" ? "Zusage · kein Ticket" : "Ticket · 100 €");
+    const track = document.createElement("div"); track.className = "ptrack";
+    const bar = track.appendChild(document.createElement("i"));
+    if(p.typ === "ehrengast") bar.className = "bez";
+    const nums = document.createElement("div"); nums.className = "pnum";
+    nums.append(zelle(String(p.gesamt), "Eingeladen"),
+                zelle(String(p.zugesagt), "Zugesagt"),
+                zelle(p.typ === "ehrengast" ? "—" : String(p.bezahlt), "Bezahlt"));
+    row.append(name, track, nums);
+    box.appendChild(row);
+    requestAnimationFrame(()=>{ bar.style.width = (p.gesamt ? Math.round(p.zugesagt / p.gesamt * 100) : 0) + "%"; });
+  }
+}
+function kpisSetzen(g){
+  const werte = [g.versendet, g.zugestellt, g.geoeffnet, g.geklickt, g.zugesagt, g.bezahlt];
+  document.querySelectorAll(".kpi b").forEach((el, i) => { if(werte[i] !== undefined) el.textContent = werte[i]; });
+  const geld = document.querySelector(".money");
+  if(geld) geld.textContent = (g.umsatz / 100).toLocaleString("de-DE") + " €";
+}
+function feedRendern(feed){
+  if(!feed || !feed.length) return;
+  const box = document.querySelector("#feed");
+  box.innerHTML = "";
+  for(const e of feed.slice(0, 8)){
+    const ev = document.createElement("div");
+    ev.className = "ev" + (/bezahlt|zugesagt/.test(e.art) ? " hot" : "");
+    const zeit = new Date(e.t).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    txt(ev.appendChild(document.createElement("time")), zeit);
+    txt(ev.appendChild(document.createElement("span")), e.art).className = "tag";
+    txt(ev.appendChild(document.createElement("span")), e.gast + (e.detail ? " · " + e.detail : ""));
+    box.appendChild(ev);
+  }
+}
 </script>
 </body>
 </html>
