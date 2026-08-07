@@ -1042,7 +1042,6 @@
     <div class="inv-btns">
       <button class="btn btn--solid btn--full" id="invYes">Zusagen</button>
       <button class="btn btn--full" id="invNo">Diesmal nicht</button>
-      <button class="btn btn--full" id="invTypToggle" style="display:none;border:0;color:var(--faint);font-size:8.5px">Demo · andere Einladungs-Variante ansehen</button>
     </div>
   </div>
 
@@ -1915,7 +1914,6 @@ if(DEMO){
       : "Dein Platz ist bereits für dich reserviert.<br>Der Abend versteht sich mit einem Beitrag von 100&nbsp;Euro.";
     $("#invYes").textContent = ehrengast ? "Zusagen" : "Einladung annehmen";
     $("#invFormNext").textContent = ehrengast ? "Zusage abschließen" : "Weiter zur Zahlung";
-    $("#invTypToggle").textContent = "Demo · " + (ehrengast ? "Ticket-Variante" : "Ehrengast-Variante") + " ansehen";
   }
   if(invited && !S.name){
     $("#onboarding").classList.add("hidden");
@@ -1934,13 +1932,6 @@ if(DEMO){
     });
   });
   renderInvTyp();
-  if(DEMO){
-    $("#invTypToggle").style.display = "inline-flex";
-    $("#invTypToggle").addEventListener("click", ()=>{
-      invTyp = invTyp === "zusage" ? "ticket" : "zusage";
-      renderInvTyp(); buzz(12);
-    });
-  }
   $("#invYes").addEventListener("click", ()=>{ invShow("daten"); buzz(15); setTimeout(()=>$("#invName").focus(), 80); });
   $("#invNo").addEventListener("click", ()=>invShow("absage"));
   $("#invBack").addEventListener("click", ()=>invShow("einladung"));
