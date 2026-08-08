@@ -20,6 +20,9 @@
     {{ticket_nr}}       Ticket-/Bieterkarten-Nummer des Gastes
     {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
     {{logo_url}}        offizielles Logo (logo-horizontal-neg-rgb.svg, negativ)
+    {{partner_logo_url}}  NUR fuer Partner-Gaeste: Logo des einladenden Partners, negativ weiss
+                        (Beispiel: email/assets/partner-deindach-neg.png). Leer -> Block ausblenden.
+    {{partner_name}}      Name des einladenden Partners (Alt-Text)
     {{abmelden_url}}    Abmeldelink (Pflicht)
 -->
 </head>
@@ -67,6 +70,13 @@
         <tr><td align="center" style="padding:26px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#7a8db3;text-transform:uppercase;">Dein Platz</div>
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:30px;letter-spacing:2px;color:#ff6b6c;padding-top:6px;">{{ticket_nr}}</div>
+        </td></tr>
+
+        <!-- Nur fuer Partner-Gaeste: Logo auf dem Ticket ("Logoeinbindung bei den
+             Gaeste-Tickets"). Ist {{partner_logo_url}} leer, Block ausblenden. -->
+        <tr><td align="center" style="padding:26px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#7a8db3;text-transform:uppercase;padding-bottom:12px;">Eingeladen von unserem Partner</div>
+          <img src="{{partner_logo_url}}" height="40" alt="{{partner_name}}" style="display:block;border:0;height:40px;width:auto;margin:0 auto;">
         </td></tr>
 
         <!-- Fakten -->

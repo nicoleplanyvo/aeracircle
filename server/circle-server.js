@@ -204,6 +204,14 @@ function logEvent(art, gast, detail) {
 
 function inviteLink(token) { return PUBLIC_URL + "/einladung?t=" + token; }
 
+/* Satz ueber dem CTA der Ehrengast-Mail. Hat ein Partner eingeladen, waere
+ * "Einladung des Hauses" ein Widerspruch zum Partner-Block darueber. */
+function platzSatz(inv) {
+  return inv.partner
+    ? "Dein Platz ist für dich freigehalten — es genügt ein Wort."
+    : "Dein Platz ist eine Einladung des Hauses — es genügt ein Wort.";
+}
+
 /* Was die Landing Page sehen darf – ohne fremde Daten */
 function pubInvite(inv) {
   return {
@@ -722,11 +730,11 @@ const server = http.createServer((req, res) => {
     }
     // Versandliste für Lettermint: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "link", "status"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "platz_satz", "link", "status"]];
       for (const inv of Object.values(state.invites)) {
         zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     inviteLink(inv.token), inv.status]);
+                     platzSatz(inv), inviteLink(inv.token), inv.status]);
       }
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
       return res.end(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n"));
@@ -768,11 +776,11 @@ if (befehl === "import") {
 }
 
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "link", "status"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "platz_satz", "link", "status"]];
   for (const inv of Object.values(state.invites)) {
     zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     inviteLink(inv.token), inv.status]);
+                     platzSatz(inv), inviteLink(inv.token), inv.status]);
   }
   process.stdout.write(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n") + "\n");
   process.exit(0);

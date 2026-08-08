@@ -24,6 +24,10 @@
                         liefert genau diese URLs fuer den Lettermint-Import.
     {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
     {{logo_url}}        offizielles Logo (logo-horizontal-neg-rgb.svg, negativ)
+    {{platz_satz}}      Satz ueber dem CTA. Kommt aus der Versandliste und passt sich an:
+                        ohne Partner  -> "Dein Platz ist eine Einladung des Hauses - es genuegt ein Wort."
+                        mit Partner   -> "Dein Platz ist fuer dich freigehalten - es genuegt ein Wort."
+                        (sonst widerspraeche sich "Einladung des Hauses" mit dem Partner-Block)
     {{portrait_amiaz_url}}  gehostet -> email/assets/portrait-amiaz.jpg (360x360, Kreis auf Bordeaux)
     {{portrait_ien_url}}    gehostet -> email/assets/portrait-ien.jpg
     {{portrait_max_url}}    gehostet -> email/assets/portrait-max.jpg
@@ -121,7 +125,7 @@
 
         <tr><td align="center" style="padding:26px 56px 0 56px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#f8f7f4;">
-            Dein Platz ist eine Einladung des Hauses &mdash;<br>es gen&uuml;gt ein Wort.
+            {{platz_satz}}
           </div>
         </td></tr>
 
