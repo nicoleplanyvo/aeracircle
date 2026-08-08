@@ -1,3 +1,7 @@
+# NUR für einen selbstverwalteten Server (ohne Plesk).
+# Unter Plesk startet und überwacht das Node.js-Panel den Prozess selbst –
+# diese Unit wird dort nicht gebraucht (siehe DEPLOY.md §1).
+#
 # systemd-Unit: /etc/systemd/system/thecircle.service
 [Unit]
 Description=THE CIRCLE – Einladungs- & Live-Server

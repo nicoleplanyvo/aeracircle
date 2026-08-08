@@ -1,3 +1,8 @@
+# NUR für einen selbstverwalteten Server (ohne Plesk).
+# Der Livegang läuft über Plesk – dort übernehmen nginx und das Node.js-Panel
+# diese Aufgaben, siehe DEPLOY.md §1. Diese Datei bleibt als Alternative liegen,
+# falls THE CIRCLE später auf eine eigene Maschine umzieht.
+#
 # Caddy kümmert sich um HTTPS (Let's Encrypt) und reicht alles an Node weiter.
 # Ablage: /etc/caddy/Caddyfile
 thecircle.planyvo.com {

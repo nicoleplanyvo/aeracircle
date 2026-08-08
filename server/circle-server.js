@@ -31,7 +31,9 @@
  *      STRIPE_SECRET_KEY      sk_live_… / sk_test_…
  *      STRIPE_WEBHOOK_SECRET  whsec_… (Signaturprüfung der Webhooks)
  *      TICKET_PRICE           Ticketpreis in Cent (Default 10000 = 100 €)
- *      ADMIN_TOKEN            schützt /api/admin/* (Monitor-Daten)
+ *      ADMIN_TOKEN            ein gemeinsamer Schlüssel für /api/admin/* (Monitor)
+ *      ADMIN_TOKENS           besser: je Person einer, "anne:xxx,desi:yyy" –
+ *                             so lässt sich einzeln entziehen
  *
  * DATENSCHUTZ: Im Register stehen Namen, E-Mail-Adressen und – wenn der Gast
  * sie angibt – Unverträglichkeiten. Das sind personenbezogene und teils
@@ -58,7 +60,31 @@ const PUBLIC_URL = (process.env.PUBLIC_URL || "http://localhost:" + PORT).replac
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 const TICKET_PRICE = parseInt(process.env.TICKET_PRICE, 10) || 10000;   // Cent
+/* Zugaenge zum Monitor. Entweder ein gemeinsames Geheimnis (ADMIN_TOKEN) oder
+ * - besser - je Person eines (ADMIN_TOKENS="anne:xxx,desi:yyy"). Dann laesst
+ * sich ein einzelner Zugang entziehen, ohne allen anderen den Link zu aendern,
+ * und im Log steht, wer geschaut hat. */
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+const ADMIN_TOKENS = new Map(
+  (process.env.ADMIN_TOKENS || "").split(",")
+    .map(e => e.trim()).filter(Boolean)
+    .map(e => {
+      const i = e.indexOf(":");
+      return i > 0 ? [e.slice(i + 1).trim(), e.slice(0, i).trim()] : [e, "unbenannt"];
+    })
+);
+if (ADMIN_TOKEN) ADMIN_TOKENS.set(ADMIN_TOKEN, "gemeinsam");
+
+/* Zeitkonstanter Vergleich, damit sich der Schluessel nicht erraten laesst */
+function adminName(key) {
+  if (!key) return null;
+  const a = Buffer.from(String(key));
+  for (const [token, name] of ADMIN_TOKENS) {
+    const b = Buffer.from(token);
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return name;
+  }
+  return null;
+}
 
 const VOTES = ["ja", "vielleicht", "nein"];
 const MOMENTS_TOTAL = 6;
@@ -718,7 +744,10 @@ const server = http.createServer((req, res) => {
 
   /* --- Admin (Monitor). Mit ADMIN_TOKEN geschützt, sobald einer gesetzt ist --- */
   if (url.startsWith("/api/admin/")) {
-    if (ADMIN_TOKEN && q.get("key") !== ADMIN_TOKEN) return json(res, 401, { error: "kein Zugriff" });
+    if (ADMIN_TOKENS.size) {
+      const wer = adminName(q.get("key"));
+      if (!wer) return json(res, 401, { error: "kein Zugriff" });
+    }
 
     if (url === "/api/admin/pools") {
       return json(res, 200, {
@@ -821,5 +850,7 @@ server.listen(PORT, () => {
     ? (STRIPE_KEY.startsWith("sk_live") ? "LIVE-Modus" : "Test-Modus")
       + (STRIPE_WEBHOOK_SECRET ? " · Webhook aktiv" : " · ACHTUNG: STRIPE_WEBHOOK_SECRET fehlt")
     : "nicht konfiguriert (Zusagen gehen, Zahlung nicht)"));
-  if (!ADMIN_TOKEN) console.log("  Hinweis:       ADMIN_TOKEN nicht gesetzt – /api/admin/* ist offen.");
+  console.log("  Monitor:       " + (ADMIN_TOKENS.size
+    ? ADMIN_TOKENS.size + " Zugang/Zugänge (" + [...new Set(ADMIN_TOKENS.values())].join(", ") + ")"
+    : "ACHTUNG: kein ADMIN_TOKEN/ADMIN_TOKENS gesetzt – /api/admin/* ist offen"));
 });

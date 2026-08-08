@@ -1,316 +1,375 @@
 # Technisches Setup · thecircle.planyvo.com
 
-Schritt für Schritt von null bis zum ersten versendeten Mailing. Gedacht für
-planyvo – die Veranstalter brauchen davon nichts.
+Schritt für Schritt in der abgestimmten Reihenfolge:
 
-Der Server ist **eine Node-Datei ohne Abhängigkeiten**. Es gibt keinen Build,
-kein npm install, keine Datenbank. Deshalb reicht ein kleiner Linux-Server.
+1. **Domain sichern und unter Plesk deployen**
+2. **Lettermint aufsetzen**
+3. **Monitor aufsetzen und Admin-Zugänge verteilen**
+4. **Stripe aufsetzen**
 
-**Zeitbedarf:** Schritt 1–8 rund eine Stunde, danach ist die Seite live.
-Stripe und Lettermint je etwa 30 Minuten, plus Wartezeit für DNS-Einträge.
+Danach: Gästeliste einlesen, Livegang-Checkliste, Betrieb.
+
+Der Server ist eine einzelne Node-Datei ohne Abhängigkeiten – kein Build,
+kein `npm install`, keine Datenbank. Der ganze Zustand liegt in
+`server/live-state.json`.
+
+> **Was zuerst anstoßen?** Schritt 1 und 2 hängen beide an DNS-Einträgen, und
+> die Verifizierung der Absenderdomain bei Lettermint kann sich ziehen. Wenn
+> Welle 0 zeitnah rausgehen soll: die DNS-Einträge für beides gleich zu Beginn
+> setzen, dann läuft die Wartezeit parallel.
 
 ---
 
-## Was gebraucht wird
+## 1 · Domain sichern und unter Plesk deployen
 
-| Zugang | Wofür | Kosten |
+### 1.1 Subdomain anlegen
+
+Plesk → **Websites & Domains** → beim Abo `planyvo.com` → **Subdomain hinzufügen**
+
+- Subdomain-Name: `thecircle`
+- Dokumentstamm: Vorschlag `/thecircle` (Plesk legt ihn an)
+
+### 1.2 DNS prüfen
+
+Liegt die DNS-Zone bei Plesk, ist der A-Record automatisch da. Wird DNS
+woanders verwaltet (Registrar, Cloudflare), dort von Hand anlegen:
+
+| Typ | Name | Wert |
 |---|---|---|
-| Server (Hetzner Cloud CX22 o. ä.) | Landing Page, App, Monitor, API | ~4 €/Monat |
-| DNS-Verwaltung von `planyvo.com` | Subdomain `thecircle` | – |
-| Stripe-Konto | Ticketzahlungen | 1,5 % + 0,25 € je Zahlung |
-| Lettermint-Konto | Versand der Mailings | je nach Volumen |
+| A | `thecircle` | IP des Plesk-Servers |
 
-> **Warum ein eigener Server und kein Static-Hosting?** Die Stripe-Checkout-Session
-> muss serverseitig erzeugt werden (der geheime Schlüssel darf nie in den Browser),
-> und die Webhooks von Stripe und Lettermint brauchen eine erreichbare Adresse.
-
-> **Warum Hetzner?** Rechenzentrum in Deutschland – bei personenbezogenen Daten
-> das einfachste Argument. Jeder andere Anbieter, auf dem Node dauerhaft läuft,
-> tut es genauso.
-
----
-
-## 1 · Server anlegen
-
-Hetzner Cloud → neues Projekt → Server erstellen:
-
-- **Standort:** Nürnberg oder Falkenstein
-- **Image:** Ubuntu 24.04
-- **Typ:** CX22 (2 vCPU, 4 GB) – reicht mit großem Abstand
-- **SSH-Key** hinterlegen (kein Passwort-Login)
-
-IPv4-Adresse notieren, danach einloggen:
+Kontrolle:
 
 ```bash
-ssh root@<SERVER-IP>
+dig +short thecircle.planyvo.com
 ```
 
-## 2 · Grundsetup
+### 1.3 SSL
 
-```bash
-apt update && apt upgrade -y
-apt install -y nodejs git ufw
-node -v                     # sollte v18 oder neuer sein
+Plesk → Subdomain → **SSL/TLS-Zertifikate** → *Let's Encrypt* → ausstellen.
+„Sichere die Website" und die Weiterleitung von HTTP auf HTTPS aktivieren.
 
-# Firewall: nur SSH und Web
-ufw allow OpenSSH
-ufw allow 80,443/tcp
-ufw --force enable
+Erst wenn Schritt 1.2 greift, sonst schlägt die Ausstellung fehl.
 
-# Eigener Benutzer für den Dienst, ohne Login-Shell
-adduser --system --group --home /opt/thecircle circle
+### 1.4 Code aufspielen
+
+**Variante A – Git in Plesk** (bequem für spätere Updates):
+Subdomain → **Git** → Repository hinzufügen → Repository-URL, Branch
+`claude/event-participant-app-k66kf2`, Zielverzeichnis z. B. `/thecircle`.
+Bei jedem „Jetzt aktualisieren" holt Plesk den neuen Stand.
+
+**Variante B – hochladen:** Dateien per SFTP in das Verzeichnis der Subdomain.
+
+Wichtig ist nur, dass am Ende `server/circle-server.js`, `index.html`,
+`landing.html`, `monitor.html` und `email/assets/` dort liegen.
+
+### 1.5 Node.js-Anwendung einrichten
+
+Subdomain → **Node.js**. Ist der Punkt nicht da: unter *Erweiterungen* die
+Node.js-Erweiterung installieren.
+
+| Feld | Wert |
+|---|---|
+| Node.js-Version | 18 oder neuer |
+| Anwendungsmodus | `production` |
+| Anwendungsstammverzeichnis | Verzeichnis mit `server/` und den HTML-Dateien |
+| Anwendungsstartdatei | `server/circle-server.js` |
+| Dokumentstamm | siehe Hinweis unten |
+
+**NPM install nicht nötig** – es gibt keine Abhängigkeiten.
+
+> **Zum Dokumentstamm:** Zeigt er direkt auf die Dateien, kann der Webserver
+> `landing.html` & Co. selbst ausliefern und die Anwendung wird umgangen –
+> dann funktionieren `/einladung` und die API nicht. Sicherer: einen leeren
+> Unterordner (z. B. `public/`) als Dokumentstamm setzen, damit alles durch
+> Node läuft. Ob es stimmt, zeigt die Probe in 1.7.
+
+**Umgebungsvariablen** (im selben Bildschirm unter *Benutzerdefinierte
+Umgebungsvariablen*) – Vorlage: `deploy/env.example`
+
+```
+PUBLIC_URL     = https://thecircle.planyvo.com
+TICKET_PRICE   = 10000
+ADMIN_TOKENS   = (kommt in Schritt 3)
+STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET  (kommen in Schritt 4)
 ```
 
-Ist Node älter als v18:
+`PORT` **nicht** setzen – den vergibt Plesk selbst, die Anwendung übernimmt ihn.
 
-```bash
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt install -y nodejs
+Danach **Anwendung neu starten**.
+
+### 1.6 Eine Zeile, die man leicht übersieht
+
+Am Abend hält die App eine dauerhafte Verbindung offen (Server-Sent Events) für
+Applaus, Votum und Auktion. Puffert nginx sie, bleiben die Zähler stehen –
+und das merkt man erst im Saal.
+
+Subdomain → **Apache & nginx Einstellungen** → *Zusätzliche nginx-Direktiven*:
+
+```nginx
+location /api/live/stream {
+    proxy_pass http://127.0.0.1:$node_port;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 24h;
+    proxy_set_header Connection '';
+    proxy_http_version 1.1;
+}
 ```
 
-## 3 · Code aufspielen
+Nimmt Plesk `$node_port` nicht an, den konkreten Port aus dem Node.js-Bildschirm
+eintragen. Alternativ genügt oft schon:
 
-```bash
-cd /opt
-git clone <REPO-URL> thecircle
-cd thecircle
-chown -R circle:circle /opt/thecircle
+```nginx
+proxy_buffering off;
 ```
 
-Ohne Git-Zugang auf dem Server geht auch:
+### 1.7 Prüfen
 
 ```bash
-# lokal
-rsync -av --exclude node_modules --exclude .git ./ root@<SERVER-IP>:/opt/thecircle/
-```
-
-## 4 · Konfiguration
-
-```bash
-cp deploy/env.example /opt/thecircle/.env
-openssl rand -hex 24        # Ergebnis als ADMIN_TOKEN eintragen
-nano /opt/thecircle/.env
-
-chown circle:circle /opt/thecircle/.env
-chmod 600 /opt/thecircle/.env
-```
-
-Stripe-Schlüssel bleiben zunächst leer bzw. auf Test – die kommen in Schritt 9.
-
-**Der `ADMIN_TOKEN` ist der Schlüssel zum Monitor.** Ohne ihn kämen alle
-Gästedaten über `/api/admin/pools` ins Netz. Nicht leer lassen.
-
-## 5 · Als Dienst einrichten
-
-```bash
-cp deploy/thecircle.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now thecircle
-systemctl status thecircle      # muss "active (running)" zeigen
-```
-
-Prüfen, ob er antwortet:
-
-```bash
-curl -s localhost:8080/api/live/health     # {"ok":true}
-```
-
-Log bei Problemen: `journalctl -u thecircle -f`
-
-## 6 · DNS
-
-In der DNS-Verwaltung von `planyvo.com` einen A-Record anlegen:
-
-| Typ | Name | Wert | TTL |
-|---|---|---|---|
-| A | `thecircle` | `<SERVER-IP>` | 300 |
-
-Danach warten, bis es greift:
-
-```bash
-dig +short thecircle.planyvo.com     # muss die Server-IP zeigen
-```
-
-## 7 · HTTPS mit Caddy
-
-Caddy holt das Zertifikat automatisch und erneuert es selbst.
-
-```bash
-apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
-  | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
-  | tee /etc/apt/sources.list.d/caddy-stable.list
-apt update && apt install -y caddy
-
-cp /opt/thecircle/deploy/Caddyfile /etc/caddy/Caddyfile
-systemctl reload caddy
-```
-
-Der DNS-Eintrag muss **vorher** greifen, sonst schlägt die Zertifikatsausstellung fehl.
-
-## 8 · Erste Prüfung
-
-```bash
-curl -s https://thecircle.planyvo.com/api/live/health          # {"ok":true}
+curl -s https://thecircle.planyvo.com/api/live/health      # {"ok":true}
 curl -sI https://thecircle.planyvo.com/assets/portrait-amiaz.jpg | head -1
 ```
 
 Im Browser:
 
-- `https://thecircle.planyvo.com/einladung?demo=1` → Landing Page als Vorführung
-- `https://thecircle.planyvo.com/monitor?key=<ADMIN_TOKEN>` → Monitor
-- `https://thecircle.planyvo.com/` → die App
+- `…/einladung?demo=1` → die Landing Page als Vorführung
+- `…/` → die App
 
-**Damit ist die Seite live.** Der Rest ist Anbindung.
+Kommt stattdessen ein Verzeichnislisting, ein 403 oder der Rohtext einer
+HTML-Datei, zeigt der Dokumentstamm auf die Dateien statt auf die Anwendung
+→ zurück zu 1.5.
+
+**Damit ist die Domain live.**
 
 ---
 
-## 9 · Stripe
+## 2 · Lettermint aufsetzen
 
-1. Konto anlegen, Firmendaten und Bankverbindung hinterlegen. Bis zur
-   Freischaltung im **Testmodus** arbeiten (Schalter oben rechts).
-2. **Entwickler → API-Schlüssel** → *Geheimer Schlüssel* (`sk_test_…`) kopieren,
-   in die `.env` als `STRIPE_SECRET_KEY`.
-3. **Entwickler → Webhooks → Endpunkt hinzufügen**
-   - Adresse: `https://thecircle.planyvo.com/api/stripe/webhook`
-   - Ereignis: `checkout.session.completed` (nur dieses)
-   - Nach dem Anlegen das **Signing secret** (`whsec_…`) kopieren, in die `.env`
-     als `STRIPE_WEBHOOK_SECRET`
-4. Dienst neu starten: `systemctl restart thecircle`
+### 2.1 Absenderdomain verifizieren
 
-**Testzahlung:**
+Konto anlegen, Absenderdomain hinterlegen (z. B. `thecircle.planyvo.com` oder
+eine Adresse der Veranstalter). Lettermint nennt DNS-Einträge – **SPF**, **DKIM**,
+meist **DMARC**. Diese in der DNS-Verwaltung der jeweiligen Domain eintragen.
 
-```bash
-# Testgast anlegen
-cd /opt/thecircle
-sudo -u circle node server/circle-server.js import server/gaesteliste-vorlage.csv
-sudo -u circle node server/circle-server.js export | head -3     # Link kopieren
+*Ohne verifizierte Domain landen die Mailings im Spam.* Das ist der Schritt mit
+der unklarsten Wartezeit – deshalb früh anstoßen.
+
+### 2.2 Templates anlegen
+
+Für jede Datei aus `email/` ein Template, Inhalt komplett hineinkopieren:
+
+| Datei | Template | Wann |
+|---|---|---|
+| `save-the-date.html` | Welle 0 · Save the Date | vor dem Ticketverkauf |
+| `einladung-ticket.html` | Welle 1 · Ticket | Einladung mit Beitrag |
+| `einladung-ehrengast.html` | Welle 1 · Ehrengast | Einladung ohne Beitrag |
+| `app-zugang.html` | Welle 2 · App-Zugang | wenige Tage vor dem Abend |
+
+### 2.3 Bild-Adressen eintragen
+
+Die Bilder liegen bereits auf der Subdomain. In den Templates bekommen die
+Variablen feste Werte:
+
+```
+header_img_url      https://thecircle.planyvo.com/assets/circle-header.jpg
+logo_url            https://thecircle.planyvo.com/assets/logo-neg.svg
+portrait_amiaz_url  https://thecircle.planyvo.com/assets/portrait-amiaz.jpg
+portrait_ien_url    https://thecircle.planyvo.com/assets/portrait-ien.jpg
+portrait_max_url    https://thecircle.planyvo.com/assets/portrait-max.jpg
+partnerwand_url     https://thecircle.planyvo.com/assets/partnerwand-bordeaux.jpg
 ```
 
-Den Link im Browser öffnen, zusagen, im Checkout die Testkarte
-`4242 4242 4242 4242` mit beliebigem künftigen Datum und CVC verwenden.
-Danach muss der Gast auf der Seite seine Ticket-Nummer sehen und im Monitor
-auf **bezahlt** stehen. Steht er auf „zugesagt, nicht bezahlt", kam der Webhook
-nicht an → in Stripe unter *Webhooks → Versuche* nachsehen.
+Die übrigen Variablen (`anrede`, `vorname`, `link`, `partner_logo_url`,
+`platz_satz` …) kommen aus der Versandliste – siehe Schritt 5.
 
-**Auf Live umstellen:** Nach der Freischaltung durch Stripe die Live-Schlüssel
-holen (`sk_live_…`) und einen **zweiten Webhook-Endpunkt** im Live-Modus anlegen –
-das Signing secret ist ein anderes. Beide Werte in die `.env`, dann neu starten.
+### 2.4 Webhook
 
-> Der Server prüft jede Webhook-Signatur (HMAC, 5-Minuten-Fenster) und bucht
-> idempotent – ein doppelt zugestelltes Ereignis zählt nicht doppelt.
+Adresse: `https://thecircle.planyvo.com/api/lettermint/webhook`
+Ereignisse: *sent, delivered, opened, clicked*
 
-## 10 · Lettermint
+Damit füllen sich Öffnungs- und Klickraten im Monitor. Klicks erkennt der
+Server auch selbst, sobald ein Gast die Landing Page öffnet – der Webhook macht
+es nur genauer.
 
-1. Konto anlegen, **Absenderdomain verifizieren**. Dafür trägt man in der
-   DNS-Verwaltung die von Lettermint genannten Einträge ein (SPF, DKIM,
-   meist auch DMARC). Das dauert je nach Anbieter ein paar Minuten bis Stunden.
-   *Ohne verifizierte Domain landen die Mailings im Spam.*
-2. **Templates anlegen** – der Inhalt der vier Dateien aus `email/` wird jeweils
-   in ein neues Template kopiert:
+### 2.5 Testversand
 
-   | Datei | Template | Wann |
-   |---|---|---|
-   | `save-the-date.html` | Welle 0 | vor dem Ticketverkauf |
-   | `einladung-ticket.html` | Welle 1 · Ticket | Einladung mit Beitrag |
-   | `einladung-ehrengast.html` | Welle 1 · Ehrengast | Einladung ohne Beitrag |
-   | `app-zugang.html` | Welle 2 | kurz vor dem Abend |
+Ein Template an die eigene Adresse schicken und **in Gmail und in Outlook**
+ansehen: Bilder da? Schrift in Ordnung? Button klickbar?
 
-3. **Bild-Adressen eintragen.** Die Merge-Variablen für Bilder bekommen feste
-   Werte (die Dateien liegen bereits auf dem Server):
+---
 
-   ```
-   header_img_url      https://thecircle.planyvo.com/assets/circle-header.jpg
-   logo_url            https://thecircle.planyvo.com/assets/logo-neg.svg
-   portrait_amiaz_url  https://thecircle.planyvo.com/assets/portrait-amiaz.jpg
-   portrait_ien_url    https://thecircle.planyvo.com/assets/portrait-ien.jpg
-   portrait_max_url    https://thecircle.planyvo.com/assets/portrait-max.jpg
-   partnerwand_url     https://thecircle.planyvo.com/assets/partnerwand-bordeaux.jpg
-   ```
+## 3 · Monitor aufsetzen und Admin-Zugänge verteilen
 
-4. **Webhook** auf `https://thecircle.planyvo.com/api/lettermint/webhook`
-   für die Ereignisse *sent, delivered, opened, clicked*. Damit füllen sich die
-   Öffnungs- und Klickraten im Monitor. (Klicks erkennt der Server auch selbst,
-   sobald ein Gast die Landing Page öffnet – der Webhook macht es nur genauer.)
+Der Monitor liegt unter `https://thecircle.planyvo.com/monitor` und zieht seine
+Zahlen aus `/api/admin/pools`. Dort stehen Namen, E-Mail-Adressen und
+Unverträglichkeiten – **ohne Schlüssel wäre das offen im Netz.**
 
-## 11 · Gästeliste einlesen
+### 3.1 Je Person einen Schlüssel
 
-Die CSV der Veranstalter auf den Server legen und importieren:
+Nicht ein gemeinsames Geheimnis, sondern einen pro Person. Dann lässt sich ein
+Zugang entziehen, ohne allen anderen den Link zu ändern.
+
+Schlüssel erzeugen (je Person einmal):
 
 ```bash
-cd /opt/thecircle
-sudo -u circle node server/circle-server.js import /tmp/gaesteliste.csv
+openssl rand -hex 16
 ```
 
-Ausgabe zeigt neu/aktualisiert je Pool. Danach die Versandliste erzeugen:
+Als Umgebungsvariable im Plesk-Node.js-Bildschirm, Format `name:schlüssel`:
+
+```
+ADMIN_TOKENS = anne:1f3c…,desi:9ab2…,renate:4d7e…,dylan:c821…,nicole:77af…
+```
+
+Danach **Anwendung neu starten**. Im Log steht dann, wie viele Zugänge aktiv
+sind und auf welche Namen sie laufen.
+
+### 3.2 Links verteilen
+
+Jede Person bekommt ihren eigenen Link:
+
+```
+https://thecircle.planyvo.com/monitor?key=<ihr-schlüssel>
+```
+
+Am besten mit einem Satz dazu: *Bitte nicht weiterleiten – der Link enthält
+Gästedaten. Auf dem Handy als Lesezeichen speichern.*
+
+### 3.3 Prüfen
 
 ```bash
-sudo -u circle node server/circle-server.js export > /tmp/versand.csv
+# ohne Schlüssel: abgewiesen
+curl -s https://thecircle.planyvo.com/api/admin/pools
+# → {"error":"kein Zugriff"}
+
+# mit Schlüssel: Zahlen
+curl -s "https://thecircle.planyvo.com/api/admin/pools?key=<schlüssel>" | head -c 200
 ```
 
-Diese Datei enthält je Gast: `pool, typ, anrede, vorname, name, email, partner,
-partner_logo, platz_satz, link, status`. Sie wird in Lettermint importiert – die
-Spaltennamen entsprechen genau den Merge-Variablen der Templates.
+Der Monitor zeigt Demo-Daten, solange keine Gästeliste eingelesen ist – das ist
+richtig so. Mit den echten Zahlen wechselt oben rechts die Kennzeichnung von
+*Demo* auf *Live-Daten*.
+
+**Einen Zugang entziehen:** den Eintrag aus `ADMIN_TOKENS` löschen, Anwendung
+neu starten. Alle anderen Links gelten weiter.
+
+---
+
+## 4 · Stripe aufsetzen
+
+### 4.1 Konto
+
+Firmendaten und Bankverbindung hinterlegen. Bis zur Freischaltung im
+**Testmodus** arbeiten (Schalter oben rechts im Dashboard).
+
+Vorher klären: **auf welches Konto der Ticketerlös fließen soll** – das ist der
+einzige Punkt, an dem die Veranstalter mitentscheiden müssen.
+
+### 4.2 Schlüssel
+
+**Entwickler → API-Schlüssel** → *Geheimer Schlüssel* (`sk_test_…`) als
+`STRIPE_SECRET_KEY` in die Umgebungsvariablen.
+
+### 4.3 Webhook
+
+**Entwickler → Webhooks → Endpunkt hinzufügen**
+
+- Adresse: `https://thecircle.planyvo.com/api/stripe/webhook`
+- Ereignis: `checkout.session.completed` (nur dieses)
+- Nach dem Anlegen das **Signing secret** (`whsec_…`) als
+  `STRIPE_WEBHOOK_SECRET` eintragen
+
+Anwendung neu starten.
+
+### 4.4 Testzahlung
+
+```bash
+# Testgäste einlesen (auf dem Server, im Anwendungsverzeichnis)
+node server/circle-server.js import server/gaesteliste-vorlage.csv
+node server/circle-server.js export | head -3      # einen Link kopieren
+```
+
+Link öffnen → zusagen → im Checkout die Testkarte `4242 4242 4242 4242` mit
+beliebigem künftigen Datum und CVC.
+
+Danach muss der Gast seine Ticket-Nummer sehen und im Monitor auf **bezahlt**
+stehen. Bleibt er auf „zugesagt, nicht bezahlt", kam der Webhook nicht an →
+Stripe → *Webhooks → Versuche* zeigt die Antwort des Servers.
+
+### 4.5 Auf Live umstellen
+
+Nach der Freischaltung: Live-Schlüssel holen (`sk_live_…`) **und einen zweiten
+Webhook-Endpunkt im Live-Modus anlegen** – dessen Signing secret ist ein
+anderes. Beide Werte eintragen, Anwendung neu starten.
+
+Danach eine echte Zahlung über 100 € durchführen und in Stripe wieder
+erstatten – der einzige Weg, den Live-Betrieb wirklich zu prüfen.
+
+> Der Server prüft jede Webhook-Signatur (HMAC-SHA256, 5-Minuten-Fenster gegen
+> Replays) und bucht idempotent: ein doppelt zugestelltes Ereignis zählt nicht
+> doppelt.
+
+---
+
+## 5 · Gästeliste einlesen
+
+CSV der Veranstalter auf den Server legen, dann im Anwendungsverzeichnis:
+
+```bash
+node server/circle-server.js import gaesteliste.csv
+node server/circle-server.js export > versand.csv
+```
+
+`versand.csv` enthält je Gast `pool, typ, anrede, vorname, name, email, partner,
+partner_logo, platz_satz, link, status` – die Spaltennamen entsprechen genau den
+Merge-Variablen der Templates. Diese Datei wird in Lettermint importiert.
 
 **Ein erneuter Import überschreibt keine Zusagen.** Schlüssel ist die E-Mail;
 Token, Status und Zahlungen bleiben erhalten. Nachzügler lassen sich also
 jederzeit nachschieben.
 
-## 12 · Vor dem ersten echten Versand
+> Nach dem Import über Plesk **Anwendung neu starten**, damit der laufende
+> Prozess die neue Liste kennt – er hält sie im Speicher.
+
+---
+
+## 6 · Vor dem ersten echten Versand
 
 - [ ] `dig +short thecircle.planyvo.com` zeigt die richtige IP
-- [ ] `https://thecircle.planyvo.com/api/live/health` antwortet über HTTPS
+- [ ] `/api/live/health` antwortet über HTTPS
 - [ ] Alle sieben Bilder unter `/assets/…` laden im Browser
-- [ ] Testzahlung im Stripe-Testmodus durchgelaufen, Monitor zeigt „bezahlt"
+- [ ] `/einladung?demo=1` zeigt die Landing Page (kein Verzeichnislisting)
+- [ ] `/api/admin/pools` ohne Schlüssel gibt `{"error":"kein Zugriff"}`
+- [ ] Jede Person hat ihren Monitor-Link und kommt rein
 - [ ] Absenderdomain in Lettermint verifiziert (SPF/DKIM grün)
-- [ ] Testmailing an eine eigene Adresse – **einmal in Gmail, einmal in Outlook**
-      ansehen (Bilder da? Schrift ok? Button klickbar?)
-- [ ] Persönlicher Link aus der Testmail führt auf die Landing Page mit dem
-      richtigen Namen
-- [ ] Stripe auf **Live** umgestellt, zweiter Webhook angelegt
-- [ ] `ADMIN_TOKEN` gesetzt und `/api/admin/pools` ohne Schlüssel abgewiesen:
-      ```bash
-      curl -s https://thecircle.planyvo.com/api/admin/pools   # {"error":"kein Zugriff"}
-      ```
+- [ ] Testmailing in Gmail **und** Outlook angesehen
+- [ ] Persönlicher Link aus der Testmail zeigt den richtigen Namen
+- [ ] Testzahlung durchgelaufen, Monitor steht auf „bezahlt"
+- [ ] Stripe auf Live umgestellt, zweiter Webhook angelegt, echte Zahlung geprüft
 
 ---
 
 ## Betrieb
 
-**Änderungen ausrollen**
+**Änderungen ausrollen:** Plesk → Git → *Jetzt aktualisieren*, danach
+**Anwendung neu starten**. Ohne Neustart läuft der alte Stand weiter.
+
+**Sicherung.** Der gesamte Zustand liegt in `server/live-state.json`. Ein
+täglicher Cron in Plesk (**Geplante Aufgaben**) genügt:
 
 ```bash
-cd /opt/thecircle
-git pull
-systemctl restart thecircle       # Ausfall < 1 Sekunde
+cp ~/thecircle/server/live-state.json ~/backups/circle-$(date +\%F).json
 ```
 
-**Sicherung.** Der gesamte Stand liegt in einer Datei. Ein täglicher Cron reicht:
-
-```bash
-# crontab -e
-0 3 * * * cp /opt/thecircle/server/live-state.json /var/backups/circle-$(date +\%F).json
-```
-
-**Logs**
-
-```bash
-journalctl -u thecircle -f          # Anwendung
-journalctl -u caddy -f              # HTTPS / Zugriffe
-```
+**Logs:** Plesk → Subdomain → *Logs*. Die Ausgaben der Anwendung stehen im
+Node.js-Bildschirm bzw. in `logs/`.
 
 **Nach dem Event.** In `live-state.json` stehen Namen, E-Mail-Adressen und
-Unverträglichkeiten – also personenbezogene und teils Gesundheitsdaten. Sobald
-die Abrechnung durch ist:
-
-```bash
-systemctl stop thecircle
-rm /opt/thecircle/server/live-state.json /var/backups/circle-*.json
-```
-
-Was für die Nachbereitung gebraucht wird, vorher als anonymisierte Auswertung
-sichern (Zahlen je Pool statt Namen). Für die Zahlungsbelege genügt Stripe.
+Unverträglichkeiten – personenbezogene und teils Gesundheitsdaten. Sobald die
+Abrechnung durch ist: Datei und Sicherungen löschen. Was für die Nachbereitung
+gebraucht wird, vorher anonymisiert sichern (Zahlen je Pool statt Namen). Für
+die Zahlungsbelege genügt Stripe.
 
 ---
 
@@ -318,11 +377,14 @@ sichern (Zahlen je Pool statt Namen). Für die Zahlungsbelege genügt Stripe.
 
 | Symptom | Ursache | Lösung |
 |---|---|---|
-| Caddy bekommt kein Zertifikat | DNS zeigt noch nicht auf den Server | `dig` prüfen, ein paar Minuten warten, `systemctl reload caddy` |
-| Zahlung bleibt auf „zugesagt" | Webhook kommt nicht an | Stripe → Webhooks → Versuche; stimmt die Adresse? richtiger Modus (Test/Live)? |
-| „Zahlung ist noch nicht scharf geschaltet" | `STRIPE_SECRET_KEY` fehlt | `.env` prüfen, `systemctl restart thecircle` |
-| Signatur ungültig im Log | falsches `STRIPE_WEBHOOK_SECRET` | Test- und Live-Endpunkt haben verschiedene Secrets |
-| Bilder fehlen in der Mail | Adressen falsch oder Bild nicht erreichbar | `curl -I https://thecircle.planyvo.com/assets/<datei>` |
+| Let's Encrypt schlägt fehl | DNS zeigt noch nicht auf den Server | `dig` prüfen, warten, erneut ausstellen |
+| Verzeichnislisting statt Landing Page | Dokumentstamm zeigt auf die Dateien | leeren Unterordner als Dokumentstamm setzen (1.5) |
+| 502 / Anwendung startet nicht | falsche Startdatei oder Node zu alt | Startdatei `server/circle-server.js`, Node ≥ 18 |
+| Live-Zähler steht am Abend | nginx puffert die SSE-Verbindung | Direktiven aus 1.6 eintragen |
+| „Zahlung ist noch nicht scharf geschaltet" | `STRIPE_SECRET_KEY` fehlt | Variable setzen, Anwendung neu starten |
+| Zahlung bleibt auf „zugesagt" | Webhook kommt nicht an | Stripe → Webhooks → Versuche; Adresse und Modus prüfen |
+| „Signatur ungültig" im Log | falsches Signing secret | Test- und Live-Endpunkt haben verschiedene |
+| Bilder fehlen in der Mail | Adresse falsch oder Bild nicht erreichbar | `curl -I …/assets/<datei>` |
 | Mailing landet im Spam | Domain nicht verifiziert | SPF/DKIM in Lettermint prüfen |
-| Monitor zeigt Demo-Daten | Server antwortet nicht oder Schlüssel fehlt | mit `?key=<ADMIN_TOKEN>` öffnen |
-| Live-Zähler in der App steht | SSE wird gepuffert | im Caddyfile muss `flush_interval -1` stehen |
+| Monitor zeigt Demo-Daten | keine Liste eingelesen oder Schlüssel fehlt | importieren, mit `?key=…` öffnen |
+| Neue Gästeliste wirkt nicht | Prozess hält die alte im Speicher | Anwendung neu starten |

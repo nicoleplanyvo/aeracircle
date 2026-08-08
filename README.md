@@ -155,7 +155,7 @@ keine Abhängigkeit) und verbucht die Zahlung über den Webhook:
 PUBLIC_URL=https://thecircle.planyvo.com \
 STRIPE_SECRET_KEY=sk_live_… \
 STRIPE_WEBHOOK_SECRET=whsec_… \
-ADMIN_TOKEN=<langes-geheimnis> \
+ADMIN_TOKENS=anne:…,desi:…,nicole:… \
 node server/circle-server.js
 ```
 
@@ -181,11 +181,18 @@ Der Blick für alle Beteiligten: Versandstand, Öffnungs-/Klickraten, Zusagen,
 Stripe-Umsatz, die Wellen-Planung und die **Pool-Übersicht** (wer wie viele
 Gäste eingeladen hat und wie viele davon zugesagt bzw. bezahlt haben). Läuft
 der Server, holt sich der Monitor die echten Zahlen über
-`https://thecircle.planyvo.com/monitor?key=<ADMIN_TOKEN>`; sonst zeigt er Demo-Daten.
+`https://thecircle.planyvo.com/monitor?key=<zugang>`; sonst zeigt er Demo-Daten.
+
+**Zugänge je Person.** `ADMIN_TOKENS` nimmt eine Liste im Format
+`name:token,name:token` – jede Person bekommt ihren eigenen Link. Fällt einer
+in falsche Hände, wird genau dieser Eintrag entfernt; alle anderen behalten
+ihren Link. Token erzeugen mit `openssl rand -hex 16`. Der Vergleich läuft
+zeitkonstant (`crypto.timingSafeEqual`). `ADMIN_TOKEN` bleibt als einzelner
+gemeinsamer Zugang zusätzlich gültig.
 
 > **Datenschutz:** Im Register stehen Namen, E-Mail-Adressen und – wenn Gäste
 > sie angeben – Unverträglichkeiten, also personenbezogene und teils
-> Gesundheitsdaten. Deshalb: `ADMIN_TOKEN` setzen, nur über HTTPS betreiben,
+> Gesundheitsdaten. Deshalb: Zugänge setzen, nur über HTTPS betreiben,
 > `server/live-state.json` bleibt aus dem Repo (`.gitignore`) und wird nach dem
 > Event gelöscht bzw. auf das Nötige eingedampft.
 
@@ -232,9 +239,15 @@ negative Varianten anfragen).
 
 ## Setup & Betrieb
 
-Das vollständige technische Setup – Server, DNS, HTTPS, Stripe, Lettermint,
-Gästeliste, Livegang-Checkliste – steht Schritt für Schritt in **[`DEPLOY.md`](DEPLOY.md)**.
-Die Konfigurationsdateien dazu liegen in `deploy/`.
+Das vollständige technische Setup steht Schritt für Schritt in
+**[`DEPLOY.md`](DEPLOY.md)** – in der Reihenfolge, in der es gemacht wird:
+Subdomain sichern und unter **Plesk** deployen → Lettermint → Monitor und
+Admin-Zugänge → Stripe → Gästeliste → Livegang-Checkliste.
+
+In `deploy/` liegen `env.example` (die Umgebungsvariablen, unter Plesk im
+Node.js-Panel gepflegt) sowie `Caddyfile` und `thecircle.service` – die beiden
+letzten braucht es nur, falls THE CIRCLE später auf einen selbstverwalteten
+Server umzieht.
 
 ## Wo alles läuft
 
