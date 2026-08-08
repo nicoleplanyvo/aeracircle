@@ -1,0 +1,22 @@
+# Caddy kümmert sich um HTTPS (Let's Encrypt) und reicht alles an Node weiter.
+# Ablage: /etc/caddy/Caddyfile
+thecircle.planyvo.com {
+	encode zstd gzip
+
+	# Der Monitor enthält personenbezogene Daten – nicht in Suchmaschinen
+	header /monitor* X-Robots-Tag "noindex, nofollow"
+	header /einladung* X-Robots-Tag "noindex, nofollow"
+
+	# Sicherheits-Header
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	reverse_proxy 127.0.0.1:8080 {
+		# Server-Sent Events der Live-Ebene dürfen nicht gepuffert werden
+		flush_interval -1
+	}
+}

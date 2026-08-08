@@ -742,6 +742,31 @@ const server = http.createServer((req, res) => {
   }
 
   /* --- Statik --- */
+
+  /* Bilder der Mailings: /assets/<datei> -> email/assets/<datei>
+   * E-Mails können keine Data-URIs laden, deshalb brauchen Porträts, Header und
+   * Partnerwand feste Adressen. Lange Cache-Zeit, weil Mail-Clients die Bilder
+   * ohnehin zwischenspeichern. */
+  if ((req.method === "GET" || req.method === "HEAD") && url.startsWith("/assets/")) {
+    let name;
+    try { name = path.basename(decodeURIComponent(url.slice(8))); }   // basename kappt ../
+    catch (e) { return json(res, 400, { error: "ungültiger Name" }); }
+    const TYP = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+                  ".svg": "image/svg+xml", ".webp": "image/webp" };
+    const typ = TYP[path.extname(name).toLowerCase()];
+    if (!name || !typ) { res.writeHead(404); return res.end("nicht gefunden"); }
+    return fs.readFile(path.join(ROOT, "email", "assets", name), (err, buf) => {
+      if (err) { res.writeHead(404); return res.end("nicht gefunden"); }
+      res.writeHead(200, {
+        "Content-Type": typ,
+        "Content-Length": buf.length,
+        "Cache-Control": "public, max-age=2592000",
+        "Access-Control-Allow-Origin": "*"
+      });
+      res.end(req.method === "HEAD" ? undefined : buf);
+    });
+  }
+
   if (req.method === "GET" && (url === "/einladung" || url === "/landing.html")) {
     return serveFile(res, "landing.html", "text/html; charset=utf-8");
   }

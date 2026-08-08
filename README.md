@@ -230,6 +230,12 @@ negative Varianten anfragen).
 | `pitch/einladungsmanagement.html` | Konzeptdokument für die Veranstalter (Workflow + Monitor), Quelle des PDFs |
 | `pitch/THE-CIRCLE-Einladungsmanagement.pdf` | 10 Seiten A4 – Wellen, Mailings, Landing Page, Zahlung, Pools, Monitor, nächste Schritte |
 
+## Setup & Betrieb
+
+Das vollständige technische Setup – Server, DNS, HTTPS, Stripe, Lettermint,
+Gästeliste, Livegang-Checkliste – steht Schritt für Schritt in **[`DEPLOY.md`](DEPLOY.md)**.
+Die Konfigurationsdateien dazu liegen in `deploy/`.
+
 ## Wo alles läuft
 
 Alles Digitale liegt unter der Subdomain **`thecircle.planyvo.com`** (von planyvo
@@ -240,7 +246,7 @@ bereitgestellt) – die Event-Website bleibt unberührt:
 | `/einladung?t=…` | Landing Page (Welle 1) – Infos, Zusage, Zahlung |
 | `/` | die App zum Abend (Welle 2) |
 | `/monitor?key=…` | Einladungs-Monitor |
-| `/assets/…` | Bilder für die Mailings |
+| `/assets/…` | Bilder für die Mailings (aus `email/assets/`) |
 | `/api/stripe/webhook` | Stripe meldet Zahlungen hierher |
 | `/api/lettermint/webhook` | Lettermint meldet Öffnungen/Klicks hierher |
 
@@ -255,6 +261,7 @@ Merge-Variablen in Lettermint. Die fertigen Dateien liegen in `email/assets/`:
 | Datei | Merge-Variable | Inhalt |
 |---|---|---|
 | `circle-header.jpg` | `{{header_img_url}}` | S/W-Köln-Header, 1200×520 |
+| `logo-neg.svg` | `{{logo_url}}` | offizielles Logo, horizontal negativ |
 | `portrait-amiaz.jpg` | `{{portrait_amiaz_url}}` | Amiaz Habtu, Kreis auf Bordeaux, 360×360 |
 | `portrait-ien.jpg` | `{{portrait_ien_url}}` | Ien Svea Bäumler |
 | `portrait-max.jpg` | `{{portrait_max_url}}` | Max Leinfelder |

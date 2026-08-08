@@ -1,0 +1,28 @@
+# systemd-Unit: /etc/systemd/system/thecircle.service
+[Unit]
+Description=THE CIRCLE – Einladungs- & Live-Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=circle
+Group=circle
+WorkingDirectory=/opt/thecircle
+EnvironmentFile=/opt/thecircle/.env
+ExecStart=/usr/bin/node server/circle-server.js
+Restart=always
+RestartSec=3
+
+# Härtung: der Dienst darf nur in sein eigenes Datenverzeichnis schreiben
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+ReadWritePaths=/opt/thecircle/server
+
+[Install]
+WantedBy=multi-user.target
