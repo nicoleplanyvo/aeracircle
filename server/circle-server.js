@@ -27,7 +27,7 @@
  * Konfiguration über Umgebungsvariablen (alles optional – ohne Stripe-Key
  * läuft der Zusage-Teil weiter, der Zahlungsschritt meldet dann "nicht
  * konfiguriert"):
- *      PUBLIC_URL             öffentliche Basis-URL (für Stripe-Rückkehr)
+ *      PUBLIC_URL             öffentliche Basis-URL, live: https://thecircle.planyvo.com
  *      STRIPE_SECRET_KEY      sk_live_… / sk_test_…
  *      STRIPE_WEBHOOK_SECRET  whsec_… (Signaturprüfung der Webhooks)
  *      TICKET_PRICE           Ticketpreis in Cent (Default 10000 = 100 €)

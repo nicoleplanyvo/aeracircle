@@ -121,7 +121,7 @@ Lettermint als `{{link}}`.
 ### Die Landing Page (`landing.html`)
 
 Der Link aus der Einladungsmail führt **nicht** direkt in die App, sondern auf
-die Landing Page: `https://<domain>/einladung?t=<TOKEN>`. Sie ist im
+die Landing Page: `https://thecircle.planyvo.com/einladung?t=<TOKEN>`. Sie ist im
 Farbkapitel-Rhythmus der Website aufgebaut (Bordeaux → Sand → Navy → Bordeaux)
 und trägt alle Infos zum Abend:
 
@@ -152,14 +152,14 @@ Der Server erzeugt die Checkout-Session direkt über die Stripe-API (kein SDK,
 keine Abhängigkeit) und verbucht die Zahlung über den Webhook:
 
 ```bash
-PUBLIC_URL=https://the-circle-cologne.de \
+PUBLIC_URL=https://thecircle.planyvo.com \
 STRIPE_SECRET_KEY=sk_live_… \
 STRIPE_WEBHOOK_SECRET=whsec_… \
 ADMIN_TOKEN=<langes-geheimnis> \
 node server/circle-server.js
 ```
 
-Im Stripe-Dashboard einen Webhook auf `https://<domain>/api/stripe/webhook`
+Im Stripe-Dashboard einen Webhook auf `https://thecircle.planyvo.com/api/stripe/webhook`
 anlegen und das Ereignis `checkout.session.completed` abonnieren. Die
 Signatur wird geprüft (HMAC-SHA256, 5-Minuten-Fenster gegen Replays), die
 Buchung ist idempotent – ein doppelt zugestelltes Ereignis zählt nicht doppelt.
@@ -171,7 +171,7 @@ dann sauber, dass er noch nicht scharf geschaltet ist.
 ### Lettermint
 
 Für die Öffnungs- und Klickraten einen Webhook auf
-`https://<domain>/api/lettermint/webhook` legen (erwartet `email` und `event`
+`https://thecircle.planyvo.com/api/lettermint/webhook` legen (erwartet `email` und `event`
 mit `sent`/`delivered`/`opened`/`clicked`). Klicks erkennt der Server ohnehin
 selbst, sobald der Gast die Landing Page öffnet.
 
@@ -181,7 +181,7 @@ Der Blick für alle Beteiligten: Versandstand, Öffnungs-/Klickraten, Zusagen,
 Stripe-Umsatz, die Wellen-Planung und die **Pool-Übersicht** (wer wie viele
 Gäste eingeladen hat und wie viele davon zugesagt bzw. bezahlt haben). Läuft
 der Server, holt sich der Monitor die echten Zahlen über
-`/monitor?key=<ADMIN_TOKEN>`; sonst zeigt er Demo-Daten.
+`https://thecircle.planyvo.com/monitor?key=<ADMIN_TOKEN>`; sonst zeigt er Demo-Daten.
 
 > **Datenschutz:** Im Register stehen Namen, E-Mail-Adressen und – wenn Gäste
 > sie angeben – Unverträglichkeiten, also personenbezogene und teils
@@ -230,10 +230,26 @@ negative Varianten anfragen).
 | `pitch/einladungsmanagement.html` | Konzeptdokument für die Veranstalter (Workflow + Monitor), Quelle des PDFs |
 | `pitch/THE-CIRCLE-Einladungsmanagement.pdf` | 10 Seiten A4 – Wellen, Mailings, Landing Page, Zahlung, Pools, Monitor, nächste Schritte |
 
+## Wo alles läuft
+
+Alles Digitale liegt unter der Subdomain **`thecircle.planyvo.com`** (von planyvo
+bereitgestellt) – die Event-Website bleibt unberührt:
+
+| Adresse | Was dort liegt |
+|---|---|
+| `/einladung?t=…` | Landing Page (Welle 1) – Infos, Zusage, Zahlung |
+| `/` | die App zum Abend (Welle 2) |
+| `/monitor?key=…` | Einladungs-Monitor |
+| `/assets/…` | Bilder für die Mailings |
+| `/api/stripe/webhook` | Stripe meldet Zahlungen hierher |
+| `/api/lettermint/webhook` | Lettermint meldet Öffnungen/Klicks hierher |
+
+Stripe- und Lettermint-Konten laufen ebenfalls über planyvo.
+
 ## Bilder & Logos in den Mailings
 
 E-Mails können keine Data-URIs laden – die Bilder müssen gehostet werden
-(z. B. unter `the-circle-cologne.de/assets/`) und die URLs kommen als
+(unter `thecircle.planyvo.com/assets/`) und die URLs kommen als
 Merge-Variablen in Lettermint. Die fertigen Dateien liegen in `email/assets/`:
 
 | Datei | Merge-Variable | Inhalt |
