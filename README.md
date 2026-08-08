@@ -72,9 +72,15 @@ wird erst spät kommuniziert, ausschließlich an Gäste, die zugesagt haben:
 
 | Welle | Template | Empfänger | Zeitpunkt |
 |---|---|---|---|
+| 0 · Save the Date | `email/save-the-date.html` | Verteiler „Bezahlgäste" | Di, 11.08. |
 | 1 · Einladung | `email/einladung-ticket.html` / `email/einladung-ehrengast.html` | Gästeliste (alle Pools) | Wochen vorher |
 | 2 · App-Zugang | `email/app-zugang.html` | **nur Zusagen / bezahlte Tickets** | wenige Tage vorher |
 | 3 · Erinnerung | (folgt) | nur Gäste im Kreis | Vortag |
+
+**Welle 0** kommt vor dem Ticketverkauf: erste Infos zum Format, CTA auf die
+Website, noch kein persönlicher Link und keine Zusage. Das Wording stammt von
+Renate – im Template sind vier Blöcke als `TEXT 1` bis `TEXT 4` markiert, alles
+andere (Layout, CI, Merge-Variablen) bleibt unangetastet.
 
 Alle Templates sind tabellenbasiert, e-mail-sicher und im offiziellen CI:
 Welle 1 in der Bordeaux-Welt (#741a33, Koralle-Headline, Koralle-Pill-CTA),
@@ -92,12 +98,22 @@ node server/circle-server.js import gaesteliste.csv     # Vorlage: server/gaeste
 node server/circle-server.js export > versand.csv       # Liste für Lettermint (enthält die Links)
 ```
 
-Spalten: `pool, typ, name, email, firma` (Semikolon oder Komma, Reihenfolge
-egal). `typ` ist `ticket` (100 € über Stripe) oder `ehrengast` (nur Zusage);
-fehlt die Spalte, leitet der Import den Typ aus dem Pool-Namen ab (alles mit
+Spalten (Semikolon oder Komma, Reihenfolge egal):
+
+| Spalte | Pflicht | Bedeutung |
+|---|---|---|
+| `name`, `email` | ja | Gast |
+| `pool` | – | Liste, aus der er kommt (Default „Allgemein") |
+| `typ` | – | `ticket` (100 € über Stripe) oder `ehrengast` (nur Zusage) |
+| `anrede` | – | „Liebe" / „Lieber" für die persönliche Anrede |
+| `firma` | – | Unternehmen / Rolle |
+| `partner`, `partner_logo` | – | wenn ein Partner eingeladen hat: Name + URL des Logos (negativ weiß) |
+
+Fehlt `typ`, leitet der Import ihn aus dem Pool-Namen ab (alles mit
 „Ehrengast", „Presse", „Jury", „Speaker" wird Ehrengast, der Rest Ticket).
-Ein erneuter Import aktualisiert bestehende Gäste – Schlüssel ist die E-Mail,
-Tokens und Zusagen bleiben erhalten.
+Fehlt `anrede`, steht in der Mail „Hallo <Vorname>" – bitte die Spalte füllen,
+damit es „Liebe Anne" heißt. Ein erneuter Import aktualisiert bestehende Gäste
+– Schlüssel ist die E-Mail, Tokens und Zusagen bleiben erhalten.
 
 `versand.csv` enthält die Spalte `link` – genau diese URL gehört in
 Lettermint als `{{link}}`.
@@ -110,7 +126,8 @@ Farbkapitel-Rhythmus der Website aufgebaut (Bordeaux → Sand → Navy → Borde
 und trägt alle Infos zum Abend:
 
 01 Das Event · 02 Der Abend (die fünf Programmpunkte) · 03 Die Köpfe (Amiaz
-Habtu, Max Leinfelder, Ien Bäumler) · 04 Ort & Zeit · 05 Deine Antwort.
+Habtu, Ien Svea Bäumler, Max Leinfelder – als Kreisporträts) · 04 Ort & Zeit ·
+05 Deine Antwort.
 
 Im letzten Kapitel passiert die eigentliche Arbeit – abhängig vom Pool-Typ:
 
@@ -122,6 +139,9 @@ Erfasst werden Name, E-Mail (Pflicht – dorthin geht später der App-Zugang),
 Mobil, Unternehmen, **bevorzugte Ernährung** und **Unverträglichkeiten**. Diese
 Angaben wandern automatisch in die App zum Abend (Kontaktdaten auf die
 Connect-Karte, Ernährung als Notiz ans Menü).
+
+Kommt der Gast aus einem Partner-Pool, steht über der Zusage
+„Du bist eingeladen von unserem Partner" samt Logo (aus `partner_logo`).
 
 Ohne Server geöffnet (`landing.html?demo=1`, optional `&typ=ehrengast`) läuft
 alles als Vorführung – es wird nichts berechnet.
@@ -207,6 +227,29 @@ negative Varianten anfragen).
 | `email/*.html` | Lettermint-Templates der drei Wellen |
 | `server/circle-server.js` | Gästeregister mit Pools, Stripe, Webhooks, Live-Ebene |
 | `server/gaesteliste-vorlage.csv` | Spaltenvorlage für die Pool-Listen |
+
+## Bilder & Logos in den Mailings
+
+E-Mails können keine Data-URIs laden – die Bilder müssen gehostet werden
+(z. B. unter `the-circle-cologne.de/assets/`) und die URLs kommen als
+Merge-Variablen in Lettermint. Die fertigen Dateien liegen in `email/assets/`:
+
+| Datei | Merge-Variable | Inhalt |
+|---|---|---|
+| `circle-header.jpg` | `{{header_img_url}}` | S/W-Köln-Header, 1200×520 |
+| `portrait-amiaz.jpg` | `{{portrait_amiaz_url}}` | Amiaz Habtu, Kreis auf Bordeaux, 360×360 |
+| `portrait-ien.jpg` | `{{portrait_ien_url}}` | Ien Svea Bäumler |
+| `portrait-max.jpg` | `{{portrait_max_url}}` | Max Leinfelder |
+| `partnerwand-bordeaux.jpg` | `{{partnerwand_url}}` | alle acht Partner, negativ weiß, 880×300 |
+| `partner-deindach-neg.png` | `{{partner_logo_url}}` | Beispiel-Partnerlogo, transparent |
+
+Die Kreise sind **fertig auf den Bordeaux-Grund gerechnet** – so brauchen sie
+kein `border-radius`, das viele Mail-Clients ignorieren.
+
+> Die Partner-Logos sind aus den Website-Dateien freigestellt und auf Weiß
+> umgesetzt. Sobald die Partner echte Negativ-Logos liefern (am besten SVG oder
+> PNG mit Transparenz), einfach die Dateien in `email/assets/` ersetzen –
+> besonders SKS und Merzenich gewinnen dadurch.
 
 ## Anpassen
 

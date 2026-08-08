@@ -1030,18 +1030,19 @@
 
   <div class="inv-step on" data-step="einladung">
     <img class="logo brandlogo-z" alt="">
-    <span class="label">Persönliche Einladung · N°1</span>
+    <span class="label">THE CIRCLE No1</span>
     <h1>Du bist<br><span class="grad">eingeladen.</span></h1>
     <p class="who">zu THE CIRCLE — connecting generations</p>
     <div class="inv-facts">
       <span>16. September 2026 · 18:00 – 23:00 Uhr</span>
       <span>Playa Cologne</span>
+      <span>3-Gang-Menü inkl. Getränke</span>
       <span id="invFact3">Dein Link ist persönlich · 1 Platz</span>
     </div>
     <div class="inv-price grad" id="invPrice">100 €</div>
     <div class="inv-btns">
       <button class="btn btn--solid btn--full" id="invYes">Zusagen</button>
-      <button class="btn btn--full" id="invNo">Diesmal nicht</button>
+      <button class="btn btn--full" id="invNo">Leider nicht</button>
     </div>
   </div>
 
@@ -1911,7 +1912,7 @@ if(DEMO){
     $("#invFact3").textContent = "Dein Link ist persönlich · 1 Platz";
     $("#invPrice").innerHTML = ehrengast
       ? "Dein Platz ist eine Einladung des Hauses —<br>es genügt ein Wort."
-      : "Dein Platz ist bereits für dich reserviert.<br>Der Abend versteht sich mit einem Beitrag von 100&nbsp;Euro.";
+      : "Dein Platz ist bereits für dich reserviert.<br>Teilnahme: 100&nbsp;Euro.";
     $("#invYes").textContent = ehrengast ? "Zusagen" : "Einladung annehmen";
     $("#invFormNext").textContent = ehrengast ? "Zusage abschließen" : "Weiter zur Zahlung";
   }

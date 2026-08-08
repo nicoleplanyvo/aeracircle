@@ -5,58 +5,57 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="supported-color-schemes" content="dark">
-<title>THE CIRCLE &middot; Einladung</title>
+<title>THE CIRCLE No1 &middot; Save the Date</title>
 <!--
-  THE CIRCLE - Einladungs-Template (Ehrengast, nur Zusage)
-  CI: offizielles THE-CIRCLE-CI (the-circle-cologne.de) - Trajan-Kapitalis, Montserrat,
-  Bordeaux-Welt (#741a33) mit Koralle (#ff6b6c). Logo: uploads/logo-horizontal-neg-rgb.svg.
-  Ton: zurueckhaltend, exklusiv - der Beitrag ist eine Zeile, kein Verkaufsblock.
+  THE CIRCLE - SAVE THE DATE (Welle 0)
+  Geht VOR dem Ticketverkauf an den Verteiler "Bezahlgaeste": erste Infos zum
+  Format und ein Link auf die Website. Schafft frueh Aufmerksamkeit und
+  verschafft dem Ticketing Zeit. Ziel laut Abstimmung: Versand Dienstag, 11.08.
+
+  >>> WORDING: Die Texte unten sind Platzhalter. Renate stellt die finale
+  >>> Fassung zusammen - dann nur die vier markierten Bloecke ersetzen
+  >>> (TEXT 1 bis TEXT 4). Layout, CI und Merge-Variablen bleiben unveraendert.
+
+  CI: offizielles THE-CIRCLE-CI (the-circle-cologne.de) - Trajan-Kapitalis,
+  Montserrat, Bordeaux-Welt (#741a33) mit Koralle (#ff6b6c).
   Versand ueber Lettermint. Merge-Variablen:
-    {{anrede}}          "Liebe" / "Lieber" (Spalte 'anrede' der Gaesteliste; fehlt sie, steht dort "Hallo")
+    {{anrede}}          "Liebe" / "Lieber" (Spalte 'anrede' der Gaesteliste; sonst "Hallo")
     {{vorname}}         Vorname des Gastes
-    {{name}}            voller Name
-    {{link}}            persoenlicher Link auf die Landing Page (landing.html):
-                        https://<domain>/einladung?t=<TOKEN>
-                        Dort stehen alle Infos zum Abend; von dort laeuft auch
-                        die Zusage und - beim Ticket-Pool - der Stripe-Checkout.
-                        Die Spalte 'link' aus
-                          node server/circle-server.js export
-                        liefert genau diese URLs fuer den Lettermint-Import.
-    {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
+    {{website_url}}     https://www.the-circle-cologne.de
+    {{header_img_url}}  gehostetes Headerbild -> email/assets/circle-header.jpg (1200x520)
     {{logo_url}}        offizielles Logo (logo-horizontal-neg-rgb.svg, negativ)
-    {{portrait_amiaz_url}}  gehostet -> email/assets/portrait-amiaz.jpg (360x360, Kreis auf Bordeaux)
-    {{portrait_ien_url}}    gehostet -> email/assets/portrait-ien.jpg
-    {{portrait_max_url}}    gehostet -> email/assets/portrait-max.jpg
-    {{partnerwand_url}}     gehostet -> email/assets/partnerwand-bordeaux.jpg (880x300, negativ weiss)
-    {{partner_logo_url}}    NUR fuer Partner-Pools: Logo des einladenden Partners, negativ weiss
-                            (Beispiel: email/assets/partner-deindach-neg.png). Ist die Variable leer,
-                            gehoert der ganze Block "Du bist eingeladen von unserem Partner" ausgeblendet.
-    {{partner_name}}        Name des einladenden Partners (Alt-Text)
+    {{portrait_amiaz_url}} / {{portrait_ien_url}} / {{portrait_max_url}}
+                        gehostete Kreis-Portraits -> email/assets/portrait-*.jpg
+    {{partnerwand_url}} gehostete Partnerwand -> email/assets/partnerwand-bordeaux.jpg
     {{abmelden_url}}    Abmeldelink (Pflicht)
+
+  Wichtig: In dieser Welle gibt es noch KEINEN persoenlichen Link und keine
+  Zusage - der CTA fuehrt bewusst nur auf die Website. Die Einladung mit
+  Ticketkauf folgt als eigene Welle.
 -->
 </head>
 <body style="margin:0;padding:0;background-color:#222222;">
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Als Ehrengast geladen – ein Wort genügt.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Save the Date: 16. September 2026, &uuml;ber den D&auml;chern von K&ouml;ln.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#222222;">
     <tr><td align="center" style="padding:28px 12px;">
 
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#741a33;">
 
-        <!-- S/W-Koeln-Header (Deck-Covershot) -->
+        <!-- S/W-Koeln-Header -->
         <tr><td>
           <img src="{{header_img_url}}" width="600" alt="THE CIRCLE &ndash; &uuml;ber den D&auml;chern von K&ouml;ln"
                style="display:block;width:100%;height:auto;border:0;">
         </td></tr>
 
-        <!-- Spirale + Wortmarke -->
+        <!-- Logo -->
         <tr><td align="center" style="padding:36px 40px 0 40px;">
           <img src="{{logo_url}}" width="230" alt="THE CIRCLE &ndash; connecting generations" style="display:block;border:0;width:230px;max-width:60%;height:auto;">
         </td></tr>
 
         <tr><td style="padding:30px 64px 0 64px;"><div style="border-top:1px solid #94505f;font-size:0;line-height:0;">&nbsp;</div></td></tr>
 
-        <!-- Einladung -->
+        <!-- Anrede -->
         <tr><td align="center" style="padding:32px 40px 0 40px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:20px;line-height:1.5;color:#f8f7f4;">
             {{anrede}} {{vorname}},
@@ -65,18 +64,20 @@
         <tr><td align="center" style="padding:14px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#f2cbd7;text-transform:uppercase;">THE CIRCLE No1</div>
         </td></tr>
+
+        <!-- Headline -->
         <tr><td align="center" style="padding:16px 40px 0 40px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.3;color:#ff6b6c;">
-            Du bist<br>eingeladen.
+            Save<br>the Date.
           </div>
         </td></tr>
 
-        <!-- Ein Satz zum Abend -->
+        <!-- TEXT 1 – Was THE CIRCLE ist (Platzhalter, Renate) -->
         <tr><td align="center" style="padding:22px 60px 0 60px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:18px;line-height:1.75;color:#f2cbd7;">
-            Ein Abend im kleinen Kreis, &uuml;ber den D&auml;chern von K&ouml;ln:
-            handverlesene G&auml;ste &uuml;ber Generationen hinweg, ein Men&uuml; in drei G&auml;ngen &mdash;
-            und ein Werk von Max Leinfelder, das vor deinen Augen entsteht.
+            Ein neues Format f&uuml;r K&ouml;ln: ein Abend, an dem Entscheider, Talente und
+            Gr&uuml;nder &uuml;ber Generationen hinweg ins Gespr&auml;ch kommen &mdash; kuratiert,
+            pers&ouml;nlich, wirkungsvoll.
           </div>
         </td></tr>
 
@@ -86,7 +87,8 @@
             Mittwoch, 16. September 2026 &middot; 18:00 &ndash; 23:00 Uhr<br>Playa Cologne<br>3-Gang-Men&uuml; inkl. Getr&auml;nke
           </div>
         </td></tr>
-        <!-- Die drei Koepfe des Abends (Kreise nebeneinander) -->
+
+        <!-- Die drei Koepfe des Abends -->
         <tr><td align="center" style="padding:36px 24px 0 24px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:460px;"><tr>
             <td align="center" valign="top" width="33%" style="padding:0 5px;">
@@ -110,41 +112,42 @@
           </tr></table>
         </td></tr>
 
-        <!-- Nur fuer Partner-Pools: "eingeladen von unserem Partner" + Logo.
-             Lettermint: Block leer lassen bzw. Segment ohne Partner ausblenden,
-             wenn {{partner_logo_url}} nicht gesetzt ist. -->
-        <tr><td align="center" style="padding:30px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:14px;">Du bist eingeladen von unserem Partner</div>
-          <img src="{{partner_logo_url}}" height="46" alt="{{partner_name}}" style="display:block;border:0;height:46px;width:auto;margin:0 auto;">
-        </td></tr>
-
-
-        <tr><td align="center" style="padding:26px 56px 0 56px;">
+        <!-- TEXT 2 – Was den Abend ausmacht (Platzhalter, Renate) -->
+        <tr><td align="center" style="padding:32px 56px 0 56px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#f8f7f4;">
-            Dein Platz ist eine Einladung des Hauses &mdash;<br>es gen&uuml;gt ein Wort.
+            Impuls-Vortrag, Mentor-Minuten, Start-up-Pitch,<br>
+            Live Painting mit Auktion &mdash; und ein Men&uuml;, das Gespr&auml;che in Gang bringt.
           </div>
         </td></tr>
 
-        <!-- CTA -->
+        <!-- TEXT 3 – Ausblick auf die Einladung (Platzhalter, Renate) -->
+        <tr><td align="center" style="padding:26px 56px 0 56px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.75;color:#f2cbd7;">
+            Die Teilnahme ist ausschlie&szlig;lich auf Einladung m&ouml;glich.
+            Deine pers&ouml;nliche Einladung erreicht dich in den n&auml;chsten Wochen &mdash;
+            halte dir den Abend gern schon frei.
+          </div>
+        </td></tr>
+
+        <!-- CTA auf die Website -->
         <tr><td align="center" style="padding:30px 40px 8px 40px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
             <td align="center" bgcolor="#ff6b6c" style="border-radius:999px;">
-              <a href="{{link}}" target="_blank"
-                 style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:normal;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">Zusagen</a>
+              <a href="{{website_url}}" target="_blank"
+                 style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">Mehr zum Abend</a>
             </td>
           </tr></table>
         </td></tr>
         <tr><td align="center" style="padding:6px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2px;color:#c998a4;text-transform:uppercase;line-height:2;">Dein Link ist pers&ouml;nlich &middot; eine kurze Zusage gen&uuml;gt</div>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2px;color:#c9889a;text-transform:uppercase;line-height:2;">the-circle-cologne.de</div>
         </td></tr>
 
-        <!-- Deck-Zitat -->
+        <!-- TEXT 4 – Claim (Platzhalter, Renate) -->
         <tr><td align="center" style="padding:32px 52px 0 52px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:18px;line-height:1.6;color:#f2cbd7;">
             &bdquo;Der Rahmen ist besonders.<br>Der Kern ist Verbindung.&ldquo;
           </div>
         </td></tr>
-
 
         <!-- Partner des Abends, negativ weiss -->
         <tr><td align="center" style="padding:34px 40px 0 40px;">
@@ -152,17 +155,17 @@
           <img src="{{partnerwand_url}}" width="440" alt="Partner: neuland.ai, Conrad, Dein Dach, DEKRA, jto, Merzenich, sion, SKS"
                style="display:block;width:100%;max-width:440px;height:auto;border:0;margin:0 auto;">
         </td></tr>
+
         <tr><td style="padding:32px 64px 0 64px;"><div style="border-top:1px solid #94505f;font-size:0;line-height:0;">&nbsp;</div></td></tr>
 
         <!-- Footer -->
         <tr><td align="center" style="padding:24px 40px 6px 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#c998a4;text-transform:uppercase;">Eine Veranstaltung von</div>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#c9889a;text-transform:uppercase;">Eine Veranstaltung von</div>
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#f2cbd7;padding-top:8px;">Ihre Marken Werkstatt &middot; AERA &middot; Public Cologne</div>
         </td></tr>
         <tr><td align="center" style="padding:8px 40px 32px 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#c998a4;line-height:1.9;">
-            Diese Einladung ist pers&ouml;nlich und nicht &uuml;bertragbar.<br>
-            <a href="{{abmelden_url}}" style="color:#c998a4;text-decoration:underline;">Keine E-Mails mehr zu THE CIRCLE erhalten</a>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#c9889a;line-height:1.9;">
+            <a href="{{abmelden_url}}" style="color:#c9889a;text-decoration:underline;">Keine E-Mails mehr zu THE CIRCLE erhalten</a>
           </div>
         </td></tr>
 

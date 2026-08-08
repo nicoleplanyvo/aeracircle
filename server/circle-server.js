@@ -179,6 +179,8 @@ function serveFile(res, file, type) {
 
 /* Ein Gast der Einladungsliste:
  *   { token, pool, typ:"ticket"|"ehrengast", name, email, firma,
+ *     anrede,                                        <- "Liebe"/"Lieber", sonst "Hallo"
+ *     partner, partnerLogo,                          <- wenn ein Partner eingeladen hat
  *     status:"offen"|"zugesagt"|"bezahlt"|"abgesagt",
  *     mail:{sent,delivered,opened,clicked},          <- Lettermint-Webhooks
  *     daten:{phone,diet,allergy},                    <- vom Gast selbst
@@ -209,6 +211,10 @@ function pubInvite(inv) {
     typ: inv.typ,
     status: inv.status,
     name: inv.name,
+    vorname: (inv.name || "").split(" ")[0],
+    anrede: inv.anrede || "Hallo",
+    partner: inv.partner || "",
+    partnerLogo: inv.partnerLogo || "",
     firma: inv.firma || "",
     email: inv.email || "",
     pool: inv.pool,
@@ -244,7 +250,7 @@ function parseCSV(text) {
 }
 
 /* Erwartete Spalten (Reihenfolge egal, Groß/Klein egal):
- *   pool, typ, name, email, firma
+ *   pool, typ, name, email, firma, anrede, partner, partner_logo
  * typ: "ticket" (100 € über Stripe) oder "ehrengast" (nur Zusage).
  * Fehlt typ, gilt der Pool-Default aus poolTyp() – sonst "ticket".
  * Wiederholter Import aktualisiert bestehende Gäste (Schlüssel: E-Mail).
@@ -253,7 +259,8 @@ function importRows(rows) {
   const header = rows[0].map(h => h.trim().toLowerCase());
   const col = name => header.indexOf(name);
   const iPool = col("pool"), iTyp = col("typ"), iName = col("name"),
-        iMail = col("email") >= 0 ? col("email") : col("e-mail"), iFirma = col("firma");
+        iMail = col("email") >= 0 ? col("email") : col("e-mail"), iFirma = col("firma"),
+        iAnrede = col("anrede"), iPartner = col("partner"), iPartnerLogo = col("partner_logo");
   if (iName < 0 || iMail < 0) throw new Error("CSV braucht mindestens die Spalten 'name' und 'email'");
 
   const byMail = {};
@@ -273,6 +280,9 @@ function importRows(rows) {
       inv.pool = pool; inv.typ = typ;
       inv.name = cleanText(r[iName], 60) || inv.name;
       if (iFirma >= 0) inv.firma = cleanText(r[iFirma], 80);
+      if (iAnrede >= 0) inv.anrede = cleanText(r[iAnrede], 12);
+      if (iPartner >= 0) inv.partner = cleanText(r[iPartner], 60);
+      if (iPartnerLogo >= 0) inv.partnerLogo = cleanText(r[iPartnerLogo], 200);
       aktualisiert++;
     } else {
       const token = newToken();
@@ -280,6 +290,9 @@ function importRows(rows) {
         token, pool, typ,
         name: cleanText(r[iName], 60), email,
         firma: iFirma >= 0 ? cleanText(r[iFirma], 80) : "",
+        anrede: iAnrede >= 0 ? cleanText(r[iAnrede], 12) : "",
+        partner: iPartner >= 0 ? cleanText(r[iPartner], 60) : "",
+        partnerLogo: iPartnerLogo >= 0 ? cleanText(r[iPartnerLogo], 200) : "",
         status: "offen",
         mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
         daten: {},
@@ -709,9 +722,11 @@ const server = http.createServer((req, res) => {
     }
     // Versandliste für Lettermint: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "name", "email", "link", "status"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "link", "status"]];
       for (const inv of Object.values(state.invites)) {
-        zeilen.push([inv.pool, inv.typ, inv.name, inv.email, inviteLink(inv.token), inv.status]);
+        zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
+                     inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
+                     inviteLink(inv.token), inv.status]);
       }
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
       return res.end(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n"));
@@ -753,9 +768,11 @@ if (befehl === "import") {
 }
 
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "name", "email", "link", "status"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "link", "status"]];
   for (const inv of Object.values(state.invites)) {
-    zeilen.push([inv.pool, inv.typ, inv.name, inv.email, inviteLink(inv.token), inv.status]);
+    zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
+                     inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
+                     inviteLink(inv.token), inv.status]);
   }
   process.stdout.write(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n") + "\n");
   process.exit(0);

@@ -12,7 +12,9 @@
   Bordeaux-Welt (#741a33) mit Koralle (#ff6b6c). Logo: uploads/logo-horizontal-neg-rgb.svg.
   Ton: zurueckhaltend, exklusiv - der Beitrag ist eine Zeile, kein Verkaufsblock.
   Versand ueber Lettermint. Merge-Variablen:
-    {{name}}            Vorname des Gastes
+    {{anrede}}          "Liebe" / "Lieber" (Spalte 'anrede' der Gaesteliste; fehlt sie, steht dort "Hallo")
+    {{vorname}}         Vorname des Gastes
+    {{name}}            voller Name
     {{link}}            persoenlicher Link auf die Landing Page (landing.html):
                         https://<domain>/einladung?t=<TOKEN>
                         Dort stehen alle Infos zum Abend; von dort laeuft auch
@@ -22,6 +24,14 @@
                         liefert genau diese URLs fuer den Lettermint-Import.
     {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
     {{logo_url}}        offizielles Logo (logo-horizontal-neg-rgb.svg, negativ)
+    {{portrait_amiaz_url}}  gehostet -> email/assets/portrait-amiaz.jpg (360x360, Kreis auf Bordeaux)
+    {{portrait_ien_url}}    gehostet -> email/assets/portrait-ien.jpg
+    {{portrait_max_url}}    gehostet -> email/assets/portrait-max.jpg
+    {{partnerwand_url}}     gehostet -> email/assets/partnerwand-bordeaux.jpg (880x300, negativ weiss)
+    {{partner_logo_url}}    NUR fuer Partner-Pools: Logo des einladenden Partners, negativ weiss
+                            (Beispiel: email/assets/partner-deindach-neg.png). Ist die Variable leer,
+                            gehoert der ganze Block "Du bist eingeladen von unserem Partner" ausgeblendet.
+    {{partner_name}}        Name des einladenden Partners (Alt-Text)
     {{abmelden_url}}    Abmeldelink (Pflicht)
 -->
 </head>
@@ -48,11 +58,16 @@
 
         <!-- Einladung -->
         <tr><td align="center" style="padding:32px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#f2cbd7;text-transform:uppercase;">THE CIRCLE N&deg;1 &middot; Auf pers&ouml;nliche Einladung</div>
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:20px;line-height:1.5;color:#f8f7f4;">
+            {{anrede}} {{vorname}},
+          </div>
+        </td></tr>
+        <tr><td align="center" style="padding:14px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#f2cbd7;text-transform:uppercase;">THE CIRCLE No1</div>
         </td></tr>
         <tr><td align="center" style="padding:16px 40px 0 40px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.3;color:#ff6b6c;">
-            Du bist eingeladen,<br>{{name}}.
+            Du bist<br>eingeladen.
           </div>
         </td></tr>
 
@@ -68,14 +83,46 @@
         <!-- Fakten -->
         <tr><td align="center" style="padding:26px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:3px;color:#f8f7f4;text-transform:uppercase;line-height:2.2;">
-            Mittwoch, 16. September 2026 &middot; 18:00 &ndash; 23:00 Uhr<br>Playa Cologne
+            Mittwoch, 16. September 2026 &middot; 18:00 &ndash; 23:00 Uhr<br>Playa Cologne<br>3-Gang-Men&uuml; inkl. Getr&auml;nke
           </div>
         </td></tr>
+        <!-- Die drei Koepfe des Abends (Kreise nebeneinander) -->
+        <tr><td align="center" style="padding:36px 24px 0 24px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:460px;"><tr>
+            <td align="center" valign="top" width="33%" style="padding:0 5px;">
+              <img src="{{portrait_amiaz_url}}" width="120" height="120" alt="Amiaz Habtu"
+                   style="display:block;border:0;width:120px;height:120px;margin:0 auto;">
+              <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:13px;letter-spacing:.5px;color:#f8f7f4;padding-top:12px;line-height:1.35;height:36px;">Amiaz Habtu</div>
+              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8.5px;letter-spacing:2px;color:#f2cbd7;text-transform:uppercase;padding-top:5px;">Moderation</div>
+            </td>
+            <td align="center" valign="top" width="33%" style="padding:0 5px;">
+              <img src="{{portrait_ien_url}}" width="120" height="120" alt="Ien Svea B&auml;umler"
+                   style="display:block;border:0;width:120px;height:120px;margin:0 auto;">
+              <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:13px;letter-spacing:.5px;color:#f8f7f4;padding-top:12px;line-height:1.35;height:36px;">Ien Svea<br>B&auml;umler</div>
+              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8.5px;letter-spacing:2px;color:#f2cbd7;text-transform:uppercase;padding-top:5px;">Impuls-Vortrag</div>
+            </td>
+            <td align="center" valign="top" width="33%" style="padding:0 5px;">
+              <img src="{{portrait_max_url}}" width="120" height="120" alt="Max Leinfelder"
+                   style="display:block;border:0;width:120px;height:120px;margin:0 auto;">
+              <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:13px;letter-spacing:.5px;color:#f8f7f4;padding-top:12px;line-height:1.35;height:36px;">Max Leinfelder</div>
+              <div style="font-family:Arial,Helvetica,sans-serif;font-size:8.5px;letter-spacing:2px;color:#f2cbd7;text-transform:uppercase;padding-top:5px;">Live-Painting</div>
+            </td>
+          </tr></table>
+        </td></tr>
+
+        <!-- Nur fuer Partner-Pools: "eingeladen von unserem Partner" + Logo.
+             Lettermint: Block leer lassen bzw. Segment ohne Partner ausblenden,
+             wenn {{partner_logo_url}} nicht gesetzt ist. -->
+        <tr><td align="center" style="padding:30px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:14px;">Du bist eingeladen von unserem Partner</div>
+          <img src="{{partner_logo_url}}" height="46" alt="{{partner_name}}" style="display:block;border:0;height:46px;width:auto;margin:0 auto;">
+        </td></tr>
+
 
         <tr><td align="center" style="padding:26px 56px 0 56px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#f8f7f4;">
             Dein Platz ist bereits f&uuml;r dich reserviert.<br>
-            Der Abend versteht sich mit einem Beitrag von 100&nbsp;Euro.
+            Teilnahme: 100&nbsp;Euro.
           </div>
         </td></tr>
 
@@ -99,6 +146,13 @@
           </div>
         </td></tr>
 
+
+        <!-- Partner des Abends, negativ weiss -->
+        <tr><td align="center" style="padding:34px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:16px;">Partner des Abends</div>
+          <img src="{{partnerwand_url}}" width="440" alt="Partner: neuland.ai, Conrad, Dein Dach, DEKRA, jto, Merzenich, sion, SKS"
+               style="display:block;width:100%;max-width:440px;height:auto;border:0;margin:0 auto;">
+        </td></tr>
         <tr><td style="padding:32px 64px 0 64px;"><div style="border-top:1px solid #94505f;font-size:0;line-height:0;">&nbsp;</div></td></tr>
 
         <!-- Footer -->
