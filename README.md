@@ -227,6 +227,8 @@ negative Varianten anfragen).
 | `email/*.html` | Lettermint-Templates der drei Wellen |
 | `server/circle-server.js` | Gästeregister mit Pools, Stripe, Webhooks, Live-Ebene |
 | `server/gaesteliste-vorlage.csv` | Spaltenvorlage für die Pool-Listen |
+| `pitch/einladungsmanagement.html` | Konzeptdokument für die Veranstalter (Workflow + Monitor), Quelle des PDFs |
+| `pitch/THE-CIRCLE-Einladungsmanagement.pdf` | 10 Seiten A4 – Wellen, Mailings, Landing Page, Zahlung, Pools, Monitor, nächste Schritte |
 
 ## Bilder & Logos in den Mailings
 
