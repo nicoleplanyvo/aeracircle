@@ -2066,7 +2066,7 @@ if(S.name) $("#onboarding").classList.add("hidden");
       S = { name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
         contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0 };
     }
-    fetch("/api/invite?t=" + encodeURIComponent(t))
+    fetch("/api/invite?t=" + encodeURIComponent(t) + "&app=1")
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if(!d || !d.ok || !d.gast || !d.gast.name) return;

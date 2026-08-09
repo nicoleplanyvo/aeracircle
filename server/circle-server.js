@@ -144,6 +144,23 @@ setInterval(() => {
 /* ---------- SSE ---------- */
 const clients = new Set();
 
+/* Leichtes Rate-Limit fuer die offenen Live-Endpunkte (Applaus/Votum/Gebot).
+ * Ohne das kann ein Skript mit wenigen Requests den Applaus aufblasen oder
+ * Stimmen loeschen. Kein Ersatz fuer echte Auth, aber fuer einen Abend genug. */
+const RL = new Map();
+function rateLimit(req, res, schluessel, max, fensterMs) {
+  const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() ||
+    (req.socket && req.socket.remoteAddress) || "?";
+  const k = schluessel + ":" + ip;
+  const jetzt = Date.now();
+  let e = RL.get(k);
+  if (!e || e.resetAt < jetzt) { e = { count: 0, resetAt: jetzt + fensterMs }; RL.set(k, e); }
+  e.count++;
+  if (RL.size > 5000) for (const [kk, vv] of RL) if (vv.resetAt < jetzt) RL.delete(kk);
+  if (e.count > max) { json(res, 429, { error: "zu viele Anfragen" }); return false; }
+  return true;
+}
+
 function guestCount() { return Object.keys(state.guests).length; }
 
 function snapshot() {
@@ -586,6 +603,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "POST" && url === "/api/live/applause") {
+    if (!rateLimit(req, res, "live", 60, 10_000)) return;
     return readBody(req, res, body => {
       const n = Math.min(Math.max(parseInt(body.n, 10) || 0, 0), 30);
       state.applause += n;
@@ -595,6 +613,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "POST" && url === "/api/live/vote") {
+    if (!rateLimit(req, res, "live", 60, 10_000)) return;
     return readBody(req, res, body => {
       const vote = VOTES.includes(body.vote) ? body.vote : null;
       const prev = VOTES.includes(body.prev) ? body.prev : null;
@@ -606,11 +625,15 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "POST" && url === "/api/live/bid") {
+    if (!rateLimit(req, res, "live", 60, 10_000)) return;
     return readBody(req, res, body => {
       const amount = parseInt(body.amount, 10) || 0;
       const current = state.bid ? state.bid.amount : 0;
-      if (amount <= current || amount > 2_000_000) {
-        return json(res, 409, { error: "zu niedrig", bid: state.bid });
+      // Sprung nach oben deckeln: ein einzelnes Gebot darf current nicht um mehr
+      // als 5.000 € ueberbieten. Sonst nagelt ein Fake-Maxgebot die Auktion an
+      // die 2-Mio-Decke und jedes echte Gebot gilt danach als "zu niedrig".
+      if (amount <= current || amount > current + 500_000 || amount > 2_000_000) {
+        return json(res, 409, { error: "ungültiges Gebot", bid: state.bid });
       }
       state.bid = {
         amount,
@@ -713,7 +736,13 @@ const server = http.createServer((req, res) => {
   if (req.method === "GET" && url === "/api/invite") {
     const inv = findInvite(q.get("t"));
     if (!inv) return json(res, 404, { error: "Diese Einladung kennen wir nicht." });
-    if (!inv.mail.clicked) { inv.mail.clicked = Date.now(); logEvent("geklickt", inv.name, inv.pool); }
+    // "Geklickt" nur zaehlen, wenn der Aufruf von der Landing Page kommt, nicht
+    // vom App-Link (/?t=, ruft mit app=1). Sonst verfaelscht das Oeffnen der App
+    // die Klickquote und meldet Gaeste als engagiert, die nur die App geladen haben.
+    if (q.get("app") !== "1" && !inv.mail.clicked) {
+      inv.mail.clicked = Date.now();
+      logEvent("geklickt", inv.name, inv.pool);
+    }
     return json(res, 200, { ok: true, gast: pubInvite(inv) });
   }
 
