@@ -505,7 +505,17 @@ const server = http.createServer((req, res) => {
   }
 
   /* --- Live-API (aggregiert, für die App) --- */
-  if (url === "/api/live/health") return json(res, 200, { ok: true });
+  /* Health verraet keine Geheimnisse, aber ob der Monitor-Schutz greift –
+   * sonst laesst sich von aussen nicht pruefen, ob ADMIN_TOKENS angekommen
+   * ist (Tippfehler im Variablennamen faellt sonst niemandem auf). */
+  if (url === "/api/live/health") {
+    return json(res, 200, {
+      ok: true,
+      adminGeschuetzt: ADMIN_TOKENS.size > 0,
+      adminZugaenge: ADMIN_TOKENS.size,
+      stripe: !!STRIPE_KEY
+    });
+  }
 
   if (url === "/api/live/stream") {
     res.writeHead(200, {
@@ -742,12 +752,21 @@ const server = http.createServer((req, res) => {
     });
   }
 
-  /* --- Admin (Monitor). Mit ADMIN_TOKEN geschützt, sobald einer gesetzt ist --- */
+  /* --- Admin (Monitor) ---
+   * Hinter /api/admin/ stehen Namen, E-Mail-Adressen, Unvertraeglichkeiten und
+   * die persoenlichen Einladungslinks. Ist kein Zugang konfiguriert, wird
+   * GESPERRT statt geoeffnet: ein vergessenes oder falsch geschriebenes
+   * ADMIN_TOKENS darf nicht dazu fuehren, dass die Gaesteliste offen im Netz
+   * steht. Lieber ein toter Monitor als ein offenes Register. */
   if (url.startsWith("/api/admin/")) {
-    if (ADMIN_TOKENS.size) {
-      const wer = adminName(q.get("key"));
-      if (!wer) return json(res, 401, { error: "kein Zugriff" });
+    if (!ADMIN_TOKENS.size) {
+      return json(res, 503, {
+        error: "Monitor ist nicht konfiguriert – ADMIN_TOKENS fehlt. " +
+               "Aus Datenschutzgruenden bleibt der Zugang gesperrt."
+      });
     }
+    const wer = adminName(q.get("key"));
+    if (!wer) return json(res, 401, { error: "kein Zugriff" });
 
     if (url === "/api/admin/pools") {
       return json(res, 200, {
