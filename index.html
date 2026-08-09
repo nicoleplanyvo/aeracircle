@@ -2049,6 +2049,34 @@ $("#obForm").addEventListener("submit", e=>{
 });
 if(S.name) $("#onboarding").classList.add("hidden");
 
+/* Persönlicher Link aus der Welle-2-Mail: /?t=TOKEN.
+   Die App holt Name, Firma, Kontakt und Ernährung aus der Zusage vom Server –
+   niemand muss selbst eintragen, wer er ist. Das Formular bleibt nur der
+   Fallback, falls jemand die App ohne seinen Link öffnet. */
+{
+  const q = new URLSearchParams(location.search);
+  const t = q.get("t");
+  if(t && !q.get("name")){
+    fetch("/api/invite?t=" + encodeURIComponent(t))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if(!d || !d.ok || !d.gast || !d.gast.name) return;
+        const g = d.gast;
+        S.name = g.name;
+        S.company = g.firma || S.company;
+        S.mail = g.email || S.mail;
+        S.phone = g.phone || S.phone;
+        S.diet = g.diet || S.diet;
+        S.allergy = g.allergy || S.allergy;
+        persist();
+        $("#onboarding").classList.add("hidden");
+        renderCard(); renderMenuPref();
+        toast("Willkommen im Kreis, " + S.name.split(" ")[0] + ".");
+      })
+      .catch(()=>{ /* ohne Server bleibt das Formular */ });
+  }
+}
+
 /* ================= MOTION ================= */
 /* Scroll-Reveals */
 const revealIO = new IntersectionObserver(entries=>{

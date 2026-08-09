@@ -229,6 +229,9 @@ function logEvent(art, gast, detail) {
 }
 
 function inviteLink(token) { return PUBLIC_URL + "/einladung?t=" + token; }
+/* Welle 2: derselbe Token, aber direkt in die App - sie holt sich Name,
+ * Kontakt und Ernaehrung selbst aus der Zusage (kein Onboarding-Formular). */
+function appLink(token) { return PUBLIC_URL + "/?t=" + token; }
 
 /* Satz ueber dem CTA der Ehrengast-Mail. Hat ein Partner eingeladen, waere
  * "Einladung des Hauses" ein Widerspruch zum Partner-Block darueber. */
@@ -254,6 +257,11 @@ function pubInvite(inv) {
     pool: inv.pool,
     preis: inv.typ === "ticket" ? TICKET_PRICE : 0,
     ticketNr: inv.status === "zugesagt" || inv.status === "bezahlt" ? inv.ticketNr : "",
+    /* Eigene Angaben aus der Zusage - nur der Token-Inhaber sieht sie.
+     * Damit oeffnet sich die App aus der Welle-2-Mail fertig personalisiert. */
+    phone: (inv.daten && inv.daten.phone) || "",
+    diet: (inv.daten && inv.daten.diet) || "",
+    allergy: (inv.daten && inv.daten.allergy) || "",
     zahlungMoeglich: !!STRIPE_KEY
   };
 }
@@ -778,11 +786,11 @@ const server = http.createServer((req, res) => {
     }
     // Versandliste für Lettermint: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "platz_satz", "link", "status"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "platz_satz", "link", "app_link", "status"]];
       for (const inv of Object.values(state.invites)) {
         zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     platzSatz(inv), inviteLink(inv.token), inv.status]);
+                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.status]);
       }
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
       return res.end(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n"));
@@ -849,11 +857,11 @@ if (befehl === "import") {
 }
 
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "platz_satz", "link", "status"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "platz_satz", "link", "app_link", "status"]];
   for (const inv of Object.values(state.invites)) {
     zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     platzSatz(inv), inviteLink(inv.token), inv.status]);
+                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.status]);
   }
   process.stdout.write(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n") + "\n");
   process.exit(0);
