@@ -184,11 +184,19 @@ website_url         https://www.the-circle-cologne.de
 **`logo_url` ist eine PNG, kein SVG.** Gmail und Outlook filtern SVG in `<img>`
 heraus – dann fehlt die Wortmarke. Die PNG (`logo-neg.png`) liegt bereit.
 
-Zwei Variablen kommen **nicht** aus dem Repo, sondern von Lettermint selbst:
+Diese Variablen kommen **nicht** aus dem Repo – als feste Werte im Template setzen:
 
 ```
 abmelden_url        Lettermints eigene Abmelde-Variable (Name im Konto prüfen) – PFLICHT
+impressum_zeile     Anbieter + ladungsfähige Anschrift, eine Zeile
+                    z. B. "THE CIRCLE c/o Ihre Marken Werkstatt GmbH · Musterstr. 1 · 50667 Köln"
+impressum_url       Link zur Impressumsseite
+datenschutz_url     Link zur Datenschutzerklärung
 ```
+
+`impressum_zeile`, `impressum_url` und `datenschutz_url` sind **Pflicht** für einen
+werblichen Versand (§5 DDG / DSGVO). Ohne ladungsfähige Anschrift und Impressum
+ist das Mailing abmahnfähig. Erst setzen, dann senden.
 
 Die übrigen Variablen (`anrede`, `vorname`, `link`, `app_link`, `ticket_nr`,
 `partner_name`, `partner_logo_url`, `platz_satz` …) kommen aus der Versandliste –
