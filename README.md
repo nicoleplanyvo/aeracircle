@@ -78,9 +78,9 @@ wird erst spät kommuniziert, ausschließlich an Gäste, die zugesagt haben:
 | 3 · Erinnerung | (folgt) | nur Gäste im Kreis | Vortag |
 
 **Welle 0** kommt vor dem Ticketverkauf: erste Infos zum Format, CTA auf die
-Website, noch kein persönlicher Link und keine Zusage. Das Wording stammt von
-Renate – im Template sind vier Blöcke als `TEXT 1` bis `TEXT 4` markiert, alles
-andere (Layout, CI, Merge-Variablen) bleibt unangetastet.
+Website, noch kein persönlicher Link und keine Zusage. Das Wording kommt aus
+der Runde – im Template sind vier Blöcke als `TEXT 1` bis `TEXT 4` markiert,
+alles andere (Layout, CI, Merge-Variablen) bleibt unangetastet.
 
 Alle Templates sind tabellenbasiert, e-mail-sicher und im offiziellen CI:
 Welle 1 in der Bordeaux-Welt (#741a33, Koralle-Headline, Koralle-Pill-CTA),
