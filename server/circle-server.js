@@ -107,7 +107,21 @@ let state = {
   invites: {},          // token -> Gast der Einladungsliste (siehe importRows)
   feed: []              // Ereignis-Log für den Monitor, neueste zuerst
 };
-try { Object.assign(state, JSON.parse(fs.readFileSync(STATE_FILE, "utf8"))); } catch (e) { /* frischer Start */ }
+try {
+  const roh = fs.readFileSync(STATE_FILE, "utf8");
+  if (roh.trim()) Object.assign(state, JSON.parse(roh));
+} catch (e) {
+  if (e.code !== "ENOENT") {
+    // Eine vorhandene, aber unlesbare Datei NICHT stillschweigend ueberschreiben -
+    // das waere Totalverlust (Gaesteliste, Zusagen, Zahlungen). Beiseitelegen
+    // und mit Fehler abbrechen; der Betreiber sieht es und kann eingreifen.
+    const rettung = STATE_FILE + ".corrupt-" + process.pid;
+    try { fs.renameSync(STATE_FILE, rettung); } catch (e2) {}
+    console.error("live-state.json unlesbar - nach " + rettung + " verschoben:", e.message);
+    process.exit(1);
+  }
+  /* ENOENT: frischer Start */
+}
 if (!state.guests) state.guests = {};
 if (!state.invites) state.invites = {};
 if (!state.feed) state.feed = [];
@@ -116,7 +130,15 @@ let dirty = false;
 setInterval(() => {
   if (!dirty) return;
   dirty = false;
-  fs.writeFile(STATE_FILE, JSON.stringify(state), () => {});
+  // Atomar: erst in .tmp schreiben, dann umbenennen. Ein Absturz waehrend des
+  // Schreibens hinterlaesst so die alte, vollstaendige Datei statt einer halben.
+  const tmp = STATE_FILE + ".tmp";
+  fs.writeFile(tmp, JSON.stringify(state), (err) => {
+    if (err) { console.error("state-Sicherung fehlgeschlagen:", err.message); return; }
+    fs.rename(tmp, STATE_FILE, (err2) => {
+      if (err2) console.error("state-Umbenennung fehlgeschlagen:", err2.message);
+    });
+  });
 }, 2000).unref();
 
 /* ---------- SSE ---------- */
@@ -173,6 +195,25 @@ const clean = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f<>&"\'
  * ohnehin nur ueber textContent bzw. JSON, nie ueber innerHTML. */
 const cleanText = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, n);
 
+/* Schluessel-Sicherheit: state.invites/state.guests sind normale Objekte.
+ * Ein Zugriff mit "__proto__"/"constructor"/"toString" liefert sonst geerbte
+ * Werte (Object.prototype etc.) statt undefined -> der Handler stuerzt ab und
+ * reisst den ganzen Prozess mit (ein einziger Request killt den Server).
+ * Deshalb: nur eigene Eigenschaften lesen, reservierte Keys nie schreiben. */
+const RESERVED = new Set(["__proto__", "constructor", "prototype"]);
+const hasOwn = (o, k) => typeof k === "string" && !RESERVED.has(k) &&
+  Object.prototype.hasOwnProperty.call(o, k);
+
+/* Excel/LibreOffice werten Zellen, die mit = + - @ (oder Tab/CR) beginnen, als
+ * Formel aus. Beim CSV-Export deshalb ein ' voranstellen, sonst kann ein als
+ * Gastname eingeschmuggeltes =HYPERLINK(...) beim Oeffnen der Versandliste die
+ * Nachbarzellen (Mails, Einladungslinks) exfiltrieren. */
+function csvCell(f) {
+  let s = String(f == null ? "" : f);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
 function paddleFrom(band) {       // stabile Bieterkarten-Nummer aus der Band-ID
   let h = 0;
   for (const c of band) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -180,8 +221,8 @@ function paddleFrom(band) {       // stabile Bieterkarten-Nummer aus der Band-ID
 }
 
 function pubGuest(band) {
+  if (!hasOwn(state.guests, band)) return null;
   const g = state.guests[band];
-  if (!g) return null;
   return {
     name: g.name,
     table: g.table || "",
@@ -268,7 +309,7 @@ function pubInvite(inv) {
 
 function findInvite(token) {
   const t = String(token || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
-  return t && state.invites[t] ? state.invites[t] : null;
+  return hasOwn(state.invites, t) ? state.invites[t] : null;
 }
 
 /* --- CSV --- */
@@ -473,9 +514,13 @@ function webhookGueltig(sigHeader, rawBody) {
   }
   const ts = teile.t && teile.t[0];
   if (!ts || !teile.v1) return false;
-  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;         // Replay-Schutz
+  const tsNum = Number(ts);
+  // Nicht-numerischer Timestamp: Math.abs(x - NaN) > 300 ist false und wuerde
+  // den Replay-Schutz aushebeln - deshalb explizit auf endliche Zahl pruefen.
+  if (!Number.isFinite(tsNum) || Math.abs(Date.now() / 1000 - tsNum) > 300) return false;
+  // rawBody ist ein Buffer: getrennt updaten, sonst wird er zu utf8-String gecastet.
   const erwartet = crypto.createHmac("sha256", STRIPE_WEBHOOK_SECRET)
-    .update(ts + "." + rawBody).digest("hex");
+    .update(ts + ".").update(rawBody).digest("hex");
   const a = Buffer.from(erwartet, "utf8");
   return teile.v1.some(v => {
     const b = Buffer.from(v, "utf8");
@@ -587,8 +632,9 @@ const server = http.createServer((req, res) => {
     return readBody(req, res, body => {
       const band = clean(body.band, 40);
       const name = clean(body.name, 40);
-      if (!band || !name) return json(res, 400, { error: "band und name nötig" });
-      const g = state.guests[band] || (state.guests[band] = { name, table: "", moments: {}, applause: 0, vote: null, t: Date.now() });
+      if (!band || !name || RESERVED.has(band)) return json(res, 400, { error: "band und name nötig" });
+      const g = hasOwn(state.guests, band) ? state.guests[band]
+        : (state.guests[band] = { name, table: "", moments: {}, applause: 0, vote: null, t: Date.now() });
       g.name = name;
       if (body.table) g.table = clean(body.table, 20);
       if (!g.moments.ankommen) g.moments.ankommen = Date.now();   // registrieren = angekommen
@@ -602,9 +648,9 @@ const server = http.createServer((req, res) => {
     return readBody(req, res, body => {
       const band = clean(body.band, 40);
       const station = clean(body.station, 30);
-      if (!band) return json(res, 400, { error: "kein band" });
+      if (!band || RESERVED.has(band)) return json(res, 400, { error: "kein band" });
 
-      let g = state.guests[band];
+      let g = hasOwn(state.guests, band) ? state.guests[band] : null;
       if (!g) {
         // Unbekanntes Band am Check-in -> Name erfragen; sonst anonym anlegen
         if (station === "checkin") return json(res, 200, { ok: false, needName: true, band });
@@ -678,6 +724,12 @@ const server = http.createServer((req, res) => {
       if (!inv) return json(res, 404, { error: "unbekannte Einladung" });
 
       if (body.absage) {
+        // Eine bereits bezahlte Teilnahme darf sich nicht per RSVP selbst auf
+        // "abgesagt" setzen - sonst zahlt derselbe Gast ein zweites Mal und der
+        // Umsatz im Monitor wird inkonsistent. Absage/Erstattung ist manuell.
+        if (inv.status === "bezahlt") {
+          return json(res, 409, { error: "bereits bezahlt – Absage bitte über die Veranstalter (Erstattung)" });
+        }
         inv.status = "abgesagt";
         logEvent("abgesagt", inv.name, inv.pool);
         dirty = true;
@@ -686,11 +738,12 @@ const server = http.createServer((req, res) => {
 
       if (body.name)   inv.name = cleanText(body.name, 60);
       if (body.firma !== undefined) inv.firma = cleanText(body.firma, 80);
-      inv.daten = {
-        phone:   cleanText(body.phone, 30),
-        diet:    cleanText(body.diet, 20),
-        allergy: cleanText(body.allergy, 120)
-      };
+      // Nur mitgesendete Felder mergen - ein zweites RSVP ohne Allergiefeld darf
+      // eine zuvor gemeldete Unvertraeglichkeit nicht loeschen (Kueche!).
+      if (!inv.daten) inv.daten = {};
+      if (body.phone   !== undefined) inv.daten.phone   = cleanText(body.phone, 30);
+      if (body.diet    !== undefined) inv.daten.diet    = cleanText(body.diet, 20);
+      if (body.allergy !== undefined) inv.daten.allergy = cleanText(body.allergy, 120);
 
       // Ehrengäste sind mit der Zusage fertig, Ticket-Gäste erst nach Zahlung
       if (inv.typ === "ehrengast") {
@@ -725,12 +778,19 @@ const server = http.createServer((req, res) => {
 
   // Stripe-Webhook: Zahlung buchen (Rohkörper für die Signaturprüfung)
   if (req.method === "POST" && url === "/api/stripe/webhook") {
-    let raw = "";
-    req.on("data", c => { raw += c; if (raw.length > 1_000_000) req.destroy(); });
+    // Rohkoerper als Buffer sammeln (nicht als String): an einer TCP-Chunk-Grenze
+    // zerrissene UTF-8-Zeichen - deutsche Gastnamen wie "Sven König" landen als
+    // metadata im Event - wuerden sonst zu U+FFFD und zerstoerten das HMAC; der
+    // Gast haette gezahlt, die Buchung schlaege fehl.
+    const chunks = [];
+    let laenge = 0;
+    req.on("data", c => { chunks.push(c); laenge += c.length; if (laenge > 1_000_000) req.destroy(); });
     req.on("end", () => {
-      if (!webhookGueltig(req.headers["stripe-signature"], raw)) {
+      const rawBuf = Buffer.concat(chunks);
+      if (!webhookGueltig(req.headers["stripe-signature"], rawBuf)) {
         return json(res, 400, { error: "Signatur ungültig" });
       }
+      const raw = rawBuf.toString("utf8");
       let evt;
       try { evt = JSON.parse(raw); } catch (e) { return json(res, 400, { error: "bad json" }); }
       const obj = (evt.data && evt.data.object) || {};
@@ -793,7 +853,7 @@ const server = http.createServer((req, res) => {
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status]);
       }
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
-      return res.end(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n"));
+      return res.end(zeilen.map(r => r.map(csvCell).join(",")).join("\n"));
     }
   }
 
@@ -810,7 +870,9 @@ const server = http.createServer((req, res) => {
     const TYP = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
                   ".svg": "image/svg+xml", ".webp": "image/webp" };
     const typ = TYP[path.extname(name).toLowerCase()];
-    if (!name || !typ) { res.writeHead(404); return res.end("nicht gefunden"); }
+    // Nur unbedenkliche Dateinamen: ein Null-Byte o.ae. laesst fs.readFile sonst
+    // synchron werfen -> Prozessabsturz. Allowlist statt Blocklist.
+    if (!name || !typ || !/^[A-Za-z0-9._-]+$/.test(name)) { res.writeHead(404); return res.end("nicht gefunden"); }
     return fs.readFile(path.join(ROOT, "email", "assets", name), (err, buf) => {
       if (err) { res.writeHead(404); return res.end("nicht gefunden"); }
       res.writeHead(200, {
@@ -863,9 +925,20 @@ if (befehl === "export") {
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status]);
   }
-  process.stdout.write(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n") + "\n");
+  process.stdout.write(zeilen.map(r => r.map(csvCell).join(",")).join("\n") + "\n");
   process.exit(0);
 }
+
+/* Letzte Verteidigungslinie: Am Eventabend ist ein weiterlaufender Server mit
+ * einem geloggten Fehler besser als ein toter. Die bekannten Ein-Request-
+ * Abstuerze sind oben gezielt behoben; das hier faengt kuenftige ab, damit ein
+ * einzelner kaputter Request nie wieder App, Landing Page und Monitor mitreisst. */
+process.on("uncaughtException", (err) => {
+  console.error("uncaughtException (Server laeuft weiter):", err && err.stack || err);
+});
+process.on("unhandledRejection", (err) => {
+  console.error("unhandledRejection:", err && err.stack || err);
+});
 
 server.listen(PORT, () => {
   const stats = gesamtStats();

@@ -540,7 +540,10 @@ async function api(pfad, daten) {
 }
 
 async function laden() {
-  if (DEMO || !TOKEN) { gast = Object.assign({}, DEMO_GAST); starten(); return; }
+  if (DEMO) { gast = Object.assign({}, DEMO_GAST); starten(); return; }
+  // Ohne Token KEINE Demo-Zusage vorspielen (das gaukelte auf dem Produktiv-
+  // server einen gesicherten Platz vor, ohne dass etwas im Register landet).
+  if (!TOKEN) { $("#laden").style.display = "none"; $("#unbekannt").style.display = "grid"; return; }
   try {
     const j = await api("/api/invite?t=" + encodeURIComponent(TOKEN));
     gast = j.gast;

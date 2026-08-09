@@ -239,7 +239,7 @@
         <h2>Ticketumsatz</h2>
         <div class="money" data-money="4100">0&thinsp;€</div>
         <span class="label" style="font-size:8.5px">41 × 100 € · zzgl. Stripe-Gebühren ≈ 1,5 %</span>
-        <div style="margin-top:16px">
+        <div style="margin-top:16px" id="payliste">
           <div class="pay"><span class="pn">A. Weber</span><span class="pm">heute · 14:22 · Apple Pay</span><b class="pv">100&thinsp;€</b></div>
           <div class="pay"><span class="pn">S. König</span><span class="pm">heute · 11:05 · Karte</span><b class="pv">100&thinsp;€</b></div>
           <div class="pay"><span class="pn">M. Okafor</span><span class="pm">gestern · 19:48 · Karte</span><b class="pv">100&thinsp;€</b></div>
@@ -270,9 +270,13 @@
 "use strict";
 /* Count-up + Funnel-Animation */
 const ease = p => 1 - Math.pow(1 - p, 3);
+/* Sobald Live-Daten da sind, darf die Count-up-Animation nicht weiterlaufen –
+   sonst überschreibt sie die echten KPI-Werte 1,1 s lang mit den Demo-Zielen. */
+let liveActive = false;
 function countUp(el, target, fmt){
   const t0 = performance.now();
   (function f(t){
+    if(liveActive) return;
     const p = Math.min((t - t0) / 1100, 1);
     el.textContent = fmt(Math.round(target * ease(p)));
     if(p < 1) requestAnimationFrame(f);
@@ -293,15 +297,47 @@ async function liveDatenHolen(){
   const key = new URLSearchParams(location.search).get("key");
   try{
     const r = await fetch("/api/admin/pools" + (key ? "?key=" + encodeURIComponent(key) : ""));
-    if(!r.ok) return;
+    if(!r.ok){ demoAusweisen(r.status); return; }
     const d = await r.json();
-    if(!d.ok || !d.pools.length) return;
+    if(!d.ok || !d.pools.length){ demoAusweisen(0); return; }
+    liveActive = true;
     poolsRendern(d.pools);
     kpisSetzen(d.gesamt);
+    funnelSetzen(d.gesamt);
     feedRendern(d.feed);
+    document.querySelectorAll(".tpl, #payliste").forEach(el => el.style.display = "none");
     document.querySelector("#quelle").innerHTML = "Quelle: <b>Live</b> · " + d.gesamt.gesamt + " Einladungen aus " + d.pools.length + " Pools";
     document.querySelector(".demo-tag").textContent = "Live-Daten";
-  }catch(e){ /* kein Server – Demo-Daten bleiben stehen */ }
+  }catch(e){ /* kein Server – Demo-Daten bleiben stehen, aber ehrlich kennzeichnen */ demoAusweisen(0); }
+}
+
+function demoAusweisen(status){
+  const tag = document.querySelector(".demo-tag");
+  if(status === 401 || status === 403 || status === 503){
+    if(tag) tag.textContent = "Kein Zugriff – Demo-Ansicht";
+    const q = document.querySelector("#quelle");
+    if(q) q.innerHTML = "<b>Kein gültiger Zugang</b> – angezeigt werden Platzhalter, keine echten Zahlen.";
+  }
+}
+
+function funnelSetzen(g){
+  const pct = (a,b) => b ? Math.round(a/b*100) : 0;
+  const reihen = [
+    [g.versendet, null],
+    [g.zugestellt, pct(g.zugestellt, g.versendet)],
+    [g.geoeffnet,  pct(g.geoeffnet,  g.versendet)],
+    [g.geklickt,   pct(g.geklickt,   g.versendet)],
+    [g.zugesagt,   null],
+    [g.bezahlt,    null]
+  ];
+  document.querySelectorAll(".frow").forEach((row, i) => {
+    if(!reihen[i]) return;
+    const [wert, prozent] = reihen[i];
+    const b = row.querySelector("b");
+    if(b) b.innerHTML = wert + (prozent != null ? "<small>" + prozent + "&thinsp;%</small>" : "");
+    const bar = row.querySelector("i");
+    if(bar) bar.style.width = (g.versendet ? Math.round(wert / g.versendet * 100) : 0) + "%";
+  });
 }
 
 const txt = (el, s) => { el.textContent = s; return el; };

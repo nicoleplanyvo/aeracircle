@@ -2057,17 +2057,27 @@ if(S.name) $("#onboarding").classList.add("hidden");
   const q = new URLSearchParams(location.search);
   const t = q.get("t");
   if(t && !q.get("name")){
+    /* Öffnet ein anderer Token als der zuletzt gespeicherte (z. B. geteiltes
+       Gerät, weitergeleiteter Link), gehört der lokale Fortschritt einem anderen
+       Gast – dann komplett zurücksetzen, sonst zeigt die Karte fremde Kontakt-
+       und Gesundheitsdaten. Felder immer setzen, nie aus altem S erben. */
+    if(S.token && S.token !== t){
+      try{ localStorage.removeItem("circle.v1"); }catch(e){}
+      S = { name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
+        contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0 };
+    }
     fetch("/api/invite?t=" + encodeURIComponent(t))
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if(!d || !d.ok || !d.gast || !d.gast.name) return;
         const g = d.gast;
+        S.token = t;
         S.name = g.name;
-        S.company = g.firma || S.company;
-        S.mail = g.email || S.mail;
-        S.phone = g.phone || S.phone;
-        S.diet = g.diet || S.diet;
-        S.allergy = g.allergy || S.allergy;
+        S.company = g.firma || "";
+        S.mail = g.email || "";
+        S.phone = g.phone || "";
+        S.diet = g.diet || "";
+        S.allergy = g.allergy || "";
         persist();
         $("#onboarding").classList.add("hidden");
         renderCard(); renderMenuPref();
