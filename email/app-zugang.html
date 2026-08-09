@@ -14,10 +14,12 @@
   CI: offizielles THE-CIRCLE-CI (the-circle-cologne.de) - Trajan-Kapitalis, Montserrat,
   Navy-Welt (#122648) mit Koralle (#ff6b6c). Logo: uploads/logo-horizontal-neg-rgb.svg.
   Versand ueber Lettermint (Segment: zugesagt/bezahlt). Merge-Variablen:
-    {{name}}            Vorname des Gastes
-    {{link}}            persoenlicher App-Link (vorbereitet mit den Daten aus der Zusage)
+    {{vorname}}         Vorname des Gastes (Spalte vorname der Versandliste)
+    {{app_link}}        persoenlicher App-Link /?t=TOKEN (Spalte app_link!) - fuehrt
+                        DIREKT in die App, die Name/Kontakt/Ernaehrung selbst laedt.
+                        NICHT {{link}} nehmen - das ist die Landing Page fuer die Zusage.
                         Diese Welle geht NUR an Gaeste mit Status zugesagt/bezahlt.
-    {{ticket_nr}}       Ticket-/Bieterkarten-Nummer des Gastes
+    {{ticket_nr}}       Ticket-/Bieterkarten-Nummer (Spalte ticket_nr der Versandliste)
     {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
     {{logo_url}}        offizielles Logo (logo-horizontal-neg-rgb.svg, negativ)
     {{partner_logo_url}}  NUR fuer Partner-Gaeste: Logo des einladenden Partners, negativ weiss
@@ -53,7 +55,7 @@
         </td></tr>
         <tr><td align="center" style="padding:16px 40px 0 40px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.3;color:#ff6b6c;">
-            Der Abend r&uuml;ckt n&auml;her,<br>{{name}}.
+            Der Abend r&uuml;ckt n&auml;her,<br>{{vorname}}.
           </div>
         </td></tr>
 
@@ -90,7 +92,7 @@
         <tr><td align="center" style="padding:30px 40px 8px 40px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
             <td align="center" bgcolor="#ff6b6c" style="border-radius:999px;">
-              <a href="{{link}}" target="_blank"
+              <a href="{{app_link}}" target="_blank"
                  style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:normal;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">Meinen Zugang &ouml;ffnen</a>
             </td>
           </tr></table>

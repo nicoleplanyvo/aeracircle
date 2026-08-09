@@ -786,11 +786,11 @@ const server = http.createServer((req, res) => {
     }
     // Versandliste für Lettermint: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "platz_satz", "link", "app_link", "status"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "ticket_nr", "status"]];
       for (const inv of Object.values(state.invites)) {
         zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.status]);
+                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status]);
       }
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
       return res.end(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n"));
@@ -857,11 +857,11 @@ if (befehl === "import") {
 }
 
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner", "partner_logo", "platz_satz", "link", "app_link", "status"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "ticket_nr", "status"]];
   for (const inv of Object.values(state.invites)) {
     zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.status]);
+                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status]);
   }
   process.stdout.write(zeilen.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(",")).join("\n") + "\n");
   process.exit(0);
@@ -879,5 +879,5 @@ server.listen(PORT, () => {
     : "nicht konfiguriert (Zusagen gehen, Zahlung nicht)"));
   console.log("  Monitor:       " + (ADMIN_TOKENS.size
     ? ADMIN_TOKENS.size + " Zugang/Zugänge (" + [...new Set(ADMIN_TOKENS.values())].join(", ") + ")"
-    : "ACHTUNG: kein ADMIN_TOKEN/ADMIN_TOKENS gesetzt – /api/admin/* ist offen"));
+    : "ACHTUNG: kein ADMIN_TOKEN/ADMIN_TOKENS gesetzt – /api/admin/* ist gesperrt (503)"));
 });

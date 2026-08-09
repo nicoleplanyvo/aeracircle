@@ -173,15 +173,36 @@ Variablen feste Werte:
 
 ```
 header_img_url      https://thecircle.planyvo.com/assets/circle-header.jpg
-logo_url            https://thecircle.planyvo.com/assets/logo-neg.svg
+logo_url            https://thecircle.planyvo.com/assets/logo-neg.png
 portrait_amiaz_url  https://thecircle.planyvo.com/assets/portrait-amiaz.jpg
 portrait_ien_url    https://thecircle.planyvo.com/assets/portrait-ien.jpg
 portrait_max_url    https://thecircle.planyvo.com/assets/portrait-max.jpg
 partnerwand_url     https://thecircle.planyvo.com/assets/partnerwand-bordeaux.jpg
+website_url         https://www.the-circle-cologne.de
 ```
 
-Die übrigen Variablen (`anrede`, `vorname`, `link`, `partner_logo_url`,
-`platz_satz` …) kommen aus der Versandliste – siehe Schritt 5.
+**`logo_url` ist eine PNG, kein SVG.** Gmail und Outlook filtern SVG in `<img>`
+heraus – dann fehlt die Wortmarke. Die PNG (`logo-neg.png`) liegt bereit.
+
+Zwei Variablen kommen **nicht** aus dem Repo, sondern von Lettermint selbst:
+
+```
+abmelden_url        Lettermints eigene Abmelde-Variable (Name im Konto prüfen) – PFLICHT
+```
+
+Die übrigen Variablen (`anrede`, `vorname`, `link`, `app_link`, `ticket_nr`,
+`partner_name`, `partner_logo_url`, `platz_satz` …) kommen aus der Versandliste –
+siehe Schritt 5. **Achtung Welle 2:** `app-zugang.html` nutzt `app_link` (nicht
+`link`) und `ticket_nr`.
+
+**Partner-Block (Welle 1 + 2).** Der Block „eingeladen von unserem Partner"
+steht fest im Template – ohne Bedingung. Gäste ohne Partner (die Mehrzahl) sähen
+sonst eine leere Überschrift mit gebrochenem Bild. Deshalb in Lettermint
+**entweder** eine Bedingung auf `partner_logo_url` setzen (Syntax des Kontos an
+einer Testmail prüfen) **oder** je Welle zwei Segmente fahren – „mit Partner“
+und „ohne Partner“ – und im Ohne-Segment den Partner-Block aus dem Template
+entfernen. Für **Welle 0 (Save the Date) entfällt das**, sie hat keinen
+Partner-Block.
 
 ### 2.4 Webhook
 
@@ -314,6 +335,11 @@ erstatten – der einzige Weg, den Live-Betrieb wirklich zu prüfen.
 
 ## 5 · Gästeliste einlesen
 
+> **Reihenfolge ist entscheidend.** Der laufende Prozess hält den Stand im
+> Speicher und schreibt ihn alle 2 s nach `live-state.json` – ein Import bei
+> laufender Anwendung wird also sofort wieder überschrieben. Deshalb:
+> **1. Anwendung im Node.js-Panel stoppen → 2. importieren → 3. wieder starten.**
+
 CSV der Veranstalter auf den Server legen, dann im Anwendungsverzeichnis:
 
 ```bash
@@ -321,16 +347,22 @@ node server/circle-server.js import gaesteliste.csv
 node server/circle-server.js export > versand.csv
 ```
 
-`versand.csv` enthält je Gast `pool, typ, anrede, vorname, name, email, partner,
-partner_logo, platz_satz, link, status` – die Spaltennamen entsprechen genau den
-Merge-Variablen der Templates. Diese Datei wird in Lettermint importiert.
+`versand.csv` enthält je Gast `pool, typ, anrede, vorname, name, email,
+partner_name, partner_logo_url, platz_satz, link, app_link, ticket_nr, status` –
+die Spaltennamen entsprechen genau den Merge-Variablen der Templates. Diese Datei
+wird in Lettermint importiert.
+
+> **Welle 1** (Einladung) nimmt `link` (die Landing Page zur Zusage).
+> **Welle 2** (App-Zugang) nimmt `app_link` (direkt in die App) und `ticket_nr`.
+> Beim Import in Lettermint darauf achten, welche Spalte auf welche Mail zeigt.
+
+Statt der CLI geht der Export auch über den Browser:
+`https://thecircle.planyvo.com/api/admin/versandliste?key=<zugang>` – dann
+entfällt das Autosave-Risiko oben, weil nichts importiert wird.
 
 **Ein erneuter Import überschreibt keine Zusagen.** Schlüssel ist die E-Mail;
 Token, Status und Zahlungen bleiben erhalten. Nachzügler lassen sich also
 jederzeit nachschieben.
-
-> Nach dem Import über Plesk **Anwendung neu starten**, damit der laufende
-> Prozess die neue Liste kennt – er hält sie im Speicher.
 
 ---
 
