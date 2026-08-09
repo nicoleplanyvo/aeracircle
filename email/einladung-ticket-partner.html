@@ -110,9 +110,14 @@
           </tr></table>
         </td></tr>
 
-        <!-- Diese Basis-Vorlage geht an Gaeste OHNE Partner (Pools der
-             Veranstalter). Partner-Gaeste bekommen einladung-ticket-partner.html
-             mit dem Logo-Block. -->
+        <!-- Partner-Variante: geht NUR an die Gaeste eines Partners. Jeder Gast
+             bekommt ueber {{partner_logo_url}} das Logo SEINES Partners (aus der
+             Versandliste, Spalte partner_logo_url). -->
+        <tr><td align="center" style="padding:30px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:14px;">Du bist eingeladen von unserem Partner</div>
+          <img src="{{partner_logo_url}}" height="46" alt="{{partner_name}}" style="display:block;border:0;height:46px;width:auto;max-width:200px;margin:0 auto;">
+        </td></tr>
+
 
         <tr><td align="center" style="padding:26px 56px 0 56px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#f8f7f4;">

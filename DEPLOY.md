@@ -162,9 +162,38 @@ Für jede Datei aus `email/` ein Template, Inhalt komplett hineinkopieren:
 | Datei | Template | Wann |
 |---|---|---|
 | `save-the-date.html` | Welle 0 · Save the Date | vor dem Ticketverkauf |
-| `einladung-ticket.html` | Welle 1 · Ticket | Einladung mit Beitrag |
+| `einladung-ticket.html` | Welle 1 · Ticket (ohne Partner) | Gäste der Veranstalter |
+| `einladung-ticket-partner.html` | Welle 1 · Ticket **mit Partner-Logo** | Gäste eines Partners |
 | `einladung-ehrengast.html` | Welle 1 · Ehrengast | Einladung ohne Beitrag |
 | `app-zugang.html` | Welle 2 · App-Zugang | wenige Tage vor dem Abend |
+
+**Partner-Gäste (jeder Partner lädt Gäste ein).** Der Partner-Block ist eine
+eigene Vorlage – nicht als Bedingung im Template, weil ein falsch gerendertes
+`{{#if}}` in einer Einladung peinlich wäre. Deshalb:
+
+- Gäste **ohne** Partner (Pools der Veranstalter) → `einladung-ticket.html`
+- Gäste **eines Partners** → `einladung-ticket-partner.html`. Über
+  `{{partner_logo_url}}` bekommt jeder Gast das Logo **seines** Partners; der
+  Wert kommt pro Gast aus der Versandliste (Spalte `partner_logo_url`).
+
+In Lettermint die Empfänger nach `pool` filtern: alle „Partner · …"-Pools
+bekommen die Partner-Vorlage, der Rest die normale. Die acht Partnerlogos
+liegen negativ-weiß unter:
+
+```
+https://thecircle.planyvo.com/assets/partner-neuland-neg.png
+https://thecircle.planyvo.com/assets/partner-conrad-neg.png
+https://thecircle.planyvo.com/assets/partner-deindach-neg.png
+https://thecircle.planyvo.com/assets/partner-dekra-neg.png
+https://thecircle.planyvo.com/assets/partner-jto-neg.png
+https://thecircle.planyvo.com/assets/partner-merzenich-neg.png
+https://thecircle.planyvo.com/assets/partner-sion-neg.png
+https://thecircle.planyvo.com/assets/partner-sks-neg.png
+```
+
+Vorlage für die Partner-Gästeliste: `server/gaesteliste-partner-vorlage.csv`
+(8 Partner × 4 Zeilen, Pool/Partner/Logo schon gesetzt – nur Anrede, Name und
+E-Mail eintragen). Dann wie in §5 importieren.
 
 ### 2.3 Bild-Adressen eintragen
 
