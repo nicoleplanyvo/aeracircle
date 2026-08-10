@@ -23,7 +23,7 @@
                           node server/circle-server.js export
                         liefert genau diese URLs fuer den Lettermint-Import.
     {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
-    {{logo_url}}        offizielles Logo (logo-horizontal-neg-rgb.svg, negativ)
+    {{logo_url}}        offizielles Logo -> /assets/logo-neg.png (PNG! Gmail/Outlook zeigen SVG nicht)
     {{platz_satz}}      Satz ueber dem CTA. Kommt aus der Versandliste und passt sich an:
                         ohne Partner  -> "Dein Platz ist eine Einladung des Hauses - es genuegt ein Wort."
                         mit Partner   -> "Dein Platz ist fuer dich freigehalten - es genuegt ein Wort."
@@ -114,16 +114,11 @@
           </tr></table>
         </td></tr>
 
-        <!-- Nur fuer Partner-Pools: "eingeladen von unserem Partner" + Logo.
-             Lettermint: Block leer lassen bzw. Segment ohne Partner ausblenden,
-             wenn {{partner_logo_url}} nicht gesetzt ist. -->
-        <tr><td align="center" style="padding:30px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:14px;">Du bist eingeladen von unserem Partner</div>
-          <img src="{{partner_logo_url}}" height="46" alt="{{partner_name}}" style="display:block;border:0;height:46px;width:auto;margin:0 auto;">
-        </td></tr>
+        <!-- Ehrengaeste sind Gaeste des Hauses (kein Partner). Kein Partner-Block -
+             er widerspraeche "Einladung des Hauses" in {{platz_satz}}. Partner-Gaeste
+             bekommen einladung-ticket-partner.html. -->
 
-
-        <tr><td align="center" style="padding:26px 56px 0 56px;">
+        <tr><td align="center" style="padding:30px 56px 0 56px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#f8f7f4;">
             {{platz_satz}}
           </div>
@@ -134,7 +129,7 @@
           <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
             <td align="center" bgcolor="#ff6b6c" style="border-radius:999px;">
               <a href="{{link}}" target="_blank"
-                 style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:normal;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">Zusagen</a>
+                 style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">Zusagen</a>
             </td>
           </tr></table>
         </td></tr>
@@ -161,7 +156,7 @@
         <!-- Footer -->
         <tr><td align="center" style="padding:24px 40px 6px 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#c998a4;text-transform:uppercase;">Eine Veranstaltung von</div>
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#f2cbd7;padding-top:8px;">Ihre Marken Werkstatt &middot; AERA &middot; Public Cologne</div>
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#f2cbd7;padding-top:8px;text-transform:uppercase;">Ihre Markenwerkstatt &middot; AERA &middot; Public Cologne</div>
         </td></tr>
         <tr><td align="center" style="padding:14px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#c998a4;line-height:1.7;">

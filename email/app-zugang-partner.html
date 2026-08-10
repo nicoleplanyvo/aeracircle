@@ -74,8 +74,12 @@
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:30px;letter-spacing:2px;color:#ff6b6c;padding-top:6px;">{{ticket_nr}}</div>
         </td></tr>
 
-        <!-- Basis-Variante: OHNE Partner-Block. Partner-Gaeste bekommen
-             app-zugang-partner.html mit dem Logo auf dem Ticket. -->
+        <!-- Partner-Variante: geht NUR an Partner-Gaeste. {{partner_logo_url}}
+             traegt das Logo SEINES Partners (Versandliste, Spalte partner_logo_url). -->
+        <tr><td align="center" style="padding:26px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#7a8db3;text-transform:uppercase;padding-bottom:12px;">Eingeladen von unserem Partner</div>
+          <img src="{{partner_logo_url}}" height="40" alt="{{partner_name}}" style="display:block;border:0;height:40px;width:auto;max-width:200px;margin:0 auto;">
+        </td></tr>
 
         <!-- Fakten -->
         <tr><td align="center" style="padding:24px 40px 0 40px;">
