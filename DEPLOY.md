@@ -164,21 +164,25 @@ Für jede Datei aus `email/` ein Template, Inhalt komplett hineinkopieren:
 | `save-the-date.html` | Welle 0 · Save the Date | vor dem Ticketverkauf |
 | `einladung-ticket.html` | Welle 1 · Ticket (ohne Partner) | Gäste der Veranstalter |
 | `einladung-ticket-partner.html` | Welle 1 · Ticket **mit Partner-Logo** | Gäste eines Partners |
-| `einladung-ehrengast.html` | Welle 1 · Ehrengast | Einladung ohne Beitrag |
-| `app-zugang.html` | Welle 2 · App-Zugang | wenige Tage vor dem Abend |
+| `einladung-ehrengast.html` | Welle 1 · Ehrengast | Gäste des Hauses, kein Beitrag |
+| `app-zugang.html` | Welle 2 · App-Zugang (ohne Partner) | wenige Tage vor dem Abend |
+| `app-zugang-partner.html` | Welle 2 · App-Zugang **mit Partner-Logo** | Partner-Gäste |
 
-**Partner-Gäste (jeder Partner lädt Gäste ein).** Der Partner-Block ist eine
-eigene Vorlage – nicht als Bedingung im Template, weil ein falsch gerendertes
-`{{#if}}` in einer Einladung peinlich wäre. Deshalb:
+**Partner-Gäste (jeder Partner lädt Gäste ein).** Der Partner-Block ist jeweils
+eine eigene Vorlage – nicht als Bedingung im Template, weil ein falsch
+gerendertes `{{#if}}` in einer Einladung peinlich wäre, und ein leeres
+`{{partner_logo_url}}` bei Gästen ohne Partner ein kaputtes Bild zeigt. Deshalb
+je Welle zwei Vorlagen, in Lettermint nach `pool` segmentiert:
 
 - Gäste **ohne** Partner (Pools der Veranstalter) → `einladung-ticket.html`
-- Gäste **eines Partners** → `einladung-ticket-partner.html`. Über
-  `{{partner_logo_url}}` bekommt jeder Gast das Logo **seines** Partners; der
-  Wert kommt pro Gast aus der Versandliste (Spalte `partner_logo_url`).
+  bzw. `app-zugang.html`.
+- Gäste **eines Partners** (Pools „Partner · …") → `einladung-ticket-partner.html`
+  bzw. `app-zugang-partner.html`. Über `{{partner_logo_url}}` bekommt jeder Gast
+  das Logo **seines** Partners; der Wert kommt pro Gast aus der Versandliste
+  (Spalte `partner_logo_url`).
+- **Ehrengäste** sind Gäste des Hauses und haben nie einen Partner-Block.
 
-In Lettermint die Empfänger nach `pool` filtern: alle „Partner · …"-Pools
-bekommen die Partner-Vorlage, der Rest die normale. Die acht Partnerlogos
-liegen negativ-weiß unter:
+Die acht Partnerlogos liegen negativ-weiß unter:
 
 ```
 https://thecircle.planyvo.com/assets/partner-neuland-neg.png
