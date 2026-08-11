@@ -99,6 +99,9 @@ const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || "";
 const MAIL_ROUTE = process.env.MAIL_ROUTE || "";
 /* "Signing secret" aus den Lettermint-Webhook-Einstellungen */
 const LETTERMINT_WEBHOOK_SECRET = process.env.LETTERMINT_WEBHOOK_SECRET || "";
+/* Die Homepage - Ziel des CTA in Welle 0. Nicht PUBLIC_URL: das ist der
+ * Server mit App und persoenlichen Links, nicht die Website. */
+const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.de";
 
 const VOTES = ["ja", "vielleicht", "nein"];
 const MOMENTS_TOTAL = 6;
@@ -539,7 +542,9 @@ function renderMail(inv, datei) {
     partner_logo_url: !inv.partnerLogo ? ""
       : (/^https?:\/\//i.test(inv.partnerLogo) ? inv.partnerLogo : assetUrl(inv.partnerLogo)),
     abmelden_url: abmeldeLink(inv.token),
-    website_url: PUBLIC_URL,
+    /* CTA der Welle 0: die Homepage, nicht die App. PUBLIC_URL ist der
+     * Server mit den persoenlichen Links - die Website ist eine andere. */
+    website_url: WEBSITE_URL,
     header_img_url: assetUrl("circle-header.jpg"),
     logo_url: assetUrl("logo-zentriert-neg.png"),
     partnerwand_url: assetUrl("partnerwand-bordeaux.jpg"),
