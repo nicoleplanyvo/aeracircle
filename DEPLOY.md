@@ -148,12 +148,22 @@ HTML-Datei, zeigt der Dokumentstamm auf die Dateien statt auf die Anwendung
 
 ### 2.1 Absenderdomain verifizieren
 
-Konto anlegen, Absenderdomain hinterlegen (z. B. `thecircle.planyvo.com` oder
-eine Adresse der Veranstalter). Lettermint nennt DNS-Einträge – **SPF**, **DKIM**,
-meist **DMARC**. Diese in der DNS-Verwaltung der jeweiligen Domain eintragen.
+**Absender (Stand: von Desi bestätigt): `hello@the-circle-cologne.de`**
 
-*Ohne verifizierte Domain landen die Mailings im Spam.* Das ist der Schritt mit
-der unklarsten Wartezeit – deshalb früh anstoßen.
+Konto anlegen, diese Absenderdomain hinterlegen. Lettermint nennt dann
+DNS-Einträge – **SPF**, **DKIM**, meist **DMARC**.
+
+> **Achtung, das ist der kritische Pfad.** Die Einträge müssen in die DNS-Zone
+> von **`the-circle-cologne.de`** – die liegt **nicht** bei planyvo, sondern bei
+> dem, der die Event-Website betreut. Wir können sie nicht selbst setzen.
+> Deshalb: die Werte aus Lettermint sofort an die zuständige Stelle geben und
+> einen Termin dafür verabreden. Ohne verifizierte Domain landen die Mailings
+> im Spam – oder Lettermint verweigert den Versand ganz.
+>
+> Die Bilder in den Mails liegen weiterhin auf `thecircle.planyvo.com`; das ist
+> unabhängig vom Absender und funktioniert so.
+
+Zusätzlich festlegen: **Reply-To** (wohin Antworten der Gäste gehen).
 
 ### 2.2 Templates anlegen
 
