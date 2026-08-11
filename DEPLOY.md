@@ -211,34 +211,39 @@ Lettermint auf „Verify all" – meist wenige Minuten, manchmal länger.
 
 Zusätzlich festlegen: **Reply-To** (wohin Antworten der Gäste gehen).
 
-### 2.2 Templates anlegen
+### 2.2 Kein Template-Import — der Server verschickt selbst
 
-Für jede Datei aus `email/` ein Template, Inhalt komplett hineinkopieren:
+**Lettermint hat keinen Vorlagen-Editor mit Serienbrief-Feldern.** Es ist ein
+reiner Versanddienst mit einer Schnittstelle. Deshalb werden die Vorlagen aus
+`email/` **nicht** irgendwo hochgeladen: Unser Server setzt für jeden Gast
+selbst Anrede, Namen, persönlichen Link, Ticketnummer und Partnerlogo ein und
+übergibt Lettermint die fertige Mail.
 
-| Datei | Template | Wann |
+Das ist auch der sicherere Weg. Ginge die Zuordnung über eine hochgeladene
+Tabelle, könnte sie beim nächsten Import verrutschen — und ein Gast bekäme den
+persönlichen Link eines anderen und damit Einblick in dessen Daten. So gibt es
+nur eine Quelle: das Gästeregister auf dem Server.
+
+Welche Vorlage wer bekommt, entscheidet der Server nach Typ und Partner:
+
+| Welle | Gast | Vorlage |
 |---|---|---|
-| `save-the-date.html` | Welle 0 · Save the Date | vor dem Ticketverkauf |
-| `einladung-ticket.html` | Welle 1 · Ticket (ohne Partner) | Gäste der Veranstalter |
-| `einladung-ticket-partner.html` | Welle 1 · Ticket **mit Partner-Logo** | Gäste eines Partners |
-| `einladung-ehrengast.html` | Welle 1 · Ehrengast | Gäste des Hauses, kein Beitrag |
-| `app-zugang.html` | Welle 2 · App-Zugang (ohne Partner) | wenige Tage vor dem Abend |
-| `app-zugang-partner.html` | Welle 2 · App-Zugang **mit Partner-Logo** | Partner-Gäste |
+| 0 · Save the Date | alle | `save-the-date.html` |
+| 1 · Einladung | Ticketgast der Veranstalter | `einladung-ticket.html` |
+| 1 · Einladung | Gast eines Partners | `einladung-ticket-partner.html` |
+| 1 · Einladung | Ehrengast (Gast des Hauses) | `einladung-ehrengast.html` |
+| 2 · App-Zugang | ohne Partner | `app-zugang.html` |
+| 2 · App-Zugang | Gast eines Partners | `app-zugang-partner.html` |
 
-**Partner-Gäste (jeder Partner lädt Gäste ein).** Der Partner-Block ist jeweils
-eine eigene Vorlage – nicht als Bedingung im Template, weil ein falsch
-gerendertes `{{#if}}` in einer Einladung peinlich wäre, und ein leeres
-`{{partner_logo_url}}` bei Gästen ohne Partner ein kaputtes Bild zeigt. Deshalb
-je Welle zwei Vorlagen, in Lettermint nach `pool` segmentiert:
+Der Partner-Block steckt in einer **eigenen Vorlage**, nicht in einer Bedingung.
+Ein Gast ohne Partner sähe sonst eine leere Überschrift mit gebrochenem Bild.
+Ehrengäste sind Gäste des Hauses und haben nie einen Partner-Block.
 
-- Gäste **ohne** Partner (Pools der Veranstalter) → `einladung-ticket.html`
-  bzw. `app-zugang.html`.
-- Gäste **eines Partners** (Pools „Partner · …") → `einladung-ticket-partner.html`
-  bzw. `app-zugang-partner.html`. Über `{{partner_logo_url}}` bekommt jeder Gast
-  das Logo **seines** Partners; der Wert kommt pro Gast aus der Versandliste
-  (Spalte `partner_logo_url`).
-- **Ehrengäste** sind Gäste des Hauses und haben nie einen Partner-Block.
+Wer schon zu- oder abgesagt hat, bekommt keine Einladung mehr; Welle 2 geht
+**nur** an bestätigte Gäste, weil der App-Link persönliche Daten zeigt. Wer sich
+abgemeldet hat, ist aus **allen** Wellen raus.
 
-Die acht Partnerlogos liegen negativ-weiß unter:
+Die zehn Partnerlogos liegen negativ-weiß unter:
 
 ```
 https://thecircle.planyvo.com/assets/partner-neuland-neg.png
@@ -249,71 +254,101 @@ https://thecircle.planyvo.com/assets/partner-jto-neg.png
 https://thecircle.planyvo.com/assets/partner-merzenich-neg.png
 https://thecircle.planyvo.com/assets/partner-sion-neg.png
 https://thecircle.planyvo.com/assets/partner-sks-neg.png
+https://thecircle.planyvo.com/assets/partner-fuchsrohrbach-neg.png
+https://thecircle.planyvo.com/assets/partner-smartvelo-neg.png
 ```
 
 Vorlage für die Partner-Gästeliste: `server/gaesteliste-partner-vorlage.csv`
 (8 Partner × 4 Zeilen, Pool/Partner/Logo schon gesetzt – nur Anrede, Name und
 E-Mail eintragen). Dann wie in §5 importieren.
 
-### 2.3 Bild-Adressen eintragen
+### 2.3 API-Schlüssel und Absender hinterlegen
 
-Die Bilder liegen bereits auf der Subdomain. In den Templates bekommen die
-Variablen feste Werte:
+In Lettermint unter **API tokens** einen Schlüssel erzeugen. Er wird **nur
+einmal angezeigt** — sofort in Plesk eintragen, unter *Node.js → Custom
+environment variables*:
+
+```
+LETTERMINT_TOKEN            der Schlüssel aus Lettermint
+MAIL_FROM                   THE CIRCLE <hello@the-circle-cologne.de>
+MAIL_REPLY_TO               wohin Antworten der Gäste gehen sollen
+LETTERMINT_WEBHOOK_SECRET   „Signing secret" aus den Webhook-Einstellungen
+```
+
+Der Schlüssel gehört **nie ins Repository** — nur in die Plesk-Umgebung. Taucht
+er versehentlich in einem Screenshot, einer Mail oder einem Commit auf: in
+Lettermint löschen und einen neuen erzeugen. Danach *Restart App*.
+
+Bilder, Links und Abmeldeadresse setzt der Server selbst ein (aus `PUBLIC_URL`
+und dem Gästeregister) — hier ist nichts einzutragen. Nur zur Kontrolle, was
+in den Mails steht:
 
 ```
 header_img_url      https://thecircle.planyvo.com/assets/circle-header.jpg
-logo_url            https://thecircle.planyvo.com/assets/logo-neg.png
-portrait_amiaz_url  https://thecircle.planyvo.com/assets/portrait-amiaz.jpg
-portrait_ien_url    https://thecircle.planyvo.com/assets/portrait-ien.jpg
-portrait_max_url    https://thecircle.planyvo.com/assets/portrait-max.jpg
+logo_url            https://thecircle.planyvo.com/assets/logo-zentriert-neg.png
+portrait_*_url      https://thecircle.planyvo.com/assets/portrait-*.jpg
 partnerwand_url     https://thecircle.planyvo.com/assets/partnerwand-bordeaux.jpg
-website_url         https://www.the-circle-cologne.de
+link                https://thecircle.planyvo.com/einladung?t=TOKEN   (je Gast)
+app_link            https://thecircle.planyvo.com/?t=TOKEN            (je Gast)
+abmelden_url        https://thecircle.planyvo.com/abmelden?t=TOKEN    (je Gast)
 ```
 
-**`logo_url` ist eine PNG, kein SVG.** Gmail und Outlook filtern SVG in `<img>`
-heraus – dann fehlt die Wortmarke. Die PNG (`logo-neg.png`) liegt bereit.
+**Die Logos sind PNG, kein SVG.** Gmail und Outlook filtern SVG in `<img>`
+heraus – dann fehlt die Wortmarke.
 
-Diese Variablen kommen **nicht** aus dem Repo – als feste Werte im Template setzen:
-
-```
-abmelden_url        Lettermints eigene Abmelde-Variable (Name im Konto prüfen) – PFLICHT
-impressum_zeile     Anbieter + ladungsfähige Anschrift, eine Zeile
-                    z. B. "THE CIRCLE c/o Ihre Marken Werkstatt GmbH · Musterstr. 1 · 50667 Köln"
-impressum_url       Link zur Impressumsseite
-datenschutz_url     Link zur Datenschutzerklärung
-```
-
-`impressum_zeile`, `impressum_url` und `datenschutz_url` sind **Pflicht** für einen
-werblichen Versand (§5 DDG / DSGVO). Ohne ladungsfähige Anschrift und Impressum
-ist das Mailing abmahnfähig. Erst setzen, dann senden.
-
-Die übrigen Variablen (`anrede`, `vorname`, `link`, `app_link`, `ticket_nr`,
-`partner_name`, `partner_logo_url`, `platz_satz` …) kommen aus der Versandliste –
-siehe Schritt 5. **Achtung Welle 2:** `app-zugang.html` nutzt `app_link` (nicht
-`link`) und `ticket_nr`.
-
-**Partner-Block (Welle 1 + 2).** Der Block „eingeladen von unserem Partner"
-steht fest im Template – ohne Bedingung. Gäste ohne Partner (die Mehrzahl) sähen
-sonst eine leere Überschrift mit gebrochenem Bild. Deshalb in Lettermint
-**entweder** eine Bedingung auf `partner_logo_url` setzen (Syntax des Kontos an
-einer Testmail prüfen) **oder** je Welle zwei Segmente fahren – „mit Partner“
-und „ohne Partner“ – und im Ohne-Segment den Partner-Block aus dem Template
-entfernen. Für **Welle 0 (Save the Date) entfällt das**, sie hat keinen
-Partner-Block.
+Impressum und Datenschutz stehen fest im Fuß jeder Vorlage und zeigen auf
+`the-circle-cologne.de`. Beides ist **Pflicht** für werblichen Versand
+(§5 DDG / DSGVO); fehlt die ladungsfähige Anschrift, ist das Mailing
+abmahnfähig. Vor dem ersten echten Versand einmal beide Links anklicken.
 
 ### 2.4 Webhook
 
 Adresse: `https://thecircle.planyvo.com/api/lettermint/webhook`
 Ereignisse: *sent, delivered, opened, clicked*
 
-Damit füllen sich Öffnungs- und Klickraten im Monitor. Klicks erkennt der
-Server auch selbst, sobald ein Gast die Landing Page öffnet – der Webhook macht
-es nur genauer.
+Damit füllen sich Öffnungs- und Klickraten im Monitor. Das **Signing secret**
+aus derselben Maske gehört als `LETTERMINT_WEBHOOK_SECRET` nach Plesk (§2.3).
+Ohne dieses Secret weist der Server jeden Webhook ab — sonst könnte jeder
+Fremde „zugestellt" und „geöffnet" in unser Register schreiben und die Zahlen
+im Monitor verfälschen.
 
-### 2.5 Testversand
+### 2.5 Versand — erst Trockenlauf, dann Testmail, dann Welle
 
-Ein Template an die eigene Adresse schicken und **in Gmail und in Outlook**
-ansehen: Bilder da? Schrift in Ordnung? Button klickbar?
+Verschickt wird über die Kommandozeile der Anwendung (in Plesk unter
+*Node.js → NPM install / Run script*, oder per SSH im Anwendungsverzeichnis).
+**Ohne `--senden` geht garantiert nichts raus.**
+
+```bash
+# 1. Trockenlauf: Wer bekäme was? Rendert jede Mail komplett durch.
+node server/circle-server.js welle 1
+
+# 2. Eine davon ansehen, so wie sie beim Gast ankäme
+node server/circle-server.js welle 1 --vorschau=vorschau.html
+
+# 3. Testmail an die eigene Adresse
+node server/circle-server.js welle 1 --nur=deine@adresse.de --senden
+
+# 4. Erst ein Pool, wenn die Testmail sitzt
+node server/circle-server.js welle 1 --pool="Partner Neuland" --senden
+
+# 5. Die ganze Welle
+node server/circle-server.js welle 1 --senden
+```
+
+Wellen: `0` Save the Date · `1` Einladung · `2` App-Zugang.
+Weitere Schalter: `--limit=5` (höchstens fünf Mails).
+
+Der Trockenlauf ist kein Ritual: Er rendert jede einzelne Mail wirklich fertig
+und bricht ab, wenn auch nur ein Platzhalter offen bliebe. Lieber hier ein
+Fehler als 200 Gäste, die „{{vorname}}" in der Anrede lesen.
+
+Die Testmail **in Gmail und in Outlook** ansehen: Bilder da? Schrift in
+Ordnung? Button klickbar? Und den persönlichen Link einmal wirklich anklicken.
+
+Verschickt wird nacheinander mit kurzer Pause — das schont die Zustellbarkeit
+einer noch jungen Absenderdomain. Bei ein paar hundert Gästen dauert eine Welle
+darum ein bis zwei Minuten; das Fenster offen lassen, bis die Schlusszeile
+kommt.
 
 ---
 
@@ -444,14 +479,12 @@ node server/circle-server.js import gaesteliste.csv
 node server/circle-server.js export > versand.csv
 ```
 
-`versand.csv` enthält je Gast `pool, typ, anrede, vorname, name, email,
-partner_name, partner_logo_url, platz_satz, link, app_link, ticket_nr, status` –
-die Spaltennamen entsprechen genau den Merge-Variablen der Templates. Diese Datei
-wird in Lettermint importiert.
-
-> **Welle 1** (Einladung) nimmt `link` (die Landing Page zur Zusage).
-> **Welle 2** (App-Zugang) nimmt `app_link` (direkt in die App) und `ticket_nr`.
-> Beim Import in Lettermint darauf achten, welche Spalte auf welche Mail zeigt.
+Der Import genügt — **`versand.csv` wird nirgends hochgeladen.** Der Versand
+läuft über §2.5 direkt aus dem Register. Die Datei ist nur zum Nachsehen: sie
+zeigt je Gast `pool, typ, anrede, vorname, name, email, partner_name,
+partner_logo_url, platz_satz, link, app_link, ticket_nr, status, abgemeldet` und
+damit genau die Werte, die der Server in die Mails einsetzt. Gut, um vor einer
+Welle einmal quer zu lesen, ob Anreden und Partnerzuordnungen stimmen.
 
 Statt der CLI geht der Export auch über den Browser:
 `https://thecircle.planyvo.com/api/admin/versandliste?key=<zugang>` – dann
@@ -467,13 +500,18 @@ jederzeit nachschieben.
 
 - [ ] `dig +short thecircle.planyvo.com` zeigt die richtige IP
 - [ ] `/api/live/health` antwortet über HTTPS
-- [ ] Alle sieben Bilder unter `/assets/…` laden im Browser
+- [ ] Alle Bilder unter `/assets/…` laden im Browser
 - [ ] `/einladung?demo=1` zeigt die Landing Page (kein Verzeichnislisting)
 - [ ] `/api/admin/pools` ohne Schlüssel gibt `{"error":"kein Zugriff"}`
 - [ ] Jede Person hat ihren Monitor-Link und kommt rein
 - [ ] Absenderdomain in Lettermint verifiziert (SPF/DKIM grün)
+- [ ] `LETTERMINT_TOKEN`, `MAIL_FROM`, `MAIL_REPLY_TO`,
+      `LETTERMINT_WEBHOOK_SECRET` in Plesk gesetzt, Anwendung neu gestartet
+- [ ] Trockenlauf `welle 1` läuft ohne Abbruch durch
 - [ ] Testmailing in Gmail **und** Outlook angesehen
 - [ ] Persönlicher Link aus der Testmail zeigt den richtigen Namen
+- [ ] Abmeldelink im Fuß der Testmail einmal angeklickt (führt auf „Abgemeldet")
+- [ ] Impressum und Datenschutz im Fuß führen auf echte Seiten
 - [ ] Testzahlung durchgelaufen, Monitor steht auf „bezahlt"
 - [ ] Stripe auf Live umgestellt, zweiter Webhook angelegt, echte Zahlung geprüft
 
@@ -515,5 +553,8 @@ die Zahlungsbelege genügt Stripe.
 | „Signatur ungültig" im Log | falsches Signing secret | Test- und Live-Endpunkt haben verschiedene |
 | Bilder fehlen in der Mail | Adresse falsch oder Bild nicht erreichbar | `curl -I …/assets/<datei>` |
 | Mailing landet im Spam | Domain nicht verifiziert | SPF/DKIM in Lettermint prüfen |
+| `LETTERMINT_TOKEN fehlt` beim Versand | Variable nicht in Plesk gesetzt | §2.3, danach *Restart App* |
+| Trockenlauf bricht mit „unbekannte Platzhalter" ab | Vorlage nutzt ein Feld, das der Server nicht kennt | Feldnamen in `renderMail()` und Vorlage abgleichen |
+| Öffnungsraten bleiben bei null | Webhook wird mit 401 abgewiesen | `LETTERMINT_WEBHOOK_SECRET` muss dem Signing secret entsprechen |
 | Monitor zeigt Demo-Daten | keine Liste eingelesen oder Schlüssel fehlt | importieren, mit `?key=…` öffnen |
 | Neue Gästeliste wirkt nicht | Prozess hält die alte im Speicher | Anwendung neu starten |

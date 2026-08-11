@@ -86,6 +86,20 @@ function adminName(key) {
   return null;
 }
 
+/* ---------- Lettermint: Versand ueber die API ----------
+ * Lettermint ist API-first (kein Template-/Broadcast-Editor mit Merge-Feldern).
+ * Deshalb verschickt dieser Server selbst: er kennt zu jedem Gast Token,
+ * persoenlichen Link, Ticketnummer und Partner - es muss nichts ueber eine CSV
+ * wandern, und die Zuordnung kann nicht verrutschen.
+ *   POST https://api.lettermint.co/v1/send   Header: x-lettermint-token
+ *   Body: { from, to[], subject, html, reply_to[], metadata, headers }        */
+const LETTERMINT_TOKEN = process.env.LETTERMINT_TOKEN || "";
+const MAIL_FROM = process.env.MAIL_FROM || "THE CIRCLE <hello@the-circle-cologne.de>";
+const MAIL_REPLY_TO = process.env.MAIL_REPLY_TO || "";
+const MAIL_ROUTE = process.env.MAIL_ROUTE || "";
+/* "Signing secret" aus den Lettermint-Webhook-Einstellungen */
+const LETTERMINT_WEBHOOK_SECRET = process.env.LETTERMINT_WEBHOOK_SECRET || "";
+
 const VOTES = ["ja", "vielleicht", "nein"];
 const MOMENTS_TOTAL = 6;
 const VOTE_LABEL = { ja: "Sofort", vielleicht: "Vielleicht", nein: "Heute nicht" };
@@ -287,6 +301,7 @@ function logEvent(art, gast, detail) {
 }
 
 function inviteLink(token) { return PUBLIC_URL + "/einladung?t=" + token; }
+function abmeldeLink(token) { return PUBLIC_URL + "/abmelden?t=" + token; }
 /* Welle 2: derselbe Token, aber direkt in die App - sie holt sich Name,
  * Kontakt und Ernaehrung selbst aus der Zusage (kein Onboarding-Formular). */
 function appLink(token) { return PUBLIC_URL + "/?t=" + token; }
@@ -448,6 +463,171 @@ function gesamtStats() {
     abgesagt: zaehl(i => i.status === "abgesagt"),
     umsatz: all.reduce((s, i) => s + ((i.zahlung && i.zahlung.amount) || 0), 0)
   };
+}
+
+/* ================= MAILVERSAND (Lettermint, ohne SDK) =================
+ *
+ * Warum der Server selbst verschickt und nicht Lettermint aus einer Liste:
+ * Jede Mail traegt einen persoenlichen Link, eine Ticketnummer und - bei
+ * Partnergaesten - das Logo des einladenden Partners. Diese Zuordnung liegt
+ * hier im Register. Ginge sie ueber eine hochgeladene CSV, koennte sie beim
+ * naechsten Import verrutschen: der falsche Gast bekaeme den Link eines
+ * anderen und saehe dessen Daten. Deshalb: eine Quelle, kein Umweg.
+ */
+
+/* Bilder in E-Mails brauchen feste, oeffentliche Adressen (kein data:). */
+function assetUrl(datei) { return PUBLIC_URL + "/assets/" + datei; }
+
+/* Die Wellen. Zu jeder gehoert: wer sie bekommt, welche Vorlage gilt
+ * (Partnergaeste bekommen eine eigene mit dem Logo ihres Gastgebers) und
+ * welcher Betreff in der Inbox steht. */
+const WELLEN = {
+  0: {
+    name: "Welle 0 · Save the Date",
+    /* Alle, die noch nichts bekommen haben. */
+    gilt: inv => true,
+    vorlage: inv => "save-the-date.html",
+    betreff: inv => "Save the Date · THE CIRCLE No1, 16. September 2026"
+  },
+  1: {
+    name: "Welle 1 · Einladung",
+    /* Wer schon zu- oder abgesagt hat, braucht keine Einladung mehr. */
+    gilt: inv => inv.status === "offen",
+    vorlage: inv => inv.typ === "ehrengast" ? "einladung-ehrengast.html"
+      : (inv.partner ? "einladung-ticket-partner.html" : "einladung-ticket.html"),
+    betreff: inv => "Ihre Einladung zu THE CIRCLE No1"
+  },
+  2: {
+    name: "Welle 2 · App-Zugang",
+    /* Nur an bestaetigte Gaeste - der App-Link zeigt persoenliche Daten. */
+    gilt: inv => inv.status === "zugesagt" || inv.status === "bezahlt",
+    vorlage: inv => inv.partner ? "app-zugang-partner.html" : "app-zugang.html",
+    betreff: inv => "THE CIRCLE No1 · Ihr Zugang zum Abend"
+  }
+};
+
+/* Vorlagen einmal von der Platte lesen und behalten. */
+const vorlagenCache = new Map();
+function vorlageLesen(datei) {
+  if (!vorlagenCache.has(datei)) {
+    vorlagenCache.set(datei, fs.readFileSync(path.join(ROOT, "email", datei), "utf8"));
+  }
+  return vorlagenCache.get(datei);
+}
+
+/* HTML-Escape fuer alles, was aus der Gaesteliste in die Mail wandert.
+ * Ein Firmenname wie "Falk & Cie" darf die Vorlage nicht zerlegen. */
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/* Alle Platzhalter einer Vorlage fuer genau einen Gast fuellen. */
+function renderMail(inv, datei) {
+  const werte = {
+    anrede: inv.anrede || "Hallo",
+    name: inv.name || "",
+    vorname: (inv.name || "").split(" ")[0],
+    link: inviteLink(inv.token),
+    app_link: appLink(inv.token),
+    ticket_nr: inv.ticketNr || "",
+    platz_satz: platzSatz(inv),
+    partner_name: inv.partner || "",
+    /* Partnerlogos liegen als absolute URL in der Gaesteliste; ein relativer
+     * Dateiname wird auf unsere Asset-Adresse gehoben. */
+    partner_logo_url: !inv.partnerLogo ? ""
+      : (/^https?:\/\//i.test(inv.partnerLogo) ? inv.partnerLogo : assetUrl(inv.partnerLogo)),
+    abmelden_url: abmeldeLink(inv.token),
+    website_url: PUBLIC_URL,
+    header_img_url: assetUrl("circle-header.jpg"),
+    logo_url: assetUrl("logo-zentriert-neg.png"),
+    partnerwand_url: assetUrl("partnerwand-bordeaux.jpg"),
+    portrait_amiaz_url: assetUrl("portrait-amiaz.jpg"),
+    portrait_ien_url: assetUrl("portrait-ien.jpg"),
+    portrait_max_url: assetUrl("portrait-max.jpg")
+  };
+  let html = vorlageLesen(datei);
+  html = html.replace(/\{\{([a-z_]+)\}\}/g, (ganz, schluessel) =>
+    hasOwn(werte, schluessel) ? esc(werte[schluessel]) : ganz);
+  /* Kein Platzhalter darf durchrutschen - eine Mail mit "{{vorname}}" in der
+   * Anrede ist schlimmer als eine, die gar nicht rausgeht. */
+  const offen = html.match(/\{\{[a-z_]+\}\}/g);
+  if (offen) throw new Error(datei + ": unbekannte Platzhalter " + [...new Set(offen)].join(", "));
+  return html;
+}
+
+/* Reine Textfassung als Rueckfallebene: Mail-Clients ohne HTML und
+ * Spamfilter, die HTML-only misstrauisch finden. */
+function textFassung(inv, welle) {
+  const link = welle === 2 ? appLink(inv.token) : inviteLink(inv.token);
+  return [
+    (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
+    "",
+    "THE CIRCLE No1 - connecting generations",
+    "16. September 2026, 18:00 bis 23:00 Uhr, Playa in der Kölner Südstadt",
+    "",
+    "Ihr persönlicher Link: " + link,
+    inv.ticketNr ? "Ihre Ticketnummer: " + inv.ticketNr : "",
+    "",
+    "Keine weiteren Mails: " + abmeldeLink(inv.token)
+  ].filter(z => z !== "").join("\n");
+}
+
+/* Ein Aufruf an die Lettermint-API. Kein SDK: eine einzige POST-Anfrage
+ * gegen /v1/send, Authentifizierung ueber den Header x-lettermint-token. */
+function lettermintSenden(mail, cb) {
+  if (!LETTERMINT_TOKEN) return cb(new Error("LETTERMINT_TOKEN fehlt"));
+  const nutzlast = {
+    from: MAIL_FROM,
+    to: [mail.to],
+    subject: mail.subject,
+    html: mail.html,
+    text: mail.text,
+    metadata: mail.metadata || {}
+  };
+  if (MAIL_ROUTE) nutzlast.route = MAIL_ROUTE;
+  if (MAIL_REPLY_TO) nutzlast.reply_to = [MAIL_REPLY_TO];
+  const body = Buffer.from(JSON.stringify(nutzlast), "utf8");
+  const req = https.request({
+    hostname: "api.lettermint.co",
+    path: "/v1/send",
+    method: "POST",
+    headers: {
+      "x-lettermint-token": LETTERMINT_TOKEN,
+      "Content-Type": "application/json",
+      "Content-Length": body.length
+    }
+  }, r => {
+    let raw = "";
+    r.on("data", c => raw += c);
+    r.on("end", () => {
+      let data = null;
+      try { data = JSON.parse(raw || "{}"); } catch (e) { /* Text-Antwort */ }
+      if (r.statusCode >= 400) {
+        const grund = (data && (data.message || data.error)) || raw.slice(0, 200) || ("HTTP " + r.statusCode);
+        return cb(new Error("Lettermint " + r.statusCode + ": " + grund));
+      }
+      cb(null, data || {});
+    });
+  });
+  req.on("error", cb);
+  req.write(body);
+  req.end();
+}
+
+/* Signatur der Lettermint-Webhooks. Ohne diese Pruefung koennte jeder
+ * "delivered" und "opened" in unser Register schreiben und die Zahlen im
+ * Monitor faelschen - oder mit erfundenen Adressen darin herumstochern. */
+function lettermintWebhookGueltig(header, rawBuf) {
+  if (!LETTERMINT_WEBHOOK_SECRET) return false;
+  const sig = String(header || "").trim().replace(/^sha256=/i, "");
+  if (!sig) return false;
+  const erwartet = crypto.createHmac("sha256", LETTERMINT_WEBHOOK_SECRET)
+    .update(rawBuf).digest("hex");
+  const a = Buffer.from(erwartet, "utf8");
+  const b = Buffer.from(sig.toLowerCase(), "utf8");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 /* ================= STRIPE (ohne SDK, reine HTTPS-Aufrufe) ================= */
@@ -831,15 +1011,33 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Lettermint-Webhook: Versand-/Öffnungs-/Klickstatus in die Liste schreiben
+  /* Lettermint-Webhook: Versand-/Öffnungs-/Klickstatus in die Liste schreiben.
+   * Nur mit gueltiger Signatur - sonst koennte jeder unsere Zustellzahlen
+   * faelschen. Ist kein Secret hinterlegt, bleibt der Weg zu. */
   if (req.method === "POST" && url === "/api/lettermint/webhook") {
-    return readBody(req, res, body => {
-      const email = String(body.email || body.recipient || "").toLowerCase();
-      const typ = String(body.event || body.type || "").toLowerCase();
-      const inv = Object.values(state.invites).find(i => i.email === email);
+    const chunks = [];
+    let laenge = 0;
+    req.on("data", c => { chunks.push(c); laenge += c.length; if (laenge > 200_000) req.destroy(); });
+    req.on("end", () => {
+      const rawBuf = Buffer.concat(chunks);
+      const sig = req.headers["x-lettermint-signature"] || req.headers["lettermint-signature"] ||
+                  req.headers["x-signature"] || req.headers["x-webhook-signature"];
+      if (!lettermintWebhookGueltig(sig, rawBuf)) {
+        return json(res, 401, { error: "Signatur ungültig" });
+      }
+      let body;
+      try { body = JSON.parse(rawBuf.toString("utf8") || "{}"); }
+      catch (e) { return json(res, 400, { error: "bad json" }); }
+      /* Zuordnung bevorzugt über den Token, den wir beim Versand als
+       * metadata mitgeben - E-Mail-Adressen können doppelt vorkommen. */
+      const token = String((body.metadata && body.metadata.token) || body.token || "");
+      const email = String(body.email || body.recipient || (body.to && body.to[0]) || "").toLowerCase();
+      const inv = findInvite(token) ||
+                  Object.values(state.invites).find(i => i.email === email);
       if (!inv) return json(res, 200, { ok: true, ignoriert: true });
+      const typ = String(body.event || body.type || body.status || "").toLowerCase();
       const map = { sent: "sent", delivered: "delivered", opened: "opened", open: "opened", clicked: "clicked", click: "clicked" };
-      const feld = map[typ];
+      const feld = hasOwn(map, typ) ? map[typ] : null;
       if (feld && !inv.mail[feld]) {
         inv.mail[feld] = Date.now();
         logEvent(feld === "sent" ? "versendet" : feld === "delivered" ? "zugestellt" : feld === "opened" ? "geöffnet" : "geklickt", inv.name, inv.pool);
@@ -847,6 +1045,32 @@ const server = http.createServer((req, res) => {
       }
       json(res, 200, { ok: true });
     });
+    return;
+  }
+
+  /* Abmeldung aus dem Verteiler. Ein Klick, keine Rueckfrage, kein Login -
+   * so steht es in jeder Mail und so muss es funktionieren. Die Zusage bleibt
+   * bestehen; abgemeldet heisst nur: keine weiteren Wellen. */
+  if (req.method === "GET" && url === "/abmelden") {
+    const inv = findInvite(q.get("t"));
+    if (inv && !inv.abgemeldet) {
+      inv.abgemeldet = Date.now();
+      logEvent("abgemeldet", inv.name, inv.pool);
+      dirty = true;
+    }
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    return res.end(
+      '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<title>Abgemeldet · THE CIRCLE</title>' +
+      '<body style="margin:0;background:#122648;color:#fff;font-family:Montserrat,Helvetica,Arial,sans-serif;' +
+      'display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center">' +
+      '<div style="max-width:26rem;padding:2rem">' +
+      '<p style="letter-spacing:.28em;font-size:.7rem;opacity:.7;margin:0 0 1.5rem">THE CIRCLE No1</p>' +
+      (inv
+        ? '<p style="font-size:1.1rem;line-height:1.7;margin:0">Sie erhalten keine weiteren E-Mails zu THE CIRCLE No1.<br>Danke, dass Sie uns Bescheid gegeben haben.</p>'
+        : '<p style="font-size:1.1rem;line-height:1.7;margin:0">Dieser Link ist nicht mehr gültig.<br>Schreiben Sie uns gern kurz, dann tragen wir Sie von Hand aus.</p>') +
+      '</div></body>'
+    );
   }
 
   /* --- Admin (Monitor) ---
@@ -932,7 +1156,13 @@ const server = http.createServer((req, res) => {
 });
 
 /* ---------- CLI: Gästeliste rein, Versandliste raus ---------- */
-const [befehl, arg] = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const [befehl, arg] = argv;
+const flagge = name => argv.some(a => a === "--" + name);
+const wert = name => {
+  const t = argv.find(a => a.startsWith("--" + name + "="));
+  return t ? t.slice(name.length + 3) : "";
+};
 
 if (befehl === "import") {
   if (!arg) { console.error("Aufruf: node server/circle-server.js import gaeste.csv"); process.exit(1); }
@@ -948,14 +1178,111 @@ if (befehl === "import") {
 }
 
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "ticket_nr", "status"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "ticket_nr", "status", "abgemeldet"]];
   for (const inv of Object.values(state.invites)) {
     zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status]);
+                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status,
+                     inv.abgemeldet ? "ja" : ""]);
   }
   process.stdout.write(zeilen.map(r => r.map(csvCell).join(",")).join("\n") + "\n");
   process.exit(0);
+}
+
+/* Wellenversand.
+ *   node server/circle-server.js welle 1                  -> Trockenlauf
+ *   node server/circle-server.js welle 1 --senden         -> verschickt wirklich
+ *   ... --pool="Partner Neuland"   nur dieser Pool
+ *   ... --nur=max@example.com      genau eine Adresse (Testmail an sich selbst)
+ *   ... --limit=5                  hoechstens fuenf Mails
+ *
+ * Voreinstellung ist immer der Trockenlauf: Er zeigt Zeile fuer Zeile, wer
+ * welche Vorlage bekaeme, und rendert jede Mail komplett durch. Ein fehlender
+ * Platzhalter oder eine kaputte Vorlage faellt hier auf - nicht erst, wenn
+ * 200 Gaeste "{{vorname}}" in der Anrede lesen.
+ */
+if (befehl === "welle") {
+  const nr = String(arg || "").replace(/[^0-9]/g, "");
+  const welle = hasOwn(WELLEN, nr) ? WELLEN[nr] : null;
+  if (!welle) {
+    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--pool=…] [--nur=mail] [--limit=n]");
+    process.exit(1);
+  }
+  const echt = flagge("senden");
+  const nurPool = wert("pool").toLowerCase();
+  const nurMail = wert("nur").toLowerCase();
+  const limit = parseInt(wert("limit"), 10) || 0;
+
+  let gaeste = Object.values(state.invites).filter(inv => {
+    if (!inv.email) return false;
+    if (inv.abgemeldet) return false;                 // Abmeldung gilt fuer alle Wellen
+    if (nurMail) return inv.email.toLowerCase() === nurMail;
+    if (nurPool && String(inv.pool || "").toLowerCase() !== nurPool) return false;
+    return welle.gilt(inv);
+  });
+  gaeste.sort((a, b) => (a.pool || "").localeCompare(b.pool || "") || (a.name || "").localeCompare(b.name || ""));
+  if (limit) gaeste = gaeste.slice(0, limit);
+
+  console.log(welle.name + (echt ? "  — VERSAND" : "  — Trockenlauf (nichts wird verschickt)"));
+  console.log(gaeste.length + " Empfänger\n");
+  if (!gaeste.length) process.exit(0);
+
+  /* Erst alles rendern, dann erst senden: Bricht eine Vorlage, geht keine
+   * halbe Welle raus. */
+  const fertig = [];
+  for (const inv of gaeste) {
+    const datei = welle.vorlage(inv);
+    let html;
+    try { html = renderMail(inv, datei); }
+    catch (e) { console.error("ABBRUCH bei " + inv.email + ": " + e.message); process.exit(1); }
+    fertig.push({ inv, datei, html, betreff: welle.betreff(inv), text: textFassung(inv, Number(nr)) });
+  }
+
+  for (const m of fertig) {
+    console.log("  " + (m.inv.pool || "-").padEnd(22) + " " +
+                (m.inv.name || "").padEnd(26) + " " + m.inv.email.padEnd(32) + " " + m.datei);
+  }
+
+  /* --vorschau=datei.html legt die erste fertige Mail auf die Platte - genau
+   * so, wie sie beim Gast ankaeme, mit seinem Namen und seinem Link. */
+  const vorschau = wert("vorschau");
+  if (vorschau) {
+    fs.writeFileSync(vorschau, fertig[0].html);
+    console.log("\nVorschau (" + fertig[0].inv.email + ", Betreff: " + fertig[0].betreff + ") → " + vorschau);
+  }
+
+  if (!echt) {
+    console.log("\nNichts verschickt. Zum Senden dieselbe Zeile noch einmal mit  --senden");
+    console.log("Vorher empfohlen:  --nur=deine@adresse.de --senden   (eine Testmail an dich selbst)");
+    process.exit(0);
+  }
+  if (!LETTERMINT_TOKEN) { console.error("\nLETTERMINT_TOKEN fehlt – kein Versand."); process.exit(1); }
+
+  /* Nacheinander, nicht alle auf einmal: das schont das Sendelimit und die
+   * Zustellbarkeit einer noch jungen Absenderdomain. */
+  let i = 0, ok = 0, fehler = 0;
+  (function weiter() {
+    if (i >= fertig.length) {
+      try { fs.writeFileSync(STATE_FILE, JSON.stringify(state)); }
+      catch (e) { console.error("Konnte Zustand nicht sichern: " + e.message); }
+      console.log("\n" + ok + " verschickt, " + fehler + " fehlgeschlagen.");
+      process.exit(fehler ? 1 : 0);
+    }
+    const m = fertig[i++];
+    lettermintSenden({
+      to: m.inv.email, subject: m.betreff, html: m.html, text: m.text,
+      metadata: { token: m.inv.token, welle: nr, pool: m.inv.pool || "" }
+    }, (err, antwort) => {
+      if (err) { fehler++; console.error("  FEHLER " + m.inv.email + ": " + err.message); }
+      else {
+        ok++;
+        m.inv.mail.sent = m.inv.mail.sent || Date.now();
+        console.log("  ok     " + m.inv.email + "  " + ((antwort && antwort.message_id) || ""));
+      }
+      setTimeout(weiter, 250);
+    });
+  })();
+  return;
 }
 
 /* Letzte Verteidigungslinie: Am Eventabend ist ein weiterlaufender Server mit

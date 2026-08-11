@@ -73,8 +73,8 @@ wird erst spät kommuniziert, ausschließlich an Gäste, die zugesagt haben:
 | Welle | Template | Empfänger | Zeitpunkt |
 |---|---|---|---|
 | 0 · Save the Date | `email/save-the-date.html` | Verteiler „Bezahlgäste" | Di, 11.08. |
-| 1 · Einladung | `email/einladung-ticket.html` / `email/einladung-ehrengast.html` | Gästeliste (alle Pools) | Wochen vorher |
-| 2 · App-Zugang | `email/app-zugang.html` | **nur Zusagen / bezahlte Tickets** | wenige Tage vorher |
+| 1 · Einladung | `einladung-ticket[-partner].html` / `einladung-ehrengast.html` | Gästeliste (alle Pools) | Wochen vorher |
+| 2 · App-Zugang | `app-zugang[-partner].html` | **nur Zusagen / bezahlte Tickets** | wenige Tage vorher |
 | 3 · Erinnerung | (folgt) | nur Gäste im Kreis | Vortag |
 
 **Welle 0** kommt vor dem Ticketverkauf: erste Infos zum Format, CTA auf die
@@ -95,7 +95,7 @@ als **Pools** ab und vergibt pro Gast einen unerratbaren Token:
 
 ```bash
 node server/circle-server.js import gaesteliste.csv     # Vorlage: server/gaesteliste-vorlage.csv
-node server/circle-server.js export > versand.csv       # Liste für Lettermint (enthält die Links)
+node server/circle-server.js export > versand.csv       # Kontrollliste (enthält die persönlichen Links)
 ```
 
 Spalten (Semikolon oder Komma, Reihenfolge egal):
@@ -115,8 +115,36 @@ Fehlt `anrede`, steht in der Mail „Hallo <Vorname>" – bitte die Spalte füll
 damit es „Liebe Anne" heißt. Ein erneuter Import aktualisiert bestehende Gäste
 – Schlüssel ist die E-Mail, Tokens und Zusagen bleiben erhalten.
 
-`versand.csv` enthält die Spalte `link` – genau diese URL gehört in
-Lettermint als `{{link}}`.
+`versand.csv` ist zum **Nachlesen**, nicht zum Hochladen: Verschickt wird
+direkt aus dem Register (siehe unten). Die Datei zeigt je Gast alle Werte, die
+in seiner Mail landen – gut, um vor einer Welle einmal quer zu prüfen, ob
+Anreden und Partnerzuordnungen stimmen.
+
+### Der Versand
+
+Lettermint ist ein reiner Versanddienst ohne Vorlagen-Editor. Deshalb setzt
+**der Server** für jeden Gast Anrede, Namen, persönlichen Link, Ticketnummer
+und Partnerlogo ein und übergibt Lettermint die fertige Mail. Damit gibt es nur
+eine Quelle für die Zuordnung: das Register. Über eine hochgeladene Tabelle
+könnte sie verrutschen – und ein Gast bekäme den Link eines anderen.
+
+```bash
+node server/circle-server.js welle 1                          # Trockenlauf
+node server/circle-server.js welle 1 --vorschau=probe.html    # eine Mail ansehen
+node server/circle-server.js welle 1 --nur=du@example.de --senden
+node server/circle-server.js welle 1 --senden                 # die ganze Welle
+```
+
+**Ohne `--senden` geht nichts raus.** Der Trockenlauf rendert trotzdem jede
+Mail vollständig durch und bricht ab, sobald ein Platzhalter offen bliebe –
+lieber hier ein Fehler als 200 Gäste, die „{{vorname}}" in der Anrede lesen.
+Weitere Schalter: `--pool="…"`, `--limit=n`.
+
+Wer welche Vorlage bekommt, entscheidet der Server: Ehrengäste die
+Ehrengast-Fassung, Gäste eines Partners die Fassung mit dem Logo ihres
+Gastgebers. Welle 1 geht nur an Offene, Welle 2 nur an bestätigte Gäste (der
+App-Link zeigt persönliche Daten). Wer sich über den Abmeldelink im Fuß
+austrägt, ist aus allen Wellen raus – die Zusage bleibt davon unberührt.
 
 ### Die Landing Page (`landing.html`)
 
@@ -170,10 +198,17 @@ dann sauber, dass er noch nicht scharf geschaltet ist.
 
 ### Lettermint
 
+Versendet wird über `POST https://api.lettermint.co/v1/send` – kein SDK, eine
+HTTPS-Anfrage je Mail, nacheinander mit kurzer Pause (das schont die
+Zustellbarkeit einer jungen Absenderdomain). Nötig sind vier Variablen:
+`LETTERMINT_TOKEN`, `MAIL_FROM`, `MAIL_REPLY_TO`, `LETTERMINT_WEBHOOK_SECRET`.
+
 Für die Öffnungs- und Klickraten einen Webhook auf
-`https://thecircle.planyvo.com/api/lettermint/webhook` legen (erwartet `email` und `event`
-mit `sent`/`delivered`/`opened`/`clicked`). Klicks erkennt der Server ohnehin
-selbst, sobald der Gast die Landing Page öffnet.
+`https://thecircle.planyvo.com/api/lettermint/webhook` legen
+(`sent`/`delivered`/`opened`/`clicked`). Er wird **nur mit gültiger Signatur**
+angenommen – sonst könnte jeder Fremde Zustellzahlen erfinden. Zugeordnet wird
+über den Token aus den Metadaten, nicht über die Adresse. Klicks erkennt der
+Server ohnehin selbst, sobald der Gast die Landing Page öffnet.
 
 ### Der Monitor (`monitor.html`)
 
@@ -231,7 +266,7 @@ negative Varianten anfragen).
 | `landing.html` | **Welle 1** – Landing Page mit Event-Infos, Zusage und Stripe-Checkout (Ziel der Einladungsmail) |
 | `index.html` | **Welle 2** – die App zum Abend (Programm, Menü, Live, Connect) |
 | `monitor.html` | Einladungs-Monitor: Wellen, Pools, Funnel, Umsatz |
-| `email/*.html` | Lettermint-Templates der drei Wellen |
+| `email/*.html` | Mailvorlagen der drei Wellen (der Server füllt sie und verschickt) |
 | `server/circle-server.js` | Gästeregister mit Pools, Stripe, Webhooks, Live-Ebene |
 | `server/gaesteliste-vorlage.csv` | Spaltenvorlage für die Pool-Listen |
 | `pitch/einladungsmanagement.html` | Konzeptdokument für die Veranstalter (Workflow + Monitor), Quelle des PDFs |
@@ -261,15 +296,16 @@ bereitgestellt) – die Event-Website bleibt unberührt:
 | `/monitor?key=…` | Einladungs-Monitor |
 | `/assets/…` | Bilder für die Mailings (aus `email/assets/`) |
 | `/api/stripe/webhook` | Stripe meldet Zahlungen hierher |
-| `/api/lettermint/webhook` | Lettermint meldet Öffnungen/Klicks hierher |
+| `/api/lettermint/webhook` | Lettermint meldet Öffnungen/Klicks hierher (signiert) |
+| `/abmelden?t=…` | Abmeldelink aus dem Fuß jeder Mail |
 
 Stripe- und Lettermint-Konten laufen ebenfalls über planyvo.
 
 ## Bilder & Logos in den Mailings
 
-E-Mails können keine Data-URIs laden – die Bilder müssen gehostet werden
-(unter `thecircle.planyvo.com/assets/`) und die URLs kommen als
-Merge-Variablen in Lettermint. Die fertigen Dateien liegen in `email/assets/`:
+E-Mails können keine Data-URIs laden – die Bilder müssen gehostet werden. Sie
+liegen unter `thecircle.planyvo.com/assets/`; die Adressen setzt der Server
+beim Versand selbst ein. Die Dateien liegen in `email/assets/`:
 
 | Datei | Merge-Variable | Inhalt |
 |---|---|---|
