@@ -259,7 +259,7 @@ https://thecircle.planyvo.com/assets/partner-smartvelo-neg.png
 ```
 
 Vorlage für die Partner-Gästeliste: `server/gaesteliste-partner-vorlage.csv`
-(8 Partner × 4 Zeilen, Pool/Partner/Logo schon gesetzt – nur Anrede, Name und
+(10 Partner × 4 Zeilen, Pool/Partner/Logo schon gesetzt – nur Anrede, Name und
 E-Mail eintragen). Dann wie in §5 importieren.
 
 ### 2.3 API-Schlüssel und Absender hinterlegen
@@ -273,7 +273,16 @@ LETTERMINT_TOKEN            der Schlüssel aus Lettermint
 MAIL_FROM                   THE CIRCLE <hello@the-circle-cologne.de>
 MAIL_REPLY_TO               wohin Antworten der Gäste gehen sollen
 LETTERMINT_WEBHOOK_SECRET   „Signing secret" aus den Webhook-Einstellungen
+WEBSITE_URL                 Ziel des Welle-0-Buttons (Default: https://www.the-circle-cologne.de)
+MAIL_ROUTE                  optional: benannte Lettermint-Route (leer = Standard)
 ```
+
+> **Wichtig für den Versand per Kommandozeile:** Die Variablen aus dem
+> Plesk-Panel gelten **nur für die laufende App** — eine SSH- oder
+> Cron-Shell sieht sie nicht. Beim `welle`-Befehl deshalb immer
+> `PUBLIC_URL=… LETTERMINT_TOKEN=…` direkt davorschreiben (Beispiele
+> in §2.5). Vergisst man `PUBLIC_URL`, verweigert `--senden` von selbst,
+> statt Mails mit localhost-Links zu verschicken.
 
 Der Schlüssel gehört **nie ins Repository** — nur in die Plesk-Umgebung. Taucht
 er versehentlich in einem Screenshot, einer Mail oder einem Commit auf: in
@@ -304,21 +313,49 @@ abmahnfähig. Vor dem ersten echten Versand einmal beide Links anklicken.
 ### 2.4 Webhook
 
 Adresse: `https://thecircle.planyvo.com/api/lettermint/webhook`
-Ereignisse: *sent, delivered, opened, clicked*
+Ereignisse: *sent, delivered, opened, clicked* — **und unbedingt auch
+*bounced* und *complained*** (bzw. wie die Bounce-/Beschwerde-Ereignisse im
+Konto heißen; alle verfügbaren anhaken schadet nicht, Unbekanntes ignoriert
+der Server einfach).
 
-Damit füllen sich Öffnungs- und Klickraten im Monitor. Das **Signing secret**
-aus derselben Maske gehört als `LETTERMINT_WEBHOOK_SECRET` nach Plesk (§2.3).
-Ohne dieses Secret weist der Server jeden Webhook ab — sonst könnte jeder
-Fremde „zugestellt" und „geöffnet" in unser Register schreiben und die Zahlen
-im Monitor verfälschen.
+Warum die zwei letzten wichtig sind: Ein **Bounce** markiert die Adresse als
+unzustellbar — sie wird in künftigen Wellen automatisch übersprungen, statt
+die Reputation der jungen Absenderdomain weiter zu belasten. Eine
+**Beschwerde** („als Spam markiert") zählt als Abmeldung: der Gast fällt aus
+allen weiteren Wellen. Beides erscheint im Monitor.
+
+Das **Signing secret** aus derselben Maske gehört als
+`LETTERMINT_WEBHOOK_SECRET` nach Plesk (§2.3). Ohne dieses Secret weist der
+Server jeden Webhook ab — sonst könnte jeder Fremde „zugestellt" und
+„geöffnet" in unser Register schreiben und die Zahlen im Monitor verfälschen.
+
+Jede Mail trägt außerdem die **One-Click-Abmelde-Header** (RFC 8058):
+Gmail und Outlook zeigen damit ihren eigenen „Abmelden"-Knopf — bei
+Bulk-Versand verlangen sie das inzwischen, und es schützt vor
+Spam-Markierungen.
 
 ### 2.5 Versand — erst Trockenlauf, dann Testmail, dann Welle
 
-Verschickt wird über die Kommandozeile der Anwendung (in Plesk unter
-*Node.js → NPM install / Run script*, oder per SSH im Anwendungsverzeichnis).
-**Ohne `--senden` geht garantiert nichts raus.**
+**Wo tippt man das ein?** Der Versand ist ein Kommandozeilen-Befehl im
+Anwendungsverzeichnis. Zwei Wege auf einem Plesk-Server:
+
+- **SSH:** Websites & Domains → Hosting-Einstellungen → *Zugriff auf den
+  Server über SSH* auf `/bin/bash` stellen (steht oft auf „verboten"), dann
+  per SSH einloggen und ins Anwendungsverzeichnis wechseln.
+- **Geplante Aufgaben:** Plesk → *Geplante Aufgaben* → „Befehl ausführen",
+  einmalig jetzt — derselbe Mechanismus wie beim Backup (§ Betrieb). Für
+  den Trockenlauf die Ausgabe per Mail zuschicken lassen.
+
+Das Node.js-Panel selbst hat keinen passenden Knopf („Run script" braucht
+eine package.json, die es hier bewusst nicht gibt).
+
+**Die Variablen gehören vor den Befehl** — das Plesk-Panel reicht sie nur an
+die App durch, nicht an deine Shell:
 
 ```bash
+export PUBLIC_URL=https://thecircle.planyvo.com
+export LETTERMINT_TOKEN=lm_...          # und ggf. MAIL_REPLY_TO
+
 # 1. Trockenlauf: Wer bekäme was? Rendert jede Mail komplett durch.
 node server/circle-server.js welle 1
 
@@ -328,19 +365,37 @@ node server/circle-server.js welle 1 --vorschau=vorschau.html
 # 3. Testmail an die eigene Adresse
 node server/circle-server.js welle 1 --nur=deine@adresse.de --senden
 
-# 4. Erst ein Pool, wenn die Testmail sitzt
-node server/circle-server.js welle 1 --pool="Partner Neuland" --senden
+# 4. Erst ein Pool, wenn die Testmail sitzt (findet alle Pools, die das Wort enthalten)
+node server/circle-server.js welle 1 --pool=neuland --senden
 
 # 5. Die ganze Welle
 node server/circle-server.js welle 1 --senden
 ```
 
+**Ohne `--senden` geht garantiert nichts raus.** Und `--senden` verweigert von
+selbst, wenn `PUBLIC_URL` fehlt — sonst stünden localhost-Links in den Mails.
+Werte immer mit `=` anhängen (`--nur=adresse`, nicht `--nur adresse`); bei
+falscher Schreibweise bricht der Befehl ab, statt still die ganze Welle zu
+nehmen.
+
 Wellen: `0` Save the Date · `1` Einladung · `2` App-Zugang.
-Weitere Schalter: `--limit=5` (höchstens fünf Mails).
+Weitere Schalter: `--limit=5` (höchstens fünf Mails), `--erneut` (siehe unten).
+
+**Doppelt schickt er nicht.** Jeder Erfolg landet sofort im Versand-Gedächtnis
+(`server/versand-log.json`). Bricht ein Lauf bei Mail 120 von 200 ab, schickt
+der nächste Aufruf nur an die 80, die noch fehlen — bereits Angeschriebene
+werden übersprungen und im Kopf ausgewiesen. `--erneut` übersteuert das
+bewusst (z. B. korrigierte Vorlage nochmal an einen Pool). `--nur=` ignoriert
+das Gedächtnis ohnehin — Testmails an sich selbst gehen immer.
+
+**Die App darf dabei weiterlaufen.** Der Versand schreibt `live-state.json`
+nicht an; Zusagen, Zahlungen und Webhooks laufen während des Versands normal
+weiter. (Nur beim **Import** gilt weiterhin: App stoppen, §5.)
 
 Der Trockenlauf ist kein Ritual: Er rendert jede einzelne Mail wirklich fertig
-und bricht ab, wenn auch nur ein Platzhalter offen bliebe. Lieber hier ein
-Fehler als 200 Gäste, die „{{vorname}}" in der Anrede lesen.
+und bricht ab, wenn ein Platzhalter offen bliebe oder ein Gast keinen Namen
+hat („Hallo ," wäre die Anrede). Lieber hier ein Fehler als 200 Gäste, die
+ihn im Postfach sehen.
 
 Die Testmail **in Gmail und in Outlook** ansehen: Bilder da? Schrift in
 Ordnung? Button klickbar? Und den persönlichen Link einmal wirklich anklicken.
@@ -553,7 +608,9 @@ die Zahlungsbelege genügt Stripe.
 | „Signatur ungültig" im Log | falsches Signing secret | Test- und Live-Endpunkt haben verschiedene |
 | Bilder fehlen in der Mail | Adresse falsch oder Bild nicht erreichbar | `curl -I …/assets/<datei>` |
 | Mailing landet im Spam | Domain nicht verifiziert | SPF/DKIM in Lettermint prüfen |
-| `LETTERMINT_TOKEN fehlt` beim Versand | Variable nicht in Plesk gesetzt | §2.3, danach *Restart App* |
+| `LETTERMINT_TOKEN fehlt` beim Versand | Variable fehlt in der Shell (Plesk-Panel reicht nur an die App durch) | `export LETTERMINT_TOKEN=…` vor dem Befehl, §2.5 |
+| Mails mit localhost-Links | `PUBLIC_URL` fehlte in der Shell | `--senden` bricht dann von selbst ab; `export PUBLIC_URL=…` setzen |
+| „0 Empfänger" trotz voller Liste | alle schon angeschrieben (Versand-Gedächtnis) oder Pool-Filter trifft nicht | Kopfzeile lesen; `--erneut` bzw. `--pool=` als Wortteil |
 | Trockenlauf bricht mit „unbekannte Platzhalter" ab | Vorlage nutzt ein Feld, das der Server nicht kennt | Feldnamen in `renderMail()` und Vorlage abgleichen |
 | Öffnungsraten bleiben bei null | Webhook wird mit 401 abgewiesen | `LETTERMINT_WEBHOOK_SECRET` muss dem Signing secret entsprechen |
 | Monitor zeigt Demo-Daten | keine Liste eingelesen oder Schlüssel fehlt | importieren, mit `?key=…` öffnen |

@@ -314,7 +314,7 @@ beim Versand selbst ein. Die Dateien liegen in `email/assets/`:
 | `portrait-amiaz.jpg` | `{{portrait_amiaz_url}}` | Amiaz Habtu, Kreis auf Bordeaux, 360×360 |
 | `portrait-ien.jpg` | `{{portrait_ien_url}}` | Ien Svea Bäumler |
 | `portrait-max.jpg` | `{{portrait_max_url}}` | Max Leinfelder |
-| `partnerwand-bordeaux.jpg` | `{{partnerwand_url}}` | alle acht Partner, negativ weiß, 880×300 |
+| `partnerwand-bordeaux.jpg` | `{{partnerwand_url}}` | alle zehn Partner, negativ weiß, 1000×300 |
 | `partner-deindach-neg.png` | `{{partner_logo_url}}` | Beispiel-Partnerlogo, transparent |
 
 Die Kreise sind **fertig auf den Bordeaux-Grund gerechnet** – so brauchen sie

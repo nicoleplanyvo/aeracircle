@@ -226,8 +226,11 @@ const clean = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f<>&"\'
 
 /* Fuer Freitext von Gaesten: Namen duerfen & und ' enthalten ("Falk & Cie",
  * "O'Brien"). Steuerzeichen und spitze Klammern fliegen raus; ausgegeben wird
- * ohnehin nur ueber textContent bzw. JSON, nie ueber innerHTML. */
-const cleanText = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, n);
+ * ohnehin nur ueber textContent bzw. JSON, nie ueber innerHTML.
+ * Geschweifte Klammern ebenfalls: ein Gast, der sich per RSVP "{{vorname}}"
+ * nennt, wuerde im Wellenversand sonst wie ein Vorlagenfehler aussehen und
+ * den Lauf fuer alle anderen blockieren. */
+const cleanText = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f<>{}]/g, "").trim().slice(0, n);
 
 /* Schluessel-Sicherheit: state.invites/state.guests sind normale Objekte.
  * Ein Zugriff mit "__proto__"/"constructor"/"toString" liefert sonst geerbte
@@ -464,6 +467,8 @@ function gesamtStats() {
     zugesagt: zaehl(i => i.status === "zugesagt" || i.status === "bezahlt"),
     bezahlt: zaehl(i => i.status === "bezahlt"),
     abgesagt: zaehl(i => i.status === "abgesagt"),
+    unzustellbar: zaehl(i => i.mail.bounced),
+    abgemeldet: zaehl(i => i.abgemeldet),
     umsatz: all.reduce((s, i) => s + ((i.zahlung && i.zahlung.amount) || 0), 0)
   };
 }
@@ -484,11 +489,16 @@ function assetUrl(datei) { return PUBLIC_URL + "/assets/" + datei; }
 /* Die Wellen. Zu jeder gehoert: wer sie bekommt, welche Vorlage gilt
  * (Partnergaeste bekommen eine eigene mit dem Logo ihres Gastgebers) und
  * welcher Betreff in der Inbox steht. */
+/* Die Betreffs sind Du-Form wie die Vorlagen selbst - ein "Ihre Einladung"
+ * ueber einem "Du bist eingeladen" waere ein Stilbruch in derselben Mail.
+ * Doppelversand verhindert nicht gilt(), sondern das Versand-Gedaechtnis
+ * (versand-log.json, siehe CLI): gilt() beschreibt nur, wer fachlich passt. */
 const WELLEN = {
   0: {
     name: "Welle 0 · Save the Date",
-    /* Alle, die noch nichts bekommen haben. */
-    gilt: inv => true,
+    /* Alle ausser Absagen - wer abgesagt hat, braucht kein "halte dir den
+     * Abend frei" mehr. */
+    gilt: inv => inv.status !== "abgesagt",
     vorlage: inv => "save-the-date.html",
     betreff: inv => "Save the Date · THE CIRCLE No1, 16. September 2026"
   },
@@ -497,17 +507,84 @@ const WELLEN = {
     /* Wer schon zu- oder abgesagt hat, braucht keine Einladung mehr. */
     gilt: inv => inv.status === "offen",
     vorlage: inv => inv.typ === "ehrengast" ? "einladung-ehrengast.html"
-      : (inv.partner ? "einladung-ticket-partner.html" : "einladung-ticket.html"),
-    betreff: inv => "Ihre Einladung zu THE CIRCLE No1"
+      : (inv.partner && inv.partnerLogo ? "einladung-ticket-partner.html" : "einladung-ticket.html"),
+    betreff: inv => "Deine Einladung zu THE CIRCLE No1"
   },
   2: {
     name: "Welle 2 · App-Zugang",
-    /* Nur an bestaetigte Gaeste - der App-Link zeigt persoenliche Daten. */
-    gilt: inv => inv.status === "zugesagt" || inv.status === "bezahlt",
-    vorlage: inv => inv.partner ? "app-zugang-partner.html" : "app-zugang.html",
-    betreff: inv => "THE CIRCLE No1 · Ihr Zugang zum Abend"
+    /* Nur an wirklich bestaetigte Gaeste - der App-Link zeigt persoenliche
+     * Daten. Ehrengaeste sind mit der Zusage bestaetigt; Ticketgaeste erst
+     * mit der Zahlung, sonst bekaeme ein unbezahltes Ticket den Zugang
+     * "samt Ticketnummer" geschenkt. */
+    gilt: inv => inv.typ === "ehrengast" ? inv.status === "zugesagt" || inv.status === "bezahlt"
+                                         : inv.status === "bezahlt",
+    vorlage: inv => (inv.partner && inv.partnerLogo) ? "app-zugang-partner.html" : "app-zugang.html",
+    betreff: inv => "THE CIRCLE No1 · Dein Zugang zum Abend"
   }
 };
+
+/* Die Abmelde-Seiten im CI der uebrigen Seiten: Navy-Grund, Kapitalis-
+ * Headline (Cinzel per Google Fonts, Georgia-Fallback wie in den Mails),
+ * Koralle, Logo. Drei Zustaende: "frage" (Bestaetigungs-Knopf), "fertig",
+ * "ungueltig". Der Token stammt aus findInvite und ist damit [A-Za-z0-9_-]. */
+function abmeldeSeite(art, token) {
+  const inhalt = art === "frage"
+    ? '<h1>Abmelden?</h1>' +
+      '<p>Ein Druck auf den Knopf, und du bekommst keine weiteren E-Mails zu THE CIRCLE No1.<br>' +
+      'Eine bestehende Zusage bleibt davon unber&uuml;hrt.</p>' +
+      '<form method="post" action="/abmelden?t=' + token + '"><button type="submit">Abmelden</button></form>'
+    : art === "fertig"
+      ? '<h1>Abgemeldet</h1><p>Du erh&auml;ltst keine weiteren E-Mails zu THE CIRCLE No1.<br>Danke, dass du uns Bescheid gegeben hast.</p>'
+      : '<h1>Link nicht mehr g&uuml;ltig</h1><p>Dieser Abmeldelink ist nicht mehr g&uuml;ltig.<br>Schreib uns gern kurz &ndash; dann tragen wir dich von Hand aus.</p>';
+  return '<!doctype html><html lang="de"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="robots" content="noindex">' +
+    '<title>' + (art === "frage" ? "Abmelden" : art === "fertig" ? "Abgemeldet" : "Link ungültig") + ' · THE CIRCLE</title>' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Montserrat:wght@300;500&display=swap" rel="stylesheet">' +
+    '<style>' +
+    '*{box-sizing:border-box;margin:0;padding:0}' +
+    'body{background:#122648;color:#f8f7f4;font-family:Montserrat,"Avenir Next",Helvetica,Arial,sans-serif;font-weight:300;' +
+    'min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.75}' +
+    '.box{max-width:30rem;padding:3rem 1.6rem}' +
+    '.logo{width:120px;height:auto;opacity:.92;margin-bottom:1.8rem}' +
+    'h1{font-family:Cinzel,"Trajan Pro 3",Georgia,serif;font-weight:600;letter-spacing:.08em;text-transform:uppercase;' +
+    'font-size:clamp(1.5rem,6vw,2.1rem);color:#ff6b6c;margin-bottom:1.2rem;line-height:1.2}' +
+    'p{font-size:.95rem;color:#dfe4ef}' +
+    'button{margin-top:1.5rem;background:#ff6b6c;color:#fff;border:0;border-radius:999px;padding:.95rem 2.6rem;' +
+    'font-family:Montserrat,Helvetica,Arial,sans-serif;font-weight:500;font-size:.78rem;letter-spacing:.22em;' +
+    'text-transform:uppercase;cursor:pointer}' +
+    'button:hover{background:#e85c5d}' +
+    '.hr{width:44px;height:1px;background:rgba(248,247,244,.35);margin:1.6rem auto}' +
+    '.foot{font-size:.6rem;letter-spacing:.24em;text-transform:uppercase;color:#7d90b8}' +
+    '</style></head><body><div class="box">' +
+    '<img class="logo" src="/assets/logo-zentriert-neg.png" alt="THE CIRCLE">' +
+    inhalt +
+    '<div class="hr"></div>' +
+    '<div class="foot">16. September 2026 · Playa · Köln</div>' +
+    '</div></body></html>';
+}
+
+/* Versand-Gedaechtnis der CLI - bewusst eine EIGENE Datei, nie live-state.json.
+ * Die laufende App haelt den kompletten Zustand im Speicher und schreibt ihn
+ * alle 2 s ganz weg; ein CLI-Prozess, der dieselbe Datei schriebe, wuerfe
+ * deren frische Zusagen, Allergien und Zahlungen weg - und die App im
+ * Gegenzug seine Versand-Marker. Getrennte Dateien, getrennte Schreiber:
+ * die App fasst dieses Log nie an, die Versand-CLI fasst live-state.json nie
+ * an. "Versendet/zugestellt/geoeffnet" im Monitor kommt ueber die
+ * Lettermint-Webhooks in den laufenden Prozess.
+ * Format: { "<token>": { "0": ts, "1": ts, "2": ts } }  je Welle einmal. */
+const VERSAND_LOG = path.join(__dirname, "versand-log.json");
+function versandLogLesen() {
+  try { return JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); }
+  catch (e) { return {}; }
+}
+function versandLogSchreiben(log) {
+  /* tmp + rename: ein Abbruch mitten im Schreiben darf das Gedaechtnis
+   * nicht zerstoeren - sonst ginge die naechste Welle wieder an alle. */
+  fs.writeFileSync(VERSAND_LOG + ".tmp", JSON.stringify(log));
+  fs.renameSync(VERSAND_LOG + ".tmp", VERSAND_LOG);
+}
 
 /* Vorlagen einmal von der Platte lesen und behalten. */
 const vorlagenCache = new Map();
@@ -552,31 +629,38 @@ function renderMail(inv, datei) {
     portrait_ien_url: assetUrl("portrait-ien.jpg"),
     portrait_max_url: assetUrl("portrait-max.jpg")
   };
-  let html = vorlageLesen(datei);
-  html = html.replace(/\{\{([a-z_]+)\}\}/g, (ganz, schluessel) =>
-    hasOwn(werte, schluessel) ? esc(werte[schluessel]) : ganz);
-  /* Kein Platzhalter darf durchrutschen - eine Mail mit "{{vorname}}" in der
-   * Anrede ist schlimmer als eine, die gar nicht rausgeht. */
-  const offen = html.match(/\{\{[a-z_]+\}\}/g);
-  if (offen) throw new Error(datei + ": unbekannte Platzhalter " + [...new Set(offen)].join(", "));
-  return html;
+  const roh = vorlageLesen(datei);
+  /* Unbekannte Platzhalter am ROHEN Template pruefen, nicht am Ergebnis:
+   * Gastdaten koennten "{{...}}" enthalten (Altbestand vor dem cleanText-
+   * Filter) - am fertigen HTML gemessen saehe das wie ein Vorlagenfehler aus
+   * und wuerde die ganze Welle abbrechen. Am Template gemessen bleibt der
+   * Abbruch echten Tippfehlern vorbehalten. */
+  const offen = [...new Set((roh.match(/\{\{[a-z_]+\}\}/g) || [])
+    .filter(p => !hasOwn(werte, p.slice(2, -2))))];
+  if (offen.length) throw new Error(datei + ": unbekannte Platzhalter " + offen.join(", "));
+  return roh.replace(/\{\{([a-z_]+)\}\}/g, (ganz, schluessel) => esc(werte[schluessel]));
 }
 
 /* Reine Textfassung als Rueckfallebene: Mail-Clients ohne HTML und
  * Spamfilter, die HTML-only misstrauisch finden. */
 function textFassung(inv, welle) {
-  const link = welle === 2 ? appLink(inv.token) : inviteLink(inv.token);
-  return [
+  /* Welle 0 hat bewusst KEINEN persoenlichen Link - die HTML-Fassung zeigt
+   * nur die Website, also darf die Textfassung nicht heimlich den Zusage-
+   * Link (samt Ticketnummer) vorwegnehmen. Du-Form wie die Vorlagen.
+   * null = Zeile faellt weg; "" = gewollte Leerzeile. */
+  const zeilen = [
     (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
     "",
     "THE CIRCLE No1 - connecting generations",
     "16. September 2026, 18:00 bis 23:00 Uhr, Playa in der Kölner Südstadt",
     "",
-    "Ihr persönlicher Link: " + link,
-    inv.ticketNr ? "Ihre Ticketnummer: " + inv.ticketNr : "",
+    welle === 0 ? "Alle Informationen: " + WEBSITE_URL
+      : "Dein persönlicher Link: " + (welle === 2 ? appLink(inv.token) : inviteLink(inv.token)),
+    welle === 2 && inv.ticketNr ? "Deine Ticketnummer: " + inv.ticketNr : null,
     "",
     "Keine weiteren Mails: " + abmeldeLink(inv.token)
-  ].filter(z => z !== "").join("\n");
+  ];
+  return zeilen.filter(z => z !== null).join("\n");
 }
 
 /* Ein Aufruf an die Lettermint-API. Kein SDK: eine einzige POST-Anfrage
@@ -593,6 +677,14 @@ function lettermintSenden(mail, cb) {
   };
   if (MAIL_ROUTE) nutzlast.route = MAIL_ROUTE;
   if (MAIL_REPLY_TO) nutzlast.reply_to = [MAIL_REPLY_TO];
+  /* One-Click-Abmeldung (RFC 8058): Gmail und Outlook zeigen dafuer den
+   * eigenen Abmelden-Knopf und verlangen die Header bei Bulk-Absendern -
+   * fuer eine junge Domain bares Geld in der Zustellbarkeit. Der Klient
+   * schickt dann ein POST auf /abmelden, das der Server versteht. */
+  if (mail.abmeldeUrl) nutzlast.headers = {
+    "List-Unsubscribe": "<" + mail.abmeldeUrl + ">",
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+  };
   const body = Buffer.from(JSON.stringify(nutzlast), "utf8");
   const req = https.request({
     hostname: "api.lettermint.co",
@@ -768,7 +860,12 @@ const server = http.createServer((req, res) => {
       ok: true,
       adminGeschuetzt: ADMIN_TOKENS.size > 0,
       adminZugaenge: ADMIN_TOKENS.size,
-      stripe: !!STRIPE_KEY
+      stripe: !!STRIPE_KEY,
+      /* Nur ob gesetzt, nie die Werte - sonst liesse sich von aussen nicht
+       * pruefen, ob die Mail-Variablen im Panel angekommen sind. */
+      mail: !!LETTERMINT_TOKEN,
+      mailWebhook: !!LETTERMINT_WEBHOOK_SECRET,
+      publicUrl: PUBLIC_URL
     });
   }
 
@@ -1041,11 +1138,29 @@ const server = http.createServer((req, res) => {
                   Object.values(state.invites).find(i => i.email === email);
       if (!inv) return json(res, 200, { ok: true, ignoriert: true });
       const typ = String(body.event || body.type || body.status || "").toLowerCase();
-      const map = { sent: "sent", delivered: "delivered", opened: "opened", open: "opened", clicked: "clicked", click: "clicked" };
+      /* Beschwerde ("als Spam markiert") = Abmeldung: der Gast will nichts
+       * mehr - und jede weitere Mail an ihn kostet die junge Absenderdomain
+       * Reputation. inv.abgemeldet nimmt ihn aus allen kuenftigen Wellen. */
+      if (typ === "complained" || typ === "complaint" || typ === "spam_complaint" || typ === "spam") {
+        if (!inv.abgemeldet) {
+          inv.abgemeldet = Date.now();
+          logEvent("beschwerde", inv.name, inv.pool);
+          dirty = true;
+        }
+        return json(res, 200, { ok: true });
+      }
+      const map = { sent: "sent", delivered: "delivered", opened: "opened", open: "opened",
+                    clicked: "clicked", click: "clicked",
+                    /* Unzustellbar - ohne dieses Feld wuerden tote Adressen
+                     * in jeder Welle erneut angeschrieben. */
+                    bounced: "bounced", bounce: "bounced", hard_bounce: "bounced",
+                    soft_bounce: "bounced", failed: "bounced", rejected: "bounced" };
+      const LABEL = { sent: "versendet", delivered: "zugestellt", opened: "geöffnet",
+                      clicked: "geklickt", bounced: "unzustellbar" };
       const feld = hasOwn(map, typ) ? map[typ] : null;
       if (feld && !inv.mail[feld]) {
         inv.mail[feld] = Date.now();
-        logEvent(feld === "sent" ? "versendet" : feld === "delivered" ? "zugestellt" : feld === "opened" ? "geöffnet" : "geklickt", inv.name, inv.pool);
+        logEvent(LABEL[feld], inv.name, inv.pool);
         dirty = true;
       }
       json(res, 200, { ok: true });
@@ -1053,48 +1168,37 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  /* Abmeldung aus dem Verteiler. Ein Klick, keine Rueckfrage, kein Login -
-   * so steht es in jeder Mail und so muss es funktionieren. Die Zusage bleibt
+  /* Abmeldung aus dem Verteiler. GET zeigt nur die Frage - abgemeldet wird
+   * erst per POST. Der Grund ist kein Stilempfinden: Firmen-Mailgateways
+   * (Microsoft Safe Links, Proofpoint, Mimecast ...) rufen Links in
+   * eingehenden Mails per GET ab, teils schon bei der Zustellung. Ein GET
+   * mit Wirkung wuerde Gaeste abmelden, die nie geklickt haben - und die
+   * bekaemen dann stillschweigend nie die eigentliche Einladung. RFC 8058
+   * (One-Click aus dem Mailprogramm) schickt ohnehin POST; der
+   * List-Unsubscribe-Header jeder Mail zeigt hierher. Die Zusage bleibt
    * bestehen; abgemeldet heisst nur: keine weiteren Wellen. */
-  if (req.method === "GET" && url === "/abmelden") {
+  if ((req.method === "GET" || req.method === "POST") && url === "/abmelden") {
     const inv = findInvite(q.get("t"));
-    if (inv && !inv.abgemeldet) {
-      inv.abgemeldet = Date.now();
-      logEvent("abgemeldet", inv.name, inv.pool);
-      dirty = true;
+    const antworten = art => {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(abmeldeSeite(art, inv ? inv.token : ""));
+    };
+    if (req.method === "GET") {
+      return antworten(!inv ? "ungueltig" : inv.abgemeldet ? "fertig" : "frage");
     }
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    /* Im CI der uebrigen Seiten: Navy-Grund, Kapitalis-Headline (Cinzel per
-     * Google Fonts - eine kleine Seite, kein eingebetteter Font noetig),
-     * Koralle-Akzent, Logo. Dieselbe Formensprache wie Landing Page und App. */
-    return res.end(
-      '<!doctype html><html lang="de"><head><meta charset="utf-8">' +
-      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<meta name="robots" content="noindex">' +
-      '<title>' + (inv ? 'Abgemeldet' : 'Link ungültig') + ' · THE CIRCLE</title>' +
-      '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
-      '<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Montserrat:wght@300;500&display=swap" rel="stylesheet">' +
-      '<style>' +
-      '*{box-sizing:border-box;margin:0;padding:0}' +
-      'body{background:#122648;color:#f8f7f4;font-family:Montserrat,"Avenir Next",Helvetica,Arial,sans-serif;font-weight:300;' +
-      'min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.75}' +
-      '.box{max-width:30rem;padding:3rem 1.6rem}' +
-      '.logo{width:120px;height:auto;opacity:.92;margin-bottom:1.8rem}' +
-      '.label{letter-spacing:.3em;font-size:.62rem;text-transform:uppercase;color:#aeb9d2;margin-bottom:1.1rem}' +
-      'h1{font-family:Cinzel,"Trajan Pro 3",Georgia,serif;font-weight:600;letter-spacing:.08em;text-transform:uppercase;' +
-      'font-size:clamp(1.5rem,6vw,2.1rem);color:#ff6b6c;margin-bottom:1.2rem;line-height:1.2}' +
-      'p{font-size:.95rem;color:#dfe4ef}' +
-      '.hr{width:44px;height:1px;background:rgba(248,247,244,.35);margin:1.6rem auto}' +
-      '.foot{font-size:.6rem;letter-spacing:.24em;text-transform:uppercase;color:#7d90b8}' +
-      '</style></head><body><div class="box">' +
-      '<img class="logo" src="/assets/logo-zentriert-neg.png" alt="THE CIRCLE">' +
-      (inv
-        ? '<h1>Abgemeldet</h1><p>Sie erhalten keine weiteren E-Mails zu THE CIRCLE No1.<br>Danke, dass Sie uns Bescheid gegeben haben.</p>'
-        : '<h1>Link nicht mehr gültig</h1><p>Dieser Abmeldelink ist nicht mehr gültig.<br>Schreiben Sie uns gern kurz – dann tragen wir Sie von Hand aus.</p>') +
-      '<div class="hr"></div>' +
-      '<div class="foot">16. September 2026 · Playa · Köln</div>' +
-      '</div></body></html>'
-    );
+    /* POST: One-Click-Clients schicken einen kleinen Formular-Body mit -
+     * abtropfen lassen, gebraucht wird nur der Token aus der URL. */
+    req.on("data", () => {});
+    req.on("end", () => {
+      if (!inv) return antworten("ungueltig");
+      if (!inv.abgemeldet) {
+        inv.abgemeldet = Date.now();
+        logEvent("abgemeldet", inv.name, inv.pool);
+        dirty = true;
+      }
+      antworten("fertig");
+    });
+    return;
   }
 
   /* --- Admin (Monitor) ---
@@ -1237,40 +1341,91 @@ if (befehl === "export") {
 /* Wellenversand.
  *   node server/circle-server.js welle 1                  -> Trockenlauf
  *   node server/circle-server.js welle 1 --senden         -> verschickt wirklich
- *   ... --pool="Partner Neuland"   nur dieser Pool
- *   ... --nur=max@example.com      genau eine Adresse (Testmail an sich selbst)
+ *   ... --pool=neuland             nur Pools, deren Name das enthaelt
+ *   ... --nur=max@example.com      genau eine Adresse (Testmail; ueberspringt
+ *                                  Status-Regeln UND Versand-Gedaechtnis)
  *   ... --limit=5                  hoechstens fuenf Mails
+ *   ... --erneut                   auch an bereits Angeschriebene dieser Welle
+ *   ... --vorschau=datei.html      erste fertige Mail auf die Platte legen
  *
  * Voreinstellung ist immer der Trockenlauf: Er zeigt Zeile fuer Zeile, wer
  * welche Vorlage bekaeme, und rendert jede Mail komplett durch. Ein fehlender
  * Platzhalter oder eine kaputte Vorlage faellt hier auf - nicht erst, wenn
  * 200 Gaeste "{{vorname}}" in der Anrede lesen.
+ *
+ * Doppelversand-Schutz: Jeder Erfolg landet sofort im Versand-Gedaechtnis
+ * (versand-log.json). Ein zweiter Lauf derselben Welle - etwa nach einem
+ * Abbruch bei Mail 120 von 200 - schickt nur an die, die noch fehlen.
  */
 if (befehl === "welle") {
+  /* Unbekannte oder wertlose Argumente hart abweisen: "--nur max@x.de"
+   * (Leerzeichen statt =) wuerde sonst still ignoriert - und der Befehl,
+   * der eine Testmail schicken sollte, schickt die ganze Welle. */
+  const ERLAUBT = /^--(senden|erneut|pool=.+|nur=.+|limit=\d+|vorschau=.+)$/;
+  const kaputt = argv.slice(2).filter(a => !ERLAUBT.test(a));
+  if (kaputt.length) {
+    console.error("Unbekanntes oder unvollständiges Argument: " + kaputt.join(" "));
+    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--nur=mail] [--limit=n] [--vorschau=datei.html]");
+    console.error("Werte immer mit '=': --nur=max@example.com (nicht: --nur max@example.com)");
+    process.exit(1);
+  }
   const nr = String(arg || "").replace(/[^0-9]/g, "");
   const welle = hasOwn(WELLEN, nr) ? WELLEN[nr] : null;
   if (!welle) {
-    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--pool=…] [--nur=mail] [--limit=n]");
+    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--nur=mail] [--limit=n]");
     process.exit(1);
   }
   const echt = flagge("senden");
+  const erneut = flagge("erneut");
   const nurPool = wert("pool").toLowerCase();
   const nurMail = wert("nur").toLowerCase();
   const limit = parseInt(wert("limit"), 10) || 0;
 
+  /* Ohne PUBLIC_URL zeigt jeder Link und jedes Bild in den Mails auf
+   * localhost - und im Trockenlauf faellt das niemandem auf. Deshalb steht
+   * die Basis hier in der ersten Zeile, und der echte Versand verweigert. */
+  if (echt && /^http:\/\/(localhost|127\.)/.test(PUBLIC_URL)) {
+    console.error("PUBLIC_URL zeigt auf " + PUBLIC_URL + " – jede Mail enthielte localhost-Links.");
+    console.error("So aufrufen:  PUBLIC_URL=https://thecircle.planyvo.com LETTERMINT_TOKEN=… node server/circle-server.js welle " + nr + " --senden");
+    process.exit(1);
+  }
+
+  const log = versandLogLesen();
+  const schonRaus = inv => !!(hasOwn(log, inv.token) && log[inv.token][nr]);
+
+  let uebersprungen = 0, unzustellbar = 0;
   let gaeste = Object.values(state.invites).filter(inv => {
     if (!inv.email) return false;
     if (inv.abgemeldet) return false;                 // Abmeldung gilt fuer alle Wellen
     if (nurMail) return inv.email.toLowerCase() === nurMail;
-    if (nurPool && String(inv.pool || "").toLowerCase() !== nurPool) return false;
-    return welle.gilt(inv);
+    /* Tote Adressen (Bounce aus einer frueheren Welle) nicht erneut
+     * anschreiben - jede weitere Mail dorthin schadet der Zustellbarkeit.
+     * --erneut uebersteuert, etwa nach einer Adresskorrektur per Import. */
+    if (inv.mail && inv.mail.bounced && !erneut) { unzustellbar++; return false; }
+    if (nurPool && !String(inv.pool || "").toLowerCase().includes(nurPool)) return false;
+    if (!welle.gilt(inv)) return false;
+    if (schonRaus(inv) && !erneut) { uebersprungen++; return false; }
+    return true;
   });
   gaeste.sort((a, b) => (a.pool || "").localeCompare(b.pool || "") || (a.name || "").localeCompare(b.name || ""));
   if (limit) gaeste = gaeste.slice(0, limit);
 
   console.log(welle.name + (echt ? "  — VERSAND" : "  — Trockenlauf (nichts wird verschickt)"));
-  console.log(gaeste.length + " Empfänger\n");
+  console.log("Links & Bilder über: " + PUBLIC_URL);
+  console.log(gaeste.length + " Empfänger" +
+    (uebersprungen ? " · " + uebersprungen + " bereits angeschrieben (übersprungen, --erneut schickt trotzdem)" : "") +
+    (unzustellbar ? " · " + unzustellbar + " unzustellbar (Bounce, übersprungen)" : "") + "\n");
   if (!gaeste.length) process.exit(0);
+
+  /* Gaeste ohne Namen VOR dem Rendern abfangen: "Hallo ," in der Anrede
+   * faellt sonst durch keinen Platzhalter-Check. */
+  const namenlos = gaeste.filter(inv => !(inv.name || "").trim());
+  if (namenlos.length) {
+    console.error("ABBRUCH: " + namenlos.length + " Gast/Gäste ohne Namen – die Anrede wäre leer:");
+    for (const inv of namenlos) console.error("  " + inv.email + "  (Pool " + (inv.pool || "-") + ")");
+    console.error("Namen in der CSV ergänzen und neu importieren.");
+    process.exit(1);
+  }
 
   /* Erst alles rendern, dann erst senden: Bricht eine Vorlage, geht keine
    * halbe Welle raus. */
@@ -1285,7 +1440,8 @@ if (befehl === "welle") {
 
   for (const m of fertig) {
     console.log("  " + (m.inv.pool || "-").padEnd(22) + " " +
-                (m.inv.name || "").padEnd(26) + " " + m.inv.email.padEnd(32) + " " + m.datei);
+                (m.inv.name || "").padEnd(26) + " " + m.inv.email.padEnd(32) + " " + m.datei +
+                (m.inv.partner && !m.inv.partnerLogo ? "   ⚠ Partner ohne Logo – Basisvorlage" : ""));
   }
 
   /* --vorschau=datei.html legt die erste fertige Mail auf die Platte - genau
@@ -1304,24 +1460,32 @@ if (befehl === "welle") {
   if (!LETTERMINT_TOKEN) { console.error("\nLETTERMINT_TOKEN fehlt – kein Versand."); process.exit(1); }
 
   /* Nacheinander, nicht alle auf einmal: das schont das Sendelimit und die
-   * Zustellbarkeit einer noch jungen Absenderdomain. */
+   * Zustellbarkeit einer noch jungen Absenderdomain.
+   * WICHTIG: Dieser Prozess schreibt live-state.json NICHT - die laufende
+   * App darf waehrend des Versands weiterlaufen (Landing Page, Zusagen,
+   * Zahlungen). Jeder Erfolg landet sofort im Versand-Gedaechtnis, damit
+   * auch ein Strg-C bei Mail 120 von 200 nichts vergisst. */
   let i = 0, ok = 0, fehler = 0;
   (function weiter() {
     if (i >= fertig.length) {
-      try { fs.writeFileSync(STATE_FILE, JSON.stringify(state)); }
-      catch (e) { console.error("Konnte Zustand nicht sichern: " + e.message); }
       console.log("\n" + ok + " verschickt, " + fehler + " fehlgeschlagen.");
+      if (fehler) console.log("Nochmal ausführen schickt NUR an die Fehlgeschlagenen (Versand-Gedächtnis).");
+      console.log("Zugestellt/geöffnet/geklickt meldet Lettermint per Webhook an den laufenden Server.");
       process.exit(fehler ? 1 : 0);
     }
     const m = fertig[i++];
     lettermintSenden({
       to: m.inv.email, subject: m.betreff, html: m.html, text: m.text,
+      abmeldeUrl: abmeldeLink(m.inv.token),
       metadata: { token: m.inv.token, welle: nr, pool: m.inv.pool || "" }
     }, (err, antwort) => {
       if (err) { fehler++; console.error("  FEHLER " + m.inv.email + ": " + err.message); }
       else {
         ok++;
-        m.inv.mail.sent = m.inv.mail.sent || Date.now();
+        log[m.inv.token] = log[m.inv.token] || {};
+        log[m.inv.token][nr] = Date.now();
+        try { versandLogSchreiben(log); }
+        catch (e) { console.error("  WARNUNG: Versand-Gedächtnis nicht schreibbar: " + e.message); }
         console.log("  ok     " + m.inv.email + "  " + ((antwort && antwort.message_id) || ""));
       }
       setTimeout(weiter, 250);
@@ -1335,6 +1499,10 @@ if (befehl === "welle") {
  * Abstuerze sind oben gezielt behoben; das hier faengt kuenftige ab, damit ein
  * einzelner kaputter Request nie wieder App, Landing Page und Monitor mitreisst. */
 process.on("uncaughtException", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    console.error("Port " + PORT + " ist schon belegt – laeuft der Server bereits? Prozess beendet sich.");
+    process.exit(1);
+  }
   console.error("uncaughtException (Server laeuft weiter):", err && err.stack || err);
 });
 process.on("unhandledRejection", (err) => {
