@@ -171,16 +171,25 @@ wir setzen die Einträge selbst. Die Bilder in den Mails liegen weiterhin auf
 > bestehenden SPF-Record**. Verlangt werden nur drei CNAMEs auf eigenen
 > Subdomains:
 >
-> | Typ | Name (Subdomain) | Zweck |
+> | Typ | Hostname | Wert / Ziel |
 > |---|---|---|
-> | CNAME | `lm-bounces` | Return-Path / Bounces |
-> | CNAME | `lm1._domainkey` | DKIM-Schluessel 1 |
-> | CNAME | `lm2._domainkey` | DKIM-Schluessel 2 |
+> | CNAME | `lm-bounces` | `bounces.lmta.net` |
+> | CNAME | `lm1._domainkey` | `lm1.mwe5cqblic7azkezwvo6z74nzq.dkim.lmta.net` |
+> | CNAME | `lm2._domainkey` | `lm2.mwe5cqblic7azkezwvo6z74nzq.dkim.lmta.net` |
+>
+> (Die DKIM-Kennung `mwe5cq…` gilt fuer diese Domain. Wird der DKIM-Key in
+> Lettermint rotiert, aendern sich die Werte und muessen hier nachgezogen werden.)
 >
 > Das ist die gute Nachricht: Der vorhandene `v=spf1 include:_spf-eu.ionos.com
 > ~all` bleibt **unangetastet**, das Risiko fuer die bestehende `hello@`-Adresse
 > entfaellt. `_dmarc` war bereits vorhanden und wurde von Lettermint sofort als
 > **verified** erkannt.
+>
+> **Achtung, zwei aehnliche Domains im selben IONOS-Konto:** Es gibt
+> `the-circle-cologne.de` (mit Bindestrichen, die echte Mail-Domain) und
+> `thecirclecologne.de` (ohne, nur eine Weiterleitung). Beide haben MX auf
+> IONOS. Die Records gehoeren in die Variante **mit Bindestrichen** - in der
+> anderen haetten sie keine Wirkung.
 >
 > **IONOS-Detail:** Im Hostname-Feld nur den **Subdomain-Teil** eintragen
 > (`lm1._domainkey`), nicht die volle Adresse - IONOS haengt die Domain selbst
