@@ -191,10 +191,9 @@ wir setzen die Einträge selbst. Die Bilder in den Mails liegen weiterhin auf
 > Da alle drei Records auf neuen Subdomains liegen und nichts Bestehendes
 > ueberschreiben, ist das der risikoarme und schnellste Weg.
 
-**In IONOS:** Domains & SSL → `the-circle-cologne.de` → DNS. Dort den
-vorhandenen SPF-TXT **bearbeiten** (nicht neu anlegen), DKIM als neuen TXT
-hinzufügen. Nach dem Speichern in Lettermint auf „verify" – meist wenige
-Minuten, manchmal länger.
+**In IONOS:** Domains & SSL → `the-circle-cologne.de` → DNS → die drei CNAMEs
+oben **neu anlegen** (am bestehenden SPF nichts ändern). Nach dem Speichern in
+Lettermint auf „Verify all" – meist wenige Minuten, manchmal länger.
 
 Zusätzlich festlegen: **Reply-To** (wohin Antworten der Gäste gehen).
 
