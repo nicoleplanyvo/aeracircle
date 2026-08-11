@@ -153,15 +153,37 @@ HTML-Datei, zeigt der Dokumentstamm auf die Dateien statt auf die Anwendung
 Konto anlegen, diese Absenderdomain hinterlegen. Lettermint nennt dann
 DNS-Einträge – **SPF**, **DKIM**, meist **DMARC**.
 
-> **Achtung, das ist der kritische Pfad.** Die Einträge müssen in die DNS-Zone
-> von **`the-circle-cologne.de`** – die liegt **nicht** bei planyvo, sondern bei
-> dem, der die Event-Website betreut. Wir können sie nicht selbst setzen.
-> Deshalb: die Werte aus Lettermint sofort an die zuständige Stelle geben und
-> einen Termin dafür verabreden. Ohne verifizierte Domain landen die Mailings
-> im Spam – oder Lettermint verweigert den Versand ganz.
+Die DNS-Zone liegt bei **IONOS** (Nameserver `ui-dns.*`), Zugang vorhanden –
+wir setzen die Einträge selbst. Die Bilder in den Mails liegen weiterhin auf
+`thecircle.planyvo.com`; das ist unabhängig vom Absender.
+
+**Bestandsaufnahme der Zone (geprüft):**
+
+| Eintrag | Bestand |
+|---|---|
+| SPF (TXT) | `v=spf1 include:_spf-eu.ionos.com ~all` – **existiert bereits** |
+| MX | `mx00.ionos.de`, `mx01.ionos.de` – Mailempfang läuft über IONOS |
+| DMARC | `v=DMARC1; p=none;` – existiert, blockiert nichts |
+
+> ### Die eine Falle: SPF niemals doppelt anlegen
 >
-> Die Bilder in den Mails liegen weiterhin auf `thecircle.planyvo.com`; das ist
-> unabhängig vom Absender und funktioniert so.
+> Lettermint wird einen SPF-Eintrag nennen. **Keinen zweiten TXT-Record
+> anlegen!** Zwei SPF-Records auf derselben Domain sind ungültig – dann schlägt
+> SPF für *alle* Mails fehl, auch für die bestehende `hello@`-Adresse. Der
+> Lettermint-`include:` gehört **in den vorhandenen Record hinein**:
+>
+> ```
+> v=spf1 include:_spf-eu.ionos.com include:<lettermint-wert> ~all
+> ```
+>
+> `~all` bleibt am Ende stehen. **DKIM** ist davon nicht betroffen – das ist ein
+> eigener TXT auf einer Subdomain (z. B. `xyz._domainkey`) und wird normal neu
+> angelegt. **DMARC** steht bereits auf `p=none` und muss nicht angefasst werden.
+
+**In IONOS:** Domains & SSL → `the-circle-cologne.de` → DNS. Dort den
+vorhandenen SPF-TXT **bearbeiten** (nicht neu anlegen), DKIM als neuen TXT
+hinzufügen. Nach dem Speichern in Lettermint auf „verify" – meist wenige
+Minuten, manchmal länger.
 
 Zusätzlich festlegen: **Reply-To** (wohin Antworten der Gäste gehen).
 
