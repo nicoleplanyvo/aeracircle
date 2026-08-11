@@ -1064,17 +1064,36 @@ const server = http.createServer((req, res) => {
       dirty = true;
     }
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    /* Im CI der uebrigen Seiten: Navy-Grund, Kapitalis-Headline (Cinzel per
+     * Google Fonts - eine kleine Seite, kein eingebetteter Font noetig),
+     * Koralle-Akzent, Logo. Dieselbe Formensprache wie Landing Page und App. */
     return res.end(
-      '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<title>Abgemeldet · THE CIRCLE</title>' +
-      '<body style="margin:0;background:#122648;color:#fff;font-family:Montserrat,Helvetica,Arial,sans-serif;' +
-      'display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center">' +
-      '<div style="max-width:26rem;padding:2rem">' +
-      '<p style="letter-spacing:.28em;font-size:.7rem;opacity:.7;margin:0 0 1.5rem">THE CIRCLE No1</p>' +
+      '<!doctype html><html lang="de"><head><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<meta name="robots" content="noindex">' +
+      '<title>' + (inv ? 'Abgemeldet' : 'Link ungültig') + ' · THE CIRCLE</title>' +
+      '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+      '<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Montserrat:wght@300;500&display=swap" rel="stylesheet">' +
+      '<style>' +
+      '*{box-sizing:border-box;margin:0;padding:0}' +
+      'body{background:#122648;color:#f8f7f4;font-family:Montserrat,"Avenir Next",Helvetica,Arial,sans-serif;font-weight:300;' +
+      'min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.75}' +
+      '.box{max-width:30rem;padding:3rem 1.6rem}' +
+      '.logo{width:120px;height:auto;opacity:.92;margin-bottom:1.8rem}' +
+      '.label{letter-spacing:.3em;font-size:.62rem;text-transform:uppercase;color:#aeb9d2;margin-bottom:1.1rem}' +
+      'h1{font-family:Cinzel,"Trajan Pro 3",Georgia,serif;font-weight:600;letter-spacing:.08em;text-transform:uppercase;' +
+      'font-size:clamp(1.5rem,6vw,2.1rem);color:#ff6b6c;margin-bottom:1.2rem;line-height:1.2}' +
+      'p{font-size:.95rem;color:#dfe4ef}' +
+      '.hr{width:44px;height:1px;background:rgba(248,247,244,.35);margin:1.6rem auto}' +
+      '.foot{font-size:.6rem;letter-spacing:.24em;text-transform:uppercase;color:#7d90b8}' +
+      '</style></head><body><div class="box">' +
+      '<img class="logo" src="/assets/logo-zentriert-neg.png" alt="THE CIRCLE">' +
       (inv
-        ? '<p style="font-size:1.1rem;line-height:1.7;margin:0">Sie erhalten keine weiteren E-Mails zu THE CIRCLE No1.<br>Danke, dass Sie uns Bescheid gegeben haben.</p>'
-        : '<p style="font-size:1.1rem;line-height:1.7;margin:0">Dieser Link ist nicht mehr gültig.<br>Schreiben Sie uns gern kurz, dann tragen wir Sie von Hand aus.</p>') +
-      '</div></body>'
+        ? '<h1>Abgemeldet</h1><p>Sie erhalten keine weiteren E-Mails zu THE CIRCLE No1.<br>Danke, dass Sie uns Bescheid gegeben haben.</p>'
+        : '<h1>Link nicht mehr gültig</h1><p>Dieser Abmeldelink ist nicht mehr gültig.<br>Schreiben Sie uns gern kurz – dann tragen wir Sie von Hand aus.</p>') +
+      '<div class="hr"></div>' +
+      '<div class="foot">16. September 2026 · Playa · Köln</div>' +
+      '</div></body></html>'
     );
   }
 

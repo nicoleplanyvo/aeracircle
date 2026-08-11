@@ -354,7 +354,16 @@ async function liveDatenHolen(){
     const r = await fetch("/api/admin/pools" + (key ? "?key=" + encodeURIComponent(key) : ""));
     if(!r.ok){ demoAusweisen(r.status); return; }
     const d = await r.json();
-    if(!d.ok || !d.pools.length){ demoAusweisen(0); return; }
+    /* Gültiger Zugang, aber noch keine Gäste: das ehrlich sagen statt
+       Demo-Zahlen stehen zu lassen - sonst wirkt der Monitor kaputt. */
+    if(d.ok && !d.pools.length){
+      document.querySelector(".demo-tag").textContent = "Live verbunden · noch keine Gäste";
+      document.querySelector("#quelle").innerHTML =
+        "Quelle: <b>Live</b> · Zugang gültig, das Gästeregister ist noch leer. " +
+        "Die Zahlen oben sind Platzhalter, bis die erste Liste importiert ist (DEPLOY §5).";
+      return;
+    }
+    if(!d.ok){ demoAusweisen(0); return; }
     liveActive = true;
     poolsRendern(d.pools);
     kpisSetzen(d.gesamt);
