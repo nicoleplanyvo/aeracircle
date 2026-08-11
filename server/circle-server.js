@@ -1097,16 +1097,37 @@ const server = http.createServer((req, res) => {
         feed: state.feed.slice(0, 30)
       });
     }
-    // Versandliste für Lettermint: Name, E-Mail, Typ, persönlicher Link
+    // Kontrollliste als CSV: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "ticket_nr", "status"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "ticket_nr", "status", "abgemeldet"]];
       for (const inv of Object.values(state.invites)) {
         zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status]);
+                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status,
+                     inv.abgemeldet ? "ja" : ""]);
       }
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
       return res.end(zeilen.map(r => r.map(csvCell).join(",")).join("\n"));
+    }
+
+    /* Mailstatus je Gast fuer den Monitor: Wer hat welche Mail bekommen,
+     * wurde sie zugestellt, geoeffnet, geklickt? Die Zeitstempel kommen aus
+     * den Lettermint-Webhooks; Klicks erkennt der Server auch selbst, sobald
+     * ein Gast seine Landing Page oeffnet. Der Token bleibt draussen - die
+     * Links stehen in der Versandliste, hier geht es nur um den Status. */
+    if (url === "/api/admin/gaeste") {
+      const gaeste = Object.values(state.invites).map(inv => ({
+        pool: inv.pool,
+        typ: inv.typ,
+        name: inv.name,
+        email: inv.email,
+        partner: inv.partner || "",
+        status: inv.status,
+        abgemeldet: inv.abgemeldet || 0,
+        mail: inv.mail
+      }));
+      gaeste.sort((a, b) => (a.pool || "").localeCompare(b.pool || "") || (a.name || "").localeCompare(b.name || ""));
+      return json(res, 200, { ok: true, gaeste });
     }
   }
 
