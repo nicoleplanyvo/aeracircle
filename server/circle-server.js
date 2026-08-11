@@ -576,8 +576,16 @@ function abmeldeSeite(art, token) {
  * Format: { "<token>": { "0": ts, "1": ts, "2": ts } }  je Welle einmal. */
 const VERSAND_LOG = path.join(__dirname, "versand-log.json");
 function versandLogLesen() {
+  /* Nur "Datei gibt es noch nicht" ist harmlos. Eine UNLESBARE Datei darf
+   * nicht stillschweigend zu {} werden - sonst kaeme der Massen-
+   * Doppelversand genau dann zurueck, wenn das Gedaechtnis kaputt ist. */
   try { return JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); }
-  catch (e) { return {}; }
+  catch (e) {
+    if (e.code === "ENOENT") return {};
+    console.error("Versand-Gedächtnis " + VERSAND_LOG + " ist unlesbar: " + e.message);
+    console.error("Kein Versand, sonst ginge die Welle wieder an ALLE. Datei prüfen oder wiederherstellen.");
+    process.exit(1);
+  }
 }
 function versandLogSchreiben(log) {
   /* tmp + rename: ein Abbruch mitten im Schreiben darf das Gedaechtnis
@@ -1158,6 +1166,7 @@ const server = http.createServer((req, res) => {
       const LABEL = { sent: "versendet", delivered: "zugestellt", opened: "geöffnet",
                       clicked: "geklickt", bounced: "unzustellbar" };
       const feld = hasOwn(map, typ) ? map[typ] : null;
+      inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };  // Altbestand
       if (feld && !inv.mail[feld]) {
         inv.mail[feld] = Date.now();
         logEvent(LABEL[feld], inv.name, inv.pool);
@@ -1244,16 +1253,29 @@ const server = http.createServer((req, res) => {
      * ein Gast seine Landing Page oeffnet. Der Token bleibt draussen - die
      * Links stehen in der Versandliste, hier geht es nur um den Status. */
     if (url === "/api/admin/gaeste") {
-      const gaeste = Object.values(state.invites).map(inv => ({
-        pool: inv.pool,
-        typ: inv.typ,
-        name: inv.name,
-        email: inv.email,
-        partner: inv.partner || "",
-        status: inv.status,
-        abgemeldet: inv.abgemeldet || 0,
-        mail: inv.mail
-      }));
+      /* "Versendet" speist sich aus zwei Quellen: dem sent-Webhook von
+       * Lettermint UND dem Versand-Gedaechtnis der CLI (nur LESEND - die
+       * Datei gehoert der CLI, siehe dort). So zeigt der Monitor den
+       * Versand auch, wenn der Webhook noch nicht eingerichtet ist. */
+      let vlog = {};
+      try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* egal hier */ }
+      const gaeste = Object.values(state.invites).map(inv => {
+        const mail = Object.assign({ sent: 0, delivered: 0, opened: 0, clicked: 0 }, inv.mail);
+        if (!mail.sent && hasOwn(vlog, inv.token)) {
+          const zeiten = Object.values(vlog[inv.token]);
+          if (zeiten.length) mail.sent = Math.min.apply(null, zeiten);
+        }
+        return {
+          pool: inv.pool,
+          typ: inv.typ,
+          name: inv.name,
+          email: inv.email,
+          partner: inv.partner || "",
+          status: inv.status,
+          abgemeldet: inv.abgemeldet || 0,
+          mail
+        };
+      });
       gaeste.sort((a, b) => (a.pool || "").localeCompare(b.pool || "") || (a.name || "").localeCompare(b.name || ""));
       return json(res, 200, { ok: true, gaeste });
     }
@@ -1361,7 +1383,7 @@ if (befehl === "welle") {
   /* Unbekannte oder wertlose Argumente hart abweisen: "--nur max@x.de"
    * (Leerzeichen statt =) wuerde sonst still ignoriert - und der Befehl,
    * der eine Testmail schicken sollte, schickt die ganze Welle. */
-  const ERLAUBT = /^--(senden|erneut|pool=.+|nur=.+|limit=\d+|vorschau=.+)$/;
+  const ERLAUBT = /^--(senden|erneut|pool=.+|nur=.+|limit=[1-9]\d*|vorschau=.+)$/;
   const kaputt = argv.slice(2).filter(a => !ERLAUBT.test(a));
   if (kaputt.length) {
     console.error("Unbekanntes oder unvollständiges Argument: " + kaputt.join(" "));
@@ -1398,12 +1420,14 @@ if (befehl === "welle") {
     if (!inv.email) return false;
     if (inv.abgemeldet) return false;                 // Abmeldung gilt fuer alle Wellen
     if (nurMail) return inv.email.toLowerCase() === nurMail;
-    /* Tote Adressen (Bounce aus einer frueheren Welle) nicht erneut
-     * anschreiben - jede weitere Mail dorthin schadet der Zustellbarkeit.
-     * --erneut uebersteuert, etwa nach einer Adresskorrektur per Import. */
-    if (inv.mail && inv.mail.bounced && !erneut) { unzustellbar++; return false; }
     if (nurPool && !String(inv.pool || "").toLowerCase().includes(nurPool)) return false;
     if (!welle.gilt(inv)) return false;
+    /* Tote Adressen (Bounce aus einer frueheren Welle) nicht erneut
+     * anschreiben - jede weitere Mail dorthin schadet der Zustellbarkeit.
+     * --erneut uebersteuert, etwa nach einer Adresskorrektur per Import.
+     * Nach gilt() gezaehlt, damit der Kopf nur Gaeste ausweist, die die
+     * Welle sonst wirklich bekaeme. */
+    if (inv.mail && inv.mail.bounced && !erneut) { unzustellbar++; return false; }
     if (schonRaus(inv) && !erneut) { uebersprungen++; return false; }
     return true;
   });
@@ -1441,7 +1465,8 @@ if (befehl === "welle") {
   for (const m of fertig) {
     console.log("  " + (m.inv.pool || "-").padEnd(22) + " " +
                 (m.inv.name || "").padEnd(26) + " " + m.inv.email.padEnd(32) + " " + m.datei +
-                (m.inv.partner && !m.inv.partnerLogo ? "   ⚠ Partner ohne Logo – Basisvorlage" : ""));
+                /* Welle 0 hat keine Partnervorlage - da waere die Warnung Laerm. */
+                (nr !== "0" && m.inv.partner && !m.inv.partnerLogo ? "   ⚠ Partner ohne Logo – Basisvorlage" : ""));
   }
 
   /* --vorschau=datei.html legt die erste fertige Mail auf die Platte - genau
