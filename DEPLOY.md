@@ -165,20 +165,31 @@ wir setzen die Einträge selbst. Die Bilder in den Mails liegen weiterhin auf
 | MX | `mx00.ionos.de`, `mx01.ionos.de` – Mailempfang läuft über IONOS |
 | DMARC | `v=DMARC1; p=none;` – existiert, blockiert nichts |
 
-> ### Die eine Falle: SPF niemals doppelt anlegen
+> ### Kein SPF-Eingriff noetig (geprueft in der Lettermint-Oberflaeche)
 >
-> Lettermint wird einen SPF-Eintrag nennen. **Keinen zweiten TXT-Record
-> anlegen!** Zwei SPF-Records auf derselben Domain sind ungültig – dann schlägt
-> SPF für *alle* Mails fehl, auch für die bestehende `hello@`-Adresse. Der
-> Lettermint-`include:` gehört **in den vorhandenen Record hinein**:
+> Lettermint arbeitet **CNAME-basiert** und verlangt **keine Aenderung am
+> bestehenden SPF-Record**. Verlangt werden nur drei CNAMEs auf eigenen
+> Subdomains:
 >
-> ```
-> v=spf1 include:_spf-eu.ionos.com include:<lettermint-wert> ~all
-> ```
+> | Typ | Name (Subdomain) | Zweck |
+> |---|---|---|
+> | CNAME | `lm-bounces` | Return-Path / Bounces |
+> | CNAME | `lm1._domainkey` | DKIM-Schluessel 1 |
+> | CNAME | `lm2._domainkey` | DKIM-Schluessel 2 |
 >
-> `~all` bleibt am Ende stehen. **DKIM** ist davon nicht betroffen – das ist ein
-> eigener TXT auf einer Subdomain (z. B. `xyz._domainkey`) und wird normal neu
-> angelegt. **DMARC** steht bereits auf `p=none` und muss nicht angefasst werden.
+> Das ist die gute Nachricht: Der vorhandene `v=spf1 include:_spf-eu.ionos.com
+> ~all` bleibt **unangetastet**, das Risiko fuer die bestehende `hello@`-Adresse
+> entfaellt. `_dmarc` war bereits vorhanden und wurde von Lettermint sofort als
+> **verified** erkannt.
+>
+> **IONOS-Detail:** Im Hostname-Feld nur den **Subdomain-Teil** eintragen
+> (`lm1._domainkey`), nicht die volle Adresse - IONOS haengt die Domain selbst
+> an. Sonst entsteht `lm1._domainkey.the-circle-cologne.de.the-circle-cologne.de`.
+>
+> **Schneller Weg:** Lettermint bietet auf der DNS-Seite einen **"Connect IONOS"**
+> Knopf (One-click IONOS setup), der die Records direkt in die Zone schreibt.
+> Da alle drei Records auf neuen Subdomains liegen und nichts Bestehendes
+> ueberschreiben, ist das der risikoarme und schnellste Weg.
 
 **In IONOS:** Domains & SSL → `the-circle-cologne.de` → DNS. Dort den
 vorhandenen SPF-TXT **bearbeiten** (nicht neu anlegen), DKIM als neuen TXT
