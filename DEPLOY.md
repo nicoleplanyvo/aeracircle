@@ -148,7 +148,12 @@ HTML-Datei, zeigt der Dokumentstamm auf die Dateien statt auf die Anwendung
 
 ### 2.1 Absenderdomain verifizieren
 
-**Absender (Stand: von Desi bestätigt): `hello@the-circle-cologne.de`**
+**Absender: `hello@the-circle-cologne.de`** (von Desi bestätigt)
+
+> ✅ **ERLEDIGT — Domain ist verifiziert.** Alle vier Records stehen und wurden
+> von Lettermint bestätigt („Your domain is ready"): `_dmarc` (war vorhanden),
+> `lm-bounces`, `lm1._domainkey`, `lm2._domainkey`. Am bestehenden SPF wurde
+> nichts geändert. Die Schritte unten sind zur Nachvollziehbarkeit dokumentiert.
 
 Konto anlegen, diese Absenderdomain hinterlegen. Lettermint nennt dann
 DNS-Einträge – **SPF**, **DKIM**, meist **DMARC**.
