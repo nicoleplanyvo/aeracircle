@@ -30,14 +30,27 @@
     {{partnerwand_url}}     gehostet -> email/assets/partnerwand-bordeaux.jpg (880x300, negativ weiss)
     {{abmelden_url}}    Abmeldelink (Pflicht)
 -->
+<style>
+  /* Nachtmodus: Diese Mail IST dunkel - hier wird nichts invertiert.
+     color-scheme (Meta oben) ueberzeugt Apple Mail; dieser Block haelt
+     Clients fest, die trotzdem umfaerben wollen: prefers-color-scheme
+     fuer Gmail/Apple, [data-ogsc]/[data-ogsb] fuer Outlook.com & Apps. */
+  @media (prefers-color-scheme: dark) {
+    body, .bg-aussen { background-color: #222222 !important; }
+    .bg-karte { background-color: #741a33 !important; }
+  }
+  [data-ogsb] body, [data-ogsb] .bg-aussen { background-color: #222222 !important; }
+  [data-ogsb] .bg-karte { background-color: #741a33 !important; }
+  [data-ogsc] .bg-karte td, [data-ogsc] .bg-karte div, [data-ogsc] .bg-karte span { color: inherit !important; }
+</style>
 </head>
 <body style="margin:0;padding:0;background-color:#222222;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Ein Abend im kleinen Kreis – dein Platz bei THE CIRCLE ist reserviert.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#222222;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#222222" class="bg-aussen" style="background-color:#222222;">
     <tr><td align="center" style="padding:28px 12px;">
 
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#741a33;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#741a33" class="bg-karte" style="max-width:600px;width:100%;background-color:#741a33;">
 
         <!-- S/W-Koeln-Header (Deck-Covershot) -->
         <tr><td>
