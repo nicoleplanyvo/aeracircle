@@ -386,20 +386,41 @@ function importRows(rows) {
 
   const byMail = {};
   for (const inv of Object.values(state.invites)) if (inv.email) byMail[inv.email.toLowerCase()] = inv;
+  /* WhatsApp-Gaeste (ohne Mailadresse) werden ueber Name+Pool wiedererkannt,
+   * damit ein zweiter Import derselben Liste keine Doppelgaenger anlegt -
+   * und damit eine spaeter nachgetragene Adresse den Gast UPGRADED statt
+   * ihn zu duplizieren (sein Token/Link ist ja evtl. schon verschickt). */
+  const byNamePool = {};
+  const npKey = (name, pool) => (name || "").toLowerCase().trim() + "|" + (pool || "").toLowerCase().trim();
+  for (const inv of Object.values(state.invites)) if (!inv.email) byNamePool[npKey(inv.name, inv.pool)] = inv;
 
   let neu = 0, aktualisiert = 0;
   for (const r of rows.slice(1)) {
     const email = clean(r[iMail], 120).toLowerCase();
-    if (!email || email.indexOf("@") < 0) continue;
+    const zeilenName = cleanText(r[iName], 60);
+    /* Eine Adresse MIT Inhalt aber OHNE @ ist ein Tippfehler - Zeile
+     * ueberspringen statt still einen mail-losen Gast anzulegen, der nie
+     * eine Einladung bekaeme. Ganz leer + Name vorhanden = WhatsApp-Gast:
+     * bekommt Token und Link, faellt aus allen Mailwellen, und traegt
+     * seine Adresse selbst nach, sobald er ueber den Link zusagt. */
+    if (email && email.indexOf("@") < 0) continue;
+    if (!email && !zeilenName) continue;
     const pool = cleanText(iPool >= 0 ? r[iPool] : "", 40) || "Allgemein";
     const typRaw = clean(iTyp >= 0 ? r[iTyp] : "", 20).toLowerCase();
     const typ = (typRaw === "ehrengast" || typRaw === "zusage" || typRaw === "gast des hauses")
       ? "ehrengast" : (typRaw === "ticket" ? "ticket" : poolTyp(pool));
 
-    let inv = byMail[email];
+    /* Wiedererkennen: erst ueber die Mailadresse, sonst (auch: Adresse jetzt
+     * nachgeliefert) ueber Name+Pool der mail-losen WhatsApp-Gaeste. */
+    let inv = (email && byMail[email]) || byNamePool[npKey(zeilenName, pool)];
     if (inv) {
       inv.pool = pool; inv.typ = typ;
-      inv.name = cleanText(r[iName], 60) || inv.name;
+      inv.name = zeilenName || inv.name;
+      if (email && !inv.email) {                     // WhatsApp-Gast bekommt Adresse
+        inv.email = email;
+        delete byNamePool[npKey(zeilenName, pool)];
+        byMail[email] = inv;
+      }
       if (iFirma >= 0) inv.firma = cleanText(r[iFirma], 80);
       if (iAnrede >= 0) inv.anrede = cleanText(r[iAnrede], 12);
       if (iPartner >= 0) inv.partner = cleanText(r[iPartner], 60);
@@ -409,7 +430,7 @@ function importRows(rows) {
       const token = newToken();
       inv = state.invites[token] = {
         token, pool, typ,
-        name: cleanText(r[iName], 60), email,
+        name: zeilenName, email,
         firma: iFirma >= 0 ? cleanText(r[iFirma], 80) : "",
         anrede: iAnrede >= 0 ? cleanText(r[iAnrede], 12) : "",
         partner: iPartner >= 0 ? cleanText(r[iPartner], 60) : "",
@@ -421,7 +442,8 @@ function importRows(rows) {
         ticketNr: ticketNumber(token),
         t: Date.now()
       };
-      byMail[email] = inv;
+      if (email) byMail[email] = inv;
+      else byNamePool[npKey(zeilenName, pool)] = inv;
       neu++;
     }
   }
@@ -1057,6 +1079,13 @@ const server = http.createServer((req, res) => {
 
       if (body.name)   inv.name = cleanText(body.name, 60);
       if (body.firma !== undefined) inv.firma = cleanText(body.firma, 80);
+      /* E-Mail aus dem Zusage-Formular ins Register uebernehmen. Wichtig fuer
+       * WhatsApp-Gaeste (ohne Adresse importiert, Link kam per Chat): ab der
+       * Zusage sind sie fuer Welle 2 per Mail erreichbar. */
+      if (body.email !== undefined) {
+        const mail = clean(body.email, 120).toLowerCase();
+        if (mail.indexOf("@") > 0) inv.email = mail;
+      }
       // Nur mitgesendete Felder mergen - ein zweites RSVP ohne Allergiefeld darf
       // eine zuvor gemeldete Unvertraeglichkeit nicht loeschen (Kueche!).
       if (!inv.daten) inv.daten = {};
