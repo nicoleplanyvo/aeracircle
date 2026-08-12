@@ -519,9 +519,10 @@ const WELLEN = {
   0: {
     name: "Welle 0 · Save the Date",
     /* Alle ausser Absagen - wer abgesagt hat, braucht kein "halte dir den
-     * Abend frei" mehr. */
+     * Abend frei" mehr. Ehrengaeste (Speaker, Gaeste des Hauses, Team)
+     * bekommen die Fassung ohne die Zeile "Teilnahme: 100 Euro". */
     gilt: inv => inv.status !== "abgesagt",
-    vorlage: inv => "save-the-date.html",
+    vorlage: inv => inv.typ === "ehrengast" ? "save-the-date-ehrengast.html" : "save-the-date.html",
     betreff: inv => "Save the Date · THE CIRCLE No1, 16. September 2026"
   },
   1: {
