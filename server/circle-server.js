@@ -1322,6 +1322,21 @@ const server = http.createServer((req, res) => {
       return res.end(zeilen.map(r => r.map(csvCell).join(",")).join("\n"));
     }
 
+    /* Oeffnungs-/Klickmarker eines Gastes zuruecksetzen - fuer den Fall,
+     * dass das Team beim Testen einen fremden Link angetippt hat (haeufig
+     * bei den WhatsApp-Links). Bewusst NUR opened/clicked: Zusagen,
+     * Zahlungen und Zustellstatus bleiben unantastbar. */
+    if (req.method === "POST" && url === "/api/admin/mailstatus-reset") {
+      const inv = findInvite(q.get("t")) ||
+                  Object.values(state.invites).find(i => i.email === String(q.get("email") || "").toLowerCase());
+      if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+      const vorher = { opened: inv.mail.opened || 0, clicked: inv.mail.clicked || 0 };
+      inv.mail.opened = 0;
+      inv.mail.clicked = 0;
+      dirty = true;
+      return json(res, 200, { ok: true, gast: inv.name, zurueckgesetzt: vorher });
+    }
+
     /* Mailstatus je Gast fuer den Monitor: Wer hat welche Mail bekommen,
      * wurde sie zugestellt, geoeffnet, geklickt? Die Zeitstempel kommen aus
      * den Lettermint-Webhooks; Klicks erkennt der Server auch selbst, sobald
