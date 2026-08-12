@@ -311,6 +311,8 @@ function abmeldeLink(token) { return PUBLIC_URL + "/abmelden?t=" + token; }
 /* Welle 2: derselbe Token, aber direkt in die App - sie holt sich Name,
  * Kontakt und Ernaehrung selbst aus der Zusage (kein Onboarding-Formular). */
 function appLink(token) { return PUBLIC_URL + "/?t=" + token; }
+/* Save the Date als persoenliche Webseite (WhatsApp-Gaeste, Welle-0-Phase) */
+function stdLink(token) { return PUBLIC_URL + "/std?t=" + token; }
 
 /* Satz ueber dem CTA der Ehrengast-Mail. Hat ein Partner eingeladen, waere
  * "Einladung des Hauses" ein Widerspruch zum Partner-Block darueber. */
@@ -1309,11 +1311,11 @@ const server = http.createServer((req, res) => {
     }
     // Kontrollliste als CSV: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "ticket_nr", "status", "abgemeldet"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
       for (const inv of Object.values(state.invites)) {
         zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status,
+                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
       }
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
@@ -1385,6 +1387,33 @@ const server = http.createServer((req, res) => {
     });
   }
 
+  /* Persoenliches Save the Date als Webseite - fuer Gaeste, die (noch) keine
+   * Mailadresse haben und ihren Link per WhatsApp bekommen. Dieselbe Vorlage
+   * wie die Mail, mit Anrede des Gastes. Das Oeffnen zaehlt als "geoeffnet":
+   * fuer diese Gaeste IST diese Seite das Mailing, und der Monitor liest sich
+   * dann fuer alle gleich (geoeffnet -> geklickt -> zugesagt). */
+  if (req.method === "GET" && url === "/std") {
+    const inv = findInvite(q.get("t"));
+    if (!inv) {
+      res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+      return res.end(abmeldeSeite("ungueltig", ""));
+    }
+    /* Link-Vorschau-Roboter (WhatsApp, Telegram & Co. holen die Seite fuer
+     * das Vorschaubild) duerfen nicht als Gast-Oeffnung zaehlen. */
+    const ua = String(req.headers["user-agent"] || "");
+    const vorschauBot = /whatsapp|facebookexternalhit|telegrambot|slackbot|twitterbot|linkedinbot|discordbot|skypeuripreview/i.test(ua);
+    if (!vorschauBot && !inv.mail.opened) {
+      inv.mail.opened = Date.now();
+      logEvent("geöffnet", inv.name, inv.pool);
+      dirty = true;
+    }
+    let seite;
+    try { seite = renderMail(inv, "save-the-date.html"); }
+    catch (e) { res.writeHead(500); return res.end("Vorlage fehlt"); }
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    return res.end(seite);
+  }
+
   if (req.method === "GET" && (url === "/einladung" || url === "/landing.html")) {
     return serveFile(res, "landing.html", "text/html; charset=utf-8");
   }
@@ -1425,11 +1454,11 @@ if (befehl === "import") {
 }
 
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "ticket_nr", "status", "abgemeldet"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
   for (const inv of Object.values(state.invites)) {
     zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
-                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), inv.ticketNr, inv.status,
+                     platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
   }
   process.stdout.write(zeilen.map(r => r.map(csvCell).join(",")).join("\n") + "\n");
