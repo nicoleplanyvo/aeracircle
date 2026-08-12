@@ -1220,9 +1220,11 @@ const server = http.createServer((req, res) => {
        * metadata mitgeben - E-Mail-Adressen können doppelt vorkommen. */
       const token = String((daten.metadata && daten.metadata.token) ||
                            (body.metadata && body.metadata.token) || daten.token || "");
-      const email = String(daten.email || daten.recipient ||
+      /* Empfaenger je nach Ereignis: message.* -> data.recipient,
+       * message.created -> data.to[0], suppression.* -> data.value. */
+      const email = String(daten.recipient || daten.email ||
                            (Array.isArray(daten.to) ? daten.to[0] : "") ||
-                           body.email || "").toLowerCase();
+                           daten.value || body.email || "").toLowerCase();
       /* Leere Adresse darf NIE matchen - sonst faengt der erste
        * WhatsApp-Gast (email="") alle Ereignisse ohne Adressfeld ab. */
       const inv = findInvite(token) ||
@@ -1242,6 +1244,23 @@ const server = http.createServer((req, res) => {
        * = Abmeldung bei uns: der Gast will nichts mehr - und jede weitere
        * Mail kostet die junge Absenderdomain Reputation. inv.abgemeldet
        * nimmt ihn aus allen kuenftigen Wellen. */
+      /* Suppression-Liste: added = Adresse gesperrt (zuverlaessigster
+       * Bounce-Indikator), removed = wieder frei. Kommt ohne metadata,
+       * Zuordnung laeuft ueber data.value (oben in email). */
+      if (typ === "added" || typ === "removed") {
+        inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };
+        if (typ === "added" && !inv.mail.bounced) {
+          inv.mail.bounced = Date.now();
+          logEvent("unzustellbar", inv.name, inv.pool);
+          dirty = true;
+        }
+        if (typ === "removed" && inv.mail.bounced) {
+          inv.mail.bounced = 0;
+          dirty = true;
+        }
+        webhookMerken({ t: Date.now(), event: ereignisKopf, typ, gast: inv.name, ergebnis: "suppression " + typ });
+        return json(res, 200, { ok: true });
+      }
       if (typ === "complained" || typ === "complaint" || typ === "spam_complaint" || typ === "spam" || typ === "unsubscribed") {
         if (!inv.abgemeldet) {
           inv.abgemeldet = Date.now();
@@ -1263,6 +1282,13 @@ const server = http.createServer((req, res) => {
                     failed: "bounced", rejected: "bounced", policy_rejected: "bounced", suppressed: "bounced" };
       const LABEL = { sent: "versendet", delivered: "zugestellt", opened: "geöffnet",
                       clicked: "geklickt", bounced: "unzustellbar" };
+      /* Scanner-/Proxy-Oeffnungen (Apple MPP & Co.) nicht als Engagement
+       * zaehlen - Lettermint liefert dafuer eine Bot-Einschaetzung mit. */
+      if ((typ === "opened" || typ === "clicked") &&
+          daten.bot && daten.bot.counts_for_metrics === false) {
+        webhookMerken({ t: Date.now(), event: ereignisKopf, typ, gast: inv.name, ergebnis: "Bot-" + typ + " ignoriert" });
+        return json(res, 200, { ok: true });
+      }
       const feld = hasOwn(map, typ) ? map[typ] : null;
       inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };  // Altbestand
       const warNeu = feld && !inv.mail[feld];
