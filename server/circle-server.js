@@ -758,42 +758,33 @@ function lettermintSenden(mail, cb) {
  * "delivered" und "opened" in unser Register schreiben und die Zahlen im
  * Monitor faelschen - oder mit erfundenen Adressen darin herumstochern.
  *
- * Lettermints Signing secret beginnt mit "whsec_" - das ist der
- * Svix-/Standard-Webhooks-Stil: signiert wird "id.timestamp.body" mit dem
- * base64-dekodierten Secret, Ergebnis base64 im Header (svix-signature bzw.
- * webhook-signature, Eintraege wie "v1,<base64>"). Der einfache
- * hex-HMAC-Stil bleibt als zweiter Weg erhalten. */
+ * Lettermint signiert im Stripe-Stil (Quelle: lettermint.co/docs/platform/
+ * webhooks/signing, live gegen den Test-Event verifiziert):
+ *   Header X-Lettermint-Signature: "t={timestamp},v1={hmac_hex}"
+ *   hmac_hex = HMAC-SHA256(secret, "{timestamp}.{rawBody}")
+ * Das Secret geht KOMPLETT ein, mitsamt "whsec_"-Praefix. */
 function lettermintWebhookGueltig(headers, rawBuf) {
   if (!LETTERMINT_WEBHOOK_SECRET) return false;
-
-  const id = headers["svix-id"] || headers["webhook-id"];
-  const ts = headers["svix-timestamp"] || headers["webhook-timestamp"];
-  const sigKopf = headers["svix-signature"] || headers["webhook-signature"];
-  if (id && ts && sigKopf) {
-    const tsNum = Number(ts);
-    /* Replay-Schutz wie bei Stripe: alte Mitschnitte laufen ab. */
-    if (!Number.isFinite(tsNum) || Math.abs(Date.now() / 1000 - tsNum) > 300) return false;
-    const key = Buffer.from(LETTERMINT_WEBHOOK_SECRET.replace(/^whsec_/, ""), "base64");
-    const erwartet = crypto.createHmac("sha256", key)
-      .update(id + "." + ts + ".").update(rawBuf).digest("base64");
-    const a = Buffer.from(erwartet, "utf8");
-    /* Der Header kann mehrere Signaturen tragen: "v1,xxx v1,yyy" */
-    return String(sigKopf).split(/\s+/).some(teil => {
-      const v = teil.indexOf(",") >= 0 ? teil.slice(teil.indexOf(",") + 1) : teil;
-      const b = Buffer.from(v, "utf8");
-      return b.length === a.length && crypto.timingSafeEqual(a, b);
-    });
+  const kopf = String(headers["x-lettermint-signature"] || "");
+  if (!kopf) return false;
+  const teile = {};
+  for (const p of kopf.split(",")) {
+    const i = p.indexOf("=");
+    if (i > 0) (teile[p.slice(0, i).trim()] ||= []).push(p.slice(i + 1).trim());
   }
-
-  const sig = String(headers["x-lettermint-signature"] || headers["lettermint-signature"] ||
-                     headers["x-signature"] || headers["x-webhook-signature"] || "")
-    .trim().replace(/^sha256=/i, "");
-  if (!sig) return false;
+  const ts = teile.t && teile.t[0];
+  if (!ts || !teile.v1) return false;
+  const tsNum = Number(ts);
+  /* Replay-Schutz: alte Mitschnitte laufen ab (wie beim Stripe-Webhook).
+   * Lettermint schickt den Timestamp in Sekunden. */
+  if (!Number.isFinite(tsNum) || Math.abs(Date.now() / 1000 - tsNum) > 300) return false;
   const erwartet = crypto.createHmac("sha256", LETTERMINT_WEBHOOK_SECRET)
-    .update(rawBuf).digest("hex");
+    .update(ts + ".").update(rawBuf).digest("hex");
   const a = Buffer.from(erwartet, "utf8");
-  const b = Buffer.from(sig.toLowerCase(), "utf8");
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return teile.v1.some(v => {
+    const b = Buffer.from(v.toLowerCase(), "utf8");
+    return b.length === a.length && crypto.timingSafeEqual(a, b);
+  });
 }
 
 /* ================= STRIPE (ohne SDK, reine HTTPS-Aufrufe) ================= */
@@ -1217,12 +1208,16 @@ const server = http.createServer((req, res) => {
       const inv = findInvite(token) ||
                   Object.values(state.invites).find(i => i.email === email);
       if (!inv) return json(res, 200, { ok: true, ignoriert: true });
-      const typ = String(body.event || body.type || body.status || daten.status || "")
+      /* Der Ereignistyp steht bei Lettermint auch im Header X-Lettermint-Event
+       * ("message.delivered"); der Namespace-Teil wird abgeworfen. */
+      const typ = String(req.headers["x-lettermint-event"] ||
+                         body.event || body.type || body.status || daten.status || "")
         .toLowerCase().split(".").pop();
-      /* Beschwerde ("als Spam markiert") = Abmeldung: der Gast will nichts
-       * mehr - und jede weitere Mail an ihn kostet die junge Absenderdomain
-       * Reputation. inv.abgemeldet nimmt ihn aus allen kuenftigen Wellen. */
-      if (typ === "complained" || typ === "complaint" || typ === "spam_complaint" || typ === "spam") {
+      /* Beschwerde ("als Spam markiert") und Abmeldung ueber den Mail-Client
+       * = Abmeldung bei uns: der Gast will nichts mehr - und jede weitere
+       * Mail kostet die junge Absenderdomain Reputation. inv.abgemeldet
+       * nimmt ihn aus allen kuenftigen Wellen. */
+      if (typ === "complained" || typ === "complaint" || typ === "spam_complaint" || typ === "spam" || typ === "unsubscribed") {
         if (!inv.abgemeldet) {
           inv.abgemeldet = Date.now();
           logEvent("beschwerde", inv.name, inv.pool);
@@ -1230,12 +1225,17 @@ const server = http.createServer((req, res) => {
         }
         return json(res, 200, { ok: true });
       }
-      const map = { sent: "sent", delivered: "delivered", opened: "opened", open: "opened",
+      const map = { sent: "sent", created: "sent", delivered: "delivered", opened: "opened", open: "opened",
                     clicked: "clicked", click: "clicked",
                     /* Unzustellbar - ohne dieses Feld wuerden tote Adressen
-                     * in jeder Welle erneut angeschrieben. */
-                    bounced: "bounced", bounce: "bounced", hard_bounce: "bounced",
-                    soft_bounce: "bounced", failed: "bounced", rejected: "bounced" };
+                     * in jeder Welle erneut angeschrieben. (Lettermint-Namen:
+                     * message.hard_bounced/soft_bounced/failed/suppressed/
+                     * policy_rejected, Namespace bereits abgeworfen.) */
+                    /* Nur ENDGUELTIGE Fehler sperren die Adresse - ein Soft
+                     * Bounce (Postfach voll) ist voruebergehend und wird
+                     * bewusst ignoriert, Lettermint versucht es selbst neu. */
+                    bounced: "bounced", bounce: "bounced", hard_bounce: "bounced", hard_bounced: "bounced",
+                    failed: "bounced", rejected: "bounced", policy_rejected: "bounced", suppressed: "bounced" };
       const LABEL = { sent: "versendet", delivered: "zugestellt", opened: "geöffnet",
                       clicked: "geklickt", bounced: "unzustellbar" };
       const feld = hasOwn(map, typ) ? map[typ] : null;
