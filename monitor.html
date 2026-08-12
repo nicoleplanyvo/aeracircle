@@ -504,6 +504,14 @@ function poolsRendern(pools){
 function kpisSetzen(g){
   const werte = [g.versendet, g.zugestellt, g.geoeffnet, g.geklickt, g.zugesagt, g.bezahlt];
   document.querySelectorAll(".kpi b").forEach((el, i) => { if(werte[i] !== undefined) el.textContent = werte[i]; });
+  /* Auch die Beschriftungen setzen: die eingebauten "· 73 %" sind Demo-Werte
+     und wuerden sonst neben echten Zahlen stehen bleiben. */
+  const pct = (a,b) => b ? " · " + Math.round(a/b*100) + " %" : "";
+  const labels = ["Versendet", "Zugestellt",
+                  "Geöffnet" + pct(g.geoeffnet, g.versendet),
+                  "Geklickt" + pct(g.geklickt, g.versendet),
+                  "Zugesagt", "Bezahlt"];
+  document.querySelectorAll(".kpi span").forEach((el, i) => { if(labels[i]) el.textContent = labels[i]; });
   const geld = document.querySelector(".money");
   if(geld) geld.textContent = (g.umsatz / 100).toLocaleString("de-DE") + " €";
 }

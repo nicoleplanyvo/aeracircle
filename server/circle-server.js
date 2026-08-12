@@ -480,9 +480,14 @@ function poolStats() {
 function gesamtStats() {
   const all = Object.values(state.invites);
   const zaehl = f => all.filter(f).length;
+  /* "Versendet" hat zwei Quellen: den sent-Webhook von Lettermint UND das
+   * Versand-Gedaechtnis der CLI (nur lesend). Ohne das Log zeigte der
+   * Monitor "0 versendet", obwohl die Welle laengst draussen ist. */
+  let vlog = {};
+  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
   return {
     gesamt: all.length,
-    versendet: zaehl(i => i.mail.sent),
+    versendet: zaehl(i => i.mail.sent || (hasOwn(vlog, i.token) && Object.keys(vlog[i.token]).length)),
     zugestellt: zaehl(i => i.mail.delivered),
     geoeffnet: zaehl(i => i.mail.opened),
     geklickt: zaehl(i => i.mail.clicked),
@@ -748,10 +753,38 @@ function lettermintSenden(mail, cb) {
 
 /* Signatur der Lettermint-Webhooks. Ohne diese Pruefung koennte jeder
  * "delivered" und "opened" in unser Register schreiben und die Zahlen im
- * Monitor faelschen - oder mit erfundenen Adressen darin herumstochern. */
-function lettermintWebhookGueltig(header, rawBuf) {
+ * Monitor faelschen - oder mit erfundenen Adressen darin herumstochern.
+ *
+ * Lettermints Signing secret beginnt mit "whsec_" - das ist der
+ * Svix-/Standard-Webhooks-Stil: signiert wird "id.timestamp.body" mit dem
+ * base64-dekodierten Secret, Ergebnis base64 im Header (svix-signature bzw.
+ * webhook-signature, Eintraege wie "v1,<base64>"). Der einfache
+ * hex-HMAC-Stil bleibt als zweiter Weg erhalten. */
+function lettermintWebhookGueltig(headers, rawBuf) {
   if (!LETTERMINT_WEBHOOK_SECRET) return false;
-  const sig = String(header || "").trim().replace(/^sha256=/i, "");
+
+  const id = headers["svix-id"] || headers["webhook-id"];
+  const ts = headers["svix-timestamp"] || headers["webhook-timestamp"];
+  const sigKopf = headers["svix-signature"] || headers["webhook-signature"];
+  if (id && ts && sigKopf) {
+    const tsNum = Number(ts);
+    /* Replay-Schutz wie bei Stripe: alte Mitschnitte laufen ab. */
+    if (!Number.isFinite(tsNum) || Math.abs(Date.now() / 1000 - tsNum) > 300) return false;
+    const key = Buffer.from(LETTERMINT_WEBHOOK_SECRET.replace(/^whsec_/, ""), "base64");
+    const erwartet = crypto.createHmac("sha256", key)
+      .update(id + "." + ts + ".").update(rawBuf).digest("base64");
+    const a = Buffer.from(erwartet, "utf8");
+    /* Der Header kann mehrere Signaturen tragen: "v1,xxx v1,yyy" */
+    return String(sigKopf).split(/\s+/).some(teil => {
+      const v = teil.indexOf(",") >= 0 ? teil.slice(teil.indexOf(",") + 1) : teil;
+      const b = Buffer.from(v, "utf8");
+      return b.length === a.length && crypto.timingSafeEqual(a, b);
+    });
+  }
+
+  const sig = String(headers["x-lettermint-signature"] || headers["lettermint-signature"] ||
+                     headers["x-signature"] || headers["x-webhook-signature"] || "")
+    .trim().replace(/^sha256=/i, "");
   if (!sig) return false;
   const erwartet = crypto.createHmac("sha256", LETTERMINT_WEBHOOK_SECRET)
     .update(rawBuf).digest("hex");
@@ -1162,22 +1195,27 @@ const server = http.createServer((req, res) => {
     req.on("data", c => { chunks.push(c); laenge += c.length; if (laenge > 200_000) req.destroy(); });
     req.on("end", () => {
       const rawBuf = Buffer.concat(chunks);
-      const sig = req.headers["x-lettermint-signature"] || req.headers["lettermint-signature"] ||
-                  req.headers["x-signature"] || req.headers["x-webhook-signature"];
-      if (!lettermintWebhookGueltig(sig, rawBuf)) {
+      if (!lettermintWebhookGueltig(req.headers, rawBuf)) {
         return json(res, 401, { error: "Signatur ungültig" });
       }
       let body;
       try { body = JSON.parse(rawBuf.toString("utf8") || "{}"); }
       catch (e) { return json(res, 400, { error: "bad json" }); }
+      /* Svix-artige Payloads verschachteln die Nutzdaten unter "data" und
+       * nennen den Typ "email.delivered" - beides normalisieren. */
+      const daten = (body.data && typeof body.data === "object") ? body.data : body;
       /* Zuordnung bevorzugt über den Token, den wir beim Versand als
        * metadata mitgeben - E-Mail-Adressen können doppelt vorkommen. */
-      const token = String((body.metadata && body.metadata.token) || body.token || "");
-      const email = String(body.email || body.recipient || (body.to && body.to[0]) || "").toLowerCase();
+      const token = String((daten.metadata && daten.metadata.token) ||
+                           (body.metadata && body.metadata.token) || daten.token || "");
+      const email = String(daten.email || daten.recipient ||
+                           (Array.isArray(daten.to) ? daten.to[0] : "") ||
+                           body.email || "").toLowerCase();
       const inv = findInvite(token) ||
                   Object.values(state.invites).find(i => i.email === email);
       if (!inv) return json(res, 200, { ok: true, ignoriert: true });
-      const typ = String(body.event || body.type || body.status || "").toLowerCase();
+      const typ = String(body.event || body.type || body.status || daten.status || "")
+        .toLowerCase().split(".").pop();
       /* Beschwerde ("als Spam markiert") = Abmeldung: der Gast will nichts
        * mehr - und jede weitere Mail an ihn kostet die junge Absenderdomain
        * Reputation. inv.abgemeldet nimmt ihn aus allen kuenftigen Wellen. */
