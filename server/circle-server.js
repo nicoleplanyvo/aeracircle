@@ -789,6 +789,15 @@ function lettermintWebhookGueltig(headers, rawBuf) {
   });
 }
 
+/* Fangschaltung: die letzten Webhook-Eingaenge im Speicher, fuer
+ * /api/admin/webhook-log. Kein Persistieren, kein Secret-Inhalt - nur was
+ * zum Diagnostizieren noetig ist. */
+const webhookLog = [];
+function webhookMerken(eintrag) {
+  webhookLog.unshift(eintrag);
+  if (webhookLog.length > 30) webhookLog.pop();
+}
+
 /* ================= STRIPE (ohne SDK, reine HTTPS-Aufrufe) ================= */
 
 /* Verschachtelte Parameter form-encodieren: {a:{b:1}} -> a[b]=1 */
@@ -1184,14 +1193,21 @@ const server = http.createServer((req, res) => {
 
   /* Lettermint-Webhook: Versand-/Öffnungs-/Klickstatus in die Liste schreiben.
    * Nur mit gueltiger Signatur - sonst koennte jeder unsere Zustellzahlen
-   * faelschen. Ist kein Secret hinterlegt, bleibt der Weg zu. */
+   * faelschen. Ist kein Secret hinterlegt, bleibt der Weg zu.
+   * Jede eintreffende Meldung landet zusaetzlich in einer kleinen
+   * Fangschaltung (webhookLog, nur im Speicher, nur fuer Admins sichtbar) -
+   * damit ein Format-Missverstaendnis wie beim Signatur-Standard nie wieder
+   * blind gesucht werden muss. */
   if (req.method === "POST" && url === "/api/lettermint/webhook") {
     const chunks = [];
     let laenge = 0;
     req.on("data", c => { chunks.push(c); laenge += c.length; if (laenge > 200_000) req.destroy(); });
     req.on("end", () => {
       const rawBuf = Buffer.concat(chunks);
+      const ereignisKopf = String(req.headers["x-lettermint-event"] || "");
       if (!lettermintWebhookGueltig(req.headers, rawBuf)) {
+        webhookMerken({ t: Date.now(), event: ereignisKopf, ergebnis: "401 Signatur",
+                        body: rawBuf.toString("utf8").slice(0, 600) });
         return json(res, 401, { error: "Signatur ungültig" });
       }
       let body;
@@ -1207,9 +1223,16 @@ const server = http.createServer((req, res) => {
       const email = String(daten.email || daten.recipient ||
                            (Array.isArray(daten.to) ? daten.to[0] : "") ||
                            body.email || "").toLowerCase();
+      /* Leere Adresse darf NIE matchen - sonst faengt der erste
+       * WhatsApp-Gast (email="") alle Ereignisse ohne Adressfeld ab. */
       const inv = findInvite(token) ||
-                  Object.values(state.invites).find(i => i.email === email);
-      if (!inv) return json(res, 200, { ok: true, ignoriert: true });
+                  (email ? Object.values(state.invites).find(i => i.email === email) : null);
+      if (!inv) {
+        webhookMerken({ t: Date.now(), event: ereignisKopf, ergebnis: "ignoriert: kein Gast",
+                        token: token.slice(0, 6) + "…", email,
+                        body: rawBuf.toString("utf8").slice(0, 600) });
+        return json(res, 200, { ok: true, ignoriert: true });
+      }
       /* Der Ereignistyp steht bei Lettermint auch im Header X-Lettermint-Event
        * ("message.delivered"); der Namespace-Teil wird abgeworfen. */
       const typ = String(req.headers["x-lettermint-event"] ||
@@ -1242,11 +1265,14 @@ const server = http.createServer((req, res) => {
                       clicked: "geklickt", bounced: "unzustellbar" };
       const feld = hasOwn(map, typ) ? map[typ] : null;
       inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };  // Altbestand
-      if (feld && !inv.mail[feld]) {
+      const warNeu = feld && !inv.mail[feld];
+      if (warNeu) {
         inv.mail[feld] = Date.now();
         logEvent(LABEL[feld], inv.name, inv.pool);
         dirty = true;
       }
+      webhookMerken({ t: Date.now(), event: ereignisKopf, typ, gast: inv.name,
+                      ergebnis: feld ? (warNeu ? "gesetzt: " + feld : "schon gesetzt: " + feld) : "unbekannter Typ" });
       json(res, 200, { ok: true });
     });
     return;
@@ -1320,6 +1346,12 @@ const server = http.createServer((req, res) => {
       }
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
       return res.end(zeilen.map(r => r.map(csvCell).join(",")).join("\n"));
+    }
+
+    /* Fangschaltung ausgeben: was kam zuletzt am Lettermint-Webhook an,
+     * und was hat der Server daraus gemacht. */
+    if (url === "/api/admin/webhook-log") {
+      return json(res, 200, { ok: true, log: webhookLog });
     }
 
     /* Oeffnungs-/Klickmarker eines Gastes zuruecksetzen - fuer den Fall,
