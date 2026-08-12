@@ -715,6 +715,9 @@ function lettermintSenden(mail, cb) {
   };
   if (MAIL_ROUTE) nutzlast.route = MAIL_ROUTE;
   if (MAIL_REPLY_TO) nutzlast.reply_to = [MAIL_REPLY_TO];
+  /* Oeffnungen/Klicks explizit messen lassen - ohne diese Einstellung
+   * haengt es am Konto-Default, und der Monitor bliebe ggf. stumm. */
+  nutzlast.settings = { track_opens: true, track_clicks: true };
   /* One-Click-Abmeldung (RFC 8058): Gmail und Outlook zeigen dafuer den
    * eigenen Abmelden-Knopf und verlangen die Header bei Bulk-Absendern -
    * fuer eine junge Domain bares Geld in der Zustellbarkeit. Der Klient
