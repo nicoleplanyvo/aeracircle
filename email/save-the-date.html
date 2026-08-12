@@ -37,6 +37,19 @@
   Ticketkauf folgt als eigene Welle.
 -->
 <style>
+  /* CI-Kapitalis als Webfont (Cinzel, freie Trajan-Schwester), gehostet auf
+     unserer Domain. In @media screen gekapselt: Outlooks Word-Engine wuerde
+     bei sichtbarem @font-face sonst auf Times New Roman kippen - so sieht
+     sie den Block gar nicht. Apple Mail/iOS laden ihn und zeigen die echte
+     Kapitalis; alle anderen bleiben beim gestalteten Georgia-Fallback. */
+  @media screen {
+    @font-face {
+      font-family: 'Circle Kapitalis';
+      font-style: normal;
+      font-weight: normal;
+      src: url(https://thecircle.planyvo.com/assets/cinzel-600.woff2) format('woff2');
+    }
+  }
   /* Nachtmodus: Diese Mail IST dunkel - hier wird nichts invertiert.
      color-scheme (Meta oben) ueberzeugt Apple Mail; dieser Block haelt
      Clients fest, die trotzdem umfaerben wollen: prefers-color-scheme
@@ -73,7 +86,7 @@
 
         <!-- Headline in Versalien (Anne: "SAVE THE DATE in Versalien") -->
         <tr><td align="center" style="padding:14px 40px 0 40px;">
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.25;color:#ff6b6c;text-transform:uppercase;">
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.25;color:#ff6b6c;text-transform:uppercase;">
             Save the<br>Date.
           </div>
         </td></tr>
@@ -89,7 +102,8 @@
 
         <!-- THE CIRCLE No1 direkt ueber dem Datum (Anne: "runter ziehen, ueber das Datum") -->
         <tr><td align="center" style="padding:28px 40px 0 40px;">
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:16px;letter-spacing:3px;color:#f8f7f4;text-transform:uppercase;">THE CIRCLE No1</div>
+          <!-- Koralle wie die Headline - Desis Wunsch: hebt die Marke vom Datum ab -->
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:16px;letter-spacing:3px;color:#ff6b6c;text-transform:uppercase;">THE CIRCLE No1</div>
         </td></tr>
 
         <!-- Fakten -->
@@ -172,7 +186,7 @@
         <!-- Footer -->
         <tr><td align="center" style="padding:24px 40px 6px 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#c9889a;text-transform:uppercase;">Eine Veranstaltung von</div>
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#f2cbd7;padding-top:8px;text-transform:uppercase;">Ihre Markenwerkstatt &middot; AERA &middot; Public Cologne</div>
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#f2cbd7;padding-top:8px;text-transform:uppercase;">Ihre Markenwerkstatt &middot; AERA &middot; Public Cologne</div>
         </td></tr>
         <tr><td align="center" style="padding:16px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;letter-spacing:3px;color:#c9889a;text-transform:uppercase;padding-bottom:8px;">Digital von</div>

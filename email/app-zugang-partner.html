@@ -28,6 +28,19 @@
     {{abmelden_url}}    Abmeldelink (Pflicht)
 -->
 <style>
+  /* CI-Kapitalis als Webfont (Cinzel, freie Trajan-Schwester), gehostet auf
+     unserer Domain. In @media screen gekapselt: Outlooks Word-Engine wuerde
+     bei sichtbarem @font-face sonst auf Times New Roman kippen - so sieht
+     sie den Block gar nicht. Apple Mail/iOS laden ihn und zeigen die echte
+     Kapitalis; alle anderen bleiben beim gestalteten Georgia-Fallback. */
+  @media screen {
+    @font-face {
+      font-family: 'Circle Kapitalis';
+      font-style: normal;
+      font-weight: normal;
+      src: url(https://thecircle.planyvo.com/assets/cinzel-600.woff2) format('woff2');
+    }
+  }
   /* Nachtmodus: Diese Mail IST dunkel - hier wird nichts invertiert.
      color-scheme (Meta oben) ueberzeugt Apple Mail; dieser Block haelt
      Clients fest, die trotzdem umfaerben wollen: prefers-color-scheme
@@ -126,7 +139,7 @@
         <!-- Footer -->
         <tr><td align="center" style="padding:24px 40px 6px 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#7a8db3;text-transform:uppercase;">Eine Veranstaltung von</div>
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#aeb9d2;padding-top:8px;text-transform:uppercase;">Ihre Markenwerkstatt &middot; AERA &middot; Public Cologne</div>
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#aeb9d2;padding-top:8px;text-transform:uppercase;">Ihre Markenwerkstatt &middot; AERA &middot; Public Cologne</div>
         </td></tr>
         <tr><td align="center" style="padding:16px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;letter-spacing:3px;color:#7a8db3;text-transform:uppercase;padding-bottom:8px;">Digital von</div>

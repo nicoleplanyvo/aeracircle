@@ -1292,7 +1292,10 @@ const server = http.createServer((req, res) => {
     try { name = path.basename(decodeURIComponent(url.slice(8))); }   // basename kappt ../
     catch (e) { return json(res, 400, { error: "ungültiger Name" }); }
     const TYP = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-                  ".svg": "image/svg+xml", ".webp": "image/webp" };
+                  ".svg": "image/svg+xml", ".webp": "image/webp",
+                  /* Kapitalis-Webfont fuer die Mails: Apple Mail laedt
+                   * @font-face, dann sitzt die CI-Schrift auch mobil. */
+                  ".woff2": "font/woff2" };
     const typ = TYP[path.extname(name).toLowerCase()];
     // Nur unbedenkliche Dateinamen: ein Null-Byte o.ae. laesst fs.readFile sonst
     // synchron werfen -> Prozessabsturz. Allowlist statt Blocklist.
