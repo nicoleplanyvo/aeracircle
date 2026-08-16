@@ -1293,7 +1293,16 @@ const server = http.createServer((req, res) => {
       inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };  // Altbestand
       const warNeu = feld && !inv.mail[feld];
       if (warNeu) {
-        inv.mail[feld] = Date.now();
+        /* Zeitpunkt des Ereignisses aus der Meldung selbst (ISO in
+         * body.timestamp) - nicht die Empfangszeit: Lettermint liefert
+         * auch mal mit Verzoegerung oder (nach einer Webhook-Pause)
+         * gar rueckwirkend nach. Plausibilitaetsfenster: nicht in der
+         * Zukunft, nicht aelter als der Projektstart. */
+        const gemeldet = Date.parse(body.timestamp || "");
+        const jetzt = Date.now();
+        inv.mail[feld] = (Number.isFinite(gemeldet) &&
+                          gemeldet <= jetzt + 60_000 &&
+                          gemeldet > Date.parse("2026-08-01")) ? gemeldet : jetzt;
         logEvent(LABEL[feld], inv.name, inv.pool);
         dirty = true;
       }
