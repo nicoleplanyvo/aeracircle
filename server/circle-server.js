@@ -1389,6 +1389,33 @@ const server = http.createServer((req, res) => {
       return json(res, 200, { ok: true, log: webhookLog });
     }
 
+    /* Wegwerf-Testgast fuer Zahlungs-/Strecken-Tests: eigener Pool
+     * "Stripe-Test", Ticket-Typ, klar als Test benannt. Loeschen geht nur
+     * fuer Gaeste aus genau diesem Pool - echte Gaeste sind unantastbar. */
+    if (req.method === "POST" && url === "/api/admin/testgast") {
+      const token = newToken();
+      const inv = state.invites[token] = {
+        token, pool: "Stripe-Test", typ: "ticket",
+        name: "Testbuchung " + new Date().toISOString().slice(11, 16),
+        email: "stripe-test@planyvo.com",
+        firma: "", anrede: "", partner: "", partnerLogo: "",
+        status: "offen",
+        mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
+        daten: {}, zahlung: null,
+        ticketNr: ticketNumber(token), t: Date.now()
+      };
+      dirty = true;
+      return json(res, 200, { ok: true, token, link: inviteLink(token) });
+    }
+    if (req.method === "POST" && url === "/api/admin/testgast-loeschen") {
+      const inv = findInvite(q.get("t"));
+      if (!inv) return json(res, 404, { error: "nicht gefunden" });
+      if (inv.pool !== "Stripe-Test") return json(res, 403, { error: "nur Stripe-Test-Gäste löschbar" });
+      delete state.invites[inv.token];
+      dirty = true;
+      return json(res, 200, { ok: true, geloescht: inv.name });
+    }
+
     /* E-Mail-Adresse eines Gastes korrigieren (z. B. nach Hard Bounce durch
      * Tippfehler in der Liste). Token, Status und Historie bleiben; die
      * Bounce-Sperre wird aufgehoben, damit die naechste Welle die neue
