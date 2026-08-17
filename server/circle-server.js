@@ -1389,6 +1389,25 @@ const server = http.createServer((req, res) => {
       return json(res, 200, { ok: true, log: webhookLog });
     }
 
+    /* E-Mail-Adresse eines Gastes korrigieren (z. B. nach Hard Bounce durch
+     * Tippfehler in der Liste). Token, Status und Historie bleiben; die
+     * Bounce-Sperre wird aufgehoben, damit die naechste Welle die neue
+     * Adresse wieder anschreibt. */
+    if (req.method === "POST" && url === "/api/admin/email-korrektur") {
+      const inv = findInvite(q.get("t")) ||
+                  Object.values(state.invites).find(i => i.email === String(q.get("alt") || "").toLowerCase());
+      if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+      const neu = clean(q.get("email"), 120).toLowerCase();
+      if (!neu || neu.indexOf("@") < 1) return json(res, 400, { error: "neue Adresse fehlt/ungültig" });
+      const vorher = inv.email;
+      inv.email = neu;
+      inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };
+      inv.mail.bounced = 0;
+      logEvent("adresse korrigiert", inv.name, inv.pool);
+      dirty = true;
+      return json(res, 200, { ok: true, gast: inv.name, vorher, jetzt: neu });
+    }
+
     /* Oeffnungs-/Klickmarker eines Gastes zuruecksetzen - fuer den Fall,
      * dass das Team beim Testen einen fremden Link angetippt hat (haeufig
      * bei den WhatsApp-Links). Bewusst NUR opened/clicked: Zusagen,
