@@ -317,6 +317,31 @@ function appLink(token) { return PUBLIC_URL + "/?t=" + token; }
 /* Save the Date als persoenliche Webseite (WhatsApp-Gaeste, Welle-0-Phase) */
 function stdLink(token) { return PUBLIC_URL + "/std?t=" + token; }
 
+/* Kalendereintrag fuer den Knopf auf der Bestaetigungsseite.
+ * Zeiten stehen bewusst in UTC statt mit TZID: der 16.09. liegt in der
+ * Sommerzeit (18:00 MESZ = 16:00 UTC), damit braucht die Datei keine
+ * VTIMEZONE-Definition und wird von jedem Kalender gleich verstanden.
+ * Komma und Semikolon muessen in TEXT-Feldern escaped werden (RFC 5545). */
+function icsText(s) { return String(s).replace(/([,;\\])/g, "\\$1"); }
+const TERMIN_ICS = [
+  "BEGIN:VCALENDAR",
+  "VERSION:2.0",
+  "PRODID:-//planyvo//THE CIRCLE//DE",
+  "CALSCALE:GREGORIAN",
+  "METHOD:PUBLISH",
+  "BEGIN:VEVENT",
+  "UID:the-circle-no1-2026-09-16@the-circle-cologne.de",
+  "DTSTAMP:20260819T120000Z",
+  "DTSTART:20260916T160000Z",
+  "DTEND:20260916T210000Z",
+  "SUMMARY:THE CIRCLE No1 - connecting generations",
+  "LOCATION:" + icsText("Playa Cologne, Junkersdorfer Str. 1, 50933 Köln"),
+  "DESCRIPTION:" + icsText("Ein Abend im ausgewählten Kreis. 18:00 bis 23:00 Uhr."),
+  "URL:" + WEBSITE_URL,
+  "END:VEVENT",
+  "END:VCALENDAR"
+].join("\r\n") + "\r\n";
+
 /* Satz ueber dem CTA der Ehrengast-Mail. Hat ein Partner eingeladen, waere
  * "Einladung des Hauses" ein Widerspruch zum Partner-Block darueber. */
 function platzSatz(inv) {
@@ -1590,6 +1615,14 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === "GET" && (url === "/" || url === "/index.html")) {
     return serveFile(res, "index.html", "text/html; charset=utf-8");
+  }
+  if (req.method === "GET" && url === "/termin.ics") {
+    res.writeHead(200, {
+      "Content-Type": "text/calendar; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="the-circle-no1.ics"',
+      "Cache-Control": "public, max-age=3600"
+    });
+    return res.end(TERMIN_ICS);
   }
 
   res.writeHead(404, { "Content-Type": "text/plain" });
