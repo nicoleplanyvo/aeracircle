@@ -335,7 +335,7 @@ function pubInvite(inv) {
     vorname: (inv.name || "").split(" ")[0],
     anrede: inv.anrede || "Hallo",
     partner: inv.partner || "",
-    partnerLogo: inv.partnerLogo || "",
+    partnerLogo: partnerLogoUrl(inv),
     firma: inv.firma || "",
     email: inv.email || "",
     pool: inv.pool,
@@ -521,6 +521,15 @@ function gesamtStats() {
 /* Bilder in E-Mails brauchen feste, oeffentliche Adressen (kein data:). */
 function assetUrl(datei) { return PUBLIC_URL + "/assets/" + datei; }
 
+/* Partnerlogo als vollstaendige Adresse. In der Gaesteliste darf beides
+   stehen: eine fertige URL oder nur der Dateiname aus email/assets/.
+   Beide Ausgabewege - Mail UND Landing Page - muessen dieselbe Regel
+   anwenden, sonst zeigt die Mail das Logo und die Seite ein kaputtes Bild. */
+function partnerLogoUrl(inv) {
+  if (!inv || !inv.partnerLogo) return "";
+  return /^https?:\/\//i.test(inv.partnerLogo) ? inv.partnerLogo : assetUrl(inv.partnerLogo);
+}
+
 /* Die Wellen. Zu jeder gehoert: wer sie bekommt, welche Vorlage gilt
  * (Partnergaeste bekommen eine eigene mit dem Logo ihres Gastgebers) und
  * welcher Betreff in der Inbox steht. */
@@ -667,8 +676,7 @@ function renderMail(inv, datei) {
     partner_name: inv.partner || "",
     /* Partnerlogos liegen als absolute URL in der Gaesteliste; ein relativer
      * Dateiname wird auf unsere Asset-Adresse gehoben. */
-    partner_logo_url: !inv.partnerLogo ? ""
-      : (/^https?:\/\//i.test(inv.partnerLogo) ? inv.partnerLogo : assetUrl(inv.partnerLogo)),
+    partner_logo_url: partnerLogoUrl(inv),
     abmelden_url: abmeldeLink(inv.token),
     rueckmeldung_datum: RSVP_DEADLINE,
     /* CTA der Welle 0: die Homepage, nicht die App. PUBLIC_URL ist der
