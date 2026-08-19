@@ -318,9 +318,9 @@ function appLink(token) { return PUBLIC_URL + "/?t=" + token; }
 function stdLink(token) { return PUBLIC_URL + "/std?t=" + token; }
 
 /* Kalendereintrag fuer den Knopf auf der Bestaetigungsseite.
- * Zeiten stehen bewusst in UTC statt mit TZID: der 16.09. liegt in der
- * Sommerzeit (18:00 MESZ = 16:00 UTC), damit braucht die Datei keine
- * VTIMEZONE-Definition und wird von jedem Kalender gleich verstanden.
+ * Die Zeiten stehen als 18:00 bis 23:00 Ortszeit Berlin. Damit jeder
+ * Kalender weiss, was Ortszeit an dem Tag bedeutet, liegt die passende
+ * VTIMEZONE-Definition mit in der Datei - sonst raet Outlook.
  * Komma und Semikolon muessen in TEXT-Feldern escaped werden (RFC 5545). */
 function icsText(s) { return String(s).replace(/([,;\\])/g, "\\$1"); }
 const TERMIN_ICS = [
@@ -329,11 +329,28 @@ const TERMIN_ICS = [
   "PRODID:-//planyvo//THE CIRCLE//DE",
   "CALSCALE:GREGORIAN",
   "METHOD:PUBLISH",
+  "BEGIN:VTIMEZONE",
+  "TZID:Europe/Berlin",
+  "BEGIN:DAYLIGHT",
+  "TZOFFSETFROM:+0100",
+  "TZOFFSETTO:+0200",
+  "TZNAME:CEST",
+  "DTSTART:19700329T020000",
+  "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU",
+  "END:DAYLIGHT",
+  "BEGIN:STANDARD",
+  "TZOFFSETFROM:+0200",
+  "TZOFFSETTO:+0100",
+  "TZNAME:CET",
+  "DTSTART:19701025T030000",
+  "RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU",
+  "END:STANDARD",
+  "END:VTIMEZONE",
   "BEGIN:VEVENT",
   "UID:the-circle-no1-2026-09-16@the-circle-cologne.de",
   "DTSTAMP:20260819T120000Z",
-  "DTSTART:20260916T160000Z",
-  "DTEND:20260916T210000Z",
+  "DTSTART;TZID=Europe/Berlin:20260916T180000",
+  "DTEND;TZID=Europe/Berlin:20260916T230000",
   "SUMMARY:THE CIRCLE No1 - connecting generations",
   "LOCATION:" + icsText("Playa Cologne, Junkersdorfer Str. 1, 50933 Köln"),
   "DESCRIPTION:" + icsText("Ein Abend im ausgewählten Kreis. 18:00 bis 23:00 Uhr."),
