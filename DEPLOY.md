@@ -229,15 +229,23 @@ Welche Vorlage wer bekommt, entscheidet der Server nach Typ und Partner:
 | Welle | Gast | Vorlage |
 |---|---|---|
 | 0 · Save the Date | alle | `save-the-date.html` |
-| 1 · Einladung | Ticketgast der Veranstalter | `einladung-ticket.html` |
-| 1 · Einladung | Gast eines Partners | `einladung-ticket-partner.html` |
-| 1 · Einladung | Ehrengast (Gast des Hauses) | `einladung-ehrengast.html` |
+| 1 · Einladung | Bezahlgast aus dem eigenen Netzwerk (100 €) | `einladung-ticket.html` |
+| 1 · Einladung | Gast eines Partners (zahlt nicht, mit Partnerlogo) | `einladung-ehrengast-partner.html` |
+| 1 · Einladung | Ehrengast des Hauses (zahlt nicht, ohne Logo) | `einladung-ehrengast.html` |
 | 2 · App-Zugang | ohne Partner | `app-zugang.html` |
 | 2 · App-Zugang | Gast eines Partners | `app-zugang-partner.html` |
 
 Der Partner-Block steckt in einer **eigenen Vorlage**, nicht in einer Bedingung.
 Ein Gast ohne Partner sähe sonst eine leere Überschrift mit gebrochenem Bild.
-Ehrengäste sind Gäste des Hauses und haben nie einen Partner-Block.
+
+> **Wer zahlt, wer nicht** (Festlegung Desi/Nicole, 19.08.): Gäste, die ein
+> **Partner** eingeladen hat, sind **Gäste dieses Partners** — sie zahlen nichts
+> und sehen sein Logo. **Bezahlgäste** kommen aus dem eigenen Netzwerk (IMW,
+> AERA, Public Cologne), zahlen 100 € und sehen **kein** fremdes Logo — die
+> Einladung kommt ja vom Haus selbst. Deshalb steht in den Partnerlisten
+> `typ = ehrengast`, und Pools mit „Partner" im Namen werden beim Import
+> automatisch als Ehrengäste geführt. Ein Partner-Gast, der versehentlich als
+> `ticket` importiert wird, fällt im Trockenlauf mit einer Warnung auf.
 
 Wer schon zu- oder abgesagt hat, bekommt keine Einladung mehr; Welle 2 geht
 **nur** an bestätigte Gäste, weil der App-Link persönliche Daten zeigt. Wer sich

@@ -458,7 +458,10 @@ function importRows(rows) {
 
 /* Pool-Defaults: Ehrengast-Pools brauchen kein Ticket. Namen frei erweiterbar. */
 function poolTyp(pool) {
-  return /ehrengast|gast des hauses|presse|jury|speaker|kuenstler|künstler/i.test(pool)
+  /* "Partner · …" zaehlt zu den Ehrengaesten: Gaeste eines Partners sind
+   * dessen Gaeste und zahlen keine 100 Euro. Faellt die Spalte typ in einer
+   * Partnerliste weg, darf daraus kein Zahlgast werden. */
+  return /ehrengast|gast des hauses|presse|jury|speaker|kuenstler|künstler|partner/i.test(pool)
     ? "ehrengast" : "ticket";
 }
 
@@ -541,8 +544,13 @@ const WELLEN = {
     name: "Welle 1 · Einladung",
     /* Wer schon zu- oder abgesagt hat, braucht keine Einladung mehr. */
     gilt: inv => inv.status === "offen",
-    vorlage: inv => inv.typ === "ehrengast" ? "einladung-ehrengast.html"
-      : (inv.partner && inv.partnerLogo ? "einladung-ticket-partner.html" : "einladung-ticket.html"),
+    /* Wer ein Partner eingeladen hat, ist GAST DES PARTNERS: sein Logo steht
+     * in der Mail, und er zahlt nichts (Entscheidung Desi/Nicole, 19.08.).
+     * Bezahlgaeste kommen aus dem eigenen Netzwerk - dort waere ein fremdes
+     * Logo falsch, sie bekommen deshalb nie eine Partner-Fassung. */
+    vorlage: inv => inv.typ === "ehrengast"
+      ? ((inv.partner && inv.partnerLogo) ? "einladung-ehrengast-partner.html" : "einladung-ehrengast.html")
+      : "einladung-ticket.html",
     betreff: inv => "Deine Einladung zu THE CIRCLE No1"
   },
   2: {
@@ -1703,7 +1711,15 @@ if (befehl === "welle") {
     console.log("  " + (m.inv.pool || "-").padEnd(22) + " " +
                 (m.inv.name || "").padEnd(26) + " " + m.inv.email.padEnd(32) + " " + m.datei +
                 /* Welle 0 hat keine Partnervorlage - da waere die Warnung Laerm. */
-                (nr !== "0" && m.inv.partner && !m.inv.partnerLogo ? "   ⚠ Partner ohne Logo – Basisvorlage" : ""));
+                (nr === "0" ? ""
+                  : m.inv.partner && m.inv.typ === "ticket"
+                    /* Der teuerste Tippfehler der Liste: Gast eines Partners
+                     * als "ticket" importiert - er wuerde 100 Euro zahlen
+                     * sollen UND das Logo seines Gastgebers nicht sehen. */
+                    ? "   ⚠ Partner-Gast als ZAHLGAST – typ auf ehrengast ändern?"
+                    : m.inv.partner && !m.inv.partnerLogo
+                      ? "   ⚠ Partner ohne Logo – Basisvorlage"
+                      : ""));
   }
 
   /* --vorschau=datei.html legt die erste fertige Mail auf die Platte - genau

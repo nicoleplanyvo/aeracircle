@@ -73,7 +73,7 @@ wird erst spät kommuniziert, ausschließlich an Gäste, die zugesagt haben:
 | Welle | Template | Empfänger | Zeitpunkt |
 |---|---|---|---|
 | 0 · Save the Date | `email/save-the-date.html` | Verteiler „Bezahlgäste" | Di, 11.08. |
-| 1 · Einladung | `einladung-ticket[-partner].html` / `einladung-ehrengast.html` | Gästeliste (alle Pools) | Wochen vorher |
+| 1 · Einladung | `einladung-ticket.html` (zahlt) / `einladung-ehrengast[-partner].html` (zahlt nicht) | Gästeliste (alle Pools) | Wochen vorher |
 | 2 · App-Zugang | `app-zugang[-partner].html` | **nur Zusagen / bezahlte Tickets** | wenige Tage vorher |
 | 3 · Erinnerung | (folgt) | nur Gäste im Kreis | Vortag |
 
@@ -104,13 +104,16 @@ Spalten (Semikolon oder Komma, Reihenfolge egal):
 |---|---|---|
 | `name`, `email` | ja | Gast |
 | `pool` | – | Liste, aus der er kommt (Default „Allgemein") |
-| `typ` | – | `ticket` (100 € über Stripe) oder `ehrengast` (nur Zusage) |
+| `typ` | – | `ticket` (100 € über Stripe) oder `ehrengast` (zahlt nicht) – **Partner-Gäste sind `ehrengast`** |
 | `anrede` | – | „Liebe" / „Lieber" für die persönliche Anrede |
 | `firma` | – | Unternehmen / Rolle |
 | `partner`, `partner_logo` | – | wenn ein Partner eingeladen hat: Name + URL des Logos (negativ weiß) |
 
 Fehlt `typ`, leitet der Import ihn aus dem Pool-Namen ab (alles mit
-„Ehrengast", „Presse", „Jury", „Speaker" wird Ehrengast, der Rest Ticket).
+„Ehrengast", „Presse", „Jury", „Speaker" **oder „Partner"** wird Ehrengast,
+der Rest Ticket). Denn wen ein Partner einlädt, ist **Gast dieses Partners**:
+zahlt nichts und sieht dessen Logo in der Einladung. Bezahlgäste kommen aus
+dem eigenen Netzwerk und sehen kein fremdes Logo.
 Fehlt `anrede`, steht in der Mail „Hallo <Vorname>" – bitte die Spalte füllen,
 damit es „Liebe Anne" heißt. Ein erneuter Import aktualisiert bestehende Gäste
 – Schlüssel ist die E-Mail, Tokens und Zusagen bleiben erhalten.

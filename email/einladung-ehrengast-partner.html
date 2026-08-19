@@ -7,7 +7,13 @@
 <meta name="supported-color-schemes" content="dark">
 <title>THE CIRCLE &middot; Einladung</title>
 <!--
-  THE CIRCLE - Einladungs-Template (mit Beitrag, Zahlung folgt nach Klick via Stripe)
+  THE CIRCLE - Einladung EHRENGAST MIT PARTNER-LOGO.
+  Fassung fuer Gaeste, die ein Partner eingeladen hat: Der Partner ist ihr
+  Gastgeber, deshalb steht sein Logo ueber dem Platz-Satz - und deshalb
+  zahlen sie nichts (kein "Teilnahme: 100 Euro"). Wer ohne Partner kommt,
+  bekommt einladung-ehrengast.html.
+  Basis-Kopf des Originals:
+  THE CIRCLE - Einladungs-Template (Ehrengast, nur Zusage)
   CI: offizielles THE-CIRCLE-CI (the-circle-cologne.de) - Trajan-Kapitalis, Montserrat,
   Bordeaux-Welt (#741a33) mit Koralle (#ff6b6c). Logo: uploads/logo-horizontal-neg-rgb.svg.
   Ton: zurueckhaltend, exklusiv - der Beitrag ist eine Zeile, kein Verkaufsblock.
@@ -24,14 +30,12 @@
                         liefert genau diese URLs fuer den Lettermint-Import.
     {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
     {{logo_url}}        offizielles Logo -> /assets/logo-neg.png (PNG! Gmail/Outlook zeigen SVG nicht)
+    {{platz_satz}}      Satz ueber dem CTA aus der Versandliste. Fuer Ehrengaeste:
+                        "Dein Platz ist eine Einladung des Hauses - es genuegt ein Wort."
     {{portrait_amiaz_url}}  gehostet -> email/assets/portrait-amiaz.jpg (360x360, Kreis auf Bordeaux)
     {{portrait_ien_url}}    gehostet -> email/assets/portrait-ien.jpg
     {{portrait_max_url}}    gehostet -> email/assets/portrait-max.jpg
     {{partnerwand_url}}     gehostet -> email/assets/partnerwand-bordeaux.jpg (880x300, negativ weiss)
-    {{partner_logo_url}}    NUR fuer Partner-Pools: Logo des einladenden Partners, negativ weiss
-                            (Beispiel: email/assets/partner-deindach-neg.png). Ist die Variable leer,
-                            gehoert der ganze Block "Du bist eingeladen von unserem Partner" ausgeblendet.
-    {{partner_name}}        Name des einladenden Partners (Alt-Text)
     {{abmelden_url}}    Abmeldelink (Pflicht)
 -->
 <style>
@@ -62,7 +66,7 @@
 </style>
 </head>
 <body style="margin:0;padding:0;background-color:#222222;">
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Ein Abend im kleinen Kreis – dein Platz bei THE CIRCLE ist reserviert.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Als Ehrengast geladen – ein Wort genügt.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#222222" class="bg-aussen" style="background-color:#222222;">
     <tr><td align="center" style="padding:28px 12px;">
@@ -136,19 +140,18 @@
           </tr></table>
         </td></tr>
 
-        <!-- Partner-Variante: geht NUR an die Gaeste eines Partners. Jeder Gast
-             bekommt ueber {{partner_logo_url}} das Logo SEINES Partners (aus der
-             Versandliste, Spalte partner_logo_url). -->
+        <!-- Der einladende Partner. Jeder Gast bekommt ueber {{partner_logo_url}}
+             das Logo SEINES Partners (Spalte partner_logo der Gaesteliste).
+             Dazu passt {{platz_satz}}: "fuer dich freigehalten" statt
+             "Einladung des Hauses" - der Gastgeber ist hier der Partner. -->
         <tr><td align="center" style="padding:30px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:14px;">Du bist eingeladen von unserem Partner</div>
           <img src="{{partner_logo_url}}" height="46" alt="{{partner_name}}" style="display:block;border:0;height:46px;width:auto;max-width:200px;margin:0 auto;">
         </td></tr>
 
-
-        <tr><td align="center" style="padding:26px 56px 0 56px;">
+        <tr><td align="center" style="padding:30px 56px 0 56px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#f8f7f4;">
-            Dein Platz ist bereits f&uuml;r dich reserviert.<br>
-            Teilnahme: 100&nbsp;Euro.
+            {{platz_satz}}
           </div>
         </td></tr>
 
@@ -167,12 +170,12 @@
           <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
             <td align="center" bgcolor="#ff6b6c" style="border-radius:999px;">
               <a href="{{link}}" target="_blank"
-                 style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">Einladung annehmen</a>
+                 style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">Zusagen</a>
             </td>
           </tr></table>
         </td></tr>
         <tr><td align="center" style="padding:6px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2px;color:#c998a4;text-transform:uppercase;line-height:2;">Deine Zusage dauert eine Minute &middot; dein Link ist pers&ouml;nlich und einmalig</div>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2px;color:#c998a4;text-transform:uppercase;line-height:2;">Dein Link ist pers&ouml;nlich &middot; eine kurze Zusage gen&uuml;gt</div>
         </td></tr>
 
         <!-- Deck-Zitat -->
