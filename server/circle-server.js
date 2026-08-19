@@ -1708,6 +1708,137 @@ if (befehl === "export") {
   process.exit(0);
 }
 
+/* Vorflugkontrolle vor einer Welle. Der Trockenlauf beantwortet "bricht das
+ * Rendern?" - dieser Befehl beantwortet "stimmt, was da rausgeht?".
+ *
+ *   node server/circle-server.js pruefen 1
+ *   node server/circle-server.js pruefen 1 --bilder   ruft jede Bild-URL ab
+ *
+ * FEHLER halten den Versand auf, WARNUNG will ein Mensch gesehen haben.
+ * Was der Befehl NICHT kann: erkennen, ob jemand in der Gaesteliste als
+ * Ehrengast steht, der eigentlich zahlen soll. Dafuer gibt es --beleg.
+ */
+if (befehl === "pruefen") {
+  const ERLAUBT_P = /^--(bilder|beleg)$/;
+  const kaputtP = argv.slice(2).filter(a => !ERLAUBT_P.test(a));
+  if (kaputtP.length) {
+    console.error("Unbekanntes Argument: " + kaputtP.join(" "));
+    console.error("Aufruf: node server/circle-server.js pruefen <0|1|2> [--bilder] [--beleg]");
+    process.exit(1);
+  }
+  const nrP = String(arg || "").replace(/[^0-9]/g, "");
+  const welleP = hasOwn(WELLEN, nrP) ? WELLEN[nrP] : null;
+  if (!welleP) {
+    console.error("Aufruf: node server/circle-server.js pruefen <0|1|2> [--bilder] [--beleg]");
+    process.exit(1);
+  }
+  const fehler = [], warnung = [];
+  const merke = (liste, gast, text) => liste.push((gast || "—").padEnd(28) + " " + text);
+
+  const alleGaeste = Object.values(state.invites);
+  const empfaenger = alleGaeste.filter(inv =>
+    inv.email && !inv.abgemeldet && !(inv.mail && inv.mail.bounced) && welleP.gilt(inv));
+
+  /* --- Register als Ganzes: Doppelgaenger faenden erst beim Gast auf --- */
+  const proMail = {}, proName = {};
+  for (const inv of alleGaeste) {
+    if (inv.email) (proMail[inv.email.toLowerCase()] ||= []).push(inv);
+    const n = (inv.name || "").toLowerCase().trim();
+    if (n) (proName[n] ||= []).push(inv);
+  }
+  for (const [mail, liste] of Object.entries(proMail))
+    if (liste.length > 1) merke(fehler, liste[0].name, "Adresse " + mail + " steht " + liste.length + "× im Register (" + liste.map(i => i.pool).join(", ") + ")");
+  for (const [, liste] of Object.entries(proName))
+    if (liste.length > 1) merke(warnung, liste[0].name, "steht " + liste.length + "× im Register – zwei Einladungen? (" + liste.map(i => i.email || "ohne Adresse").join(", ") + ")");
+
+  /* --- Gast fuer Gast --- */
+  const bilder = new Set();
+  const beleg = [];
+  for (const inv of empfaenger) {
+    const g = inv.name || inv.email;
+    if (!(inv.name || "").trim()) merke(fehler, inv.email, "kein Name – die Anrede bliebe leer");
+    if (!inv.anrede) merke(warnung, g, "keine Anrede – die Mail beginnt mit „Hallo“");
+    if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(inv.email)) merke(fehler, g, "Adresse sieht nicht wie eine Adresse aus: " + inv.email);
+    if (inv.email !== inv.email.trim() || /\s/.test(inv.email)) merke(fehler, g, "Leerzeichen in der Adresse: „" + inv.email + "“");
+    if (inv.typ !== "ticket" && inv.typ !== "ehrengast") merke(fehler, g, "unbekannter Typ „" + inv.typ + "“");
+    /* Der teuerste denkbare Fehler: ein Gast, den ein Partner eingeladen
+     * hat, wird nach 100 Euro gefragt. */
+    if (inv.partner && inv.typ === "ticket") merke(fehler, g, "kommt über Partner " + inv.partner + ", ist aber Bezahlgast – zahlt er wirklich?");
+    if (inv.partner && !inv.partnerLogo) merke(fehler, g, "Partner " + inv.partner + " ohne Logo – die Mail zeigt ein leeres Feld");
+    if (inv.partnerLogo && !inv.partner) merke(warnung, g, "Logo hinterlegt, aber kein Partnername");
+
+    const datei = welleP.vorlage(inv);
+    let html;
+    try { html = renderMail(inv, datei); }
+    catch (e) { merke(fehler, g, "Vorlage " + datei + " bricht: " + e.message); continue; }
+
+    const offen = html.match(/\{\{\s*[a-z_]+\s*\}\}/gi);
+    if (offen) merke(fehler, g, "Platzhalter nicht ersetzt: " + [...new Set(offen)].join(" "));
+
+    /* Jeder Link muss auf unsere Basis zeigen und den Token DIESES Gastes
+     * tragen - ein vertauschter Link waere der Fehler, den niemand sieht. */
+    const fremd = (html.match(/href="(https?:\/\/[^"]+)"/g) || [])
+      .map(h => h.slice(6, -1))
+      .filter(u => u.startsWith(PUBLIC_URL + "/") && !u.includes(inv.token));
+    if (fremd.length) merke(fehler, g, "Link mit fremdem Token: " + fremd[0]);
+    if (nrP !== "0" && !html.includes(inviteLink(inv.token))) merke(fehler, g, "der persönliche Link fehlt in der Mail");
+
+    for (const m of html.match(/src="(https?:\/\/[^"]+)"/g) || []) bilder.add(m.slice(5, -1));
+    beleg.push([inv.pool || "-", inv.name, inv.email, inv.typ === "ehrengast" ? "Ehrengast" : "Bezahlgast 100 €",
+                inv.partner || "—", datei, welleP.betreff(inv)]);
+  }
+
+  console.log("Vorflugkontrolle · " + welleP.name);
+  console.log("Links & Bilder über: " + PUBLIC_URL);
+  console.log(empfaenger.length + " Empfänger von " + alleGaeste.length + " im Register\n");
+
+  const uebrig = alleGaeste.length - empfaenger.length;
+  if (uebrig) {
+    const ohneMail = alleGaeste.filter(i => !i.email).length;
+    const raus = alleGaeste.filter(i => i.abgemeldet).length;
+    const tot = alleGaeste.filter(i => i.email && i.mail && i.mail.bounced).length;
+    const nichtDran = uebrig - ohneMail - raus - tot;
+    console.log("Nicht dabei: " + ohneMail + " ohne Adresse · " + tot + " unzustellbar · " +
+                raus + " abgemeldet · " + nichtDran + " nach Status dieser Welle\n");
+  }
+
+  const zeigen = () => {
+    for (const z of fehler) console.log("  FEHLER   " + z);
+    for (const z of warnung) console.log("  WARNUNG  " + z);
+    console.log("");
+    console.log(fehler.length + " Fehler · " + warnung.length + " Warnungen");
+    if (flagge("beleg")) {
+      console.log("\nBeleg – wer bekommt was (zum Gegenlesen):\n");
+      for (const b of beleg)
+        console.log("  " + b[0].padEnd(22) + " " + b[1].padEnd(26) + " " + b[3].padEnd(18) +
+                    " Partner: " + b[4].padEnd(16) + " " + b[5]);
+    }
+    process.exit(fehler.length ? 1 : 0);
+  };
+
+  if (!flagge("bilder")) {
+    console.log("(Bild-URLs nicht geprüft – dafür --bilder anhängen)\n");
+    return zeigen();
+  }
+
+  /* Ein fehlendes Logo faellt sonst erst auf, wenn 30 Partnergaeste ein
+   * leeres Kaestchen sehen. Deshalb jede URL einmal wirklich abrufen. */
+  const urls = [...bilder];
+  let offenN = urls.length;
+  console.log("Prüfe " + offenN + " Bild-Adressen …\n");
+  for (const u of urls) {
+    const mod = u.startsWith("https:") ? https : http;
+    const req = mod.request(u, { method: "HEAD", timeout: 10000 }, r => {
+      if (r.statusCode !== 200) merke(fehler, "Bild", u + " antwortet mit " + r.statusCode);
+      r.resume();
+      if (--offenN === 0) zeigen();
+    });
+    req.on("timeout", () => req.destroy(new Error("Zeitüberschreitung")));
+    req.on("error", e => { merke(fehler, "Bild", u + " nicht erreichbar: " + e.message); if (--offenN === 0) zeigen(); });
+    req.end();
+  }
+}
+
 /* Einladungen fuer Gaeste, die keine Mailadresse haben - sie bekommen
  * denselben persoenlichen Link, nur von Hand ueber WhatsApp statt per Mail.
  * Der Link ist derselbe wie in der Mail, also zaehlt auch die Zusage gleich.
@@ -1938,7 +2069,21 @@ process.on("unhandledRejection", (err) => {
   console.error("unhandledRejection:", err && err.stack || err);
 });
 
-server.listen(PORT, () => {
+/* Ab hier laeuft nur noch der Server - und zwar NUR, wenn gar kein Befehl
+ * angegeben wurde. Die meisten Befehle beenden sich vorher selbst; der echte
+ * Versand und die Bilderpruefung warten dagegen auf Antworten und laufen bis
+ * hierher weiter. Wuerde dann der Server starten und der Port waere schon von
+ * der laufenden App belegt, brechen EADDRINUSE und der Fehlerhaken den Prozess
+ * ab - mitten in einer Welle, nach vierzig von vierundneunzig Mails. */
+if (befehl) {
+  const BEKANNT = ["import", "export", "welle", "whatsapp", "pruefen"];
+  if (!BEKANNT.includes(befehl)) {
+    console.error("Unbekannter Befehl: " + befehl);
+    console.error("Bekannt: " + BEKANNT.join(", "));
+    process.exit(1);
+  }
+  /* Befehl laeuft noch (Versand, Bilderpruefung) – er beendet sich selbst. */
+} else server.listen(PORT, () => {
   const stats = gesamtStats();
   console.log("THE CIRCLE läuft auf " + PUBLIC_URL);
   console.log("  Landing Page:  " + PUBLIC_URL + "/einladung?t=TOKEN");

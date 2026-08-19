@@ -147,6 +147,33 @@ Weitere Schalter: `--pool="…"`, `--typ=ehrengast|ticket`, `--limit=n`.
 noch nicht scharf ist: Ehrengäste können raus, Bezahlgäste warten – bei ihnen
 liefe „Weiter zur Zahlung" sonst ins Leere.
 
+### Vorflugkontrolle
+
+Der Trockenlauf beantwortet „bricht das Rendern?". Dieser Befehl beantwortet
+„stimmt, was da rausgeht?":
+
+```bash
+node server/circle-server.js pruefen 1                    # Register + Vorlagen
+node server/circle-server.js pruefen 1 --bilder           # ruft jede Bild-URL ab
+node server/circle-server.js pruefen 1 --beleg            # Liste zum Gegenlesen
+```
+
+Geprüft wird je Gast: Name und Anrede vorhanden, Adresse formal gültig und
+ohne Leerzeichen, Typ bekannt, Partner und Logo zusammen gesetzt, jeder
+Platzhalter ersetzt, der persönliche Link vorhanden **und kein Link mit dem
+Token eines anderen Gastes**. Über das Register hinweg: dieselbe Adresse
+zweimal (Fehler), derselbe Name zweimal (Warnung). Mit `--bilder` wird jede
+Bild-Adresse einmal wirklich abgerufen – ein fehlendes Partnerlogo fällt sonst
+erst auf, wenn dreißig Gäste ein leeres Kästchen sehen.
+
+`FEHLER` heißt: nicht senden. `WARNUNG` heißt: ein Mensch soll es gesehen
+haben. Der Befehl endet mit Exit-Code 1, sobald ein Fehler dabei ist – er
+lässt sich also vor den Versand hängen.
+
+Was er **nicht** kann: erkennen, dass jemand in der Gästeliste als Ehrengast
+steht, der eigentlich zahlen soll. Das ist keine technische Frage. Dafür gibt
+es `--beleg`: eine Liste „Name → Typ → Partner → Vorlage" zum Gegenlesen.
+
 ### Gäste ohne Mailadresse
 
 Manche Gäste kommen über WhatsApp statt über eine Adresse. Sie bekommen
