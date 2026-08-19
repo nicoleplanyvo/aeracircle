@@ -28,8 +28,8 @@
                         Die Spalte 'link' aus
                           node server/circle-server.js export
                         liefert genau diese URLs fuer den Lettermint-Import.
-    {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
-    {{logo_url}}        offizielles Logo -> /assets/logo-neg.png (PNG! Gmail/Outlook zeigen SVG nicht)
+    (Header/Logo)      fest verdrahtet auf circle-header-std.jpg - das Logo ist
+                        Teil des Headerbildes, es gibt keine eigene Logo-Zeile.
     {{platz_satz}}      Satz ueber dem CTA aus der Versandliste. Fuer Ehrengaeste:
                         "Dein Platz ist eine Einladung des Hauses - es genuegt ein Wort."
     {{portrait_amiaz_url}}  gehostet -> email/assets/portrait-amiaz.jpg (360x360, Kreis auf Bordeaux)
@@ -73,18 +73,14 @@
 
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#741a33" class="bg-karte" style="max-width:600px;width:100%;background-color:#741a33;">
 
-        <!-- S/W-Koeln-Header (Deck-Covershot) -->
+        <!-- S/W-Koeln-Header MIT eingesetztem Logo (Wunsch Desi/Anne: "Logo in
+             den Header"). Fest verdrahtet wie im Save the Date - das Logo ist
+             Teil des Bildes, deshalb hier kein {{header_img_url}} und keine
+             zweite Logo-Zeile darunter. -->
         <tr><td>
-          <img src="{{header_img_url}}" width="600" alt="THE CIRCLE &ndash; &uuml;ber den D&auml;chern von K&ouml;ln"
+          <img src="https://thecircle.planyvo.com/assets/circle-header-std.jpg" width="600" alt="THE CIRCLE &ndash; &uuml;ber den D&auml;chern von K&ouml;ln"
                style="display:block;width:100%;height:auto;border:0;">
         </td></tr>
-
-        <!-- Spirale + Wortmarke -->
-        <tr><td align="center" style="padding:36px 40px 0 40px;">
-          <img src="{{logo_url}}" width="230" alt="THE CIRCLE &ndash; connecting generations" style="display:block;border:0;width:230px;max-width:60%;height:auto;">
-        </td></tr>
-
-        <tr><td style="padding:30px 64px 0 64px;"><div style="border-top:1px solid #94505f;font-size:0;line-height:0;">&nbsp;</div></td></tr>
 
         <!-- Einladung -->
         <tr><td align="center" style="padding:32px 40px 0 40px;">
@@ -92,11 +88,8 @@
             {{anrede}} {{vorname}},
           </div>
         </td></tr>
-        <tr><td align="center" style="padding:14px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#f2cbd7;text-transform:uppercase;">THE CIRCLE No1</div>
-        </td></tr>
         <tr><td align="center" style="padding:16px 40px 0 40px;">
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.3;color:#ff6b6c;">
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.25;color:#ff6b6c;text-transform:uppercase;">
             Du bist<br>eingeladen.
           </div>
         </td></tr>
@@ -110,8 +103,15 @@
           </div>
         </td></tr>
 
-        <!-- Fakten -->
+        <!-- THE CIRCLE No1 sitzt jetzt UEBER dem Datum statt ueber der
+             Headline (Wunsch Desi) - in Koralle wie im Save the Date, damit es
+             sich abhebt. -->
         <tr><td align="center" style="padding:26px 40px 0 40px;">
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:16px;letter-spacing:3px;color:#ff6b6c;text-transform:uppercase;">THE CIRCLE No1</div>
+        </td></tr>
+
+        <!-- Fakten -->
+        <tr><td align="center" style="padding:14px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:3px;color:#f8f7f4;text-transform:uppercase;line-height:2.2;">
             Mittwoch, 16. September 2026 &middot; 18:00 &ndash; 23:00 Uhr<br>Playa Cologne<br>3-Gang-Men&uuml; inkl. Getr&auml;nke
           </div>
