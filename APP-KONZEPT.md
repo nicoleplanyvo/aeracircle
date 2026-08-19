@@ -2,7 +2,8 @@
 
 Teilnehmer: Dylan, Desiree, Anne, Johann (THE CIRCLE) · Nicole, Matthias (planyvo)
 
-Dieses Dokument hält fest, worauf wir uns geeinigt haben, was ihr in eurer
+Die Fassung für die Runde liegt als `pitch/app-stand.html` und als PDF daneben –
+dort steht nur, was feststeht und was ihr zuliefert. Dieses Dokument hält fest, worauf wir uns geeinigt haben, was ihr in eurer
 Klausur entscheidet und was wir bis wann von euch brauchen. Der Rahmen bleibt
 wie besprochen: **die App ist Welle 2** und wird erst wenige Tage vor dem Abend
 an die Gäste kommuniziert, die zugesagt haben. Der Abend gehört dem Programm,
