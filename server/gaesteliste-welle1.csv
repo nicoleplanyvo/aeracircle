@@ -1,0 +1,106 @@
+pool,typ,anrede,name,email,firma,partner,partner_logo
+AERA,ehrengast,Lieber,Amiaz Habtu,amiaz@amiaz.de,Moderator,,
+AERA,ticket,Lieber,Andre Schürrle,,"Ex-Fußballprofi, Extremsportler, Investor, Influencer",,
+AERA,ticket,Lieber,Andreas Bartosinski,a.bartosinski@ohja-events.de,OhJA Events,,
+AERA,ticket,Lieber,Benedikt Höwedes,b.hoewedes@googlemail.com,"Ex-Fußballprofi, Moderator/Experte, Investor",,
+AERA,ehrengast,Liebe,Carmen Kroll,,"Content Creatorin, Unternehmerin",,
+AERA,ticket,Liebe,Charlotte Fischer,c.fischer@deli-suelz.de,GF Deli Sülz,,
+AERA,ticket,Lieber,Dustin Brown,dreddy_ja@hotmail.com,"Ex-Tennisprofi, Co Founder/Investor Vayn",,
+AERA,ehrengast,Liebe,Ien Svea Bäumler,,Speakerin,,
+AERA,ticket,Liebe,Jana Wosnitza,,"Moderatorin, Sportmoderatorin",,
+AERA,ticket,Lieber,Jonas Hector,hector@flutlicht-film.de,"Ex-Fußballprofi, Start Up Investor, Produzent",,
+AERA,ticket,Liebe,Julia Willecke,,"Influencerin, Unternehmerin, Investorin",,
+AERA,ticket,Lieber,Julius Kahleis,julius@koelnistkool.com,Geschäftsführer Koelnistkool,,
+AERA,ticket,Lieber,Kevin Tewe,kevin@all-in.social,Geschäftsführer All In Influencer Agentur,,
+AERA,ticket,Liebe,Lena Niesen,lena@new-base.de,"Newbase Artistmanagement, Influencer Agentur",,
+AERA,ticket,Lieber,Mario Götze,,"Ex-Fußballprofi, Start Up Investor",,
+AERA,ehrengast,Lieber,Max Leinfelder,max@maxleienfelder.de,Künstler,,
+AERA,ticket,Lieber,Moritz Müller,,Eishockey Profi,,
+AERA,ehrengast,Lieber,Niclas Julien Kroll,,somefriends Management,,
+AERA,ehrengast,Lieber,Niklas Mallmann,nmallmann@google.com,Head of Marketing Google Gemini,,
+AERA,ticket,Lieber,Rafael Moreno,rm@mvp-holding.net,"Geschäftsführer Dinner in the Sky, MVP",,
+AERA,ticket,Lieber,Rick Zabel,,"Ex-Radprofi, Content Creator",,
+AERA,ticket,Lieber,Robert Brosowski,,"Influencer, Unternehmer",,
+AERA,ticket,Liebe,Sarah Ly Lohmann,sarah-ly@evently-solutions.com,Geschäftsführerin Evently Solutions,,
+AERA,ticket,Lieber,Sascha Siegert,s.siegert@ubc-collection.com,Geschäftsführer Collection Business Center,,
+AERA,ticket,Lieber,Severin Becker,sb@eventure.net,Strand & Wiesen,,
+AERA,ticket,Liebe,Simin Heuser,simin.heuser@gmail.com,"DHP Communications, wirsindhierfür",,
+AERA,ehrengast,Lieber,Thomas Kehl,thomas.kehl@finanzfluss.de,"Finanzfluss, Autor, YouTuber",,
+AERA,ticket,Lieber,Tim Jaspert,jaspert@rausgegangen.de,Gründer/Geschäftsführer Rausgegangen,,
+AERA,ticket,Lieber,Torsten Greif,torsten.greif@420pharma.eu,Geschäftsführer Four 20 Pharma,,
+AERA,ticket,Liebe,Uta Raasch,uta@strandfein.com,Founder & Designer qvc & Strandfein,,
+AERA,ticket,Lieber,Volker Lichte,Volker.Lichte@johnsonfitness.eu,"Matrix Fitness, Johnson Fitness",,
+AERA,ehrengast,Lieber,Wilke Stromann,wilke@stroman.rocks,"Gründer Sparhandy, Glücksgefühle Festival, Investor",,
+IMW,ticket,Lieber,Basti Staunau,bastian@staunau.de,GuMo,,
+IMW,ticket,Lieber,Colin Thyzel,c.thyzel@acc-holding.com,A.R.C. Laser GmbH,,
+IMW,ticket,Lieber,Dr. Moritz Wellerdick,wellerdick@fc.de,1. FC Köln GmbH & Co. KGaA,,
+IMW,ticket,Lieber,Felix Kollmorgen,pregler-aufzuege@t-online.de,Technischer Vertriebsleiter Pregler Aufzüge,,
+IMW,ticket,Lieber,Felix Ritterbach,felix.ritterbach@kapten-son.com,Vice President Kaptn & Son,,
+IMW,ticket,Lieber,Felix Schäfer,fs@Montag-Montag.de,Montag & Montag Unternehmensberatung,,
+IMW,ticket,Lieber,Florian Dederichs,Dederichs@fc.de,1.FC Köln Bereichsleiter,,
+IMW,ticket,Lieber,Frank Beckmann,frankbeckmann@me.com,,,
+IMW,ticket,Lieber,Jan Pick,jan@lieblings-zahnarzt.de,Geschäftsführer Lieblings-Zahnarzt,,
+IMW,ticket,Liebe,Julia Schäfer,julia.schaefer@ihre-markenwerkstatt.de,,,
+IMW,ticket,Lieber,Luca Schneider Bierhoff,luca-schneider@live.de,,,
+IMW,ticket,Lieber,Maik Brodowski,maik.brodowski@bitpanda.com,Europa Chef Bitpanda,,
+IMW,ticket,Lieber,Matthias Wesseling,matthias.wesseling@lgt.com,LGT Bank AG,,
+IMW,ticket,Lieber,Nick Meckel,n.meckel@meckel-metallbau.de,Geschäftsführer Meckel Metallbau,,
+IMW,ticket,Lieber,Ralph Hibben,hibben@hrh-personal.de,HRH Personal Management,,
+IMW,ticket,Lieber,Sven Birkenfeld,s.birkenfeld@energie-experten-deutschland.de,Energie Experten,,
+IMW,ticket,Lieber,Tilman Stoeck,,NÀU GmbH,,
+IMW/AERA,ehrengast,Lieber,Lionel Souque,lionel.souque@rewe-group.com,Vorstandsvorsitzender REWE,,
+IMW/AERA/PC,ehrengast,Lieber,Frank Blase,frank@spine-house.com,"Iglu, Investor",,
+IMW/AERA/PC,ehrengast,Lieber,Mathis Wienand,mathis@planyvo.com,,,
+IMW/AERA/PC,ehrengast,Liebe,Nicole Munoz Bonilla,,Planyvo,,
+IMW/AERA/PC,ehrengast,Lieber,Philipp Hitschler-Becker,info@hitschler.de,Geschäftsführer Hitschler,,
+IMW/PC,ticket,Lieber,Alex Reimann,alexander.reimann@nfl.com,Director of Partnerships DACH,,
+IMW/PC,ticket,Liebe,Andrea Bender,andrea.bender@iu.org,IU Duales Studium Köln,,
+IMW/PC,ticket,Lieber,Björn Hünemeyer,bjoern.huenemeyer@schaebens.de,Geschäftsführer Schaebens,,
+IMW/PC,ticket,Lieber,Christopher Landsberg,landsberg@koelnerzoo.de,Vorstand AG Zoologischer Garten/KölnerZoo,,
+IMW/PC,ticket,Lieber,Dirk Metzner,dirk1metzner@gmail.com,Lindner Hotel City Plaza,,
+IMW/PC,ticket,Lieber,Florian Michajlezko,hallo@common-standard.de,Common Standard,,
+IMW/PC,ehrengast,Lieber,Lars Meyer,lars.meyer@playa.de,Playa Cologne,,
+IMW/PC,ticket,Lieber,Michael Meinhold,Michael.Meinhold@rimowa.com,Rimowa General Manager Germany,,
+IMW/PC,ticket,Lieber,Pedro Sion Schädel,management@hoehner.com,Management Höhner GmbH,,
+IMW/PC,ticket,Liebe,Sarah Joe Iserlohe,sarah.iserlohe@icloud.com,Sängerin,,
+IMW/PC,ehrengast,Liebe,Steffi Burkhart,hallo@steffiburkhart.de,Speakerin,,
+IMW/PC,ticket,Lieber,Sven Häffner,s.haeffner@koelncongress-gastro.de,Koelncongress Gastronomie GmbH,,
+IMW/PC,ticket,Lieber,Willy Wirtz,willy.wirtz@koeln-event.de,Geschäftsführer Köln Event,,
+PC,ticket,Liebe,Isabel Kluth,isabel.kluth@pwc.com,Standortleitung PWC,,
+PC,ticket,Lieber,Jacques-Miró Karpinski,j-m.karpinski@kaiserschote.de,KAISERSCHOTE GmbH,,
+PC,ticket,Lieber,Jakob Erdsiek,info@barbrio.de,Brio Gastronomie GmbH,,
+PC,ticket,Lieber,Jaroslaw Kutylowski,info@deepl.com,Deepl Übersetzer,,
+Partner · CONRAD,ehrengast,Lieber,Michael Motzek,michael.motzek@conrad.de,Conrad Electronics SE,CONRAD,https://thecircle.planyvo.com/assets/partner-conrad-neg.png
+Partner · DEKRA,ehrengast,Lieber,Guido Kutschera,guido.kutschera@dekra.com,Dekra Automobil GmbH,DEKRA,https://thecircle.planyvo.com/assets/partner-dekra-neg.png
+Partner · DEKRA,ehrengast,Lieber,Kevin Krukau,krukau@wolf-capitalgroup.com,Managing Partner | Wolf Capital GmbH,DEKRA,https://thecircle.planyvo.com/assets/partner-dekra-neg.png
+Partner · DEKRA,ehrengast,Lieber,Michael Verhoeven,michael.verhoeven@dekra.com,DEKRA Automobil GmbH,DEKRA,https://thecircle.planyvo.com/assets/partner-dekra-neg.png
+Partner · DEKRA,ehrengast,Lieber,Nicolas Josef,nicolas.joseph@gs.provinzial.com,Provinzial Frechen,DEKRA,https://thecircle.planyvo.com/assets/partner-dekra-neg.png
+Partner · DeinDach,ehrengast,Lieber,Florian Hemmersbach,fh@deindach-hemmersbach.de,Geschäftsführender Gesellschafter,DeinDach,https://thecircle.planyvo.com/assets/partner-deindach-neg.png
+Partner · DeinDach,ehrengast,Lieber,Lukas Hemmersbach,lh@deindach-hemmersbach.de,Geschäftsführender Gesellschafter,DeinDach,https://thecircle.planyvo.com/assets/partner-deindach-neg.png
+Partner · DeinDach,ehrengast,Lieber,Maximilian Koeser,m.koeser@zappes-broi.de,Zappes Broi,DeinDach,https://thecircle.planyvo.com/assets/partner-deindach-neg.png
+Partner · DeinDach,ehrengast,Lieber,Maximilian Köhnen,mk@metallbaukoeln-gmbh.de,MBK Metallbau Köln GmbH,DeinDach,https://thecircle.planyvo.com/assets/partner-deindach-neg.png
+Partner · Fuchsrohrbach,ehrengast,Lieber,Kumru Dursun,k.dursun@fuchsrohrbach.de,Fuchsrohrbach,Fuchsrohrbach,https://thecircle.planyvo.com/assets/partner-fuchsrohrbach-neg.png
+Partner · Fuchsrohrbach,ehrengast,Lieber,Maximilian Rohrbach,m.rohrbach@fuchsrohrbach.de,Fuchrohrbach Rechtsanwalt | Partner,Fuchsrohrbach,https://thecircle.planyvo.com/assets/partner-fuchsrohrbach-neg.png
+Partner · Fuchsrohrbach,ehrengast,Lieber,Philip Czupras,philip.czupras@wargitsch.com,Wargitsch & Comp. AG,Fuchsrohrbach,https://thecircle.planyvo.com/assets/partner-fuchsrohrbach-neg.png
+Partner · JTO,ehrengast,Liebe,Jill Topfstedt,jill.topfstedt@jto-koeln.de,JTO Gebäudemanagement GmbH,JTO,https://thecircle.planyvo.com/assets/partner-jto-neg.png
+Partner · MERZENICH,ehrengast,Lieber,Frank Schmitz,frank.schmitz@baeckereimerzenich.de,Bäckerei Merzenich GmbH,MERZENICH,https://thecircle.planyvo.com/assets/partner-merzenich-neg.png
+Partner · MERZENICH,ehrengast,Lieber,Julia Schley,Julia.schley@baeckereimerzenich.de,Bäckerei Merzenich GmbH,MERZENICH,https://thecircle.planyvo.com/assets/partner-merzenich-neg.png
+Partner · MERZENICH,ehrengast,Lieber,Marcel Rahmati,marcel.rahmati@rewe-rahmati.de,Rewe Rahmati GmbH und Co.KG,MERZENICH,https://thecircle.planyvo.com/assets/partner-merzenich-neg.png
+Partner · MERZENICH,ehrengast,Lieber,Tim Muscheid,Muscheid@bunk-bau.de,Bunk Bau GmbH,MERZENICH,https://thecircle.planyvo.com/assets/partner-merzenich-neg.png
+Partner · SION,ehrengast,Lieber,Dirk Iserlohe,iserlohe@honestis.ag,Honestis AG,SION,https://thecircle.planyvo.com/assets/partner-sion-neg.png
+Partner · SION,ehrengast,Lieber,Georg Schäfer,g.schaefer@radeberger-gruppe.de,"Haus Kölscher Brautradition 
+Radeberger Gruppe KG",SION,https://thecircle.planyvo.com/assets/partner-sion-neg.png
+Partner · SION,ehrengast,Lieber,Stefan Löcher,gf@lanxess-arena.de,LANXESSarena,SION,https://thecircle.planyvo.com/assets/partner-sion-neg.png
+Partner · SION,ehrengast,Lieber,Thomas Montag,tm@montag-montag.de,Montag & Montag Unternehmensberatung,SION,https://thecircle.planyvo.com/assets/partner-sion-neg.png
+Partner · SKS,ehrengast,Lieber,Christian Berngen,Christian.Berngen@agenticfox.ai,agentifox.ai,SKS,https://thecircle.planyvo.com/assets/partner-sks-neg.png
+Partner · SKS,ehrengast,Lieber,Jürgen Iltgen,juergen.iltgen@horbach.de,Horbach,SKS,https://thecircle.planyvo.com/assets/partner-sks-neg.png
+Partner · SKS,ehrengast,Lieber,Peter Spölgen,ps@sks-vm.com,SKS,SKS,https://thecircle.planyvo.com/assets/partner-sks-neg.png
+Partner · SKS,ehrengast,Lieber,Tom Rohrbach,tom.rohrbach@yellowhive.de,Yellow Hive,SKS,https://thecircle.planyvo.com/assets/partner-sks-neg.png
+Partner · neuland.ai,ehrengast,Lieber,Dr. Hubertus Mersmann,Hubertus.Mersmann@abcfinance.de,abc finance,neuland.ai,https://thecircle.planyvo.com/assets/partner-neuland-neg.png
+Partner · neuland.ai,ehrengast,Lieber,Jörg Croseck,croseck@colonia-management.com,colonia management,neuland.ai,https://thecircle.planyvo.com/assets/partner-neuland-neg.png
+Partner · neuland.ai,ehrengast,Lieber,Karl-Heinz Land,kland@neuland.ai,neuland.ai,neuland.ai,https://thecircle.planyvo.com/assets/partner-neuland-neg.png
+Partner · neuland.ai,ehrengast,Lieber,Michael Schauerte,mschauerte@me.com,SVT GmbH,neuland.ai,https://thecircle.planyvo.com/assets/partner-neuland-neg.png
+Partner · smartvélo,ehrengast,Lieber,Konrad Essers,konrad@smart-velo.com,smartvélo mobility GmbH,smartvélo,https://thecircle.planyvo.com/assets/partner-smartvelo-neg.png
+THE CIRCLE,ehrengast,Liebe,Anne Schäfer,anne.schaefer@ihre-markenwerkstatt.de,IHRE MARKENWERSTATT,,
+THE CIRCLE,ehrengast,Lieber,Dylan Stuka,dylan@aera-agency.de,Aera Eventagentur GmbH,,
+THE CIRCLE,ehrengast,Liebe,Renate Schmidt,r.schmidt@publiccologne.de,Public Cologne GmbH,,
