@@ -104,7 +104,7 @@ const LETTERMINT_WEBHOOK_SECRET = process.env.LETTERMINT_WEBHOOK_SECRET || "";
 const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.de";
 /* Rueckmeldefrist der Einladung. Steht in drei Vorlagen - deshalb an EINER
  * Stelle, sonst laeuft sie beim naechsten Verschieben auseinander. */
-const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "26.08.2026";
+const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "27.08.2026";
 
 const VOTES = ["ja", "vielleicht", "nein"];
 const MOMENTS_TOTAL = 6;

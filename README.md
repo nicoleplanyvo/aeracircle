@@ -272,6 +272,7 @@ negative Varianten anfragen).
 | `email/*.html` | Mailvorlagen der drei Wellen (der Server füllt sie und verschickt) |
 | `server/circle-server.js` | Gästeregister mit Pools, Stripe, Webhooks, Live-Ebene |
 | `server/gaesteliste-vorlage.csv` | Spaltenvorlage für die Pool-Listen |
+| `APP-KONZEPT.md` | **Die App zum Abend** – Ergebnis des Konzept-Calls vom 19.08.2026: was fest ist, was ihr entscheidet, was wir bis wann brauchen |
 | `pitch/einladungsmanagement.html` | Konzeptdokument für die Veranstalter (Workflow + Monitor), Quelle des PDFs |
 | `pitch/THE-CIRCLE-Einladungsmanagement.pdf` | 10 Seiten A4 – Wellen, Mailings, Landing Page, Zahlung, Pools, Monitor, nächste Schritte |
 
