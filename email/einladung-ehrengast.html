@@ -91,9 +91,9 @@
         <!-- Ein Satz zum Abend -->
         <tr><td align="center" style="padding:22px 60px 0 60px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:18px;line-height:1.75;color:#f2cbd7;">
-            Ein Abend im kleinen Kreis, &uuml;ber den D&auml;chern von K&ouml;ln:
-            handverlesene G&auml;ste &uuml;ber Generationen hinweg, ein Men&uuml; in drei G&auml;ngen &mdash;
-            und ein Werk von Max Leinfelder, das vor deinen Augen entsteht.
+            Ein Abend im ausgew&auml;hlten Kreis: G&auml;ste &uuml;ber Generationen hinweg,
+            ein Men&uuml; in drei G&auml;ngen &mdash; und ein Werk von Max Leinfelder,
+            das vor deinen Augen entsteht.
           </div>
         </td></tr>
 
@@ -134,14 +134,12 @@
           </tr></table>
         </td></tr>
 
-        <!-- Ehrengaeste sind Gaeste des Hauses (kein Partner). Kein Partner-Block -
-             er widerspraeche "Einladung des Hauses" in {{platz_satz}}. Partner-Gaeste
-             bekommen einladung-ticket-partner.html. -->
-
-        <tr><td align="center" style="padding:30px 56px 0 56px;">
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#f8f7f4;">
-            {{platz_satz}}
-          </div>
+        <!-- Gastgeber-Block, gleiche Bauart wie bei den Partner-Gaesten (Wunsch
+             Desi): dort steht das Partnerlogo, hier THE CIRCLE selbst - der
+             Ehrengast ist Gast des Hauses. Ersetzt den frueheren {{platz_satz}}. -->
+        <tr><td align="center" style="padding:30px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:14px;">Du bist eingeladen von</div>
+          <img src="{{logo_url}}" width="190" alt="THE CIRCLE &ndash; connecting generations" style="display:block;border:0;width:190px;max-width:60%;height:auto;margin:0 auto;">
         </td></tr>
 
         <!-- Rueckmeldefrist (Wunsch Desi, 19.08.). Das Datum steht NICHT hier,
@@ -160,6 +158,20 @@
             <td align="center" bgcolor="#ff6b6c" style="border-radius:999px;">
               <a href="{{link}}" target="_blank"
                  style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">Zusagen</a>
+            </td>
+          </tr></table>
+        </td></tr>
+
+        <!-- Absage. Fuehrt bewusst nur AUF die Landing Page (Anker #zusagen),
+             nicht direkt in die Absage: Ein Link, der die Absage sofort
+             ausloest, waere gefaehrlich - Firmen-Mailscanner rufen Links beim
+             Zustellen ab und wuerden Gaeste absagen, die nie geklickt haben.
+             Auf der Seite entscheidet der Gast selbst mit einem Klick. -->
+        <tr><td align="center" style="padding:12px 40px 0 40px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+            <td align="center" style="border-radius:999px;border:1px solid #c998a4;">
+              <a href="{{link}}#zusagen" target="_blank"
+                 style="display:inline-block;padding:14px 40px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#f2cbd7;text-decoration:none;">Leider nicht</a>
             </td>
           </tr></table>
         </td></tr>
