@@ -141,7 +141,30 @@ node server/circle-server.js welle 1 --senden                 # die ganze Welle
 **Ohne `--senden` geht nichts raus.** Der Trockenlauf rendert trotzdem jede
 Mail vollständig durch und bricht ab, sobald ein Platzhalter offen bliebe –
 lieber hier ein Fehler als 200 Gäste, die „{{vorname}}" in der Anrede lesen.
-Weitere Schalter: `--pool="…"`, `--limit=n`.
+Weitere Schalter: `--pool="…"`, `--typ=ehrengast|ticket`, `--limit=n`.
+
+`--typ=` trennt die beiden Gästearten. Das ist der Notausgang, solange Stripe
+noch nicht scharf ist: Ehrengäste können raus, Bezahlgäste warten – bei ihnen
+liefe „Weiter zur Zahlung" sonst ins Leere.
+
+### Gäste ohne Mailadresse
+
+Manche Gäste kommen über WhatsApp statt über eine Adresse. Sie bekommen
+denselben persönlichen Link, nur von Hand:
+
+```bash
+node server/circle-server.js whatsapp          # nur Gäste ohne Adresse
+node server/circle-server.js whatsapp --alle   # alle
+```
+
+Der Befehl schreibt je Gast eine fertige Nachricht zum Kopieren. Der Link ist
+derselbe wie in der Mail – die Zusage landet also im selben Register, mit
+derselben Ticketnummer. **Auf dem Server ausführen**, nicht lokal: die Tokens
+stehen im Register, ein lokales Register erzeugt andere und damit tote Links.
+
+Ins Versand-Gedächtnis trägt der Befehl bewusst nichts ein. Ob die Nachricht
+wirklich rausging, weiß nur der Mensch, der sie verschickt hat – und wer
+später eine Adresse nachträgt, soll die Mail trotzdem bekommen.
 
 Wer welche Vorlage bekommt, entscheidet der Server: Ehrengäste die
 Ehrengast-Fassung, Gäste eines Partners die Fassung mit dem Logo ihres

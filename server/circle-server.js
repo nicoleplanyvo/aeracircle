@@ -104,7 +104,7 @@ const LETTERMINT_WEBHOOK_SECRET = process.env.LETTERMINT_WEBHOOK_SECRET || "";
 const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.de";
 /* Rueckmeldefrist der Einladung. Steht in drei Vorlagen - deshalb an EINER
  * Stelle, sonst laeuft sie beim naechsten Verschieben auseinander. */
-const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "26.08.2026";
+const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "27.08.2026";
 
 const VOTES = ["ja", "vielleicht", "nein"];
 const MOMENTS_TOTAL = 6;
@@ -763,6 +763,34 @@ function textFassung(inv, welle) {
     "Keine weiteren Mails: " + abmeldeLink(inv.token)
   ];
   return zeilen.filter(z => z !== null).join("\n");
+}
+
+/* Dieselbe Einladung als WhatsApp-Nachricht, zum Kopieren. Kein HTML, keine
+ * Abmeldezeile: Wer per WhatsApp schreibt, hat den Kontakt ohnehin in der
+ * Hand. Der Link ist derselbe wie in der Mail - die Zusage landet also im
+ * selben Register, mit derselben Ticketnummer. */
+function whatsappText(inv) {
+  const partnerZeile = inv.typ === "ehrengast"
+    ? (inv.partner ? "Du bist eingeladen von unserem Partner " + inv.partner + "."
+                   : "Du bist eingeladen von THE CIRCLE.")
+    : "Teilnahme: 100 Euro.";
+  return [
+    (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
+    "",
+    "du bist eingeladen zu THE CIRCLE No1 – connecting generations.",
+    "",
+    "Ein Abend im ausgewählten Kreis: Gäste über Generationen hinweg, " +
+      "ein Menü in drei Gängen – und ein Werk von Max Leinfelder, das vor deinen Augen entsteht.",
+    "",
+    "16. September 2026, 18:00 bis 23:00 Uhr",
+    "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
+    partnerZeile,
+    "",
+    "Die Plätze sind limitiert. Wir bitten um Rückmeldung bis zum " + RSVP_DEADLINE + ".",
+    "",
+    "Dein persönlicher Link – zusagen oder absagen dauert eine Minute:",
+    inviteLink(inv.token)
+  ].join("\n");
 }
 
 /* Ein Aufruf an die Lettermint-API. Kein SDK: eine einzige POST-Anfrage
@@ -1680,10 +1708,49 @@ if (befehl === "export") {
   process.exit(0);
 }
 
+/* Einladungen fuer Gaeste, die keine Mailadresse haben - sie bekommen
+ * denselben persoenlichen Link, nur von Hand ueber WhatsApp statt per Mail.
+ * Der Link ist derselbe wie in der Mail, also zaehlt auch die Zusage gleich.
+ *
+ *   node server/circle-server.js whatsapp          nur Gaeste ohne Adresse
+ *   node server/circle-server.js whatsapp --alle   alle Gaeste
+ *
+ * Bewusst KEIN Eintrag im Versand-Gedaechtnis: Ob die Nachricht wirklich
+ * rausging, weiss nur der Mensch, der sie verschickt hat. Wer spaeter eine
+ * Adresse nachtraegt, soll die Mail trotzdem bekommen.
+ */
+if (befehl === "whatsapp") {
+  const alle = argv.slice(1).includes("--alle");
+  const kaputt = argv.slice(1).filter(a => a !== "--alle");
+  if (kaputt.length) {
+    console.error("Aufruf: node server/circle-server.js whatsapp [--alle]");
+    process.exit(1);
+  }
+  const gaeste = Object.values(state.invites)
+    .filter(inv => !inv.abgemeldet && inv.status !== "abgesagt" && (alle || !inv.email))
+    .sort((a, b) => (a.pool || "").localeCompare(b.pool || "") || (a.name || "").localeCompare(b.name || ""));
+
+  if (!gaeste.length) {
+    console.log(alle ? "Keine Gäste in der Liste." : "Alle Gäste haben eine Mailadresse – nichts zu tun.");
+    process.exit(0);
+  }
+  console.log(gaeste.length + (alle ? " Gäste" : " Gäste ohne Mailadresse") + "\n");
+  for (const inv of gaeste) {
+    console.log("─".repeat(72));
+    console.log((inv.name || "(ohne Namen)") + "   ·   " + (inv.pool || "-") +
+                "   ·   " + (inv.typ === "ehrengast" ? "Ehrengast" : "Bezahlgast, 100 €"));
+    console.log("");
+    console.log(whatsappText(inv));
+    console.log("");
+  }
+  process.exit(0);
+}
+
 /* Wellenversand.
  *   node server/circle-server.js welle 1                  -> Trockenlauf
  *   node server/circle-server.js welle 1 --senden         -> verschickt wirklich
  *   ... --pool=neuland             nur Pools, deren Name das enthaelt
+ *   ... --typ=ehrengast            nur Ehrengaeste (oder --typ=ticket)
  *   ... --nur=max@example.com      genau eine Adresse (Testmail; ueberspringt
  *                                  Status-Regeln UND Versand-Gedaechtnis)
  *   ... --limit=5                  hoechstens fuenf Mails
@@ -1703,24 +1770,32 @@ if (befehl === "welle") {
   /* Unbekannte oder wertlose Argumente hart abweisen: "--nur max@x.de"
    * (Leerzeichen statt =) wuerde sonst still ignoriert - und der Befehl,
    * der eine Testmail schicken sollte, schickt die ganze Welle. */
-  const ERLAUBT = /^--(senden|erneut|pool=.+|nur=.+|limit=[1-9]\d*|vorschau=.+)$/;
+  const ERLAUBT = /^--(senden|erneut|pool=.+|typ=.+|nur=.+|limit=[1-9]\d*|vorschau=.+)$/;
   const kaputt = argv.slice(2).filter(a => !ERLAUBT.test(a));
   if (kaputt.length) {
     console.error("Unbekanntes oder unvollständiges Argument: " + kaputt.join(" "));
-    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--nur=mail] [--limit=n] [--vorschau=datei.html]");
+    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--typ=…] [--nur=mail] [--limit=n] [--vorschau=datei.html]");
     console.error("Werte immer mit '=': --nur=max@example.com (nicht: --nur max@example.com)");
     process.exit(1);
   }
   const nr = String(arg || "").replace(/[^0-9]/g, "");
   const welle = hasOwn(WELLEN, nr) ? WELLEN[nr] : null;
   if (!welle) {
-    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--nur=mail] [--limit=n]");
+    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--typ=…] [--nur=mail] [--limit=n]");
     process.exit(1);
   }
   const echt = flagge("senden");
   const erneut = flagge("erneut");
   const nurPool = wert("pool").toLowerCase();
   const nurMail = wert("nur").toLowerCase();
+  /* Ehrengaeste koennen losgeschickt werden, bevor Stripe steht - fuer
+   * Bezahlgaeste liefe der Knopf "Weiter zur Zahlung" ins Leere. Ein
+   * vertippter Wert wuerde sonst still niemanden treffen, deshalb hart. */
+  const nurTyp = wert("typ").toLowerCase();
+  if (nurTyp && nurTyp !== "ticket" && nurTyp !== "ehrengast") {
+    console.error("--typ= kennt nur 'ticket' oder 'ehrengast' (nicht: " + nurTyp + ")");
+    process.exit(1);
+  }
   const limit = parseInt(wert("limit"), 10) || 0;
 
   /* Ohne PUBLIC_URL zeigt jeder Link und jedes Bild in den Mails auf
@@ -1740,6 +1815,7 @@ if (befehl === "welle") {
     if (!inv.email) return false;
     if (inv.abgemeldet) return false;                 // Abmeldung gilt fuer alle Wellen
     if (nurMail) return inv.email.toLowerCase() === nurMail;
+    if (nurTyp && inv.typ !== nurTyp) return false;
     if (nurPool && !String(inv.pool || "").toLowerCase().includes(nurPool)) return false;
     if (!welle.gilt(inv)) return false;
     /* Tote Adressen (Bounce aus einer frueheren Welle) nicht erneut
