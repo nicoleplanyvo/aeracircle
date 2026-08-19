@@ -1099,6 +1099,9 @@ const server = http.createServer((req, res) => {
 
   // Gast zum persönlichen Link laden
   if (req.method === "GET" && url === "/api/invite") {
+    /* Token-Raten ist bei 72 Bit aussichtslos, aber ein Limit haelt
+     * Enumerations-Versuche aus dem Log und die Last unten. */
+    if (!rateLimit(req, res, "invite", 120, 60_000)) return;
     const inv = findInvite(q.get("t"));
     if (!inv) return json(res, 404, { error: "Diese Einladung kennen wir nicht." });
     // "Geklickt" nur zaehlen, wenn der Aufruf von der Landing Page kommt, nicht
@@ -1112,7 +1115,17 @@ const server = http.createServer((req, res) => {
   }
 
   // Zusagen / absagen (+ die Angaben des Gastes)
+  /* Kein Honeypot-Feld im Formular - bewusst. Das Formular ist ohnehin
+   * token-geschuetzt (72 Bit, nicht erratbar), Bots kommen also gar nicht
+   * heran; ein verstecktes Feld haette nur einen Effekt: Browser und
+   * Passwortmanager fuellen es beim Autofill mit, die Zusage wuerde als
+   * "Bot" verworfen, und der Gast erfaehrt nie, warum er nicht auf der
+   * Liste steht. Gegen das reale Restrisiko - jemand mit einem Link
+   * haemmert den Endpunkt - hilft ein Limit, kein Koeder.
+   * Grosszuegig bemessen: hinter einem Firmen-NAT teilen sich viele Gaeste
+   * eine IP, und ein korrigiertes Formular darf mehrfach abgeschickt werden. */
   if (req.method === "POST" && url === "/api/invite/rsvp") {
+    if (!rateLimit(req, res, "rsvp", 30, 60_000)) return;
     return readBody(req, res, body => {
       const inv = findInvite(body.t);
       if (!inv) return json(res, 404, { error: "unbekannte Einladung" });
@@ -1161,6 +1174,10 @@ const server = http.createServer((req, res) => {
 
   // Stripe-Checkout starten -> Landing Page leitet auf die zurückgegebene URL
   if (req.method === "POST" && url === "/api/invite/checkout") {
+    /* Jeder Aufruf legt eine Stripe-Session an - ohne Limit koennte ein
+     * Skript mit einem Link tausende erzeugen und unser Stripe-Konto
+     * zumuellen. */
+    if (!rateLimit(req, res, "checkout", 15, 60_000)) return;
     return readBody(req, res, body => {
       const inv = findInvite(body.t);
       if (!inv) return json(res, 404, { error: "unbekannte Einladung" });
