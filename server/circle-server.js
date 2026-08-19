@@ -102,6 +102,9 @@ const LETTERMINT_WEBHOOK_SECRET = process.env.LETTERMINT_WEBHOOK_SECRET || "";
 /* Die Homepage - Ziel des CTA in Welle 0. Nicht PUBLIC_URL: das ist der
  * Server mit App und persoenlichen Links, nicht die Website. */
 const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.de";
+/* Rueckmeldefrist der Einladung. Steht in drei Vorlagen - deshalb an EINER
+ * Stelle, sonst laeuft sie beim naechsten Verschieben auseinander. */
+const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "26.08.2026";
 
 const VOTES = ["ja", "vielleicht", "nein"];
 const MOMENTS_TOTAL = 6;
@@ -659,6 +662,7 @@ function renderMail(inv, datei) {
     partner_logo_url: !inv.partnerLogo ? ""
       : (/^https?:\/\//i.test(inv.partnerLogo) ? inv.partnerLogo : assetUrl(inv.partnerLogo)),
     abmelden_url: abmeldeLink(inv.token),
+    rueckmeldung_datum: RSVP_DEADLINE,
     /* CTA der Welle 0: die Homepage, nicht die App. PUBLIC_URL ist der
      * Server mit den persoenlichen Links - die Website ist eine andere. */
     website_url: WEBSITE_URL,
