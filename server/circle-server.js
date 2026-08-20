@@ -1956,9 +1956,29 @@ if (befehl === "whatsapp") {
     console.error("Aufruf: node server/circle-server.js whatsapp [--alle]");
     process.exit(1);
   }
+  /* Wer unter demselben Namen anderswo MIT Adresse im Register steht, bekommt
+   * seine Einladung schon per Mail. Ihn hier nochmal aufzufuehren hiesse: der
+   * Gast wird zweimal angeschrieben, per Mail und per WhatsApp. Kommt vor,
+   * wenn eine aeltere Liste denselben Menschen ohne Adresse enthielt. */
+  const mitMail = new Set(Object.values(state.invites)
+    .filter(i => i.email).map(i => (i.name || "").trim().toLowerCase()));
+  const doppelt = [];
   const gaeste = Object.values(state.invites)
-    .filter(inv => !inv.abgemeldet && inv.status !== "abgesagt" && (alle || !inv.email))
+    .filter(inv => {
+      if (inv.abgemeldet || inv.status === "abgesagt") return false;
+      if (!alle && inv.email) return false;
+      if (!inv.email && mitMail.has((inv.name || "").trim().toLowerCase())) {
+        doppelt.push(inv); return false;
+      }
+      return true;
+    })
     .sort((a, b) => (a.pool || "").localeCompare(b.pool || "") || (a.name || "").localeCompare(b.name || ""));
+
+  if (doppelt.length) {
+    console.log("Nicht dabei, weil sie ihre Einladung per Mail bekommen:");
+    for (const i of doppelt) console.log("  " + (i.name || "?") + "  (Pool " + (i.pool || "-") + ", ohne Adresse)");
+    console.log("");
+  }
 
   if (!gaeste.length) {
     console.log(alle ? "Keine Gäste in der Liste." : "Alle Gäste haben eine Mailadresse – nichts zu tun.");
