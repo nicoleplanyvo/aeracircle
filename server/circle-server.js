@@ -592,6 +592,72 @@ function gesamtStats() {
   };
 }
 
+/* Wellenstand fuer den Monitor. Zwei Quellen, beide hart: das Versand-
+ * Gedaechtnis (versand-log.json - wer hat Welle n schon bekommen) und
+ * dieselbe gilt()-Regel, nach der der Versand entscheidet. Damit steht im
+ * Monitor genau das, was ein "welle n --senden" jetzt tun WUERDE - und
+ * niemand muss die Wellenzeilen von Hand pflegen.
+ *   versendet  hat die Welle bekommen (Log)
+ *   faellig    bekaeme sie beim naechsten Lauf
+ *   gesperrt   gehoert in die Welle, ist aber nicht anschreibbar
+ *              (keine Adresse, abgemeldet oder Bounce) */
+function wellenStats() {
+  let vlog = {};
+  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
+  const all = Object.values(state.invites);
+  return Object.keys(WELLEN).map(nr => {
+    const w = WELLEN[nr];
+    let versendet = 0, faellig = 0, gesperrt = 0, erster = 0, letzter = 0;
+    for (const inv of all) {
+      const ts = (hasOwn(vlog, inv.token) && vlog[inv.token][nr]) || 0;
+      if (ts) {
+        versendet++;
+        if (!erster || ts < erster) erster = ts;
+        if (ts > letzter) letzter = ts;
+        continue;                                  // raus ist raus
+      }
+      if (!w.gilt(inv)) continue;                  // gehoert nicht in diese Welle
+      if (!inv.email || inv.abgemeldet || (inv.mail && inv.mail.bounced)) gesperrt++;
+      else faellig++;
+    }
+    return { nr: Number(nr), name: w.name, versendet, faellig, gesperrt, erster, letzter };
+  });
+}
+
+/* Welche Fassung ist wie gelaufen. Gruppiert die Gaeste nach der Vorlage,
+ * die sie in der jeweiligen Welle bekommen haben (Welle 1 zerfaellt in
+ * Ticket / Ehrengast / Ehrengast-Partner).
+ * ACHTUNG bei der Deutung: geoeffnet/geklickt/zugesagt/bezahlt sind der
+ * HEUTIGE Stand des Gastes, nicht die Reaktion auf genau diese eine Mail -
+ * das Register fuehrt pro Gast einen Stand, nicht pro Sendung. Wer zwei
+ * Wellen bekommen hat, zaehlt in beiden Gruppen. Der Monitor schreibt das
+ * unter die Tabelle dazu. */
+function fassungStats() {
+  let vlog = {};
+  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
+  const gruppen = {};
+  for (const inv of Object.values(state.invites)) {
+    if (!hasOwn(vlog, inv.token)) continue;
+    for (const nr of Object.keys(WELLEN)) {
+      if (!vlog[inv.token][nr]) continue;
+      let datei;
+      try { datei = WELLEN[nr].vorlage(inv); } catch (e) { continue; }
+      const key = nr + "|" + datei;
+      const g = gruppen[key] || (gruppen[key] = {
+        welle: Number(nr), name: WELLEN[nr].name, vorlage: datei,
+        versendet: 0, geoeffnet: 0, geklickt: 0, zugesagt: 0, bezahlt: 0, ticket: false
+      });
+      g.versendet++;
+      if (inv.mail.opened) g.geoeffnet++;
+      if (inv.mail.clicked) g.geklickt++;
+      if (inv.status === "zugesagt" || inv.status === "bezahlt") g.zugesagt++;
+      if (inv.status === "bezahlt") g.bezahlt++;
+      if (inv.typ !== "ehrengast") g.ticket = true;      // in dieser Fassung wird gezahlt
+    }
+  }
+  return Object.values(gruppen).sort((a, b) => a.welle - b.welle || b.versendet - a.versendet);
+}
+
 /* ================= MAILVERSAND (Lettermint, ohne SDK) =================
  *
  * Warum der Server selbst verschickt und nicht Lettermint aus einer Liste:
@@ -1544,7 +1610,7 @@ const server = http.createServer((req, res) => {
     if (!ADMIN_TOKENS.size) {
       return json(res, 503, {
         error: "Monitor ist nicht konfiguriert – ADMIN_TOKENS fehlt. " +
-               "Aus Datenschutzgruenden bleibt der Zugang gesperrt."
+               "Aus Datenschutzgründen bleibt der Zugang gesperrt."
       });
     }
     const wer = adminName(q.get("key"));
@@ -1553,8 +1619,11 @@ const server = http.createServer((req, res) => {
     if (url === "/api/admin/pools") {
       return json(res, 200, {
         ok: true,
+        stand: Date.now(),                         // "Stand HH:MM" im Monitor
         gesamt: gesamtStats(),
         pools: poolStats(),
+        wellen: wellenStats(),
+        fassungen: fassungStats(),
         feed: state.feed.slice(0, 30)
       });
     }
@@ -1678,6 +1747,11 @@ const server = http.createServer((req, res) => {
           partner: inv.partner || "",
           status: inv.status,
           abgemeldet: inv.abgemeldet || 0,
+          /* Nur der gebuchte Betrag und wann - fuer "zuletzt bezahlt" im
+           * Monitor. Session- und PaymentIntent-ID bleiben hier drin. */
+          zahlung: (inv.zahlung && inv.zahlung.paidAt)
+            ? { betrag: inv.zahlung.amount || 0, t: inv.zahlung.paidAt }
+            : null,
           mail
         };
       });
