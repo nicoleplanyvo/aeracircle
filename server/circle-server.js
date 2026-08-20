@@ -389,6 +389,7 @@ function pubInvite(inv) {
     partner: inv.partner || "",
     partnerLogo: partnerLogoUrl(inv),
     firma: inv.firma || "",
+    rolle: inv.rolle || "",
     email: inv.email || "",
     pool: inv.pool,
     preis: inv.typ === "ticket" ? TICKET_PRICE : 0,
@@ -428,7 +429,10 @@ function parseCSV(text) {
 }
 
 /* Erwartete Spalten (Reihenfolge egal, Groß/Klein egal):
- *   pool, typ, name, email, firma, anrede, partner, partner_logo
+ *   pool, typ, name, email, firma, rolle, anrede, partner, partner_logo
+ * firma und rolle sind getrennt: "gadplan GmbH" und "Geschaeftsfuehrer"
+ * lassen sich sonst fuer Namensschilder nicht auseinandernehmen. Fehlt die
+ * Spalte 'rolle', bleibt eine vom Gast selbst eingetragene Rolle erhalten.
  * typ: "ticket" (100 € über Stripe) oder "ehrengast" (nur Zusage).
  * Fehlt typ, gilt der Pool-Default aus poolTyp() – sonst "ticket".
  * Wiederholter Import aktualisiert bestehende Gäste (Schlüssel: E-Mail).
@@ -438,7 +442,8 @@ function importRows(rows) {
   const col = name => header.indexOf(name);
   const iPool = col("pool"), iTyp = col("typ"), iName = col("name"),
         iMail = col("email") >= 0 ? col("email") : col("e-mail"), iFirma = col("firma"),
-        iAnrede = col("anrede"), iPartner = col("partner"), iPartnerLogo = col("partner_logo");
+        iAnrede = col("anrede"), iPartner = col("partner"), iPartnerLogo = col("partner_logo"),
+        iRolle = col("rolle");
   if (iName < 0 || iMail < 0) throw new Error("CSV braucht mindestens die Spalten 'name' und 'email'");
 
   const byMail = {};
@@ -511,6 +516,7 @@ function importRows(rows) {
         if (inv.mail && inv.mail.bounced) inv.mail.bounced = 0;
       }
       if (iFirma >= 0) inv.firma = cleanText(r[iFirma], 80);
+      if (iRolle >= 0) inv.rolle = cleanText(r[iRolle], 80);
       if (iAnrede >= 0) inv.anrede = cleanText(r[iAnrede], 12);
       if (iPartner >= 0) inv.partner = cleanText(r[iPartner], 60);
       if (iPartnerLogo >= 0) inv.partnerLogo = cleanText(r[iPartnerLogo], 200);
@@ -521,6 +527,7 @@ function importRows(rows) {
         token, pool, typ,
         name: zeilenName, email,
         firma: iFirma >= 0 ? cleanText(r[iFirma], 80) : "",
+        rolle: iRolle >= 0 ? cleanText(r[iRolle], 80) : "",
         anrede: iAnrede >= 0 ? cleanText(r[iAnrede], 12) : "",
         partner: iPartner >= 0 ? cleanText(r[iPartner], 60) : "",
         partnerLogo: iPartnerLogo >= 0 ? cleanText(r[iPartnerLogo], 200) : "",
@@ -1387,6 +1394,10 @@ const server = http.createServer((req, res) => {
 
       if (body.name)   inv.name = cleanText(body.name, 60);
       if (body.firma !== undefined) inv.firma = cleanText(body.firma, 80);
+      /* Rolle steht getrennt von der Firma - sonst landen "gadplan GmbH"
+       * und "Geschaeftsfuehrer" wieder in einem Feld und lassen sich fuer
+       * Namensschilder und Sitzordnung nicht mehr auseinandernehmen. */
+      if (body.rolle !== undefined) inv.rolle = cleanText(body.rolle, 80);
       /* E-Mail aus dem Zusage-Formular ins Register uebernehmen. Wichtig fuer
        * WhatsApp-Gaeste (ohne Adresse importiert, Link kam per Chat): ab der
        * Zusage sind sie fuer Welle 2 per Mail erreichbar. */
@@ -1647,10 +1658,11 @@ const server = http.createServer((req, res) => {
     }
     // Kontrollliste als CSV: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
       for (const inv of Object.values(state.invites)) {
         zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
-                     inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
+                     inv.name, inv.email, inv.firma || "", inv.rolle || "",
+                     inv.partner || "", inv.partnerLogo || "",
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
       }
@@ -1917,10 +1929,11 @@ if (befehl === "import") {
 }
 
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
   for (const inv of Object.values(state.invites)) {
     zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
-                     inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
+                     inv.name, inv.email, inv.firma || "", inv.rolle || "",
+                     inv.partner || "", inv.partnerLogo || "",
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
   }
