@@ -156,76 +156,7 @@ if (!state.guests) state.guests = {};
 if (!state.invites) state.invites = {};
 if (!state.feed) state.feed = [];
 
-/* ---------- Mailstatus je Welle ----------
- * Bis hierher fuehrte das Register EINEN Satz Marker je Gast:
- * mail = { sent, delivered, opened, clicked }. Jedes Feld wurde nur beim
- * ersten Mal gesetzt. Fuer eine einzige Welle geht das auf - ab der zweiten
- * nicht mehr: Wer das Save the Date geoeffnet hat, gilt fuer immer als
- * "geoeffnet", und ob er die Einladung je gesehen hat, weiss niemand.
- * Umgekehrt konnte kein Ereignis der zweiten Welle mehr durchdringen.
- *
- * Deshalb jetzt: inv.wellen["0"|"1"|"2"] = { sent, delivered, opened, clicked }.
- * inv.mail bleibt als Gesamtsicht bestehen (und traegt weiterhin "bounced" -
- * eine tote Adresse ist wellenunabhaengig tot), fuehrt aber ab jetzt den
- * JUENGSTEN Zeitpunkt statt des aeltesten.
- *
- * Zuordnung eines Ereignisses zur Welle, in dieser Reihenfolge:
- *   1. metadata.welle aus der Meldung - der Versand gibt sie mit
- *   2. sonst ueber das Versand-Gedaechtnis: die letzte Welle, die vor dem
- *      Ereignis an diesen Gast rausging
- * Bestandsdaten werden beim Start einmal nach derselben Regel aufgeteilt. */
-const MAILFELDER = ["sent", "delivered", "opened", "clicked"];
-
-function versandLogStill() {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, "versand-log.json"), "utf8")); }
-  catch (e) { return {}; }                      // fehlt oder unlesbar: dann eben ohne
-}
-
-/* Welche Welle war zum Zeitpunkt ts fuer diesen Gast zuletzt aktuell? */
-function welleZuZeit(token, ts, log) {
-  const eintrag = log[token];
-  if (!eintrag) return null;
-  let beste = null, besteZeit = -1;
-  for (const w of Object.keys(eintrag)) {
-    const raus = Number(eintrag[w]);
-    if (Number.isFinite(raus) && raus <= ts + 60_000 && raus > besteZeit) { besteZeit = raus; beste = w; }
-  }
-  /* Ereignis vor jedem Versand (Altbestand ohne Log): der aeltesten Welle
-   * zuschlagen, die dieser Gast bekommen hat - besser als wegwerfen. */
-  if (beste === null) {
-    const alle = Object.keys(eintrag).sort();
-    beste = alle.length ? alle[0] : null;
-  }
-  return beste;
-}
-
-
-
 let dirty = false;
-
-(function wellenNachtragen() {
-  let umgezogen = 0;
-  const log = versandLogStill();
-  for (const inv of Object.values(state.invites)) {
-    if (inv.wellen) continue;                   // schon aufgeteilt
-    inv.wellen = {};
-    const m = inv.mail;
-    if (!m) continue;
-    for (const feld of MAILFELDER) {
-      const ts = Number(m[feld]);
-      if (!Number.isFinite(ts) || !ts) continue;
-      const w = welleZuZeit(inv.token, ts, log);
-      if (w === null) continue;                 // nie etwas verschickt: nichts zuzuordnen
-      (inv.wellen[w] = inv.wellen[w] || {})[feld] = ts;
-      umgezogen++;
-    }
-  }
-  if (umgezogen) {
-    console.log("Mailstatus auf Wellen aufgeteilt: " + umgezogen + " Ereignisse.");
-    dirty = true;
-  }
-})();
-
 setInterval(() => {
   if (!dirty) return;
   dirty = false;
@@ -364,7 +295,7 @@ function serveFile(res, file, type) {
 /* ================= EINLADUNG: Pools, Gästeliste, Zusagen ================= */
 
 /* Ein Gast der Einladungsliste:
- *   { token, pool, typ:"ticket"|"ehrengast", name, email, firma,
+ *   { token, pool, typ:"ticket"|"ehrengast", name, email, firma, position,
  *     anrede,                                        <- "Liebe"/"Lieber", sonst "Hallo"
  *     partner, partnerLogo,                          <- wenn ein Partner eingeladen hat
  *     status:"offen"|"zugesagt"|"bezahlt"|"abgesagt",
@@ -512,7 +443,10 @@ function importRows(rows) {
   const iPool = col("pool"), iTyp = col("typ"), iName = col("name"),
         iMail = col("email") >= 0 ? col("email") : col("e-mail"), iFirma = col("firma"),
         iAnrede = col("anrede"), iPartner = col("partner"), iPartnerLogo = col("partner_logo"),
-        iRolle = col("rolle");
+        iRolle = col("rolle"),
+        /* Optional: Telefon aus der Liste. Fehlt die Spalte, bleibt es beim
+         * Bisherigen - niemand muss seine Listen umbauen. */
+        iTelefon = col("telefon") >= 0 ? col("telefon") : col("mobil");
   if (iName < 0 || iMail < 0) throw new Error("CSV braucht mindestens die Spalten 'name' und 'email'");
 
   const byMail = {};
@@ -586,6 +520,12 @@ function importRows(rows) {
       }
       if (iFirma >= 0) inv.firma = cleanText(r[iFirma], 80);
       if (iRolle >= 0) inv.rolle = cleanText(r[iRolle], 80);
+      /* Telefon aus der Liste nur setzen, wenn der Gast nicht selbst eine
+       * Nummer angegeben hat - seine Angabe ist die neuere. */
+      if (iTelefon >= 0 && r[iTelefon] && !(inv.daten && inv.daten.phone)) {
+        inv.daten = inv.daten || {};
+        inv.daten.phone = cleanText(r[iTelefon], 30);
+      }
       if (iAnrede >= 0) inv.anrede = cleanText(r[iAnrede], 12);
       if (iPartner >= 0) inv.partner = cleanText(r[iPartner], 60);
       if (iPartnerLogo >= 0) inv.partnerLogo = cleanText(r[iPartnerLogo], 200);
@@ -602,7 +542,7 @@ function importRows(rows) {
         partnerLogo: iPartnerLogo >= 0 ? cleanText(r[iPartnerLogo], 200) : "",
         status: "offen",
         mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
-        daten: {},
+        daten: iTelefon >= 0 && r[iTelefon] ? { phone: cleanText(r[iTelefon], 30) } : {},
         zahlung: null,
         ticketNr: ticketNumber(token),
         t: Date.now()
@@ -666,6 +606,86 @@ function gesamtStats() {
     abgemeldet: zaehl(i => i.abgemeldet),
     umsatz: all.reduce((s, i) => s + ((i.zahlung && i.zahlung.amount) || 0), 0)
   };
+}
+
+/* Wellenstand fuer den Monitor. Zwei Quellen, beide hart: das Versand-
+ * Gedaechtnis (versand-log.json - wer hat Welle n schon bekommen) und
+ * dieselbe gilt()-Regel, nach der der Versand entscheidet. Damit steht im
+ * Monitor genau das, was ein "welle n --senden" jetzt tun WUERDE - und
+ * niemand muss die Wellenzeilen von Hand pflegen.
+ *   versendet  hat die Welle bekommen (Log)
+ *   faellig    bekaeme sie beim naechsten Lauf
+ *   gesperrt   gehoert in die Welle, ist aber nicht anschreibbar
+ *              (keine Adresse, abgemeldet oder Bounce) */
+function wellenStats() {
+  let vlog = {};
+  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
+  const all = Object.values(state.invites);
+  return Object.keys(WELLEN).map(nr => {
+    const w = WELLEN[nr];
+    let versendet = 0, faellig = 0, gesperrt = 0, erster = 0, letzter = 0;
+    /* Die Reaktionen zaehlen JE WELLE - fruehere Zahlen mischten alle
+     * Mailings in einen Topf und lasen sich dadurch falsch. */
+    let zugestellt = 0, geoeffnet = 0, geklickt = 0, zugesagt = 0, bezahlt = 0;
+    for (const inv of all) {
+      const ts = (hasOwn(vlog, inv.token) && vlog[inv.token][nr]) || 0;
+      if (ts) {
+        versendet++;
+        if (!erster || ts < erster) erster = ts;
+        if (ts > letzter) letzter = ts;
+        const w2 = (inv.wellen && inv.wellen[nr]) || null;
+        if (w2 && w2.delivered) zugestellt++;
+        if (w2 && w2.opened)    geoeffnet++;
+        if (w2 && w2.clicked)   geklickt++;
+        /* Zusage und Zahlung gehoeren keiner einzelnen Mail - hier zaehlen
+         * sie den heutigen Stand DERER, die diese Welle bekommen haben.
+         * So laesst sich lesen: "von den 62 Eingeladenen haben 16 zugesagt". */
+        if (inv.status === "zugesagt" || inv.status === "bezahlt") zugesagt++;
+        if (inv.status === "bezahlt") bezahlt++;
+        continue;                                  // raus ist raus
+      }
+      if (!w.gilt(inv)) continue;                  // gehoert nicht in diese Welle
+      if (!inv.email || inv.abgemeldet || (inv.mail && inv.mail.bounced)) gesperrt++;
+      else faellig++;
+    }
+    return { nr: Number(nr), name: w.name, versendet, faellig, gesperrt, erster, letzter,
+             zugestellt, geoeffnet, geklickt, zugesagt, bezahlt };
+  });
+}
+
+/* Welche Fassung ist wie gelaufen. Gruppiert die Gaeste nach der Vorlage,
+ * die sie in der jeweiligen Welle bekommen haben (Welle 1 zerfaellt in
+ * Ticket / Ehrengast / Ehrengast-Partner).
+ * ACHTUNG bei der Deutung: geoeffnet/geklickt/zugesagt/bezahlt sind der
+ * HEUTIGE Stand des Gastes, nicht die Reaktion auf genau diese eine Mail -
+ * das Register fuehrt pro Gast einen Stand, nicht pro Sendung. Wer zwei
+ * Wellen bekommen hat, zaehlt in beiden Gruppen. Der Monitor schreibt das
+ * unter die Tabelle dazu. */
+function fassungStats() {
+  let vlog = {};
+  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
+  const gruppen = {};
+  for (const inv of Object.values(state.invites)) {
+    if (!hasOwn(vlog, inv.token)) continue;
+    for (const nr of Object.keys(WELLEN)) {
+      if (!vlog[inv.token][nr]) continue;
+      let datei;
+      try { datei = WELLEN[nr].vorlage(inv); } catch (e) { continue; }
+      const key = nr + "|" + datei;
+      const g = gruppen[key] || (gruppen[key] = {
+        welle: Number(nr), name: WELLEN[nr].name, vorlage: datei,
+        versendet: 0, geoeffnet: 0, geklickt: 0, zugesagt: 0, bezahlt: 0, ticket: false
+      });
+      g.versendet++;
+      const wm = (inv.wellen && inv.wellen[nr]) || {};
+      if (wm.opened)  g.geoeffnet++;
+      if (wm.clicked) g.geklickt++;
+      if (inv.status === "zugesagt" || inv.status === "bezahlt") g.zugesagt++;
+      if (inv.status === "bezahlt") g.bezahlt++;
+      if (inv.typ !== "ehrengast") g.ticket = true;      // in dieser Fassung wird gezahlt
+    }
+  }
+  return Object.values(gruppen).sort((a, b) => a.welle - b.welle || b.versendet - a.versendet);
 }
 
 /* ================= MAILVERSAND (Lettermint, ohne SDK) =================
@@ -829,6 +849,81 @@ function versandLogSchreiben(log) {
    * nicht zerstoeren - sonst ginge die naechste Welle wieder an alle. */
   fs.writeFileSync(VERSAND_LOG + ".tmp", JSON.stringify(log));
   fs.renameSync(VERSAND_LOG + ".tmp", VERSAND_LOG);
+}
+
+/* Das Versand-Gedaechtnis gehoert der CLI; der Server liest es nur - aber
+ * er liest es oft (jeder Webhook fragt, zu welcher Welle das Ereignis
+ * gehoert). Deshalb kurz gepuffert. */
+let vlogCache = { t: 0, daten: {} };
+function versandLogLesenGepuffert() {
+  const jetzt = Date.now();
+  if (jetzt - vlogCache.t < 5000) return vlogCache.daten;
+  let daten = {};
+  try { daten = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log */ }
+  vlogCache = { t: jetzt, daten };
+  return daten;
+}
+
+/* ---------- Status JE WELLE ----------
+ *
+ * Warum das sein muss: inv.mail fuehrt EINEN Satz Zeitstempel
+ * (sent/delivered/opened/clicked) - aber es gibt drei Mailings. Und jeder
+ * Schreibzugriff galt "nur wenn noch leer". Ergebnis im Betrieb: hat ein
+ * Gast das Save the Date geoeffnet, sind seine Felder belegt; die
+ * Einladung eine Woche spaeter kann sie nicht mehr fuellen. Ihr
+ * "zugestellt/geoeffnet/geklickt" wurde verworfen ("schon gesetzt"), im
+ * Monitor stand weiter der Stand des Save the Date - und es sah aus, als
+ * lieferte Lettermint keine Webhooks mehr.
+ *
+ * Die Zuordnung war immer da, sie wurde nur weggeworfen: der Versand gibt
+ * jeder Mail metadata.welle mit, Lettermint gibt es im Webhook zurueck.
+ * inv.wellen[n] fuehrt jetzt die einzelne Sendung, inv.mail bleibt als
+ * Gesamtsicht ("hat der Gast ueberhaupt je geoeffnet") unveraendert - alle
+ * bisherigen Leser, Bounce-Sperre und Abmeldung eingeschlossen. */
+function wellenMail(inv, n) {
+  inv.wellen = inv.wellen || {};
+  return inv.wellen[n] || (inv.wellen[n] = { sent: 0, delivered: 0, opened: 0, clicked: 0 });
+}
+
+/* Zu welcher Welle gehoert ein Ereignis ohne metadata.welle? Zur zuletzt
+ * verschickten Welle, die VOR dem Ereignis rausging - das ist die Mail, die
+ * der Gast in dem Moment vor sich hatte. */
+function welleZuZeit(inv, ts) {
+  const log = versandLogLesenGepuffert()[inv.token];
+  if (!log) return "";
+  let treffer = "", besteZeit = 0;
+  for (const n of Object.keys(log)) {
+    const raus = log[n];
+    if (raus && raus <= ts + 60_000 && raus >= besteZeit) { besteZeit = raus; treffer = n; }
+  }
+  return treffer;
+}
+
+/* Einmal beim Start: den alten Sammel-Stand auf die Wellen aufteilen, damit
+ * nichts verloren geht, was schon im Register steht. Je FELD einzeln - die
+ * Felder koennen zu verschiedenen Wellen gehoeren (Save the Date verschickt,
+ * nie geoeffnet, dann die Einladung geoeffnet: sent gehoert zu Welle 0,
+ * opened zu Welle 1). Der Versandzeitpunkt je Welle kommt ohnehin aus dem
+ * Gedaechtnis, nicht aus dem Webhook. */
+function wellenNachruesten() {
+  const log = versandLogLesenGepuffert();
+  let ergaenzt = 0;
+  for (const inv of Object.values(state.invites)) {
+    if (inv.wellen) continue;                       // schon aufgeteilt
+    inv.wellen = {};
+    for (const n of Object.keys(log[inv.token] || {})) wellenMail(inv, n).sent = log[inv.token][n];
+    for (const feld of ["delivered", "opened", "clicked"]) {
+      const ts = inv.mail && inv.mail[feld];
+      if (!ts) continue;
+      const n = welleZuZeit(inv, ts);
+      if (n !== "") wellenMail(inv, n)[feld] = ts;
+    }
+    ergaenzt++;
+  }
+  if (ergaenzt) {
+    dirty = true;
+    console.log("Status je Welle nachgetragen: " + ergaenzt + " Gäste");
+  }
 }
 
 /* Vorlagen einmal von der Platte lesen und behalten. */
@@ -1426,17 +1521,19 @@ const server = http.createServer((req, res) => {
     // vom App-Link (/?t=, ruft mit app=1). Sonst verfaelscht das Oeffnen der App
     // die Klickquote und meldet Gaeste als engagiert, die nur die App geladen haben.
     if (q.get("app") !== "1") {
-      /* Der Klick kommt ohne metadata - welche Welle ihn ausgeloest hat,
-       * sagt der Zeitpunkt gegen das Versand-Gedaechtnis. */
+      /* Der persoenliche Link steht in der Einladung - der Klick gehoert
+       * also zu der Welle, die zuletzt an diesen Gast rausging. */
       const jetzt = Date.now();
-      const w = welleZuZeit(inv.token, jetzt, versandLogStill());
-      inv.wellen = inv.wellen || {};
-      const topf = w === null ? null : (inv.wellen[w] = inv.wellen[w] || {});
-      const neuInWelle = topf ? !topf.clicked : !inv.mail.clicked;
-      if (neuInWelle) {
-        if (topf) topf.clicked = jetzt;
-        if (!inv.mail.clicked || jetzt > inv.mail.clicked) inv.mail.clicked = jetzt;
-        logEvent("geklickt" + (w !== null ? " · Welle " + w : ""), inv.name, inv.pool);
+      const n = welleZuZeit(inv, jetzt);
+      const w = n === "" ? null : wellenMail(inv, n);
+      if (w && !w.clicked) {
+        w.clicked = jetzt;
+        logEvent("geklickt", inv.name, (inv.pool || "") + " · Welle " + n);
+        dirty = true;
+      }
+      if (!inv.mail.clicked) {
+        inv.mail.clicked = jetzt;
+        if (!w) logEvent("geklickt", inv.name, inv.pool);
         dirty = true;
       }
     }
@@ -1657,49 +1754,51 @@ const server = http.createServer((req, res) => {
       }
       const feld = hasOwn(map, typ) ? map[typ] : null;
       inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };  // Altbestand
-      inv.wellen = inv.wellen || {};
-      /* Zu welcher Welle gehoert das Ereignis? Der Versand gibt die Welle als
-       * metadata mit; fehlt sie (Bestaetigungsmails, Altbestand), entscheidet
-       * der Zeitpunkt gegen das Versand-Gedaechtnis. */
-      const welleRoh = String((daten.metadata && daten.metadata.welle) ||
-                              (body.metadata && body.metadata.welle) || "");
-      const istWelle = /^[0-9]$/.test(welleRoh);
-      /* "bounced" gilt der ADRESSE, nicht einer Welle - deshalb weiter flach. */
-      const proWelle = feld && feld !== "bounced";
-      const warNeu = feld && (proWelle ? true : !inv.mail[feld]);
-      if (warNeu) {
-        /* Zeitpunkt des Ereignisses aus der Meldung selbst (ISO in
-         * body.timestamp) - nicht die Empfangszeit: Lettermint liefert
-         * auch mal mit Verzoegerung oder (nach einer Webhook-Pause)
-         * gar rueckwirkend nach. Plausibilitaetsfenster: nicht in der
-         * Zukunft, nicht aelter als der Projektstart. */
-        const gemeldet = Date.parse(body.timestamp || "");
-        const jetzt = Date.now();
-        const zeit = (Number.isFinite(gemeldet) &&
-                      gemeldet <= jetzt + 60_000 &&
-                      gemeldet > Date.parse("2026-08-01")) ? gemeldet : jetzt;
-        if (!proWelle) {
-          inv.mail[feld] = zeit;
-          logEvent(LABEL[feld], inv.name, inv.pool);
-          dirty = true;
-        } else {
-          const w = istWelle ? welleRoh : welleZuZeit(inv.token, zeit, versandLogStill());
-          const topf = w === null ? null : (inv.wellen[w] = inv.wellen[w] || {});
-          /* Innerhalb EINER Welle zaehlt weiter das erste Mal - zwei
-           * Oeffnungen derselben Mail sind ein Gast, nicht zwei. */
-          const neuInWelle = topf && !topf[feld];
-          if (neuInWelle) topf[feld] = zeit;
-          /* Die Gesamtsicht fuehrt den juengsten Zeitpunkt: sie beantwortet
-           * "hat er ueberhaupt je geoeffnet", nicht "wann zum ersten Mal". */
-          if (!inv.mail[feld] || zeit > inv.mail[feld]) inv.mail[feld] = zeit;
-          if (neuInWelle || !topf) {
-            logEvent(LABEL[feld] + (w !== null ? " · Welle " + w : ""), inv.name, inv.pool);
-          }
-          dirty = true;
-        }
+
+      /* Zeitpunkt des Ereignisses aus der Meldung selbst (ISO in
+       * body.timestamp) - nicht die Empfangszeit: Lettermint liefert
+       * auch mal mit Verzoegerung oder (nach einer Webhook-Pause)
+       * gar rueckwirkend nach. Plausibilitaetsfenster: nicht in der
+       * Zukunft, nicht aelter als der Projektstart. */
+      const gemeldet = Date.parse(body.timestamp || "");
+      const jetzt = Date.now();
+      const zeit = (Number.isFinite(gemeldet) &&
+                    gemeldet <= jetzt + 60_000 &&
+                    gemeldet > Date.parse("2026-08-01")) ? gemeldet : jetzt;
+
+      /* Zu WELCHER Mail gehoert das? Der Versand gibt jeder Mail
+       * metadata.welle mit; fehlt sie (aeltere Sendung, fremder Absender),
+       * wird sie aus dem Versandzeitpunkt erschlossen. Ohne diese
+       * Zuordnung landete jedes Ereignis in einem gemeinsamen Topf, und
+       * die zweite Welle konnte nichts mehr eintragen. */
+      const welleRoh = String((daten.metadata && daten.metadata.welle) ??
+                              (body.metadata && body.metadata.welle) ?? "");
+      const welle = /^[0-9]+$/.test(welleRoh) ? welleRoh : welleZuZeit(inv, zeit);
+
+      let neuInWelle = false;
+      if (feld && welle !== ""){
+        const w = wellenMail(inv, welle);
+        if (!w[feld]) { w[feld] = zeit; neuInWelle = true; }
       }
+      /* Gesamtsicht wie bisher: die erste Regung ueberhaupt. Daran haengen
+       * Bounce-Sperre, Abmeldung und die Gaesteliste. */
+      const warNeu = feld && !inv.mail[feld];
+      if (warNeu) inv.mail[feld] = zeit;
+
+      /* Ins Ereignis-Log gehoert, was in SEINER Welle neu ist - sonst
+       * bliebe die zweite Welle im Feed unsichtbar. */
+      if (neuInWelle || (warNeu && welle === "")) {
+        logEvent(LABEL[feld], inv.name, (inv.pool || "") + (welle !== "" ? " · Welle " + welle : ""));
+      }
+      if (warNeu || neuInWelle) dirty = true;
+
       webhookMerken({ t: Date.now(), event: ereignisKopf, typ, gast: inv.name,
-                      ergebnis: feld ? (warNeu ? "gesetzt: " + feld : "schon gesetzt: " + feld) : "unbekannter Typ" });
+                      welle: welle === "" ? "?" : welle,
+                      ergebnis: !feld ? "unbekannter Typ"
+                              : neuInWelle ? "gesetzt: " + feld + " (Welle " + welle + ")"
+                              : welle === "" ? (warNeu ? "gesetzt: " + feld + " (Welle unbekannt)"
+                                                       : "schon gesetzt: " + feld)
+                              : "schon gesetzt: " + feld + " (Welle " + welle + ")" });
       json(res, 200, { ok: true });
     });
     return;
@@ -1748,7 +1847,7 @@ const server = http.createServer((req, res) => {
     if (!ADMIN_TOKENS.size) {
       return json(res, 503, {
         error: "Monitor ist nicht konfiguriert – ADMIN_TOKENS fehlt. " +
-               "Aus Datenschutzgruenden bleibt der Zugang gesperrt."
+               "Aus Datenschutzgründen bleibt der Zugang gesperrt."
       });
     }
     const wer = adminName(q.get("key"));
@@ -1757,8 +1856,11 @@ const server = http.createServer((req, res) => {
     if (url === "/api/admin/pools") {
       return json(res, 200, {
         ok: true,
+        stand: Date.now(),                         // "Stand HH:MM" im Monitor
         gesamt: gesamtStats(),
         pools: poolStats(),
+        wellen: wellenStats(),
+        fassungen: fassungStats(),
         feed: state.feed.slice(0, 30)
       });
     }
@@ -1944,22 +2046,22 @@ const server = http.createServer((req, res) => {
           const zeiten = Object.values(vlog[inv.token]);
           if (zeiten.length) mail.sent = Math.min.apply(null, zeiten);
         }
-        /* Status je Welle. "sent" kommt aus dem Versand-Gedaechtnis, nicht aus
-         * einem Webhook: es weiss sicher, wer welche Welle bekommen hat -
-         * auch wenn Lettermint die Meldung nie geschickt hat. */
+        /* Der Stand JE WELLE - das ist die Zeile, die im Monitor wirklich
+         * etwas aussagt. "Verschickt" kommt dabei aus dem Versand-
+         * Gedaechtnis und nicht aus dem Webhook: es ist die einzige
+         * Quelle, die auch dann stimmt, wenn Lettermint nichts meldet. */
         const wellen = {};
-        for (const w of Object.keys(WELLEN)) {
-          const eig = (inv.wellen && inv.wellen[w]) || {};
-          const raus = hasOwn(vlog, inv.token) ? Number(vlog[inv.token][w]) || 0 : 0;
-          if (!raus && !eig.sent && !eig.delivered && !eig.opened && !eig.clicked) continue;
-          wellen[w] = {
-            sent: eig.sent || raus || 0,
-            delivered: eig.delivered || 0,
-            opened: eig.opened || 0,
-            clicked: eig.clicked || 0
-          };
+        for (const n of Object.keys(hasOwn(vlog, inv.token) ? vlog[inv.token] : {})) {
+          const w = (inv.wellen && inv.wellen[n]) || {};
+          wellen[n] = { sent: vlog[inv.token][n] || w.sent || 0,
+                        delivered: w.delivered || 0, opened: w.opened || 0, clicked: w.clicked || 0 };
+        }
+        /* Wellen, von denen nur der Webhook weiss (Versand-Log verloren) */
+        for (const n of Object.keys(inv.wellen || {})) {
+          if (!hasOwn(wellen, n)) wellen[n] = Object.assign({ sent: 0, delivered: 0, opened: 0, clicked: 0 }, inv.wellen[n]);
         }
         return {
+          wellen,
           pool: inv.pool,
           typ: inv.typ,
           name: inv.name,
@@ -1967,9 +2069,10 @@ const server = http.createServer((req, res) => {
           partner: inv.partner || "",
           status: inv.status,
           abgemeldet: inv.abgemeldet || 0,
-          /* Die Angaben aus dem Zusageformular. Der Monitor zeigt sie noch
-           * nicht, aber ohne sie hier laesst sich von aussen nicht pruefen,
-           * ob die Kueche ueberhaupt etwas zu essen bestellen kann. */
+          /* Die Angaben aus dem Zusageformular - der Monitor zeigt sie in
+           * der Kuechenliste. Unvertraeglichkeiten sind Gesundheitsdaten:
+           * sie stehen nur hinter dem Admin-Zugang, so wie Namen und
+           * Adressen auch, und werden nach dem Event geloescht. */
           firma: inv.firma || "",
           rolle: inv.rolle || "",
           daten: {
@@ -1977,7 +2080,12 @@ const server = http.createServer((req, res) => {
             diet: (inv.daten && inv.daten.diet) || "",
             allergy: (inv.daten && inv.daten.allergy) || ""
           },
-          wellen,
+          ticketNr: inv.ticketNr || "",
+          /* Nur der gebuchte Betrag und wann - fuer "zuletzt bezahlt" im
+           * Monitor. Session- und PaymentIntent-ID bleiben hier drin. */
+          zahlung: (inv.zahlung && inv.zahlung.paidAt)
+            ? { betrag: inv.zahlung.amount || 0, t: inv.zahlung.paidAt }
+            : null,
           mail
         };
       });
@@ -2032,10 +2140,16 @@ const server = http.createServer((req, res) => {
      * das Vorschaubild) duerfen nicht als Gast-Oeffnung zaehlen. */
     const ua = String(req.headers["user-agent"] || "");
     const vorschauBot = /whatsapp|facebookexternalhit|telegrambot|slackbot|twitterbot|linkedinbot|discordbot|skypeuripreview/i.test(ua);
-    if (!vorschauBot && !inv.mail.opened) {
-      inv.mail.opened = Date.now();
-      logEvent("geöffnet", inv.name, inv.pool);
-      dirty = true;
+    /* Diese Seite IST das Save the Date - also Welle 0, unabhaengig davon,
+     * was der Gast sonst schon geoeffnet hat. */
+    if (!vorschauBot) {
+      const w0 = wellenMail(inv, "0");
+      if (!w0.opened) {
+        w0.opened = Date.now();
+        if (!inv.mail.opened) inv.mail.opened = w0.opened;
+        logEvent("geöffnet", inv.name, (inv.pool || "") + " · Welle 0");
+        dirty = true;
+      }
     }
     let seite;
     try { seite = renderMail(inv, "save-the-date.html"); }
@@ -2619,6 +2733,8 @@ if (befehl) {
   }
   /* Befehl laeuft noch (Versand, Bilderpruefung) – er beendet sich selbst. */
 } else server.listen(PORT, () => {
+  /* Einmalig: alten Sammel-Stand auf die Wellen aufteilen. */
+  wellenNachruesten();
   const stats = gesamtStats();
   console.log("THE CIRCLE läuft auf " + PUBLIC_URL);
   console.log("  Landing Page:  " + PUBLIC_URL + "/einladung?t=TOKEN");
