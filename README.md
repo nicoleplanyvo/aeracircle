@@ -116,6 +116,11 @@ Register.
 Stehen zwei Gäste mit demselben Namen im selben Pool, wird **nicht** geraten:
 dann entsteht ein neuer Eintrag, und `pruefen` warnt „steht 2× im Register".
 
+Neben den bisherigen Spalten liest der Import optional **`position`** (auch
+`funktion`) und **`telefon`** (auch `mobil`). Beide sind freiwillig – fehlen
+sie, ändert sich nichts. Eine Telefonnummer aus der Liste wird nur gesetzt,
+wenn der Gast nicht selbst eine angegeben hat; seine Angabe ist die neuere.
+
 Spalten (Semikolon oder Komma, Reihenfolge egal):
 
 | Spalte | Pflicht | Bedeutung |
@@ -325,6 +330,7 @@ liest: **was jetzt zu tun ist**, dann die Zahlen, dann der Einzelfall.
 | Ticketumsatz | Stripe-Summe und die letzten Zahlungen |
 | Zuletzt passiert | Die Ereigniskette aus Register und Lettermint |
 | Gästeliste | Jede Mail einzeln, mit Filterchips und Suche – **mit Wellenwahl:** die Punkte zeigen die gewählte Sendung, nicht einen gemischten Gesamtstand. Vorgabe ist die zuletzt verschickte Welle („ist die Einladung angekommen?") |
+| **Für die Küche** | Nur Zusagen: wie viele essen was (Alles / Vegetarisch / Vegan / Pescetarisch), und namentlich, wer eine Unverträglichkeit angegeben hat – die stehen oben und farbig |
 | Webhook-Eingang | Die Fangschaltung: was Lettermint zuletzt gemeldet hat und was der Server daraus gemacht hat |
 
 Läuft der Server, holt sich der Monitor die echten Zahlen über
@@ -347,6 +353,18 @@ Anzeige von allen: niemand wüsste, welche Zahl gilt.
 > Zusage gehört keiner einzelnen Mail. Wer zwei Wellen bekommen hat, steht in
 > beiden Zeilen. Der **Funnel** daneben bleibt bewusst gästeweise („hat er
 > irgendeine Mail geöffnet"); je Welle stehen die Zahlen in der Wellen-Übersicht.
+
+**Zwei Ausgaben als CSV.** Beide entstehen im Browser aus dem, was gerade auf
+dem Schirm steht – Semikolon und BOM, damit Excel sie ohne Nachfrage und mit
+richtigen Umlauten öffnet:
+
+- **Liste als CSV** – die Gästeliste im aktuellen Filter, mit Unternehmen,
+  Position, E-Mail, Telefon, Ticketnummer, Ernährung, Unverträglichkeit und
+  dem Stand **jeder einzelnen Mail** (je Welle vier Spalten).
+- **Küchenliste als CSV** – nur Zusagen, mit Ernährung und Unverträglichkeit.
+
+Ein aktiver Filter wirkt auch auf die Datei: erst „Zusage ohne Zahlung"
+anklicken, dann ausgeben, ergibt genau diese Liste.
 
 **Zugänge je Person.** `ADMIN_TOKENS` nimmt eine Liste im Format
 `name:token,name:token` – jede Person bekommt ihren eigenen Link. Fällt einer
