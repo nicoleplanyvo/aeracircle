@@ -788,6 +788,10 @@ function renderMail(inv, datei) {
     partner_logo_url: partnerLogoUrl(inv),
     abmelden_url: abmeldeLink(inv.token),
     rueckmeldung_datum: RSVP_DEADLINE,
+    /* Nur fuer die Zusage-Bestaetigung: der Kalendereintrag und der Beitrag,
+     * den der Gast bezahlt hat. */
+    termin_ics_url: PUBLIC_URL + "/termin.ics",
+    beitrag: (TICKET_PRICE / 100).toFixed(2).replace(".", ",") + " Euro",
     /* CTA der Welle 0: die Homepage, nicht die App. PUBLIC_URL ist der
      * Server mit den persoenlichen Links - die Website ist eine andere. */
     website_url: WEBSITE_URL,
@@ -816,6 +820,60 @@ function renderMail(inv, datei) {
 
 /* Reine Textfassung als Rueckfallebene: Mail-Clients ohne HTML und
  * Spamfilter, die HTML-only misstrauisch finden. */
+/* Bestaetigung nach der Zusage. Anders als die Wellen loest sie kein Mensch
+ * aus, sondern der Gast selbst - Ehrengaeste mit ihrer Zusage, Bezahlgaeste
+ * mit der eingegangenen Zahlung. Deshalb verschickt sie der laufende Server
+ * und nicht die Kommandozeile; dafuer braucht die App LETTERMINT_TOKEN.
+ *
+ * Genau einmal je Gast: der Vermerk steht VOR dem Versand im Register, sonst
+ * schickt ein zweites Abschicken des Formulars eine zweite Mail. Scheitert
+ * der Versand, wird er zurueckgenommen, damit ein spaeterer Anlauf ihn holt.
+ * Fehler bleiben folgenlos fuer den Gast: seine Zusage ist da, ob die
+ * Bestaetigung ankam oder nicht. */
+function bestaetigungSenden(inv) {
+  if (!LETTERMINT_TOKEN) return;                 // App ohne Token: still nichts tun
+  if (!inv || !inv.email || inv.bestaetigung) return;
+  const datei = inv.typ === "ehrengast"
+    ? ((inv.partner && inv.partnerLogo) ? "bestaetigung-ehrengast-partner.html" : "bestaetigung-ehrengast.html")
+    : "bestaetigung-ticket.html";
+  let html;
+  try { html = renderMail(inv, datei); }
+  catch (e) { console.error("Bestätigung " + datei + " bricht: " + e.message); return; }
+
+  inv.bestaetigung = Date.now();
+  dirty = true;
+  const text = [
+    (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
+    "",
+    "du bist im Kreis" + (inv.ticketNr ? " – " + inv.ticketNr : "") + ".",
+    "",
+    "16. September 2026, 18:00 bis 23:00 Uhr",
+    "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
+    inv.typ === "ticket" ? "Beitrag: " + (TICKET_PRICE / 100).toFixed(2).replace(".", ",") + " Euro, bezahlt" : null,
+    "",
+    "Termin in den Kalender: " + PUBLIC_URL + "/termin.ics",
+    "Deine Seite: " + inviteLink(inv.token),
+    "",
+    "Keine weiteren Mails: " + abmeldeLink(inv.token)
+  ].filter(z => z !== null).join("\n");
+
+  lettermintSenden({
+    to: inv.email,
+    subject: inv.typ === "ticket" ? "Dein Platz bei THE CIRCLE No1 ist gesichert"
+                                  : "Deine Zusage zu THE CIRCLE No1",
+    html, text,
+    abmeldeUrl: abmeldeLink(inv.token),
+    metadata: { token: inv.token, art: "bestaetigung", pool: inv.pool || "" }
+  }, (err) => {
+    if (err) {
+      inv.bestaetigung = 0; dirty = true;        // beim naechsten Anlass neu versuchen
+      console.error("Bestätigung an " + inv.email + " fehlgeschlagen: " + err.message);
+    } else {
+      console.log("Bestätigung an " + inv.email + " verschickt.");
+    }
+  });
+}
+
 function textFassung(inv, welle) {
   /* Welle 0 hat bewusst KEINEN persoenlichen Link - die HTML-Fassung zeigt
    * nur die Website, also darf die Textfassung nicht heimlich den Zusage-
@@ -1070,6 +1128,7 @@ function zahlungBuchen(token, session) {
   };
   logEvent("bezahlt", inv.name, inv.pool);
   dirty = true;
+  bestaetigungSenden(inv);
 }
 
 /* ---------- Server ---------- */
@@ -1322,6 +1381,10 @@ const server = http.createServer((req, res) => {
       if (inv.typ === "ehrengast") {
         if (inv.status !== "bezahlt") inv.status = "zugesagt";
         logEvent("zugesagt", inv.name, inv.pool);
+        /* Ehrengaeste sind mit der Zusage fertig - also bestaetigen wir jetzt.
+         * Bezahlgaeste erst nach der Zahlung, sonst bestaetigten wir einen
+         * Platz, der noch offen ist (siehe zahlungBuchen). */
+        bestaetigungSenden(inv);
       } else if (inv.status === "offen" || inv.status === "abgesagt") {
         inv.status = "zugesagt";                    // zugesagt, Zahlung offen
         logEvent("zugesagt", inv.name, inv.pool);
