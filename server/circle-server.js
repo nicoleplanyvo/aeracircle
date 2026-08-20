@@ -156,7 +156,76 @@ if (!state.guests) state.guests = {};
 if (!state.invites) state.invites = {};
 if (!state.feed) state.feed = [];
 
+/* ---------- Mailstatus je Welle ----------
+ * Bis hierher fuehrte das Register EINEN Satz Marker je Gast:
+ * mail = { sent, delivered, opened, clicked }. Jedes Feld wurde nur beim
+ * ersten Mal gesetzt. Fuer eine einzige Welle geht das auf - ab der zweiten
+ * nicht mehr: Wer das Save the Date geoeffnet hat, gilt fuer immer als
+ * "geoeffnet", und ob er die Einladung je gesehen hat, weiss niemand.
+ * Umgekehrt konnte kein Ereignis der zweiten Welle mehr durchdringen.
+ *
+ * Deshalb jetzt: inv.wellen["0"|"1"|"2"] = { sent, delivered, opened, clicked }.
+ * inv.mail bleibt als Gesamtsicht bestehen (und traegt weiterhin "bounced" -
+ * eine tote Adresse ist wellenunabhaengig tot), fuehrt aber ab jetzt den
+ * JUENGSTEN Zeitpunkt statt des aeltesten.
+ *
+ * Zuordnung eines Ereignisses zur Welle, in dieser Reihenfolge:
+ *   1. metadata.welle aus der Meldung - der Versand gibt sie mit
+ *   2. sonst ueber das Versand-Gedaechtnis: die letzte Welle, die vor dem
+ *      Ereignis an diesen Gast rausging
+ * Bestandsdaten werden beim Start einmal nach derselben Regel aufgeteilt. */
+const MAILFELDER = ["sent", "delivered", "opened", "clicked"];
+
+function versandLogStill() {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, "versand-log.json"), "utf8")); }
+  catch (e) { return {}; }                      // fehlt oder unlesbar: dann eben ohne
+}
+
+/* Welche Welle war zum Zeitpunkt ts fuer diesen Gast zuletzt aktuell? */
+function welleZuZeit(token, ts, log) {
+  const eintrag = log[token];
+  if (!eintrag) return null;
+  let beste = null, besteZeit = -1;
+  for (const w of Object.keys(eintrag)) {
+    const raus = Number(eintrag[w]);
+    if (Number.isFinite(raus) && raus <= ts + 60_000 && raus > besteZeit) { besteZeit = raus; beste = w; }
+  }
+  /* Ereignis vor jedem Versand (Altbestand ohne Log): der aeltesten Welle
+   * zuschlagen, die dieser Gast bekommen hat - besser als wegwerfen. */
+  if (beste === null) {
+    const alle = Object.keys(eintrag).sort();
+    beste = alle.length ? alle[0] : null;
+  }
+  return beste;
+}
+
+
+
 let dirty = false;
+
+(function wellenNachtragen() {
+  let umgezogen = 0;
+  const log = versandLogStill();
+  for (const inv of Object.values(state.invites)) {
+    if (inv.wellen) continue;                   // schon aufgeteilt
+    inv.wellen = {};
+    const m = inv.mail;
+    if (!m) continue;
+    for (const feld of MAILFELDER) {
+      const ts = Number(m[feld]);
+      if (!Number.isFinite(ts) || !ts) continue;
+      const w = welleZuZeit(inv.token, ts, log);
+      if (w === null) continue;                 // nie etwas verschickt: nichts zuzuordnen
+      (inv.wellen[w] = inv.wellen[w] || {})[feld] = ts;
+      umgezogen++;
+    }
+  }
+  if (umgezogen) {
+    console.log("Mailstatus auf Wellen aufgeteilt: " + umgezogen + " Ereignisse.");
+    dirty = true;
+  }
+})();
+
 setInterval(() => {
   if (!dirty) return;
   dirty = false;
@@ -1356,9 +1425,20 @@ const server = http.createServer((req, res) => {
     // "Geklickt" nur zaehlen, wenn der Aufruf von der Landing Page kommt, nicht
     // vom App-Link (/?t=, ruft mit app=1). Sonst verfaelscht das Oeffnen der App
     // die Klickquote und meldet Gaeste als engagiert, die nur die App geladen haben.
-    if (q.get("app") !== "1" && !inv.mail.clicked) {
-      inv.mail.clicked = Date.now();
-      logEvent("geklickt", inv.name, inv.pool);
+    if (q.get("app") !== "1") {
+      /* Der Klick kommt ohne metadata - welche Welle ihn ausgeloest hat,
+       * sagt der Zeitpunkt gegen das Versand-Gedaechtnis. */
+      const jetzt = Date.now();
+      const w = welleZuZeit(inv.token, jetzt, versandLogStill());
+      inv.wellen = inv.wellen || {};
+      const topf = w === null ? null : (inv.wellen[w] = inv.wellen[w] || {});
+      const neuInWelle = topf ? !topf.clicked : !inv.mail.clicked;
+      if (neuInWelle) {
+        if (topf) topf.clicked = jetzt;
+        if (!inv.mail.clicked || jetzt > inv.mail.clicked) inv.mail.clicked = jetzt;
+        logEvent("geklickt" + (w !== null ? " · Welle " + w : ""), inv.name, inv.pool);
+        dirty = true;
+      }
     }
     return json(res, 200, { ok: true, gast: pubInvite(inv) });
   }
@@ -1577,7 +1657,16 @@ const server = http.createServer((req, res) => {
       }
       const feld = hasOwn(map, typ) ? map[typ] : null;
       inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };  // Altbestand
-      const warNeu = feld && !inv.mail[feld];
+      inv.wellen = inv.wellen || {};
+      /* Zu welcher Welle gehoert das Ereignis? Der Versand gibt die Welle als
+       * metadata mit; fehlt sie (Bestaetigungsmails, Altbestand), entscheidet
+       * der Zeitpunkt gegen das Versand-Gedaechtnis. */
+      const welleRoh = String((daten.metadata && daten.metadata.welle) ||
+                              (body.metadata && body.metadata.welle) || "");
+      const istWelle = /^[0-9]$/.test(welleRoh);
+      /* "bounced" gilt der ADRESSE, nicht einer Welle - deshalb weiter flach. */
+      const proWelle = feld && feld !== "bounced";
+      const warNeu = feld && (proWelle ? true : !inv.mail[feld]);
       if (warNeu) {
         /* Zeitpunkt des Ereignisses aus der Meldung selbst (ISO in
          * body.timestamp) - nicht die Empfangszeit: Lettermint liefert
@@ -1586,11 +1675,28 @@ const server = http.createServer((req, res) => {
          * Zukunft, nicht aelter als der Projektstart. */
         const gemeldet = Date.parse(body.timestamp || "");
         const jetzt = Date.now();
-        inv.mail[feld] = (Number.isFinite(gemeldet) &&
-                          gemeldet <= jetzt + 60_000 &&
-                          gemeldet > Date.parse("2026-08-01")) ? gemeldet : jetzt;
-        logEvent(LABEL[feld], inv.name, inv.pool);
-        dirty = true;
+        const zeit = (Number.isFinite(gemeldet) &&
+                      gemeldet <= jetzt + 60_000 &&
+                      gemeldet > Date.parse("2026-08-01")) ? gemeldet : jetzt;
+        if (!proWelle) {
+          inv.mail[feld] = zeit;
+          logEvent(LABEL[feld], inv.name, inv.pool);
+          dirty = true;
+        } else {
+          const w = istWelle ? welleRoh : welleZuZeit(inv.token, zeit, versandLogStill());
+          const topf = w === null ? null : (inv.wellen[w] = inv.wellen[w] || {});
+          /* Innerhalb EINER Welle zaehlt weiter das erste Mal - zwei
+           * Oeffnungen derselben Mail sind ein Gast, nicht zwei. */
+          const neuInWelle = topf && !topf[feld];
+          if (neuInWelle) topf[feld] = zeit;
+          /* Die Gesamtsicht fuehrt den juengsten Zeitpunkt: sie beantwortet
+           * "hat er ueberhaupt je geoeffnet", nicht "wann zum ersten Mal". */
+          if (!inv.mail[feld] || zeit > inv.mail[feld]) inv.mail[feld] = zeit;
+          if (neuInWelle || !topf) {
+            logEvent(LABEL[feld] + (w !== null ? " · Welle " + w : ""), inv.name, inv.pool);
+          }
+          dirty = true;
+        }
       }
       webhookMerken({ t: Date.now(), event: ereignisKopf, typ, gast: inv.name,
                       ergebnis: feld ? (warNeu ? "gesetzt: " + feld : "schon gesetzt: " + feld) : "unbekannter Typ" });
@@ -1838,6 +1944,21 @@ const server = http.createServer((req, res) => {
           const zeiten = Object.values(vlog[inv.token]);
           if (zeiten.length) mail.sent = Math.min.apply(null, zeiten);
         }
+        /* Status je Welle. "sent" kommt aus dem Versand-Gedaechtnis, nicht aus
+         * einem Webhook: es weiss sicher, wer welche Welle bekommen hat -
+         * auch wenn Lettermint die Meldung nie geschickt hat. */
+        const wellen = {};
+        for (const w of Object.keys(WELLEN)) {
+          const eig = (inv.wellen && inv.wellen[w]) || {};
+          const raus = hasOwn(vlog, inv.token) ? Number(vlog[inv.token][w]) || 0 : 0;
+          if (!raus && !eig.sent && !eig.delivered && !eig.opened && !eig.clicked) continue;
+          wellen[w] = {
+            sent: eig.sent || raus || 0,
+            delivered: eig.delivered || 0,
+            opened: eig.opened || 0,
+            clicked: eig.clicked || 0
+          };
+        }
         return {
           pool: inv.pool,
           typ: inv.typ,
@@ -1856,6 +1977,7 @@ const server = http.createServer((req, res) => {
             diet: (inv.daten && inv.daten.diet) || "",
             allergy: (inv.daten && inv.daten.allergy) || ""
           },
+          wellen,
           mail
         };
       });
