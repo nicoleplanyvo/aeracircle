@@ -253,7 +253,9 @@
       <span>18:00 – 23:00 Uhr · Playa Cologne</span>
       <span>3-Gang-Menü inkl. Getränke</span>
     </div>
-    <a class="runter" href="#zusagen"><i></i>Der Abend im Überblick</a>
+    <!-- Zeigt seit jeher auf die Antwort, hiess aber "Der Abend im Ueberblick".
+         Wer nur zusagen will, soll nicht durch fuenf Abschnitte scrollen. -->
+    <a class="runter" href="#zusagen"><i></i>Zusagen oder absagen</a>
   </header>
 
   <!-- ======== 01 DAS EVENT ======== -->
@@ -565,6 +567,16 @@ function starten() {
   $("#seite").style.display = "block";
   renderGast();
   beobachten();
+  /* Der Anker aus der Mail (…/einladung?t=…#zusagen) lief bisher ins Leere:
+   * Beim Laden ist die ganze Seite noch display:none, der Browser findet das
+   * Ziel nicht und springt nie. Also hier nachholen, sobald sie sichtbar ist.
+   * Ohne das muss ein Gast, der nur zusagen will, durch fünf Abschnitte. */
+  if (location.hash === "#zusagen") {
+    requestAnimationFrame(() => {
+      const ziel = $("#zusagen");
+      if (ziel) ziel.scrollIntoView({ block: "start" });
+    });
+  }
   /* Rückkehr von Stripe: auf die Webhook-Bestätigung warten */
   if (params.get("bezahlt") === "1") zahlungPruefen();
 }
