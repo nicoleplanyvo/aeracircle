@@ -165,6 +165,21 @@ Weitere Schalter: `--pool="…"`, `--typ=ehrengast|ticket`, `--limit=n`.
 noch nicht scharf ist: Ehrengäste können raus, Bezahlgäste warten – bei ihnen
 liefe „Weiter zur Zahlung" sonst ins Leere.
 
+### Was die Küche braucht
+
+Die Angaben aus dem Zusageformular – Ernährung, Unverträglichkeiten,
+Mobilnummer – stehen im Register unter `daten`. Abrufbar sind sie hier:
+
+```bash
+node server/circle-server.js kueche              # Übersicht mit Summen
+node server/circle-server.js kueche --csv        # als Tabelle fürs Catering
+node server/circle-server.js export              # alles, inkl. Links
+```
+
+`kueche` zeigt nur Gäste, die **zugesagt oder bezahlt** haben – wer noch nicht
+geantwortet hat, isst auch nichts. Am Ende stehen die Summen je Ernährungsart
+und alle Unverträglichkeiten gesammelt, damit die Küche nicht zählen muss.
+
 ### Vorflugkontrolle
 
 Der Trockenlauf beantwortet „bricht das Rendern?". Dieser Befehl beantwortet

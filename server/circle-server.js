@@ -1658,10 +1658,12 @@ const server = http.createServer((req, res) => {
     }
     // Kontrollliste als CSV: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "mobil", "ernaehrung", "unvertraeglichkeiten", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
       for (const inv of Object.values(state.invites)) {
         zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.firma || "", inv.rolle || "",
+                     (inv.daten && inv.daten.phone) || "", (inv.daten && inv.daten.diet) || "",
+                     (inv.daten && inv.daten.allergy) || "",
                      inv.partner || "", inv.partnerLogo || "",
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
@@ -1928,11 +1930,61 @@ if (befehl === "import") {
   process.exit(0);
 }
 
+/* Kuechenliste: was das Catering wirklich braucht, ohne alles andere.
+ * Nur Gaeste, die zugesagt oder bezahlt haben - wer noch nicht geantwortet
+ * hat, isst auch nichts. Am Ende die Summen, damit die Kueche nicht zaehlen
+ * muss.
+ *
+ *   node server/circle-server.js kueche              Uebersicht
+ *   node server/circle-server.js kueche --csv        als Tabelle
+ */
+if (befehl === "kueche") {
+  const dabei = Object.values(state.invites)
+    .filter(i => i.status === "zugesagt" || i.status === "bezahlt")
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+  const kost = { alles: "Alles", vegetarisch: "Vegetarisch", vegan: "Vegan", pescetarisch: "Pescetarisch" };
+  const zeile = i => ({
+    name: i.name || "", diet: (i.daten && i.daten.diet) || "",
+    allergy: (i.daten && i.daten.allergy) || "", phone: (i.daten && i.daten.phone) || ""
+  });
+
+  if (flagge("csv")) {
+    const raus = [["name", "ernaehrung", "unvertraeglichkeiten", "mobil", "status"]];
+    for (const i of dabei) {
+      const z = zeile(i);
+      raus.push([z.name, kost[z.diet] || z.diet, z.allergy, z.phone, i.status]);
+    }
+    process.stdout.write(raus.map(r => r.map(csvCell).join(",")).join("\n") + "\n");
+    process.exit(0);
+  }
+
+  console.log("Küchenliste · " + dabei.length + " zugesagte Gäste\n");
+  const zaehl = {};
+  for (const i of dabei) {
+    const z = zeile(i);
+    zaehl[z.diet || "(nicht angegeben)"] = (zaehl[z.diet || "(nicht angegeben)"] || 0) + 1;
+    console.log("  " + (z.name || "?").padEnd(28) +
+                (kost[z.diet] || z.diet || "—").padEnd(15) +
+                (z.allergy ? "⚠ " + z.allergy : ""));
+  }
+  console.log("\nNach Ernährung:");
+  for (const [k, n] of Object.entries(zaehl).sort((a, b) => b[1] - a[1]))
+    console.log("  " + (kost[k] || k).padEnd(20) + n);
+  const allergien = dabei.map(zeile).filter(z => z.allergy);
+  console.log("\nUnverträglichkeiten: " + allergien.length);
+  for (const z of allergien) console.log("  " + z.name.padEnd(28) + z.allergy);
+  console.log("\nAls Tabelle:  node server/circle-server.js kueche --csv > kueche.csv");
+  process.exit(0);
+}
+
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "mobil", "ernaehrung", "unvertraeglichkeiten", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
   for (const inv of Object.values(state.invites)) {
     zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
                      inv.name, inv.email, inv.firma || "", inv.rolle || "",
+                     (inv.daten && inv.daten.phone) || "", (inv.daten && inv.daten.diet) || "",
+                     (inv.daten && inv.daten.allergy) || "",
                      inv.partner || "", inv.partnerLogo || "",
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
@@ -2394,7 +2446,7 @@ process.on("unhandledRejection", (err) => {
  * der laufenden App belegt, brechen EADDRINUSE und der Fehlerhaken den Prozess
  * ab - mitten in einer Welle, nach vierzig von vierundneunzig Mails. */
 if (befehl) {
-  const BEKANNT = ["import", "export", "welle", "whatsapp", "pruefen"];
+  const BEKANNT = ["import", "export", "welle", "whatsapp", "pruefen", "kueche"];
   if (!BEKANNT.includes(befehl)) {
     console.error("Unbekannter Befehl: " + befehl);
     console.error("Bekannt: " + BEKANNT.join(", "));
