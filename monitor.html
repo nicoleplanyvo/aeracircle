@@ -152,7 +152,7 @@
   .mailtools input:focus{border-color:var(--blau)}
   .mailtools .mzahl{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
   .mailtable{overflow-x:auto}
-  .mailtable table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px}
+  .mailtable table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:720px}
   .mailtable th{
     text-align:left;font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);
     font-weight:500;padding:8px 10px 8px 0;border-bottom:1px solid var(--line)
@@ -222,9 +222,38 @@
   .chip[aria-pressed="true"]{background:var(--ivory);border-color:var(--ivory);color:var(--ink);font-weight:600}
   .fussnote{font-size:10px;line-height:1.6;color:var(--faint);margin-top:14px}
 
-  /* Wellenwahl – welche Sendung zeigt die Tabelle? */
-  .wellenwahl{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0 10px}
-  .wellenwahl .wl{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin-right:4px}
+  /* Wellenwahl über dem Funnel */
+  .wellenwahl{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0 12px}
+
+  /* Eine Spalte je Mail: wie weit ist sie gekommen? */
+  .mailtable td.wz,.mailtable th.wz{padding-right:18px;white-space:nowrap}
+  .mailtable td.wz.leer{color:var(--line)}
+  .ms{display:inline-block;border-radius:999px;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+    padding:3px 9px;border:1px solid var(--line-soft);color:var(--faint)}
+  .ms.s1{color:var(--faint)}
+  .ms.s2{color:var(--muted);border-color:var(--line)}
+  .ms.s3{background:var(--blau);border-color:var(--blau);color:#fff;font-weight:600}
+  .ms.s4{background:var(--coral);border-color:var(--coral);color:#fff;font-weight:600}
+
+  /* Für die Küche */
+  .kuecheZahlen{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:18px}
+  .kz{border:1px solid var(--line-soft);background:rgba(248,247,244,.05);padding:14px 16px}
+  .kz b{display:block;font-family:var(--serif);font-weight:600;font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
+  .kz span{display:block;font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin-top:6px}
+  .ktable{overflow-x:auto}
+  .ktable table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px}
+  .ktable th{text-align:left;font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);
+    font-weight:500;padding:8px 12px 8px 0;border-bottom:1px solid var(--line)}
+  .ktable td{padding:9px 12px 9px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+  .ktable tr.wichtig td{background:rgba(255,107,108,.09)}
+  .ktable td.uv{color:var(--coral);font-weight:500}
+  .ktable td.diet{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+  /* Ausgabe-Knöpfe */
+  .exportzeile{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  .export{background:none;border:1px solid var(--line-soft);border-radius:999px;color:var(--muted);
+    font-family:var(--sans);font-size:9px;letter-spacing:.2em;text-transform:uppercase;padding:8px 18px;cursor:pointer}
+  .export:hover{border-color:var(--blau);color:var(--ivory)}
 
   /* Fangschaltung: was kam wirklich von Lettermint an */
   .hooks{font-size:11.5px}
@@ -264,14 +293,19 @@
   </section>
 
   <!-- 2 · Die Kennzahlen -->
-  <div class="kpis">
-    <div class="kpi"><b data-k="versendet" data-n="148">0</b><span>Versendet</span></div>
-    <div class="kpi"><b data-k="zugestellt" data-n="146">0</b><span>Zugestellt</span></div>
-    <div class="kpi"><b data-k="geoeffnet" data-n="107">0</b><span>Geöffnet · 73&thinsp;%</span></div>
-    <div class="kpi"><b data-k="geklickt" data-n="66">0</b><span>Geklickt · 45&thinsp;%</span></div>
+  <!-- Hier stehen nur Zustände des GASTES. Zahlen zu einzelnen Mails
+       (verschickt, zugestellt, geöffnet, geklickt) gibt es ausschließlich
+       je Welle – darunter. Sonst entsteht wieder der gemischte Stand, der
+       niemandem etwas sagt. -->
+  <span class="label" style="display:block;margin-top:30px">Der Stand der Gäste</span>
+  <div class="kpis" style="margin-top:8px">
+    <div class="kpi"><b data-k="gesamt" data-n="167">0</b><span>Gäste</span></div>
+    <div class="kpi"><b data-k="versendet" data-n="148">0</b><span>Angeschrieben</span></div>
     <div class="kpi"><b data-k="zugesagt" data-n="58">0</b><span>Zugesagt</span></div>
     <div class="kpi"><b data-k="bezahlt" data-n="41">0</b><span>Bezahlt</span></div>
     <div class="kpi"><b data-k="abgesagt" data-n="9">0</b><span>Abgesagt</span></div>
+    <div class="kpi"><b data-k="unzustellbar" data-n="3">0</b><span>Unzustellbar</span></div>
+    <div class="kpi"><b data-k="abgemeldet" data-n="2">0</b><span>Abgemeldet</span></div>
   </div>
 
   <!-- 3 · Die Wellen. Live kommen Zahlen und Stand aus dem Versand-Gedächtnis
@@ -315,9 +349,10 @@
   <!-- 5 · Die Zahlen im Detail -->
   <div class="grid2">
     <div class="panel">
-      <span class="label">Vom Versand bis zum Ticket · über alle Wellen</span>
+      <span class="label" id="funnellabel">Vom Versand bis zum Ticket</span>
       <h2>Der Funnel</h2>
-      <p class="fussnote" id="funnelnote" style="margin:-6px 0 14px" hidden>Eine Zeile je Gast, nicht je Sendung: „geöffnet“ heißt, dass er <em>irgendeine</em> unserer Mails geöffnet hat. Je Welle stehen die Zahlen oben in der Wellen-Übersicht.</p>
+      <div class="wellenwahl" id="funnelwahl"></div>
+      <p class="fussnote" id="funnelnote" style="margin:-4px 0 14px" hidden></p>
       <div class="frow" data-k="versendet"><span class="fk">Versendet</span><div class="track"><i data-w="100"></i></div><b>148</b></div>
       <div class="frow" data-k="zugestellt"><span class="fk">Zugestellt</span><div class="track"><i data-w="98.6"></i></div><b>146<small>99&thinsp;%</small></b></div>
       <div class="frow" data-k="geoeffnet"><span class="fk">Geöffnet</span><div class="track"><i data-w="72.3"></i></div><b>107<small>73&thinsp;%</small></b></div>
@@ -347,7 +382,7 @@
             </div>
           </div>
         </div>
-        <p class="fussnote" id="fassungsnote" hidden>Gezählt werden Gäste, die diese Fassung bekommen haben. Geöffnet, geklickt, zugesagt und bezahlt sind der heutige Stand des Gastes – nicht die Reaktion auf genau diese eine Mail. Wer zwei Wellen bekommen hat, steht in beiden Zeilen.</p>
+        <p class="fussnote" id="fassungsnote" hidden>Wenn eine Welle in mehreren Fassungen rausgeht (Ticket, Ehrengast, Partner), stehen sie hier einzeln. Geöffnet und geklickt zählen die Reaktion auf genau diese Fassung; zugesagt und bezahlt sind der heutige Stand des Gastes.</p>
       </div>
     </div>
 
@@ -381,29 +416,50 @@
     </div>
   </div>
 
-  <!-- 6 · Der Einzelfall. Ganz unten, weil man hierher springt, wenn oben
+  <!-- 6 · Was die Küche wissen muss. Nur Gäste, die zugesagt haben –
+       für alle anderen wird nicht gekocht. -->
+  <div class="panel" id="kuechepanel" style="margin-top:8px" hidden>
+    <span class="label">Nur Gäste, die zugesagt haben</span>
+    <h2>Für die Küche</h2>
+    <div class="kuecheZahlen" id="kuecheZahlen"></div>
+    <div class="ktable">
+      <table>
+        <thead><tr><th>Gast</th><th>Ernährung</th><th>Unverträglichkeit</th></tr></thead>
+        <tbody id="kuecheliste"></tbody>
+      </table>
+    </div>
+    <div class="exportzeile">
+      <button class="export" id="kuecheCsv" type="button">Küchenliste als CSV</button>
+      <span class="fussnote" style="margin:0" id="kuechenote"></span>
+    </div>
+  </div>
+
+  <!-- 7 · Der Einzelfall. Ganz unten, weil man hierher springt, wenn oben
        etwas auffällt – nicht umgekehrt. -->
   <div class="panel" id="mailpanel">
     <span class="label">Jede Mail einzeln · aus Versand-Log und Lettermint-Webhooks</span>
     <h2>Gästeliste · Mailstatus</h2>
-    <div class="wellenwahl" id="wellenwahl"></div>
     <div class="chips" id="chips"></div>
     <div class="mailtools">
-      <input id="mailsuche" type="search" placeholder="Name, E-Mail oder Pool suchen …" autocomplete="off">
+      <input id="mailsuche" type="search" placeholder="Name, Unternehmen, E-Mail oder Pool suchen …" autocomplete="off">
       <span class="mzahl" id="mailzahl"></span>
     </div>
     <div class="mailtable">
       <table>
-        <thead><tr>
-          <th>Gast</th><th>Pool</th>
-          <th class="dot">Versendet</th><th class="dot">Zugestellt</th>
-          <th class="dot">Geöffnet</th><th class="dot">Geklickt</th>
-          <th>Stand</th>
+        <thead id="mailkopf"><tr>
+          <th>Gast</th><th>Pool</th><th>Mails</th><th>Stand</th>
         </tr></thead>
         <tbody id="mailliste"></tbody>
       </table>
     </div>
-    <button class="mailmehr" id="mailmehr" hidden>Alle anzeigen</button>
+    <div class="exportzeile">
+      <button class="mailmehr" id="mailmehr" style="margin:0" hidden>Alle anzeigen</button>
+      <button class="export" id="gaesteCsv" type="button">Liste als CSV</button>
+      <span class="fussnote" style="margin:0" id="csvnote"></span>
+    </div>
+    <p class="fussnote">Eine Spalte je Mail. Der Eintrag sagt, wie weit sie gekommen ist:
+      <b>verschickt</b> → <b>zugestellt</b> → <b>geöffnet</b> → <b>geklickt</b>.
+      Ein Strich heißt: diese Mail hat der Gast (noch) nicht bekommen.</p>
   </div>
 
   <!-- 7 · Kommt überhaupt etwas an? Die Fangschaltung beantwortet die Frage,
@@ -447,8 +503,7 @@ let chip = "alle";
 let laeuft = false;        // eine Abfrage zur Zeit
 let taktId = null;
 let letzteWellen = [];     // fuer die "warten auf Welle n"-Kachel
-let welleAnsicht = null;   // welche Sendung zeigt die Gaesteliste? null = Gesamtsicht
-let gewaehlt = false;      // hat schon jemand (Vorgabe oder Klick) gewaehlt?
+let welleFunnel = null;    // welche Welle zeigt der Funnel?
 
 const txt = (el, s) => { el.textContent = s; return el; };
 const $   = s => document.querySelector(s);
@@ -474,6 +529,8 @@ addEventListener("load", ()=>{
 
   $("#mailsuche").addEventListener("input", ()=>{ mailAlle = false; gaesteRendern(); });
   $("#mailmehr").addEventListener("click", ()=>{ mailAlle = true; gaesteRendern(); });
+  $("#gaesteCsv").addEventListener("click", gaesteCsv);
+  $("#kuecheCsv").addEventListener("click", kuecheCsv);
   /* Zurück aus dem Hintergrund: sofort nachladen, nicht bis zum nächsten
      Takt warten – sonst schaut man auf eine halbe Stunde alte Zahlen. */
   document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) laden(); });
@@ -497,9 +554,14 @@ async function laden(){
     if(!d.ok) return zustand(0, "");
 
     live = true;
-    kpisSetzen(d.gesamt);
-    funnelSetzen(d.gesamt);
     letzteWellen = d.wellen || [];
+    kpisSetzen(d.gesamt);
+    /* Vorgabe: die zuletzt verschickte Welle - das ist die Frage im Betrieb. */
+    const raus = letzteWellen.filter(w => w.versendet);
+    if(welleFunnel === null || !raus.some(w => w.nr === welleFunnel))
+      welleFunnel = raus.length ? raus[raus.length - 1].nr : null;
+    const wf = raus.find(w => w.nr === welleFunnel);
+    if(wf){ funnelwahlRendern(); funnelSetzen(wf); }
     wellenRendern(letzteWellen);
     poolsRendern(d.pools || []);
     fassungenRendern(d.fassungen || []);
@@ -573,17 +635,16 @@ function quelleSetzen(d){
 }
 
 /* ---------- Kennzahlen ---------- */
-const pct = (a, b) => b ? " · " + Math.round(a / b * 100) + " %" : "";
+/* Fehlt ein Wert, ist die Quote leer - nie "NaN %". */
+const pct = (a, b) => (b && a != null) ? " · " + Math.round(a / b * 100) + " %" : "";
+/* Oben stehen nur Zustände des Gastes. "Angeschrieben" heißt: hat mindestens
+   eine unserer Mails bekommen - eine Aussage über den Gast, nicht über eine
+   Sendung. Alles Sendungsbezogene steht je Welle. */
 function kpisSetzen(g){
-  const werte  = { versendet:g.versendet, zugestellt:g.zugestellt, geoeffnet:g.geoeffnet,
-                   geklickt:g.geklickt, zugesagt:g.zugesagt, bezahlt:g.bezahlt, abgesagt:g.abgesagt };
-  /* Auch die Beschriftungen setzen: die eingebauten "· 73 %" sind Demo-Werte
-     und stünden sonst neben echten Zahlen. */
-  const labels = { versendet:"Versendet",
-                   zugestellt:"Zugestellt" + pct(g.zugestellt, g.versendet),
-                   geoeffnet:"Geöffnet" + pct(g.geoeffnet, g.versendet),
-                   geklickt:"Geklickt" + pct(g.geklickt, g.versendet),
-                   zugesagt:"Zugesagt", bezahlt:"Bezahlt", abgesagt:"Abgesagt" };
+  const werte  = { gesamt:g.gesamt, versendet:g.versendet, zugesagt:g.zugesagt, bezahlt:g.bezahlt,
+                   abgesagt:g.abgesagt, unzustellbar:g.unzustellbar, abgemeldet:g.abgemeldet };
+  const labels = { gesamt:"Gäste", versendet:"Angeschrieben", zugesagt:"Zugesagt", bezahlt:"Bezahlt",
+                   abgesagt:"Abgesagt", unzustellbar:"Unzustellbar", abgemeldet:"Abgemeldet" };
   document.querySelectorAll(".kpi b[data-k]").forEach(el => {
     const k = el.dataset.k;
     el.textContent = werte[k] == null ? 0 : werte[k];
@@ -592,21 +653,52 @@ function kpisSetzen(g){
   });
 }
 
-function funnelSetzen(g){
-  const proz = { zugestellt: pct(g.zugestellt, g.versendet).slice(3),
-                 geoeffnet:  pct(g.geoeffnet,  g.versendet).slice(3),
-                 geklickt:   pct(g.geklickt,   g.versendet).slice(3) };
+/* Der Funnel gilt IMMER für genau eine Welle. Ein Funnel "über alle Wellen"
+   wäre wieder der gemischte Stand: das Save the Date ging an alle, die
+   Einladung nur an einen Teil - eine gemeinsame Quote sagt nichts. */
+function funnelSetzen(w){
+  const proz = { zugestellt: pct(w.zugestellt, w.versendet).slice(3),
+                 geoeffnet:  pct(w.geoeffnet,  w.versendet).slice(3),
+                 geklickt:   pct(w.geklickt,   w.versendet).slice(3),
+                 zugesagt:   pct(w.zugesagt,   w.versendet).slice(3),
+                 bezahlt:    pct(w.bezahlt,    w.versendet).slice(3) };
   document.querySelectorAll(".frow[data-k]").forEach(row => {
     const k = row.dataset.k;
-    const wert = g[k] || 0;
+    const wert = w[k] || 0;
     const b = row.querySelector("b");
     if(b){
       b.textContent = wert;
       if(proz[k]){ const s = document.createElement("small"); s.textContent = proz[k]; b.appendChild(s); }
     }
     const bar = row.querySelector("i");
-    if(bar) bar.style.width = (g.versendet ? Math.round(wert / g.versendet * 100) : 0) + "%";
+    if(bar) bar.style.width = (w.versendet ? Math.round(wert / w.versendet * 100) : 0) + "%";
   });
+  $("#funnellabel").textContent = "Wie weit " + kurzname(w) + " gekommen ist";
+  $("#funnelnote").hidden = false;
+  $("#funnelnote").innerHTML = "Gezählt werden die <b>" + w.versendet + "</b>, die diese Mail bekommen haben. " +
+    "Zugesagt und bezahlt sind ihr heutiger Stand – eine Zusage gehört keiner einzelnen Mail.";
+}
+
+/* "Welle 1 · Einladung" -> "die Einladung" */
+function kurzname(w){
+  const t = (w.name || "").split("·")[1];
+  return t ? "„" + t.trim() + "“" : "Welle " + w.nr;
+}
+
+/* Die Wellenwahl über dem Funnel. Nur Wellen, die schon raus sind. */
+function funnelwahlRendern(){
+  const box = $("#funnelwahl");
+  const raus = letzteWellen.filter(w => w.versendet);
+  box.innerHTML = "";
+  if(raus.length < 2) return;                     // eine Welle braucht keine Wahl
+  for(const w of raus){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip";
+    b.setAttribute("aria-pressed", String(welleFunnel === w.nr));
+    b.textContent = (w.name || "").split("·")[1] ? w.name.split("·")[1].trim() : "Welle " + w.nr;
+    b.addEventListener("click", ()=>{ welleFunnel = w.nr; funnelwahlRendern(); funnelSetzen(w); });
+    box.appendChild(b);
+  }
 }
 
 /* ---------- Wellen ----------
@@ -772,6 +864,128 @@ function feedRendern(feed){
   }
 }
 
+/* ---------- Für die Küche ----------
+ * Nur Zusagen und bezahlte Tickets: für Absagen und Unentschiedene wird
+ * nicht gekocht. Unverträglichkeiten stehen oben und farbig - sie sind der
+ * Grund, warum es diese Liste gibt. */
+const DIETS = [
+  { k: "alles",        t: "Alles" },
+  { k: "vegetarisch",  t: "Vegetarisch" },
+  { k: "vegan",        t: "Vegan" },
+  { k: "pescetarisch", t: "Pescetarisch" }
+];
+const kommt = g => g.status === "zugesagt" || g.status === "bezahlt";
+
+function kuecheListe(){
+  return alleGaeste.filter(kommt).sort((a, b) => {
+    /* Unverträglichkeiten zuerst - sie brauchen eine Entscheidung. */
+    const ua = a.unvertraeglich ? 0 : 1, ub = b.unvertraeglich ? 0 : 1;
+    if(ua !== ub) return ua - ub;
+    /* Keine Angabe ans Ende, nicht an den Anfang: findIndex liefert dafür
+       -1, und das sortierte sonst vor "Alles". */
+    const rang = g => { const i = DIETS.findIndex(d => d.k === g.ernaehrung); return i < 0 ? DIETS.length : i; };
+    return rang(a) - rang(b) || (a.name || "").localeCompare(b.name || "");
+  });
+}
+
+function kuecheRendern(){
+  const liste = kuecheListe();
+  $("#kuechepanel").hidden = !liste.length;
+  if(!liste.length) return;
+
+  const zahlen = $("#kuecheZahlen");
+  zahlen.innerHTML = "";
+  const kachel = (n, t) => {
+    const d = document.createElement("div"); d.className = "kz";
+    txt(d.appendChild(document.createElement("b")), String(n));
+    txt(d.appendChild(document.createElement("span")), t);
+    zahlen.appendChild(d);
+  };
+  kachel(liste.length, "Essen gesamt");
+  for(const d of DIETS){
+    const n = liste.filter(g => g.ernaehrung === d.k).length;
+    if(n) kachel(n, d.t);
+  }
+  const ohne = liste.filter(g => !g.ernaehrung).length;
+  if(ohne) kachel(ohne, "Keine Angabe");
+  const uv = liste.filter(g => g.unvertraeglich).length;
+  if(uv) kachel(uv, "Unverträglichkeit");
+
+  const tb = $("#kuecheliste");
+  tb.innerHTML = "";
+  for(const g of liste){
+    const tr = document.createElement("tr");
+    if(g.unvertraeglich) tr.className = "wichtig";
+    txt(tr.appendChild(document.createElement("td")), g.name || "—");
+    const d = DIETS.find(x => x.k === g.ernaehrung);
+    txt(tr.appendChild(document.createElement("td")), d ? d.t : "keine Angabe").className = "diet";
+    const u = tr.appendChild(document.createElement("td"));
+    txt(u, g.unvertraeglich || "—");
+    if(g.unvertraeglich) u.className = "uv";
+    tb.appendChild(tr);
+  }
+  $("#kuechenote").textContent = ohne
+    ? ohne + (ohne === 1 ? " Zusage ohne Angabe zur Ernährung" : " Zusagen ohne Angabe zur Ernährung")
+    : "Alle Zusagen haben eine Angabe zur Ernährung.";
+}
+
+/* ---------- Ausgabe als CSV ----------
+ * Semikolon und ein BOM voran: so öffnet Excel die Datei ohne Nachfrage und
+ * mit richtigen Umlauten. Erzeugt wird im Browser, aus dem, was gerade auf
+ * dem Schirm steht - ein Filter wirkt also auch auf die Datei. */
+function csvText(zeilen){
+  const zelle = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  return "\ufeff" + zeilen.map(r => r.map(zelle).join(";")).join("\r\n");
+}
+function csvLaden(name, text){
+  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 5000);
+}
+const heuteStempel = () => {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+};
+const zeitText = t => t ? new Date(t).toLocaleString("de-DE", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "";
+
+function kuecheCsv(){
+  const zeilen = [["Gast", "Unternehmen", "Ernährung", "Unverträglichkeit", "Pool", "Stand"]];
+  for(const g of kuecheListe()){
+    const d = DIETS.find(x => x.k === g.ernaehrung);
+    zeilen.push([g.name, g.firma || "", d ? d.t : "keine Angabe", g.unvertraeglich || "",
+                 g.pool, STAND_LABEL[g.status] || g.status]);
+  }
+  csvLaden("kueche-" + heuteStempel() + ".csv", csvText(zeilen));
+}
+
+function gaesteCsv(){
+  /* Genau die Zeilen, die gerade in der Tabelle stehen - Filter und Suche
+     eingeschlossen. Sonst exportiert der Knopf etwas anderes, als man sieht. */
+  const liste = sichtbareGaeste();
+  const kopf = ["Gast", "Unternehmen", "Position", "E-Mail", "Telefon", "Pool", "Typ",
+                "Stand", "Ticketnummer", "Ernährung", "Unverträglichkeit", "Unzustellbar", "Abgemeldet"];
+  for(const w of letzteWellen){
+    const n = (w.name || "").split("·")[1] ? w.name.split("·")[1].trim() : "Welle " + w.nr;
+    kopf.push(n + ": verschickt", n + ": zugestellt", n + ": geöffnet", n + ": geklickt");
+  }
+  const zeilen = [kopf];
+  for(const g of liste){
+    const d = DIETS.find(x => x.k === g.ernaehrung);
+    const r = [g.name, g.firma || "", g.position || "", g.email, g.telefon || "",
+               g.pool, g.typ, STAND_LABEL[g.status] || g.status, g.ticketNr || "",
+               d ? d.t : "", g.unvertraeglich || "",
+               g.mail.bounced ? "ja" : "", g.abgemeldet ? "ja" : ""];
+    for(const w of letzteWellen){
+      const m = (g.wellen && g.wellen[String(w.nr)]) || {};
+      r.push(zeitText(m.sent), zeitText(m.delivered), zeitText(m.opened), zeitText(m.clicked));
+    }
+    zeilen.push(r);
+  }
+  csvLaden("gaeste-" + heuteStempel() + ".csv", csvText(zeilen));
+}
+
 /* ---------- Fangschaltung ----------
  * Die Frage "liefert Lettermint überhaupt?" ließ sich bisher nur raten. Der
  * Server merkt sich die letzten Eingänge samt Ergebnis; hier stehen sie.
@@ -829,15 +1043,9 @@ async function gaesteHolen(){
     const d = await r.json();
     if(!d.ok) return;
     alleGaeste = d.gaeste;
-    /* Beim ersten Laden auf die zuletzt verschickte Welle stellen. */
-    if(welleAnsicht === undefined || !gewaehlt){
-      const raus = letzteWellen.filter(w => w.versendet);
-      welleAnsicht = raus.length ? String(raus[raus.length - 1].nr) : null;
-      gewaehlt = true;
-    }
     zahlungenRendern(alleGaeste);
     todosRendern();
-    wellenwahlRendern();
+    kuecheRendern();
     chipsRendern();
     gaesteRendern();
   }catch(e){ /* Liste bleibt, wie sie war */ }
@@ -858,27 +1066,6 @@ const FILTER = [
   { k:"abgemeldet", t:"Abgemeldet",          f:g => !!g.abgemeldet }
 ];
 const filterFn = k => (FILTER.find(f => f.k === k) || FILTER[0]).f;
-
-/* Die Wellenwahl über der Tabelle. Vorgabe ist die zuletzt verschickte
-   Welle - das ist die Frage, die man im Betrieb hat ("ist die Einladung
-   angekommen?"), nicht der Gesamtstand seit dem Save the Date. */
-function wellenwahlRendern(){
-  const box = $("#wellenwahl");
-  const raus = letzteWellen.filter(w => w.versendet);
-  box.innerHTML = "";
-  if(!raus.length) return;
-  txt(box.appendChild(document.createElement("span")), "Welche Sendung").className = "wl";
-  const knopf = (k, t) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "chip";
-    b.setAttribute("aria-pressed", String(welleAnsicht === k));
-    b.textContent = t;
-    b.addEventListener("click", ()=>{ welleAnsicht = k; gewaehlt = true; wellenwahlRendern(); gaesteRendern(); });
-    box.appendChild(b);
-  };
-  for(const w of raus) knopf(String(w.nr), "Welle " + w.nr);
-  knopf(null, "Gesamt");
-}
 
 function chipsRendern(){
   const box = $("#chips");
@@ -905,23 +1092,51 @@ function chipSetzen(k){
 }
 
 const STAND_LABEL = { offen:"Offen", zugesagt:"Zugesagt", bezahlt:"Bezahlt", abgesagt:"Abgesagt" };
-function punkt(t, hot){
-  const td = document.createElement("td"); td.className = "dot";
-  const i = document.createElement("i");
-  i.className = "mst" + (t ? " on" : "") + (t && hot ? " hot" : "");
-  i.title = t ? tag(t) + " " + uhr(t) : "noch nicht";
-  td.appendChild(i);
-  if(t){ const z = document.createElement("span"); z.className = "mzeit"; z.textContent = tag(t) + " " + uhr(t); td.appendChild(z); }
+/* Wie weit ist diese eine Mail gekommen? Ein Wort statt vier Punkten -
+   "geöffnet" versteht jeder, vier Kreise muss man sich erklären lassen. */
+const STUFEN = [
+  { f: "clicked",   t: "geklickt",   c: "s4" },
+  { f: "opened",    t: "geöffnet",   c: "s3" },
+  { f: "delivered", t: "zugestellt", c: "s2" },
+  { f: "sent",      t: "verschickt", c: "s1" }
+];
+function wellenZelle(w){
+  const td = document.createElement("td"); td.className = "wz";
+  const stufe = w ? STUFEN.find(s => w[s.f]) : null;
+  if(!stufe){ txt(td, "—").className = "wz leer"; return td; }
+  txt(td.appendChild(document.createElement("span")), stufe.t).className = "ms " + stufe.c;
+  txt(td.appendChild(document.createElement("span")), tag(w[stufe.f]) + " " + uhr(w[stufe.f])).className = "mzeit";
   return td;
 }
+
+/* Der Tabellenkopf nennt die Mails beim Namen, nicht "Welle 0". */
+function mailkopfRendern(){
+  const tr = $("#mailkopf").firstElementChild;
+  tr.innerHTML = "";
+  const th = (t, k) => { const e = document.createElement("th"); e.textContent = t; if(k) e.className = k; tr.appendChild(e); };
+  th("Gast"); th("Pool");
+  for(const w of letzteWellen) th((w.name || "").split("·")[1] ? w.name.split("·")[1].trim() : "Welle " + w.nr, "wz");
+  th("Stand");
+}
+
+/* Was gerade in der Tabelle steht - Filter und Suche eingeschlossen.
+   Tabelle und CSV lesen dieselbe Funktion, damit die Datei nie etwas
+   anderes enthält als der Bildschirm zeigt. */
+function sichtbareGaeste(){
+  const suche = ($("#mailsuche").value || "").trim().toLowerCase();
+  return alleGaeste.filter(filterFn(chip)).filter(g => !suche ||
+    (g.name  || "").toLowerCase().includes(suche) ||
+    (g.email || "").toLowerCase().includes(suche) ||
+    (g.firma || "").toLowerCase().includes(suche) ||
+    (g.pool  || "").toLowerCase().includes(suche));
+}
+
 function gaesteRendern(){
   if(!alleGaeste.length) return;
   $("#mailpanel").style.display = "block";
+  mailkopfRendern();
   const suche = ($("#mailsuche").value || "").trim().toLowerCase();
-  const treffer = alleGaeste.filter(filterFn(chip)).filter(g => !suche ||
-    (g.name || "").toLowerCase().includes(suche) ||
-    (g.email || "").toLowerCase().includes(suche) ||
-    (g.pool || "").toLowerCase().includes(suche));
+  const treffer = sichtbareGaeste();
   const LIMIT = 30;
   const zeigen = (mailAlle || suche) ? treffer : treffer.slice(0, LIMIT);
 
@@ -931,17 +1146,15 @@ function gaesteRendern(){
     const tr = document.createElement("tr");
     const name = document.createElement("td"); name.className = "gname";
     txt(name.appendChild(document.createElement("b")), g.name || "—");
-    txt(name.appendChild(document.createElement("span")), g.email || "keine Adresse · WhatsApp");
+    txt(name.appendChild(document.createElement("span")),
+        [g.firma, g.email || "keine Adresse · WhatsApp"].filter(Boolean).join(" · "));
     const pool = document.createElement("td");
     txt(pool.appendChild(document.createElement("span")), g.pool || "—").className = "pooltag";
-    /* Welche Sendung zeigen wir? Die gewählte Welle, sonst die Gesamtsicht.
-       Nur so lässt sich lesen, ob DIE EINLADUNG angekommen ist - vorher
-       stand hier der erste Kontakt und blieb dort stehen. */
-    const m = welleAnsicht === null ? g.mail
-            : (g.wellen && g.wellen[welleAnsicht]) || { sent:0, delivered:0, opened:0, clicked:0 };
-    tr.append(name, pool,
-      punkt(m.sent), punkt(m.delivered),
-      punkt(m.opened, true), punkt(m.clicked, true));
+    /* Eine Spalte je Welle - alle Mails nebeneinander. Vorher stand hier ein
+       einziger, gemischter Stand; man konnte nicht sehen, ob DIE EINLADUNG
+       angekommen ist. */
+    tr.append(name, pool);
+    for(const w of letzteWellen) tr.appendChild(wellenZelle(g.wellen && g.wellen[String(w.nr)]));
     const stand = document.createElement("td");
     const s = document.createElement("span");
     s.className = "stat" + (g.mail.bounced ? " bounce" : g.status === "bezahlt" ? " bez"
@@ -959,6 +1172,11 @@ function gaesteRendern(){
          alleGaeste.filter(g => g.mail.sent).length + " angeschrieben"
        : treffer.length + " × " + label);
   $("#mailmehr").hidden = mailAlle || !!suche || treffer.length <= LIMIT;
+  /* Der Knopf sagt, was er ausgibt - nicht das, was gerade zufällig sichtbar
+     ist, sondern alle Treffer des aktiven Filters. */
+  $("#csvnote").textContent = treffer.length + (treffer.length === 1 ? " Zeile" : " Zeilen") +
+    " · mit Unternehmen, Position, Telefon und dem Stand jeder Mail" +
+    (chip === "alle" && !suche ? "" : " · nur die gefilterten");
 }
 
 /* ---------- Handlungsbedarf ----------
