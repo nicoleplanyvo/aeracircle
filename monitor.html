@@ -221,6 +221,22 @@
   .chip:hover{border-color:var(--blau);color:var(--ivory)}
   .chip[aria-pressed="true"]{background:var(--ivory);border-color:var(--ivory);color:var(--ink);font-weight:600}
   .fussnote{font-size:10px;line-height:1.6;color:var(--faint);margin-top:14px}
+
+  /* Wellenwahl – welche Sendung zeigt die Tabelle? */
+  .wellenwahl{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0 10px}
+  .wellenwahl .wl{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin-right:4px}
+
+  /* Fangschaltung: was kam wirklich von Lettermint an */
+  .hooks{font-size:11.5px}
+  .hook{display:flex;gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line-soft);
+    font-variant-numeric:tabular-nums}
+  .hook:first-child{border-top:0}
+  .hook time{flex:0 0 44px;color:var(--faint);font-size:10.5px}
+  .hook .he{flex:0 0 132px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:var(--muted)}
+  .hook .hr{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hook.neu .hr{color:var(--ivory)}
+  .hook.doppelt .hr{color:var(--faint)}
+  .hook.schlecht .hr{color:var(--coral)}
 </style>
 </head>
 <body>
@@ -299,8 +315,9 @@
   <!-- 5 · Die Zahlen im Detail -->
   <div class="grid2">
     <div class="panel">
-      <span class="label">Vom Versand bis zum Ticket</span>
+      <span class="label">Vom Versand bis zum Ticket · über alle Wellen</span>
       <h2>Der Funnel</h2>
+      <p class="fussnote" id="funnelnote" style="margin:-6px 0 14px" hidden>Eine Zeile je Gast, nicht je Sendung: „geöffnet“ heißt, dass er <em>irgendeine</em> unserer Mails geöffnet hat. Je Welle stehen die Zahlen oben in der Wellen-Übersicht.</p>
       <div class="frow" data-k="versendet"><span class="fk">Versendet</span><div class="track"><i data-w="100"></i></div><b>148</b></div>
       <div class="frow" data-k="zugestellt"><span class="fk">Zugestellt</span><div class="track"><i data-w="98.6"></i></div><b>146<small>99&thinsp;%</small></b></div>
       <div class="frow" data-k="geoeffnet"><span class="fk">Geöffnet</span><div class="track"><i data-w="72.3"></i></div><b>107<small>73&thinsp;%</small></b></div>
@@ -369,6 +386,7 @@
   <div class="panel" id="mailpanel">
     <span class="label">Jede Mail einzeln · aus Versand-Log und Lettermint-Webhooks</span>
     <h2>Gästeliste · Mailstatus</h2>
+    <div class="wellenwahl" id="wellenwahl"></div>
     <div class="chips" id="chips"></div>
     <div class="mailtools">
       <input id="mailsuche" type="search" placeholder="Name, E-Mail oder Pool suchen …" autocomplete="off">
@@ -386,6 +404,16 @@
       </table>
     </div>
     <button class="mailmehr" id="mailmehr" hidden>Alle anzeigen</button>
+  </div>
+
+  <!-- 7 · Kommt überhaupt etwas an? Die Fangschaltung beantwortet die Frage,
+       die man sonst nur raten kann: liefert Lettermint, und was macht der
+       Server daraus. -->
+  <div class="panel" id="hookpanel" style="margin-top:8px" hidden>
+    <span class="label">Fangschaltung · die letzten Meldungen von Lettermint</span>
+    <h2>Webhook-Eingang</h2>
+    <div class="hooks" id="hooks"></div>
+    <p class="fussnote" id="hooknote"></p>
   </div>
 
   <footer id="fuss">Demo-Daten · im Livebetrieb gespeist über das Gästeregister, Lettermint-Webhooks (Zustellung, Öffnung, Klick) und Stripe-Webhooks (Zahlung) · THE CIRCLE — connecting generations</footer>
@@ -419,6 +447,8 @@ let chip = "alle";
 let laeuft = false;        // eine Abfrage zur Zeit
 let taktId = null;
 let letzteWellen = [];     // fuer die "warten auf Welle n"-Kachel
+let welleAnsicht = null;   // welche Sendung zeigt die Gaesteliste? null = Gesamtsicht
+let gewaehlt = false;      // hat schon jemand (Vorgabe oder Klick) gewaehlt?
 
 const txt = (el, s) => { el.textContent = s; return el; };
 const $   = s => document.querySelector(s);
@@ -477,6 +507,7 @@ async function laden(){
     feedRendern(d.feed || []);
     quelleSetzen(d);
     await gaesteHolen();
+    await hooksHolen();
     taktStarten();
   }catch(e){
     zustand(0, "");
@@ -530,6 +561,7 @@ function quelleSetzen(d){
     "wer hat bezahlt. Die Zahlen kommen aus dem Gästeregister, den Lettermint-Webhooks und Stripe.";
   $("#fuss").textContent = "Live-Daten aus dem Gästeregister · Zustellung, Öffnung und Klick über Lettermint, " +
     "Zahlungen über Stripe · THE CIRCLE — connecting generations";
+  $("#funnelnote").hidden = false;
   const quelle = $("#quelle");
   if(!d.pools.length){
     quelle.innerHTML = "<b>Live</b> · Zugang gültig, das Register ist noch leer. " +
@@ -602,9 +634,14 @@ function wellenRendern(wellen){
     txt(wt.appendChild(document.createElement("span")), wellenNote(w));
     row.appendChild(wt);
 
+    /* Zugestellt/geöffnet/geklickt gehören JE WELLE gezählt. Vorher lagen
+       alle Mailings in einem Topf, und der Stand des Save the Date stand
+       noch da, wenn längst die Einladung draußen war. */
     const nums = document.createElement("div"); nums.className = "wnum";
-    nums.append(zelle(String(w.versendet), "Verschickt"), zelle(String(w.faellig), "Offen"));
-    if(w.gesperrt) nums.appendChild(zelle(String(w.gesperrt), "Gesperrt"));
+    nums.append(zelle(String(w.versendet), "Verschickt"),
+                zelle(String(w.zugestellt || 0), "Zugestellt"),
+                zelle(String(w.geoeffnet  || 0), "Geöffnet"),
+                zelle(String(w.geklickt   || 0), "Geklickt"));
     row.appendChild(nums);
 
     const ws = document.createElement("span"); ws.className = "ws";
@@ -619,12 +656,15 @@ function wellenRendern(wellen){
 function wellenNote(w){
   const teile = [];
   if(w.versendet){
-    teile.push("Verschickt " + (w.erster && w.erster !== w.letzter
-      ? tag(w.erster) + " bis " + tag(w.letzter) : tag(w.letzter)));
+    /* Zwei Zeitstempel am selben Tag sind kein Zeitraum. */
+    const von = w.erster ? tag(w.erster) : "", bis = tag(w.letzter);
+    teile.push("Verschickt " + (von && von !== bis ? von + " bis " + bis : bis));
   }else{
     teile.push("Noch nicht verschickt");
   }
   if(w.faellig)  teile.push(w.faellig + (w.faellig === 1 ? " würde" : " würden") + " jetzt rausgehen");
+  if(w.versendet && w.zugestellt < w.versendet)
+    teile.push((w.versendet - w.zugestellt) + " ohne Zustellmeldung");
   if(w.gesperrt) teile.push(w.gesperrt + " nicht anschreibbar (keine Adresse, Bounce oder abgemeldet)");
   return teile.join(" · ");
 }
@@ -732,6 +772,54 @@ function feedRendern(feed){
   }
 }
 
+/* ---------- Fangschaltung ----------
+ * Die Frage "liefert Lettermint überhaupt?" ließ sich bisher nur raten. Der
+ * Server merkt sich die letzten Eingänge samt Ergebnis; hier stehen sie.
+ *   gesetzt: …      angekommen und verbucht
+ *   schon gesetzt   angekommen, aber für diese Welle lag der Stand schon vor
+ *   401 Signatur    angekommen und ABGEWIESEN → Secret stimmt nicht
+ *   kein Gast       angekommen, aber zu niemandem im Register zuzuordnen
+ * Bleibt die Liste leer, kommt wirklich nichts an – dann liegt es an der
+ * Webhook-Einrichtung bei Lettermint, nicht an uns. */
+async function hooksHolen(){
+  try{
+    const r = await fetch("/api/admin/webhook-log" + (KEY ? "?key=" + encodeURIComponent(KEY) : ""),
+                          { cache: "no-store" });
+    if(!r.ok) return;
+    const d = await r.json();
+    if(!d.ok) return;
+    $("#hookpanel").hidden = false;
+    const box = $("#hooks");
+    box.innerHTML = "";
+    if(!d.log.length){
+      txt(box.appendChild(document.createElement("p")),
+          "Seit dem letzten Start des Servers ist keine einzige Meldung eingegangen.").className = "hinweis";
+      $("#hooknote").textContent = "Kommt hier nichts an, während eine Welle draußen ist, fehlt der Webhook bei " +
+        "Lettermint oder er zeigt auf die falsche Adresse (/api/lettermint/webhook). " +
+        "Die Liste wird beim Neustart des Servers geleert – sie lebt nur im Speicher.";
+      return;
+    }
+    let abgewiesen = 0, doppelt = 0;
+    for(const e of d.log){
+      const schlecht = /401|ignoriert/.test(e.ergebnis);
+      const zweimal  = /schon gesetzt/.test(e.ergebnis);
+      if(schlecht) abgewiesen++;
+      if(zweimal)  doppelt++;
+      const z = document.createElement("div");
+      z.className = "hook" + (schlecht ? " schlecht" : zweimal ? " doppelt" : " neu");
+      txt(z.appendChild(document.createElement("time")), uhr(e.t));
+      txt(z.appendChild(document.createElement("span")), e.event || e.typ || "—").className = "he";
+      txt(z.appendChild(document.createElement("span")),
+          (e.gast ? e.gast + " · " : "") + e.ergebnis).className = "hr";
+      box.appendChild(z);
+    }
+    $("#hooknote").textContent = d.log.length + " Meldungen im Speicher" +
+      (abgewiesen ? " · " + abgewiesen + " abgewiesen (Signatur oder kein Gast) – LETTERMINT_WEBHOOK_SECRET prüfen" : "") +
+      (doppelt ? " · " + doppelt + " × Stand lag für diese Welle schon vor" : "") +
+      " · die Liste lebt nur im Speicher und ist nach einem Neustart leer.";
+  }catch(e){ /* Panel bleibt zu */ }
+}
+
 /* ---------- Gästeliste ---------- */
 async function gaesteHolen(){
   try{
@@ -741,8 +829,15 @@ async function gaesteHolen(){
     const d = await r.json();
     if(!d.ok) return;
     alleGaeste = d.gaeste;
+    /* Beim ersten Laden auf die zuletzt verschickte Welle stellen. */
+    if(welleAnsicht === undefined || !gewaehlt){
+      const raus = letzteWellen.filter(w => w.versendet);
+      welleAnsicht = raus.length ? String(raus[raus.length - 1].nr) : null;
+      gewaehlt = true;
+    }
     zahlungenRendern(alleGaeste);
     todosRendern();
+    wellenwahlRendern();
     chipsRendern();
     gaesteRendern();
   }catch(e){ /* Liste bleibt, wie sie war */ }
@@ -763,6 +858,27 @@ const FILTER = [
   { k:"abgemeldet", t:"Abgemeldet",          f:g => !!g.abgemeldet }
 ];
 const filterFn = k => (FILTER.find(f => f.k === k) || FILTER[0]).f;
+
+/* Die Wellenwahl über der Tabelle. Vorgabe ist die zuletzt verschickte
+   Welle - das ist die Frage, die man im Betrieb hat ("ist die Einladung
+   angekommen?"), nicht der Gesamtstand seit dem Save the Date. */
+function wellenwahlRendern(){
+  const box = $("#wellenwahl");
+  const raus = letzteWellen.filter(w => w.versendet);
+  box.innerHTML = "";
+  if(!raus.length) return;
+  txt(box.appendChild(document.createElement("span")), "Welche Sendung").className = "wl";
+  const knopf = (k, t) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip";
+    b.setAttribute("aria-pressed", String(welleAnsicht === k));
+    b.textContent = t;
+    b.addEventListener("click", ()=>{ welleAnsicht = k; gewaehlt = true; wellenwahlRendern(); gaesteRendern(); });
+    box.appendChild(b);
+  };
+  for(const w of raus) knopf(String(w.nr), "Welle " + w.nr);
+  knopf(null, "Gesamt");
+}
 
 function chipsRendern(){
   const box = $("#chips");
@@ -818,9 +934,14 @@ function gaesteRendern(){
     txt(name.appendChild(document.createElement("span")), g.email || "keine Adresse · WhatsApp");
     const pool = document.createElement("td");
     txt(pool.appendChild(document.createElement("span")), g.pool || "—").className = "pooltag";
+    /* Welche Sendung zeigen wir? Die gewählte Welle, sonst die Gesamtsicht.
+       Nur so lässt sich lesen, ob DIE EINLADUNG angekommen ist - vorher
+       stand hier der erste Kontakt und blieb dort stehen. */
+    const m = welleAnsicht === null ? g.mail
+            : (g.wellen && g.wellen[welleAnsicht]) || { sent:0, delivered:0, opened:0, clicked:0 };
     tr.append(name, pool,
-      punkt(g.mail.sent), punkt(g.mail.delivered),
-      punkt(g.mail.opened, true), punkt(g.mail.clicked, true));
+      punkt(m.sent), punkt(m.delivered),
+      punkt(m.opened, true), punkt(m.clicked, true));
     const stand = document.createElement("td");
     const s = document.createElement("span");
     s.className = "stat" + (g.mail.bounced ? " bounce" : g.status === "bezahlt" ? " bez"
