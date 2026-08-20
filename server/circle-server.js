@@ -389,7 +389,7 @@ function pubInvite(inv) {
     partner: inv.partner || "",
     partnerLogo: partnerLogoUrl(inv),
     firma: inv.firma || "",
-    position: inv.position || "",
+    rolle: inv.rolle || "",
     email: inv.email || "",
     pool: inv.pool,
     preis: inv.typ === "ticket" ? TICKET_PRICE : 0,
@@ -429,7 +429,10 @@ function parseCSV(text) {
 }
 
 /* Erwartete Spalten (Reihenfolge egal, Groß/Klein egal):
- *   pool, typ, name, email, firma, anrede, partner, partner_logo
+ *   pool, typ, name, email, firma, rolle, anrede, partner, partner_logo
+ * firma und rolle sind getrennt: "gadplan GmbH" und "Geschaeftsfuehrer"
+ * lassen sich sonst fuer Namensschilder nicht auseinandernehmen. Fehlt die
+ * Spalte 'rolle', bleibt eine vom Gast selbst eingetragene Rolle erhalten.
  * typ: "ticket" (100 € über Stripe) oder "ehrengast" (nur Zusage).
  * Fehlt typ, gilt der Pool-Default aus poolTyp() – sonst "ticket".
  * Wiederholter Import aktualisiert bestehende Gäste (Schlüssel: E-Mail).
@@ -440,10 +443,9 @@ function importRows(rows) {
   const iPool = col("pool"), iTyp = col("typ"), iName = col("name"),
         iMail = col("email") >= 0 ? col("email") : col("e-mail"), iFirma = col("firma"),
         iAnrede = col("anrede"), iPartner = col("partner"), iPartnerLogo = col("partner_logo"),
-        /* Optional, fuer die Kontaktliste: Funktion im Unternehmen und
-         * Telefon. Fehlen sie in der CSV, bleibt es beim Bisherigen -
-         * niemand muss seine Listen umbauen. */
-        iPosition = col("position") >= 0 ? col("position") : col("funktion"),
+        iRolle = col("rolle"),
+        /* Optional: Telefon aus der Liste. Fehlt die Spalte, bleibt es beim
+         * Bisherigen - niemand muss seine Listen umbauen. */
         iTelefon = col("telefon") >= 0 ? col("telefon") : col("mobil");
   if (iName < 0 || iMail < 0) throw new Error("CSV braucht mindestens die Spalten 'name' und 'email'");
 
@@ -517,7 +519,7 @@ function importRows(rows) {
         if (inv.mail && inv.mail.bounced) inv.mail.bounced = 0;
       }
       if (iFirma >= 0) inv.firma = cleanText(r[iFirma], 80);
-      if (iPosition >= 0) inv.position = cleanText(r[iPosition], 80);
+      if (iRolle >= 0) inv.rolle = cleanText(r[iRolle], 80);
       /* Telefon aus der Liste nur setzen, wenn der Gast nicht selbst eine
        * Nummer angegeben hat - seine Angabe ist die neuere. */
       if (iTelefon >= 0 && r[iTelefon] && !(inv.daten && inv.daten.phone)) {
@@ -534,7 +536,7 @@ function importRows(rows) {
         token, pool, typ,
         name: zeilenName, email,
         firma: iFirma >= 0 ? cleanText(r[iFirma], 80) : "",
-        position: iPosition >= 0 ? cleanText(r[iPosition], 80) : "",
+        rolle: iRolle >= 0 ? cleanText(r[iRolle], 80) : "",
         anrede: iAnrede >= 0 ? cleanText(r[iAnrede], 12) : "",
         partner: iPartner >= 0 ? cleanText(r[iPartner], 60) : "",
         partnerLogo: iPartnerLogo >= 0 ? cleanText(r[iPartnerLogo], 200) : "",
@@ -957,6 +959,10 @@ function renderMail(inv, datei) {
     partner_logo_url: partnerLogoUrl(inv),
     abmelden_url: abmeldeLink(inv.token),
     rueckmeldung_datum: RSVP_DEADLINE,
+    /* Nur fuer die Zusage-Bestaetigung: der Kalendereintrag und der Beitrag,
+     * den der Gast bezahlt hat. */
+    termin_ics_url: PUBLIC_URL + "/termin.ics",
+    beitrag: (TICKET_PRICE / 100).toFixed(2).replace(".", ",") + " Euro",
     /* CTA der Welle 0: die Homepage, nicht die App. PUBLIC_URL ist der
      * Server mit den persoenlichen Links - die Website ist eine andere. */
     website_url: WEBSITE_URL,
@@ -985,6 +991,84 @@ function renderMail(inv, datei) {
 
 /* Reine Textfassung als Rueckfallebene: Mail-Clients ohne HTML und
  * Spamfilter, die HTML-only misstrauisch finden. */
+/* Bestaetigung nach der Zusage. Anders als die Wellen loest sie kein Mensch
+ * aus, sondern der Gast selbst - Ehrengaeste mit ihrer Zusage, Bezahlgaeste
+ * mit der eingegangenen Zahlung. Deshalb verschickt sie der laufende Server
+ * und nicht die Kommandozeile; dafuer braucht die App LETTERMINT_TOKEN.
+ *
+ * Genau einmal je Gast: der Vermerk steht VOR dem Versand im Register, sonst
+ * schickt ein zweites Abschicken des Formulars eine zweite Mail. Scheitert
+ * der Versand, wird er zurueckgenommen, damit ein spaeterer Anlauf ihn holt.
+ * Fehler bleiben folgenlos fuer den Gast: seine Zusage ist da, ob die
+ * Bestaetigung ankam oder nicht. */
+function bestaetigungFaellig(inv) {
+  if (!inv || !inv.email || inv.bestaetigung || inv.abgemeldet) return false;
+  /* Ehrengaeste sind mit der Zusage fertig. Bezahlgaeste erst mit der Zahlung:
+   * "Platz gesichert - 100 Euro bezahlt" an jemanden zu schicken, der nur
+   * zugesagt hat, waere schlicht falsch. */
+  return inv.typ === "ehrengast"
+    ? (inv.status === "zugesagt" || inv.status === "bezahlt")
+    : inv.status === "bezahlt";
+}
+
+function bestaetigungSenden(inv) {
+  if (!LETTERMINT_TOKEN) return;                 // App ohne Token: still nichts tun
+  if (!bestaetigungFaellig(inv)) return;
+  inv.bestaetigung = Date.now();                 // Platz belegen, BEVOR irgendetwas laeuft
+  dirty = true;
+  bestaetigungAbschicken(inv);
+}
+
+/* Setzt voraus, dass der Vermerk schon steht - siehe bestaetigungSenden und
+ * den Nachhol-Endpunkt. Getrennt, damit ein Stapel ALLE Vermerke sofort
+ * setzen kann und nicht erst beim Abschicken der einzelnen Mail: sonst
+ * faende ein zweiter Aufruf dieselben Gaeste noch einmal. */
+function bestaetigungAbschicken(inv) {
+  const datei = inv.typ === "ehrengast"
+    ? ((inv.partner && inv.partnerLogo) ? "bestaetigung-ehrengast-partner.html" : "bestaetigung-ehrengast.html")
+    : "bestaetigung-ticket.html";
+  let html;
+  try { html = renderMail(inv, datei); }
+  catch (e) {
+    /* Vermerk zurueck: er steht seit dem Aufruf, und ohne Ruecknahme gaelte
+     * der Gast als bestaetigt, ohne je eine Mail bekommen zu haben. */
+    inv.bestaetigung = 0; dirty = true;
+    console.error("Bestätigung " + datei + " bricht: " + e.message);
+    return;
+  }
+
+  const text = [
+    (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
+    "",
+    "du bist im Kreis" + (inv.ticketNr ? " – " + inv.ticketNr : "") + ".",
+    "",
+    "16. September 2026, 18:00 bis 23:00 Uhr",
+    "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
+    inv.typ === "ticket" ? "Beitrag: " + (TICKET_PRICE / 100).toFixed(2).replace(".", ",") + " Euro, bezahlt" : null,
+    "",
+    "Termin in den Kalender: " + PUBLIC_URL + "/termin.ics",
+    "Deine Seite: " + inviteLink(inv.token),
+    "",
+    "Keine weiteren Mails: " + abmeldeLink(inv.token)
+  ].filter(z => z !== null).join("\n");
+
+  lettermintSenden({
+    to: inv.email,
+    subject: inv.typ === "ticket" ? "Dein Platz bei THE CIRCLE No1 ist gesichert"
+                                  : "Deine Zusage zu THE CIRCLE No1",
+    html, text,
+    abmeldeUrl: abmeldeLink(inv.token),
+    metadata: { token: inv.token, art: "bestaetigung", pool: inv.pool || "" }
+  }, (err) => {
+    if (err) {
+      inv.bestaetigung = 0; dirty = true;        // beim naechsten Anlass neu versuchen
+      console.error("Bestätigung an " + inv.email + " fehlgeschlagen: " + err.message);
+    } else {
+      console.log("Bestätigung an " + inv.email + " verschickt.");
+    }
+  });
+}
+
 function textFassung(inv, welle) {
   /* Welle 0 hat bewusst KEINEN persoenlichen Link - die HTML-Fassung zeigt
    * nur die Website, also darf die Textfassung nicht heimlich den Zusage-
@@ -1239,6 +1323,7 @@ function zahlungBuchen(token, session) {
   };
   logEvent("bezahlt", inv.name, inv.pool);
   dirty = true;
+  bestaetigungSenden(inv);
 }
 
 /* ---------- Server ---------- */
@@ -1486,7 +1571,10 @@ const server = http.createServer((req, res) => {
 
       if (body.name)   inv.name = cleanText(body.name, 60);
       if (body.firma !== undefined) inv.firma = cleanText(body.firma, 80);
-      if (body.position !== undefined) inv.position = cleanText(body.position, 80);
+      /* Rolle steht getrennt von der Firma - sonst landen "gadplan GmbH"
+       * und "Geschaeftsfuehrer" wieder in einem Feld und lassen sich fuer
+       * Namensschilder und Sitzordnung nicht mehr auseinandernehmen. */
+      if (body.rolle !== undefined) inv.rolle = cleanText(body.rolle, 80);
       /* E-Mail aus dem Zusage-Formular ins Register uebernehmen. Wichtig fuer
        * WhatsApp-Gaeste (ohne Adresse importiert, Link kam per Chat): ab der
        * Zusage sind sie fuer Welle 2 per Mail erreichbar. */
@@ -1505,6 +1593,10 @@ const server = http.createServer((req, res) => {
       if (inv.typ === "ehrengast") {
         if (inv.status !== "bezahlt") inv.status = "zugesagt";
         logEvent("zugesagt", inv.name, inv.pool);
+        /* Ehrengaeste sind mit der Zusage fertig - also bestaetigen wir jetzt.
+         * Bezahlgaeste erst nach der Zahlung, sonst bestaetigten wir einen
+         * Platz, der noch offen ist (siehe zahlungBuchen). */
+        bestaetigungSenden(inv);
       } else if (inv.status === "offen" || inv.status === "abgesagt") {
         inv.status = "zugesagt";                    // zugesagt, Zahlung offen
         logEvent("zugesagt", inv.name, inv.pool);
@@ -1774,10 +1866,13 @@ const server = http.createServer((req, res) => {
     }
     // Kontrollliste als CSV: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "mobil", "ernaehrung", "unvertraeglichkeiten", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
       for (const inv of Object.values(state.invites)) {
         zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
-                     inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
+                     inv.name, inv.email, inv.firma || "", inv.rolle || "",
+                     (inv.daten && inv.daten.phone) || "", (inv.daten && inv.daten.diet) || "",
+                     (inv.daten && inv.daten.allergy) || "",
+                     inv.partner || "", inv.partnerLogo || "",
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
       }
@@ -1802,6 +1897,73 @@ const server = http.createServer((req, res) => {
      * und die Vorflugkontrolle zeigt ihn als zusaetzlichen Empfaenger an.
      * Bewusst mit Adresse @planyvo.com - faellt uns ein Loeschen durch, geht
      * die Mail an uns selbst und nicht an einen Gast. */
+    /* Bestaetigungen nachholen. Gebraucht fuer alle, die zugesagt haben,
+     * BEVOR es die Bestaetigung gab - und als Netz, falls Lettermint einmal
+     * nicht erreichbar war (dann steht der Vermerk wieder auf 0).
+     * Ohne &senden=1 nur eine Liste: wer bekaeme sie, mit welcher Vorlage.
+     * Nacheinander mit Abstand, damit ein Nachlauf ueber viele Gaeste nicht
+     * als Schwall beim Anbieter ankommt. */
+    if (req.method === "POST" && url === "/api/admin/bestaetigungen-nachholen") {
+      /* ?nur=adresse schickt an genau einen - der Weg, eine neue Vorlage
+       * einmal an sich selbst zu schicken, bevor sie an Gaeste geht. */
+      const nur = String(q.get("nur") || "").toLowerCase().trim();
+      const dran = Object.values(state.invites)
+        .filter(bestaetigungFaellig)
+        .filter(inv => !nur || (inv.email || "").toLowerCase() === nur);
+      if (nur && !dran.length) {
+        return json(res, 404, { error: "Kein fälliger Gast mit dieser Adresse: " + nur });
+      }
+      const liste = dran.map(inv => ({
+        name: inv.name, email: inv.email, typ: inv.typ, partner: inv.partner || "",
+        status: inv.status,
+        vorlage: inv.typ === "ehrengast"
+          ? ((inv.partner && inv.partnerLogo) ? "bestaetigung-ehrengast-partner.html" : "bestaetigung-ehrengast.html")
+          : "bestaetigung-ticket.html"
+      }));
+      if (q.get("senden") !== "1") {
+        return json(res, 200, { ok: true, probelauf: true, anzahl: dran.length, gaeste: liste });
+      }
+      if (!LETTERMINT_TOKEN) return json(res, 503, { error: "LETTERMINT_TOKEN fehlt in der App" });
+      const jetzt = Date.now();
+      dran.forEach(inv => { inv.bestaetigung = jetzt; });   // erst alle belegen
+      dirty = true;
+      dran.forEach((inv, i) => setTimeout(() => bestaetigungAbschicken(inv), i * 400));
+      return json(res, 200, { ok: true, verschickt: dran.length, gaeste: liste });
+    }
+
+    /* Die fertigen WhatsApp-Nachrichten fuer Gaeste ohne Mailadresse.
+     * Dieselbe Auswahl und derselbe Text wie der CLI-Befehl "whatsapp" -
+     * nur abrufbar, statt in einer Datei auf dem Server zu landen, die
+     * dann jemand suchen muss.
+     * Enthaelt persoenliche Links: bewusst NUR fuer Gaeste ohne Adresse,
+     * die ihren Link ohnehin von Hand bekommen. Alle anderen bleiben
+     * draussen, damit ein abhandengekommener Admin-Zugang nicht gleich
+     * die Zusage jedes Gastes eroeffnet. */
+    if (url === "/api/admin/whatsapp") {
+      const mitMail = new Set(Object.values(state.invites)
+        .filter(i => i.email).map(i => (i.name || "").trim().toLowerCase()));
+      const uebersprungen = [];
+      const dran = Object.values(state.invites).filter(inv => {
+        if (inv.email || inv.abgemeldet || inv.status === "abgesagt") return false;
+        if (mitMail.has((inv.name || "").trim().toLowerCase())) {
+          uebersprungen.push({ name: inv.name, pool: inv.pool, grund: "bekommt die Einladung per Mail" });
+          return false;
+        }
+        return true;
+      }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      return json(res, 200, {
+        ok: true,
+        anzahl: dran.length,
+        uebersprungen,
+        gaeste: dran.map(inv => ({
+          name: inv.name, pool: inv.pool,
+          rolle: inv.typ === "ehrengast" ? "Ehrengast" : "Bezahlgast, 100 €",
+          link: inviteLink(inv.token),
+          nachricht: whatsappText(inv)
+        }))
+      });
+    }
+
     if (req.method === "POST" && url === "/api/admin/testgast") {
       const token = newToken();
       const typ = q.get("typ") === "ehrengast" ? "ehrengast" : "ticket";
@@ -1907,14 +2069,17 @@ const server = http.createServer((req, res) => {
           partner: inv.partner || "",
           status: inv.status,
           abgemeldet: inv.abgemeldet || 0,
-          /* Fuer die Kueche. Unvertraeglichkeiten sind Gesundheitsdaten -
-           * sie stehen deshalb nur hinter dem Admin-Zugang, so wie Namen
-           * und Adressen auch, und werden nach dem Event geloescht. */
-          ernaehrung: (inv.daten && inv.daten.diet) || "",
-          unvertraeglich: (inv.daten && inv.daten.allergy) || "",
+          /* Die Angaben aus dem Zusageformular - der Monitor zeigt sie in
+           * der Kuechenliste. Unvertraeglichkeiten sind Gesundheitsdaten:
+           * sie stehen nur hinter dem Admin-Zugang, so wie Namen und
+           * Adressen auch, und werden nach dem Event geloescht. */
           firma: inv.firma || "",
-          position: inv.position || "",
-          telefon: (inv.daten && inv.daten.phone) || "",
+          rolle: inv.rolle || "",
+          daten: {
+            phone: (inv.daten && inv.daten.phone) || "",
+            diet: (inv.daten && inv.daten.diet) || "",
+            allergy: (inv.daten && inv.daten.allergy) || ""
+          },
           ticketNr: inv.ticketNr || "",
           /* Nur der gebuchte Betrag und wann - fuer "zuletzt bezahlt" im
            * Monitor. Session- und PaymentIntent-ID bleiben hier drin. */
@@ -2044,11 +2209,62 @@ if (befehl === "import") {
   process.exit(0);
 }
 
+/* Kuechenliste: was das Catering wirklich braucht, ohne alles andere.
+ * Nur Gaeste, die zugesagt oder bezahlt haben - wer noch nicht geantwortet
+ * hat, isst auch nichts. Am Ende die Summen, damit die Kueche nicht zaehlen
+ * muss.
+ *
+ *   node server/circle-server.js kueche              Uebersicht
+ *   node server/circle-server.js kueche --csv        als Tabelle
+ */
+if (befehl === "kueche") {
+  const dabei = Object.values(state.invites)
+    .filter(i => i.status === "zugesagt" || i.status === "bezahlt")
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+  const kost = { alles: "Alles", vegetarisch: "Vegetarisch", vegan: "Vegan", pescetarisch: "Pescetarisch" };
+  const zeile = i => ({
+    name: i.name || "", diet: (i.daten && i.daten.diet) || "",
+    allergy: (i.daten && i.daten.allergy) || "", phone: (i.daten && i.daten.phone) || ""
+  });
+
+  if (flagge("csv")) {
+    const raus = [["name", "ernaehrung", "unvertraeglichkeiten", "mobil", "status"]];
+    for (const i of dabei) {
+      const z = zeile(i);
+      raus.push([z.name, kost[z.diet] || z.diet, z.allergy, z.phone, i.status]);
+    }
+    process.stdout.write(raus.map(r => r.map(csvCell).join(",")).join("\n") + "\n");
+    process.exit(0);
+  }
+
+  console.log("Küchenliste · " + dabei.length + " zugesagte Gäste\n");
+  const zaehl = {};
+  for (const i of dabei) {
+    const z = zeile(i);
+    zaehl[z.diet || "(nicht angegeben)"] = (zaehl[z.diet || "(nicht angegeben)"] || 0) + 1;
+    console.log("  " + (z.name || "?").padEnd(28) +
+                (kost[z.diet] || z.diet || "—").padEnd(15) +
+                (z.allergy ? "⚠ " + z.allergy : ""));
+  }
+  console.log("\nNach Ernährung:");
+  for (const [k, n] of Object.entries(zaehl).sort((a, b) => b[1] - a[1]))
+    console.log("  " + (kost[k] || k).padEnd(20) + n);
+  const allergien = dabei.map(zeile).filter(z => z.allergy);
+  console.log("\nUnverträglichkeiten: " + allergien.length);
+  for (const z of allergien) console.log("  " + z.name.padEnd(28) + z.allergy);
+  console.log("\nAls Tabelle:  node server/circle-server.js kueche --csv > kueche.csv");
+  process.exit(0);
+}
+
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "mobil", "ernaehrung", "unvertraeglichkeiten", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
   for (const inv of Object.values(state.invites)) {
     zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
-                     inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
+                     inv.name, inv.email, inv.firma || "", inv.rolle || "",
+                     (inv.daten && inv.daten.phone) || "", (inv.daten && inv.daten.diet) || "",
+                     (inv.daten && inv.daten.allergy) || "",
+                     inv.partner || "", inv.partnerLogo || "",
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
   }
@@ -2509,7 +2725,7 @@ process.on("unhandledRejection", (err) => {
  * der laufenden App belegt, brechen EADDRINUSE und der Fehlerhaken den Prozess
  * ab - mitten in einer Welle, nach vierzig von vierundneunzig Mails. */
 if (befehl) {
-  const BEKANNT = ["import", "export", "welle", "whatsapp", "pruefen"];
+  const BEKANNT = ["import", "export", "welle", "whatsapp", "pruefen", "kueche"];
   if (!BEKANNT.includes(befehl)) {
     console.error("Unbekannter Befehl: " + befehl);
     console.error("Bekannt: " + BEKANNT.join(", "));

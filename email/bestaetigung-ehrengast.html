@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<title>THE CIRCLE &middot; Zusage best&auml;tigt</title>
+<!--
+  THE CIRCLE - Bestaetigung nach der Zusage.
+  Verschickt der SERVER selbst, nicht die Wellen-Kommandozeile: ausgeloest von
+  der Zusage des Gastes (Ehrengaeste) bzw. von der eingegangenen Zahlung
+  (Bezahlgaeste). Genau einmal je Gast - siehe bestaetigungSenden().
+  Merge-Variablen: {{anrede}} {{vorname}} {{ticket_nr}} {{link}}
+                   {{termin_ics_url}} {{beitrag}} {{partner_name}}
+                   {{partner_logo_url}} {{logo_url}} {{abmelden_url}}
+-->
+<style>
+  /* CI-Kapitalis als Webfont (Cinzel, freie Trajan-Schwester), gehostet auf
+     unserer Domain. In @media screen gekapselt: Outlooks Word-Engine wuerde
+     bei sichtbarem @font-face sonst auf Times New Roman kippen - so sieht
+     sie den Block gar nicht. Apple Mail/iOS laden ihn und zeigen die echte
+     Kapitalis; alle anderen bleiben beim gestalteten Georgia-Fallback. */
+  @media screen {
+    @font-face {
+      font-family: 'Circle Kapitalis';
+      font-style: normal;
+      font-weight: normal;
+      src: url(https://thecircle.planyvo.com/assets/cinzel-600.woff2) format('woff2');
+    }
+  }
+  /* Nachtmodus: Diese Mail IST dunkel - hier wird nichts invertiert.
+     color-scheme (Meta oben) ueberzeugt Apple Mail; dieser Block haelt
+     Clients fest, die trotzdem umfaerben wollen: prefers-color-scheme
+     fuer Gmail/Apple, [data-ogsc]/[data-ogsb] fuer Outlook.com & Apps. */
+  @media (prefers-color-scheme: dark) {
+    body, .bg-aussen { background-color: #222222 !important; }
+    .bg-karte { background-color: #741a33 !important; }
+  }
+  [data-ogsb] body, [data-ogsb] .bg-aussen { background-color: #222222 !important; }
+  [data-ogsb] .bg-karte { background-color: #741a33 !important; }
+  [data-ogsc] .bg-karte td, [data-ogsc] .bg-karte div, [data-ogsc] .bg-karte span { color: inherit !important; }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#222222;">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Deine Zusage ist notiert – wir freuen uns auf dich.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#222222" class="bg-aussen" style="background-color:#222222;">
+    <tr><td align="center" style="padding:28px 12px;">
+
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#741a33" class="bg-karte" style="max-width:600px;width:100%;background-color:#741a33;">
+
+        <!-- S/W-Koeln-Header MIT eingesetztem Logo (Wunsch Desi/Anne: "Logo in
+             den Header"). Fest verdrahtet wie im Save the Date - das Logo ist
+             Teil des Bildes, deshalb hier kein {{header_img_url}} und keine
+             zweite Logo-Zeile darunter. -->
+        <tr><td>
+          <img src="{{header_std_url}}" width="600" alt="THE CIRCLE &ndash; &uuml;ber den D&auml;chern von K&ouml;ln"
+               style="display:block;width:100%;height:auto;border:0;">
+        </td></tr>
+
+        <!-- Bestaetigung -->
+        <tr><td align="center" style="padding:32px 40px 0 40px;">
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:20px;line-height:1.5;color:#f8f7f4;">
+            {{anrede}} {{vorname}},
+          </div>
+        </td></tr>
+
+        <tr><td align="center" style="padding:22px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#f2cbd7;text-transform:uppercase;">Zusage best&auml;tigt</div>
+        </td></tr>
+        <tr><td align="center" style="padding:12px 40px 0 40px;">
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.25;color:#ff6b6c;text-transform:uppercase;">
+            Du bist<br>im Kreis.
+          </div>
+        </td></tr>
+        <tr><td align="center" style="padding:14px 40px 0 40px;">
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:30px;letter-spacing:2px;color:#f8f7f4;">{{ticket_nr}}</div>
+        </td></tr>
+
+        <tr><td align="center" style="padding:22px 56px 0 56px;">
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:17px;line-height:1.7;color:#f2cbd7;">
+            F&uuml;r heute ist das alles. Wenige Tage vor dem Abend bekommst du per E-Mail deinen pers&ouml;nlichen Zugang zur App &mdash; sie geht nur an die G&auml;ste von THE CIRCLE No1.
+          </div>
+        </td></tr>
+
+        <tr><td align="center" style="padding:30px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:14px;">Eingeladen von</div>
+          <img src="{{logo_url}}" width="190" alt="THE CIRCLE &ndash; connecting generations" style="display:block;border:0;width:190px;max-width:60%;height:auto;margin:0 auto;">
+        </td></tr>
+
+        <!-- Die harten Fakten, damit der Gast sie nicht suchen muss -->
+        <tr><td align="center" style="padding:30px 40px 0 40px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:400px;">
+            <tr>
+              <td style="padding:10px 0;font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:2px;color:#c998a4;text-transform:uppercase;">Termin</td>
+              <td align="right" style="padding:10px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#f8f7f4;font-weight:bold;">16.09.2026 &middot; 18:00 Uhr</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 0;border-top:1px solid #94505f;font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:2px;color:#c998a4;text-transform:uppercase;">Ort</td>
+              <td align="right" style="padding:10px 0;border-top:1px solid #94505f;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#f8f7f4;line-height:1.6;">Playa Cologne<br><span style="font-weight:normal;color:#f2cbd7;">Junkersdorfer Str. 1<br>50933 K&ouml;ln-Lindenthal</span></td>
+            </tr>
+          </table>
+        </td></tr>
+
+        <!-- Kalender -->
+        <tr><td align="center" style="padding:30px 40px 0 40px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+            <td align="center" bgcolor="#ff6b6c" style="border-radius:999px;">
+              <a href="{{termin_ics_url}}" target="_blank"
+                 style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">In den Kalender</a>
+            </td>
+          </tr></table>
+        </td></tr>
+        <tr><td align="center" style="padding:12px 40px 0 40px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+            <td align="center" style="border-radius:999px;border:1px solid #c998a4;">
+              <a href="{{link}}" target="_blank"
+                 style="display:inline-block;padding:14px 40px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#f2cbd7;text-decoration:none;">Deine Seite</a>
+            </td>
+          </tr></table>
+        </td></tr>
+        <tr><td align="center" style="padding:8px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2px;color:#c998a4;text-transform:uppercase;line-height:2;">Dort kannst du deine Angaben jederzeit &auml;ndern</div>
+        </td></tr>
+
+        <!-- Partner des Abends, negativ weiss -->
+        <tr><td align="center" style="padding:34px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:16px;">Partner des Abends</div>
+          <img src="{{partnerwand_url}}" width="440" alt="Partner: neuland.ai, Conrad, Dein Dach, DEKRA, jto, Merzenich, sion, SKS, fuchsrohrbach, SMARTVELO"
+               style="display:block;width:100%;max-width:440px;height:auto;border:0;margin:0 auto;">
+        </td></tr>
+        <tr><td style="padding:32px 64px 0 64px;"><div style="border-top:1px solid #94505f;font-size:0;line-height:0;">&nbsp;</div></td></tr>
+
+        <!-- Footer -->
+        <tr><td align="center" style="padding:24px 40px 6px 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#c998a4;text-transform:uppercase;">Eine Veranstaltung von</div>
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#f2cbd7;padding-top:8px;text-transform:uppercase;">Ihre Markenwerkstatt &middot; AERA &middot; Public Cologne</div>
+        </td></tr>
+        <tr><td align="center" style="padding:16px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;letter-spacing:3px;color:#c998a4;text-transform:uppercase;padding-bottom:8px;">Digital von</div>
+          <a href="https://www.planyvo.com" target="_blank" style="text-decoration:none;"><img src="{{planyvo_logo_url}}" width="88" alt="planyvo" style="display:block;border:0;width:88px;height:auto;margin:0 auto;opacity:.9;"></a>
+        </td></tr>
+        <tr><td align="center" style="padding:14px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#c998a4;line-height:1.7;">
+                        <a href="https://www.the-circle-cologne.de/impressum/" style="color:#c998a4;text-decoration:underline;">Impressum</a> &middot;
+            <a href="https://www.the-circle-cologne.de/datenschutzerklaerung/" style="color:#c998a4;text-decoration:underline;">Datenschutz</a>
+          </div>
+        </td></tr>
+        <tr><td align="center" style="padding:8px 40px 32px 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#c998a4;line-height:1.9;">
+            Diese Best&auml;tigung ist pers&ouml;nlich und nicht &uuml;bertragbar.<br>
+            <a href="{{abmelden_url}}" style="color:#c998a4;text-decoration:underline;">Keine E-Mails mehr zu THE CIRCLE erhalten</a>
+          </div>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

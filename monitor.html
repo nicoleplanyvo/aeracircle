@@ -875,15 +875,20 @@ const DIETS = [
   { k: "pescetarisch", t: "Pescetarisch" }
 ];
 const kommt = g => g.status === "zugesagt" || g.status === "bezahlt";
+/* Die Adminliste liefert die Formularangaben unter "daten" - eine Quelle,
+   nicht zwei nebeneinander. */
+const kost    = g => (g.daten && g.daten.diet) || "";
+const allergie = g => (g.daten && g.daten.allergy) || "";
+const telefon  = g => (g.daten && g.daten.phone) || "";
 
 function kuecheListe(){
   return alleGaeste.filter(kommt).sort((a, b) => {
     /* Unverträglichkeiten zuerst - sie brauchen eine Entscheidung. */
-    const ua = a.unvertraeglich ? 0 : 1, ub = b.unvertraeglich ? 0 : 1;
+    const ua = allergie(a) ? 0 : 1, ub = allergie(b) ? 0 : 1;
     if(ua !== ub) return ua - ub;
     /* Keine Angabe ans Ende, nicht an den Anfang: findIndex liefert dafür
        -1, und das sortierte sonst vor "Alles". */
-    const rang = g => { const i = DIETS.findIndex(d => d.k === g.ernaehrung); return i < 0 ? DIETS.length : i; };
+    const rang = g => { const i = DIETS.findIndex(d => d.k === kost(g)); return i < 0 ? DIETS.length : i; };
     return rang(a) - rang(b) || (a.name || "").localeCompare(b.name || "");
   });
 }
@@ -903,25 +908,25 @@ function kuecheRendern(){
   };
   kachel(liste.length, "Essen gesamt");
   for(const d of DIETS){
-    const n = liste.filter(g => g.ernaehrung === d.k).length;
+    const n = liste.filter(g => kost(g) === d.k).length;
     if(n) kachel(n, d.t);
   }
-  const ohne = liste.filter(g => !g.ernaehrung).length;
+  const ohne = liste.filter(g => !kost(g)).length;
   if(ohne) kachel(ohne, "Keine Angabe");
-  const uv = liste.filter(g => g.unvertraeglich).length;
+  const uv = liste.filter(g => allergie(g)).length;
   if(uv) kachel(uv, "Unverträglichkeit");
 
   const tb = $("#kuecheliste");
   tb.innerHTML = "";
   for(const g of liste){
     const tr = document.createElement("tr");
-    if(g.unvertraeglich) tr.className = "wichtig";
+    if(allergie(g)) tr.className = "wichtig";
     txt(tr.appendChild(document.createElement("td")), g.name || "—");
-    const d = DIETS.find(x => x.k === g.ernaehrung);
+    const d = DIETS.find(x => x.k === kost(g));
     txt(tr.appendChild(document.createElement("td")), d ? d.t : "keine Angabe").className = "diet";
     const u = tr.appendChild(document.createElement("td"));
-    txt(u, g.unvertraeglich || "—");
-    if(g.unvertraeglich) u.className = "uv";
+    txt(u, allergie(g) || "—");
+    if(allergie(g)) u.className = "uv";
     tb.appendChild(tr);
   }
   $("#kuechenote").textContent = ohne
@@ -951,10 +956,10 @@ const heuteStempel = () => {
 const zeitText = t => t ? new Date(t).toLocaleString("de-DE", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "";
 
 function kuecheCsv(){
-  const zeilen = [["Gast", "Unternehmen", "Ernährung", "Unverträglichkeit", "Pool", "Stand"]];
+  const zeilen = [["Gast", "Unternehmen", "Rolle", "Ernährung", "Unverträglichkeit", "Pool", "Stand"]];
   for(const g of kuecheListe()){
-    const d = DIETS.find(x => x.k === g.ernaehrung);
-    zeilen.push([g.name, g.firma || "", d ? d.t : "keine Angabe", g.unvertraeglich || "",
+    const d = DIETS.find(x => x.k === kost(g));
+    zeilen.push([g.name, g.firma || "", g.rolle || "", d ? d.t : "keine Angabe", allergie(g),
                  g.pool, STAND_LABEL[g.status] || g.status]);
   }
   csvLaden("kueche-" + heuteStempel() + ".csv", csvText(zeilen));
@@ -964,7 +969,7 @@ function gaesteCsv(){
   /* Genau die Zeilen, die gerade in der Tabelle stehen - Filter und Suche
      eingeschlossen. Sonst exportiert der Knopf etwas anderes, als man sieht. */
   const liste = sichtbareGaeste();
-  const kopf = ["Gast", "Unternehmen", "Position", "E-Mail", "Telefon", "Pool", "Typ",
+  const kopf = ["Gast", "Unternehmen", "Rolle", "E-Mail", "Telefon", "Pool", "Typ",
                 "Stand", "Ticketnummer", "Ernährung", "Unverträglichkeit", "Unzustellbar", "Abgemeldet"];
   for(const w of letzteWellen){
     const n = (w.name || "").split("·")[1] ? w.name.split("·")[1].trim() : "Welle " + w.nr;
@@ -972,10 +977,10 @@ function gaesteCsv(){
   }
   const zeilen = [kopf];
   for(const g of liste){
-    const d = DIETS.find(x => x.k === g.ernaehrung);
-    const r = [g.name, g.firma || "", g.position || "", g.email, g.telefon || "",
+    const d = DIETS.find(x => x.k === kost(g));
+    const r = [g.name, g.firma || "", g.rolle || "", g.email, telefon(g),
                g.pool, g.typ, STAND_LABEL[g.status] || g.status, g.ticketNr || "",
-               d ? d.t : "", g.unvertraeglich || "",
+               d ? d.t : "", allergie(g),
                g.mail.bounced ? "ja" : "", g.abgemeldet ? "ja" : ""];
     for(const w of letzteWellen){
       const m = (g.wellen && g.wellen[String(w.nr)]) || {};
@@ -1175,7 +1180,7 @@ function gaesteRendern(){
   /* Der Knopf sagt, was er ausgibt - nicht das, was gerade zufällig sichtbar
      ist, sondern alle Treffer des aktiven Filters. */
   $("#csvnote").textContent = treffer.length + (treffer.length === 1 ? " Zeile" : " Zeilen") +
-    " · mit Unternehmen, Position, Telefon und dem Stand jeder Mail" +
+    " · mit Unternehmen, Rolle, Telefon und dem Stand jeder Mail" +
     (chip === "alle" && !suche ? "" : " · nur die gefilterten");
 }
 

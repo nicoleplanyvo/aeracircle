@@ -2077,7 +2077,7 @@ if(S.name) $("#onboarding").classList.add("hidden");
         S.name = g.name;
         /* Die Zusage fragt Unternehmen und Position getrennt ab; auf der
          * Karte stehen sie zusammen - sonst verlöre der Gast seine Rolle. */
-        S.company = [g.firma, g.position].filter(Boolean).join(" · ");
+        S.company = [g.firma, g.rolle].filter(Boolean).join(" · ");
         S.mail = g.email || "";
         S.phone = g.phone || "";
         S.diet = g.diet || "";

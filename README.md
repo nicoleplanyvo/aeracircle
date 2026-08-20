@@ -56,8 +56,8 @@ die App ist Welle 2 und öffnet erst kurz vor dem Abend. Der Ablauf:
 die Einladung kommt von **THE CIRCLE selbst**, nie von einer einzelnen Person.
 Zwei Varianten (`?typ=ticket` mit 100-€-Beitrag über Stripe, `?typ=ehrengast`
 nur Zusage), Zusage/Absage, Daten-Schritt und Ticket-Nummer. Der Daten-Schritt
-erfasst neben Name, **Unternehmen** und **Position/Funktion** (zwei getrennte
-Felder, beide freiwillig) auch **E-Mail** (Pflicht – dorthin geht
+erfasst neben Name, **Unternehmen** und **Rolle** (zwei getrennte Felder,
+beide freiwillig) auch **E-Mail** (Pflicht – dorthin geht
 später der App-Zugang), **Mobilnummer**, **bevorzugte Ernährung** (Alles /
 Vegetarisch / Vegan / Pescetarisch) und **Unverträglichkeiten** – diese
 Angaben wandern automatisch in die App: Kontaktdaten auf die Connect-Karte
@@ -117,10 +117,10 @@ Register.
 Stehen zwei Gäste mit demselben Namen im selben Pool, wird **nicht** geraten:
 dann entsteht ein neuer Eintrag, und `pruefen` warnt „steht 2× im Register".
 
-Neben den bisherigen Spalten liest der Import optional **`position`** (auch
-`funktion`) und **`telefon`** (auch `mobil`). Beide sind freiwillig – fehlen
-sie, ändert sich nichts. Eine Telefonnummer aus der Liste wird nur gesetzt,
-wenn der Gast nicht selbst eine angegeben hat; seine Angabe ist die neuere.
+Zusätzlich liest der Import optional **`telefon`** (auch `mobil`). Freiwillig –
+fehlt die Spalte, ändert sich nichts. Eine Nummer aus der Liste wird nur
+gesetzt, wenn der Gast nicht selbst eine angegeben hat; seine Angabe ist die
+neuere.
 
 Spalten (Semikolon oder Komma, Reihenfolge egal):
 
@@ -131,7 +131,6 @@ Spalten (Semikolon oder Komma, Reihenfolge egal):
 | `typ` | – | `ticket` (100 € über Stripe) oder `ehrengast` (zahlt nicht) – **Partner-Gäste sind `ehrengast`** |
 | `anrede` | – | „Liebe" / „Lieber" für die persönliche Anrede |
 | `firma` | – | Unternehmen |
-| `position` (auch `funktion`) | – | Funktion im Unternehmen, für die Kontaktliste |
 | `telefon` (auch `mobil`) | – | überschreibt nie die Nummer, die der Gast selbst angegeben hat |
 | `partner`, `partner_logo` | – | wenn ein Partner eingeladen hat: Name + URL des Logos (negativ weiß) |
 
@@ -172,6 +171,21 @@ Weitere Schalter: `--pool="…"`, `--typ=ehrengast|ticket`, `--limit=n`.
 `--typ=` trennt die beiden Gästearten. Das ist der Notausgang, solange Stripe
 noch nicht scharf ist: Ehrengäste können raus, Bezahlgäste warten – bei ihnen
 liefe „Weiter zur Zahlung" sonst ins Leere.
+
+### Was die Küche braucht
+
+Die Angaben aus dem Zusageformular – Ernährung, Unverträglichkeiten,
+Mobilnummer – stehen im Register unter `daten`. Abrufbar sind sie hier:
+
+```bash
+node server/circle-server.js kueche              # Übersicht mit Summen
+node server/circle-server.js kueche --csv        # als Tabelle fürs Catering
+node server/circle-server.js export              # alles, inkl. Links
+```
+
+`kueche` zeigt nur Gäste, die **zugesagt oder bezahlt** haben – wer noch nicht
+geantwortet hat, isst auch nichts. Am Ende stehen die Summen je Ernährungsart
+und alle Unverträglichkeiten gesammelt, damit die Küche nicht zählen muss.
 
 ### Vorflugkontrolle
 
@@ -362,7 +376,7 @@ dem Schirm steht – Semikolon und BOM, damit Excel sie ohne Nachfrage und mit
 richtigen Umlauten öffnet:
 
 - **Liste als CSV** – die Gästeliste im aktuellen Filter, mit Unternehmen,
-  Position, E-Mail, Telefon, Ticketnummer, Ernährung, Unverträglichkeit und
+  Rolle, E-Mail, Telefon, Ticketnummer, Ernährung, Unverträglichkeit und
   dem Stand **jeder einzelnen Mail** (je Welle vier Spalten).
 - **Küchenliste als CSV** – nur Zusagen, mit Ernährung und Unverträglichkeit.
 
