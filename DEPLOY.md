@@ -635,7 +635,9 @@ die Zahlungsbelege genügt Stripe.
 | Mails mit localhost-Links | `PUBLIC_URL` fehlte in der Shell | `--senden` bricht dann von selbst ab; `export PUBLIC_URL=…` setzen |
 | „0 Empfänger" trotz voller Liste | alle schon angeschrieben (Versand-Gedächtnis) oder Pool-Filter trifft nicht | Kopfzeile lesen; `--erneut` bzw. `--pool=` als Wortteil |
 | Trockenlauf bricht mit „unbekannte Platzhalter" ab | Vorlage nutzt ein Feld, das der Server nicht kennt | Feldnamen in `renderMail()` und Vorlage abgleichen |
-| Öffnungsraten bleiben bei null | Webhook wird mit 401 abgewiesen | `LETTERMINT_WEBHOOK_SECRET` muss dem Signing secret entsprechen |
+| Öffnungsraten bleiben bei null | Webhook wird mit 401 abgewiesen | Im Monitor unten „Webhook-Eingang" lesen; bei „401 Signatur" muss `LETTERMINT_WEBHOOK_SECRET` dem Signing secret entsprechen |
+| Webhook-Eingang bleibt ganz leer | Lettermint schickt nichts hierher | Endpunkt bei Lettermint prüfen: `…/api/lettermint/webhook`, Ereignisse sent/delivered/opened/clicked |
+| Zweite Welle bleibt im Monitor „nicht zugestellt" | war der alte Sammelstand je Gast | behoben – der Server führt den Stand je Welle; oben in der Gästeliste die Welle wählen |
 | Monitor zeigt Demo-Daten | Server nicht erreichbar | Läuft die Anwendung? Stimmt die Adresse? |
 | Monitor meldet „Kein Zugriff" | Schlüssel fehlt oder gilt nicht | Link mit `?key=…` öffnen, Eintrag in `ADMIN_TOKENS` prüfen |
 | Monitor meldet „Monitor nicht eingerichtet" | `ADMIN_TOKENS` fehlt | §3.1 |

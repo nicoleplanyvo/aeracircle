@@ -281,6 +281,35 @@ angenommen – sonst könnte jeder Fremde Zustellzahlen erfinden. Zugeordnet wir
 über den Token aus den Metadaten, nicht über die Adresse. Klicks erkennt der
 Server ohnehin selbst, sobald der Gast die Landing Page öffnet.
 
+### Der Status hängt an der Welle, nicht am Gast
+
+Jede Mail trägt `metadata.welle`, und Lettermint gibt sie im Webhook zurück.
+Der Server führt deshalb **je Welle** einen eigenen Stand
+(`inv.wellen[n] = {sent, delivered, opened, clicked}`); `inv.mail` bleibt
+daneben als Gesamtsicht bestehen („hat der Gast je geöffnet"), und daran
+hängen weiterhin Bounce-Sperre und Abmeldung.
+
+> **Warum das sein muss:** Vorher gab es *einen* Satz Zeitstempel für *drei*
+> Mailings, und jeder Schreibzugriff galt nur, solange das Feld leer war. Hatte
+> ein Gast das Save the Date geöffnet, waren seine Felder belegt – die
+> Einladung eine Woche später konnte nichts mehr eintragen. Ihr
+> „zugestellt/geöffnet/geklickt" wurde verworfen, im Monitor stand weiter der
+> Stand des Save the Date, und es sah aus, als lieferte Lettermint keine
+> Webhooks mehr. Die Fangschaltung zeigte in dem Fall „schon gesetzt: opened".
+
+Fehlt die Welle in den Metadaten (ältere Sendung, fremder Absender), wird sie
+aus dem Versandzeitpunkt erschlossen: es gilt die zuletzt verschickte Welle,
+die vor dem Ereignis rausging. Beim ersten Start nach dem Update teilt der
+Server einen vorhandenen Sammelstand **je Feld** auf die Wellen auf und meldet
+das im Log („Status je Welle nachgetragen: n Gäste") – nichts geht verloren.
+
+**Kommt überhaupt etwas an?** Der Monitor zeigt unten die **Fangschaltung**:
+die letzten 30 Meldungen von Lettermint mit dem, was der Server daraus gemacht
+hat – *gesetzt*, *schon gesetzt*, *401 Signatur* (Secret stimmt nicht) oder
+*kein Gast*. Bleibt die Liste leer, während eine Welle draußen ist, liegt es
+wirklich an der Webhook-Einrichtung. Die Liste lebt nur im Speicher und ist
+nach einem Neustart leer.
+
 ### Der Monitor (`monitor.html`)
 
 Der Blick für alle Beteiligten – aufgebaut in der Reihenfolge, in der man ihn
@@ -290,12 +319,13 @@ liest: **was jetzt zu tun ist**, dann die Zahlen, dann der Einzelfall.
 |---|---|
 | **Handlungsbedarf** | Was auf jemanden wartet: unzustellbare Adressen, Zusagen ohne Zahlung, Gäste ohne Mailadresse (WhatsApp-Weg), noch nie Angeschriebene, Abmeldungen – und wie viele Gäste die nächste Welle bekämen. Jede Kachel springt gefiltert in die Gästeliste; die Wellen-Kachel nennt den Befehl, der sie rausschickt. |
 | Kennzahlen | Versendet, zugestellt, geöffnet, geklickt, zugesagt, bezahlt, abgesagt |
-| Die Wellen | Je Welle: verschickt, offen, gesperrt – aus dem **Versand-Gedächtnis** und derselben `gilt()`-Regel, nach der der Versand entscheidet. Was hier „offen" heißt, geht beim nächsten `welle n --senden` wirklich raus. Keine handgepflegten Termine mehr. |
+| Die Wellen | Je Welle: verschickt, zugestellt, geöffnet, geklickt – **getrennt gezählt**, nicht in einen Topf geworfen. Dazu offen und gesperrt aus dem **Versand-Gedächtnis** und derselben `gilt()`-Regel, nach der der Versand entscheidet. Was hier „offen" heißt, geht beim nächsten `welle n --senden` wirklich raus. Keine handgepflegten Termine mehr. |
 | Die Pools | Wer wie viele Gäste eingeladen hat und wie viele davon zugesagt bzw. bezahlt haben |
 | Funnel & Fassungen | Der Weg vom Versand zum Ticket, dazu je Vorlage (Ticket, Ehrengast, Ehrengast-Partner, App-Zugang) |
 | Ticketumsatz | Stripe-Summe und die letzten Zahlungen |
 | Zuletzt passiert | Die Ereigniskette aus Register und Lettermint |
-| Gästeliste | Jede Mail einzeln, mit Filterchips und Suche |
+| Gästeliste | Jede Mail einzeln, mit Filterchips und Suche – **mit Wellenwahl:** die Punkte zeigen die gewählte Sendung, nicht einen gemischten Gesamtstand. Vorgabe ist die zuletzt verschickte Welle („ist die Einladung angekommen?") |
+| Webhook-Eingang | Die Fangschaltung: was Lettermint zuletzt gemeldet hat und was der Server daraus gemacht hat |
 
 Läuft der Server, holt sich der Monitor die echten Zahlen über
 `https://thecircle.planyvo.com/monitor?key=<zugang>` und **aktualisiert sich
@@ -312,10 +342,11 @@ meldet *Zahlen frieren ein*. Halb Demo, halb echt wäre die gefährlichste
 Anzeige von allen: niemand wüsste, welche Zahl gilt.
 
 > **Zur Deutung von „Nach Fassung":** Gezählt werden Gäste, die diese Fassung
-> bekommen haben. Geöffnet/geklickt/zugesagt/bezahlt sind der **heutige Stand
-> des Gastes**, nicht die Reaktion auf genau diese eine Mail – das Register
-> führt einen Stand pro Gast, nicht pro Sendung. Wer zwei Wellen bekommen hat,
-> steht in beiden Zeilen. Der Monitor schreibt das unter die Tabelle.
+> bekommen haben; geöffnet und geklickt zählen die Reaktion **auf genau diese
+> Welle**. Zugesagt und bezahlt sind dagegen der heutige Stand des Gastes – eine
+> Zusage gehört keiner einzelnen Mail. Wer zwei Wellen bekommen hat, steht in
+> beiden Zeilen. Der **Funnel** daneben bleibt bewusst gästeweise („hat er
+> irgendeine Mail geöffnet"); je Welle stehen die Zahlen in der Wellen-Übersicht.
 
 **Zugänge je Person.** `ADMIN_TOKENS` nimmt eine Liste im Format
 `name:token,name:token` – jede Person bekommt ihren eigenen Link. Fällt einer
