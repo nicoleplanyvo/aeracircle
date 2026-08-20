@@ -452,6 +452,11 @@ https://thecircle.planyvo.com/monitor?key=<ihr-schlüssel>
 Am besten mit einem Satz dazu: *Bitte nicht weiterleiten – der Link enthält
 Gästedaten. Auf dem Handy als Lesezeichen speichern.*
 
+Der Monitor aktualisiert sich alle 60 Sekunden selbst – die Seite muss nicht
+neu geladen werden. Ganz oben steht, **was zu tun ist** (unzustellbare
+Adressen, Zusagen ohne Zahlung, Gäste ohne Mailadresse, wer auf die nächste
+Welle wartet); jede Kachel springt gefiltert in die Gästeliste ganz unten.
+
 ### 3.3 Prüfen
 
 ```bash
@@ -463,9 +468,19 @@ curl -s https://thecircle.planyvo.com/api/admin/pools
 curl -s "https://thecircle.planyvo.com/api/admin/pools?key=<schlüssel>" | head -c 200
 ```
 
-Der Monitor zeigt Demo-Daten, solange keine Gästeliste eingelesen ist – das ist
-richtig so. Mit den echten Zahlen wechselt oben rechts die Kennzeichnung von
-*Demo* auf *Live-Daten*.
+Oben rechts steht immer, woher die Zahlen kommen – **darauf ist Verlass**:
+
+| Kennzeichnung | Was sie bedeutet |
+|---|---|
+| *Live-Daten* | Zugang gültig, jede Zahl auf der Seite kommt aus dem Register |
+| *Demo · Platzhalterdaten* | Kein Server erreichbar – nichts auf der Seite ist echt |
+| *Kein Zugriff* | Schlüssel fehlt oder gilt nicht → Link mit `?key=…` prüfen |
+| *Monitor nicht eingerichtet* | `ADMIN_TOKENS` fehlt → 3.1 |
+| *Zahlen frieren ein* | Verbindung während des Betriebs abgerissen; die letzten echten Zahlen stehen noch da, sind aber alt |
+
+Ist der Zugang gültig und das Register noch leer, stehen alle Zahlen auf null
+und unter den Pools steht, dass die erste Liste noch fehlt (§5) – das ist
+richtig so und nicht der Demo-Modus.
 
 **Einen Zugang entziehen:** den Eintrag aus `ADMIN_TOKENS` löschen, Anwendung
 neu starten. Alle anderen Links gelten weiter.
@@ -621,5 +636,8 @@ die Zahlungsbelege genügt Stripe.
 | „0 Empfänger" trotz voller Liste | alle schon angeschrieben (Versand-Gedächtnis) oder Pool-Filter trifft nicht | Kopfzeile lesen; `--erneut` bzw. `--pool=` als Wortteil |
 | Trockenlauf bricht mit „unbekannte Platzhalter" ab | Vorlage nutzt ein Feld, das der Server nicht kennt | Feldnamen in `renderMail()` und Vorlage abgleichen |
 | Öffnungsraten bleiben bei null | Webhook wird mit 401 abgewiesen | `LETTERMINT_WEBHOOK_SECRET` muss dem Signing secret entsprechen |
-| Monitor zeigt Demo-Daten | keine Liste eingelesen oder Schlüssel fehlt | importieren, mit `?key=…` öffnen |
+| Monitor zeigt Demo-Daten | Server nicht erreichbar | Läuft die Anwendung? Stimmt die Adresse? |
+| Monitor meldet „Kein Zugriff" | Schlüssel fehlt oder gilt nicht | Link mit `?key=…` öffnen, Eintrag in `ADMIN_TOKENS` prüfen |
+| Monitor meldet „Monitor nicht eingerichtet" | `ADMIN_TOKENS` fehlt | §3.1 |
+| Live, aber alle Zahlen auf null | keine Gästeliste eingelesen | importieren (§5) |
 | Neue Gästeliste wirkt nicht | Prozess hält die alte im Speicher | Anwendung neu starten |

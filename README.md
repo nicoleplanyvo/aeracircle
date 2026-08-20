@@ -283,11 +283,39 @@ Server ohnehin selbst, sobald der Gast die Landing Page öffnet.
 
 ### Der Monitor (`monitor.html`)
 
-Der Blick für alle Beteiligten: Versandstand, Öffnungs-/Klickraten, Zusagen,
-Stripe-Umsatz, die Wellen-Planung und die **Pool-Übersicht** (wer wie viele
-Gäste eingeladen hat und wie viele davon zugesagt bzw. bezahlt haben). Läuft
-der Server, holt sich der Monitor die echten Zahlen über
-`https://thecircle.planyvo.com/monitor?key=<zugang>`; sonst zeigt er Demo-Daten.
+Der Blick für alle Beteiligten – aufgebaut in der Reihenfolge, in der man ihn
+liest: **was jetzt zu tun ist**, dann die Zahlen, dann der Einzelfall.
+
+| Block | Was dort steht |
+|---|---|
+| **Handlungsbedarf** | Was auf jemanden wartet: unzustellbare Adressen, Zusagen ohne Zahlung, Gäste ohne Mailadresse (WhatsApp-Weg), noch nie Angeschriebene, Abmeldungen – und wie viele Gäste die nächste Welle bekämen. Jede Kachel springt gefiltert in die Gästeliste; die Wellen-Kachel nennt den Befehl, der sie rausschickt. |
+| Kennzahlen | Versendet, zugestellt, geöffnet, geklickt, zugesagt, bezahlt, abgesagt |
+| Die Wellen | Je Welle: verschickt, offen, gesperrt – aus dem **Versand-Gedächtnis** und derselben `gilt()`-Regel, nach der der Versand entscheidet. Was hier „offen" heißt, geht beim nächsten `welle n --senden` wirklich raus. Keine handgepflegten Termine mehr. |
+| Die Pools | Wer wie viele Gäste eingeladen hat und wie viele davon zugesagt bzw. bezahlt haben |
+| Funnel & Fassungen | Der Weg vom Versand zum Ticket, dazu je Vorlage (Ticket, Ehrengast, Ehrengast-Partner, App-Zugang) |
+| Ticketumsatz | Stripe-Summe und die letzten Zahlungen |
+| Zuletzt passiert | Die Ereigniskette aus Register und Lettermint |
+| Gästeliste | Jede Mail einzeln, mit Filterchips und Suche |
+
+Läuft der Server, holt sich der Monitor die echten Zahlen über
+`https://thecircle.planyvo.com/monitor?key=<zugang>` und **aktualisiert sich
+alle 60 Sekunden selbst** (im Hintergrundtab ruht er, beim Zurückwechseln lädt
+er sofort nach).
+
+**Demo oder live – nie dazwischen.** Ohne erreichbaren Server oder ohne
+gültigen Zugang gelten die Platzhalterzahlen aus dem HTML, und der Kopf sagt
+das: *Demo · Platzhalterdaten*, *Kein Zugriff* oder *Monitor nicht
+eingerichtet*. Mit gültigem Zugang wird **jeder** Block aus dem Register
+gespeist – auch Wellen, Fassungen, Umsatz und der Fußtext. Reißt die
+Verbindung später ab, bleiben die letzten echten Zahlen stehen, aber der Kopf
+meldet *Zahlen frieren ein*. Halb Demo, halb echt wäre die gefährlichste
+Anzeige von allen: niemand wüsste, welche Zahl gilt.
+
+> **Zur Deutung von „Nach Fassung":** Gezählt werden Gäste, die diese Fassung
+> bekommen haben. Geöffnet/geklickt/zugesagt/bezahlt sind der **heutige Stand
+> des Gastes**, nicht die Reaktion auf genau diese eine Mail – das Register
+> führt einen Stand pro Gast, nicht pro Sendung. Wer zwei Wellen bekommen hat,
+> steht in beiden Zeilen. Der Monitor schreibt das unter die Tabelle.
 
 **Zugänge je Person.** `ADMIN_TOKENS` nimmt eine Liste im Format
 `name:token,name:token` – jede Person bekommt ihren eigenen Link. Fällt einer
@@ -336,7 +364,7 @@ negative Varianten anfragen).
 |---|---|
 | `landing.html` | **Welle 1** – Landing Page mit Event-Infos, Zusage und Stripe-Checkout (Ziel der Einladungsmail) |
 | `index.html` | **Welle 2** – die App zum Abend (Programm, Menü, Live, Connect) |
-| `monitor.html` | Einladungs-Monitor: Wellen, Pools, Funnel, Umsatz |
+| `monitor.html` | Einladungs-Monitor: Handlungsbedarf, Wellen, Pools, Funnel, Umsatz, Gästeliste |
 | `email/*.html` | Mailvorlagen der drei Wellen (der Server füllt sie und verschickt) |
 | `server/circle-server.js` | Gästeregister mit Pools, Stripe, Webhooks, Live-Ebene |
 | `server/gaesteliste-vorlage.csv` | Spaltenvorlage für die Pool-Listen |
