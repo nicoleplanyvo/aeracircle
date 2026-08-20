@@ -2062,14 +2062,79 @@ if (befehl === "welle") {
   }
   if (!LETTERMINT_TOKEN) { console.error("\nLETTERMINT_TOKEN fehlt – kein Versand."); process.exit(1); }
 
+  /* Sind Bezahlgaeste dabei, muss der LAUFENDE Server Stripe scharf haben -
+   * und zwar im Live-Modus. Sonst klicken sie "Weiter zur Zahlung" und
+   * landen in einer Fehlermeldung oder, schlimmer, in einem Testkonto:
+   * 48 Zusagen ohne einen Cent, und niemandem faellt es auf.
+   * Der Versand laeuft in einem eigenen Prozess ohne die Panel-Variablen,
+   * kann Stripe also nicht selbst pruefen - deshalb die Gesundheitsseite
+   * des Servers fragen, der die Zahlungen tatsaechlich entgegennimmt. */
+  let i = 0, ok = 0, fehler = 0;
+  const mitBezahlgaesten = fertig.some(m => m.inv.typ === "ticket");
+  if (!mitBezahlgaesten) return versandStarten();
+
+  https.get(PUBLIC_URL + "/api/live/health", { timeout: 10000 }, r => {
+    let roh = "";
+    r.on("data", c => roh += c);
+    r.on("end", () => {
+      let g = {};
+      try { g = JSON.parse(roh); } catch (e) { /* unten abgefangen */ }
+      const zahl = fertig.filter(m => m.inv.typ === "ticket").length;
+      if (!g.stripe || g.stripeModus !== "live" || !g.stripeWebhook) {
+        console.error("\nABBRUCH: " + zahl + " Bezahlgäste in dieser Welle, aber der Server unter");
+        console.error(PUBLIC_URL + " kann keine Zahlungen annehmen:");
+        console.error("  Stripe-Schlüssel: " + (g.stripe ? g.stripeModus.toUpperCase() : "fehlt"));
+        console.error("  Webhook-Secret:   " + (g.stripeWebhook ? "gesetzt" : "FEHLT"));
+        console.error("\nEntweder Stripe in Ordnung bringen – oder erst die Ehrengäste schicken:");
+        console.error("  node server/circle-server.js welle " + nr + " --senden --typ=ehrengast");
+        process.exit(1);
+      }
+      /* Gesetzte Schluessel heissen nicht, dass Stripe auch Geld annimmt:
+       * ein pausiertes Konto sieht von aussen genauso aus. Deshalb einmal
+       * wirklich eine Checkout-Sitzung anlegen - sie wird nie geoeffnet und
+       * verfaellt von selbst. Genau dieser Fall (Konto pausiert, keine
+       * Zahlungsart fuer Euro) waere sonst erst beim ersten Gast aufgefallen. */
+      const probeGast = fertig.find(m => m.inv.typ === "ticket").inv;
+      const daten = JSON.stringify({ t: probeGast.token });
+      const anfrage = https.request(PUBLIC_URL + "/api/invite/checkout", {
+        method: "POST", timeout: 15000,
+        headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(daten) }
+      }, a => {
+        let p = "";
+        a.on("data", c => p += c);
+        a.on("end", () => {
+          let j = {};
+          try { j = JSON.parse(p); } catch (e) { /* unten */ }
+          if (a.statusCode === 200 && j.url) return versandStarten();
+          console.error("\nABBRUCH: " + zahl + " Bezahlgäste in dieser Welle, aber Stripe");
+          console.error("nimmt gerade kein Geld an. Antwort auf eine Testbuchung:");
+          console.error("  " + (j.error || ("HTTP " + a.statusCode)));
+          console.error("\nErst die Ehrengäste schicken:");
+          console.error("  node server/circle-server.js welle " + nr + " --senden --typ=ehrengast");
+          process.exit(1);
+        });
+      });
+      anfrage.on("error", e => {
+        console.error("\nABBRUCH: Stripe-Probe fehlgeschlagen: " + e.message);
+        process.exit(1);
+      });
+      anfrage.end(daten);
+    });
+  }).on("error", e => {
+    console.error("\nABBRUCH: Bezahlgäste in dieser Welle, aber " + PUBLIC_URL +
+                  " antwortet nicht (" + e.message + ").");
+    console.error("Läuft die App? Ohne sie kann niemand zusagen oder zahlen.");
+    process.exit(1);
+  });
+
   /* Nacheinander, nicht alle auf einmal: das schont das Sendelimit und die
    * Zustellbarkeit einer noch jungen Absenderdomain.
    * WICHTIG: Dieser Prozess schreibt live-state.json NICHT - die laufende
    * App darf waehrend des Versands weiterlaufen (Landing Page, Zusagen,
    * Zahlungen). Jeder Erfolg landet sofort im Versand-Gedaechtnis, damit
    * auch ein Strg-C bei Mail 120 von 200 nichts vergisst. */
-  let i = 0, ok = 0, fehler = 0;
-  (function weiter() {
+  function versandStarten() { weiter(); }
+  function weiter() {
     if (i >= fertig.length) {
       console.log("\n" + ok + " verschickt, " + fehler + " fehlgeschlagen.");
       if (fehler) console.log("Nochmal ausführen schickt NUR an die Fehlgeschlagenen (Versand-Gedächtnis).");
@@ -2093,7 +2158,7 @@ if (befehl === "welle") {
       }
       setTimeout(weiter, 250);
     });
-  })();
+  }
   return;
 }
 
