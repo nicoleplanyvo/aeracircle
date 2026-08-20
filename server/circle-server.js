@@ -295,7 +295,7 @@ function serveFile(res, file, type) {
 /* ================= EINLADUNG: Pools, Gästeliste, Zusagen ================= */
 
 /* Ein Gast der Einladungsliste:
- *   { token, pool, typ:"ticket"|"ehrengast", name, email, firma,
+ *   { token, pool, typ:"ticket"|"ehrengast", name, email, firma, position,
  *     anrede,                                        <- "Liebe"/"Lieber", sonst "Hallo"
  *     partner, partnerLogo,                          <- wenn ein Partner eingeladen hat
  *     status:"offen"|"zugesagt"|"bezahlt"|"abgesagt",
@@ -438,7 +438,12 @@ function importRows(rows) {
   const col = name => header.indexOf(name);
   const iPool = col("pool"), iTyp = col("typ"), iName = col("name"),
         iMail = col("email") >= 0 ? col("email") : col("e-mail"), iFirma = col("firma"),
-        iAnrede = col("anrede"), iPartner = col("partner"), iPartnerLogo = col("partner_logo");
+        iAnrede = col("anrede"), iPartner = col("partner"), iPartnerLogo = col("partner_logo"),
+        /* Optional, fuer die Kontaktliste: Funktion im Unternehmen und
+         * Telefon. Fehlen sie in der CSV, bleibt es beim Bisherigen -
+         * niemand muss seine Listen umbauen. */
+        iPosition = col("position") >= 0 ? col("position") : col("funktion"),
+        iTelefon = col("telefon") >= 0 ? col("telefon") : col("mobil");
   if (iName < 0 || iMail < 0) throw new Error("CSV braucht mindestens die Spalten 'name' und 'email'");
 
   const byMail = {};
@@ -511,6 +516,13 @@ function importRows(rows) {
         if (inv.mail && inv.mail.bounced) inv.mail.bounced = 0;
       }
       if (iFirma >= 0) inv.firma = cleanText(r[iFirma], 80);
+      if (iPosition >= 0) inv.position = cleanText(r[iPosition], 80);
+      /* Telefon aus der Liste nur setzen, wenn der Gast nicht selbst eine
+       * Nummer angegeben hat - seine Angabe ist die neuere. */
+      if (iTelefon >= 0 && r[iTelefon] && !(inv.daten && inv.daten.phone)) {
+        inv.daten = inv.daten || {};
+        inv.daten.phone = cleanText(r[iTelefon], 30);
+      }
       if (iAnrede >= 0) inv.anrede = cleanText(r[iAnrede], 12);
       if (iPartner >= 0) inv.partner = cleanText(r[iPartner], 60);
       if (iPartnerLogo >= 0) inv.partnerLogo = cleanText(r[iPartnerLogo], 200);
@@ -521,12 +533,13 @@ function importRows(rows) {
         token, pool, typ,
         name: zeilenName, email,
         firma: iFirma >= 0 ? cleanText(r[iFirma], 80) : "",
+        position: iPosition >= 0 ? cleanText(r[iPosition], 80) : "",
         anrede: iAnrede >= 0 ? cleanText(r[iAnrede], 12) : "",
         partner: iPartner >= 0 ? cleanText(r[iPartner], 60) : "",
         partnerLogo: iPartnerLogo >= 0 ? cleanText(r[iPartnerLogo], 200) : "",
         status: "offen",
         mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
-        daten: {},
+        daten: iTelefon >= 0 && r[iTelefon] ? { phone: cleanText(r[iTelefon], 30) } : {},
         zahlung: null,
         ticketNr: ticketNumber(token),
         t: Date.now()
@@ -610,7 +623,7 @@ function wellenStats() {
     let versendet = 0, faellig = 0, gesperrt = 0, erster = 0, letzter = 0;
     /* Die Reaktionen zaehlen JE WELLE - fruehere Zahlen mischten alle
      * Mailings in einen Topf und lasen sich dadurch falsch. */
-    let zugestellt = 0, geoeffnet = 0, geklickt = 0;
+    let zugestellt = 0, geoeffnet = 0, geklickt = 0, zugesagt = 0, bezahlt = 0;
     for (const inv of all) {
       const ts = (hasOwn(vlog, inv.token) && vlog[inv.token][nr]) || 0;
       if (ts) {
@@ -621,6 +634,11 @@ function wellenStats() {
         if (w2 && w2.delivered) zugestellt++;
         if (w2 && w2.opened)    geoeffnet++;
         if (w2 && w2.clicked)   geklickt++;
+        /* Zusage und Zahlung gehoeren keiner einzelnen Mail - hier zaehlen
+         * sie den heutigen Stand DERER, die diese Welle bekommen haben.
+         * So laesst sich lesen: "von den 62 Eingeladenen haben 16 zugesagt". */
+        if (inv.status === "zugesagt" || inv.status === "bezahlt") zugesagt++;
+        if (inv.status === "bezahlt") bezahlt++;
         continue;                                  // raus ist raus
       }
       if (!w.gilt(inv)) continue;                  // gehoert nicht in diese Welle
@@ -628,7 +646,7 @@ function wellenStats() {
       else faellig++;
     }
     return { nr: Number(nr), name: w.name, versendet, faellig, gesperrt, erster, letzter,
-             zugestellt, geoeffnet, geklickt };
+             zugestellt, geoeffnet, geklickt, zugesagt, bezahlt };
   });
 }
 
@@ -1887,6 +1905,15 @@ const server = http.createServer((req, res) => {
           partner: inv.partner || "",
           status: inv.status,
           abgemeldet: inv.abgemeldet || 0,
+          /* Fuer die Kueche. Unvertraeglichkeiten sind Gesundheitsdaten -
+           * sie stehen deshalb nur hinter dem Admin-Zugang, so wie Namen
+           * und Adressen auch, und werden nach dem Event geloescht. */
+          ernaehrung: (inv.daten && inv.daten.diet) || "",
+          unvertraeglich: (inv.daten && inv.daten.allergy) || "",
+          firma: inv.firma || "",
+          position: inv.position || "",
+          telefon: (inv.daten && inv.daten.phone) || "",
+          ticketNr: inv.ticketNr || "",
           /* Nur der gebuchte Betrag und wann - fuer "zuletzt bezahlt" im
            * Monitor. Session- und PaymentIntent-ID bleiben hier drin. */
           zahlung: (inv.zahlung && inv.zahlung.paidAt)
