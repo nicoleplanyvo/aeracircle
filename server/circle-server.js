@@ -1682,7 +1682,15 @@ const server = http.createServer((req, res) => {
      * Nacheinander mit Abstand, damit ein Nachlauf ueber viele Gaeste nicht
      * als Schwall beim Anbieter ankommt. */
     if (req.method === "POST" && url === "/api/admin/bestaetigungen-nachholen") {
-      const dran = Object.values(state.invites).filter(bestaetigungFaellig);
+      /* ?nur=adresse schickt an genau einen - der Weg, eine neue Vorlage
+       * einmal an sich selbst zu schicken, bevor sie an Gaeste geht. */
+      const nur = String(q.get("nur") || "").toLowerCase().trim();
+      const dran = Object.values(state.invites)
+        .filter(bestaetigungFaellig)
+        .filter(inv => !nur || (inv.email || "").toLowerCase() === nur);
+      if (nur && !dran.length) {
+        return json(res, 404, { error: "Kein fälliger Gast mit dieser Adresse: " + nur });
+      }
       const liste = dran.map(inv => ({
         name: inv.name, email: inv.email, typ: inv.typ, partner: inv.partner || "",
         status: inv.status,
