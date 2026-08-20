@@ -320,7 +320,7 @@
         <h2 class="rv" style="--d:60ms">Bist du dabei?</h2>
         <div class="karte rv" style="--d:120ms">
           <div class="einlader" id="einlader" style="display:none">
-            <span>Du bist eingeladen von unserem Partner</span>
+            <span id="einladerLabel">Du bist eingeladen von unserem Partner</span>
             <img id="einladerLogo" alt="">
           </div>
           <div class="kreise">
@@ -396,7 +396,7 @@
             Für heute ist das alles. Wenige Tage vor dem Abend erhältst du per E-Mail deinen persönlichen Zugang zur App – sie geht nur an die Gäste von THE CIRCLE No1.
           </p>
           <div class="einlader" id="einladerTicket" style="display:none;margin:24px 0 4px">
-            <span>Eingeladen von unserem Partner</span>
+            <span id="einladerTicketLabel">Eingeladen von unserem Partner</span>
             <img id="einladerTicketLogo" alt="">
           </div>
           <div class="zeile" style="margin-top:28px"><span class="k">Termin</span><span class="v">16.09.2026 · 18:00 Uhr</span></div>
@@ -496,11 +496,26 @@ function renderGast() {
     ? "Du bist<em>eingeladen.</em>"
     : "Sei<em>dabei.</em>";
 
-  /* Hat ein Partner eingeladen, steht das über der Zusage */
-  if (gast.partner && gast.partnerLogo) {
-    for (const [box, bild] of [["#einlader", "#einladerLogo"], ["#einladerTicket", "#einladerTicketLogo"]]) {
-      $(bild).src = gast.partnerLogo;
-      $(bild).alt = gast.partner;
+  /* Das Logo des Hauses steht schon im Seitenkopf - von dort nehmen wir es,
+   * statt dieselbe Datei ein zweites Mal einzubetten. */
+  const LOGO_HAUS = (document.querySelector("header .logo") || {}).src || "";
+
+  /* Wer eingeladen hat, steht über der Zusage - genau wie in der Mail.
+   * Ehrengäste eines Partners sehen dessen Logo, Ehrengäste des Hauses das
+   * von THE CIRCLE. Bezahlgäste kommen aus dem eigenen Netzwerk und sehen
+   * hier nichts; bei ihnen steht stattdessen der Beitrag. */
+  const einladerLogo = (gast.partner && gast.partnerLogo) ? gast.partnerLogo
+                     : (ehrengast ? LOGO_HAUS : "");
+  if (einladerLogo) {
+    const wer = gast.partner && gast.partnerLogo ? gast.partner : "THE CIRCLE";
+    const zusatz = gast.partner && gast.partnerLogo ? " unserem Partner" : "";
+    for (const [box, bild, label, text] of [
+      ["#einlader", "#einladerLogo", "#einladerLabel", "Du bist eingeladen von" + zusatz],
+      ["#einladerTicket", "#einladerTicketLogo", "#einladerTicketLabel", "Eingeladen von" + zusatz]
+    ]) {
+      $(bild).src = einladerLogo;
+      $(bild).alt = wer;
+      $(label).textContent = text;
       $(box).style.display = "block";
     }
   }
