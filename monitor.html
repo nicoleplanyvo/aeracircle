@@ -246,6 +246,13 @@
     font-weight:500;padding:8px 12px 8px 0;border-bottom:1px solid var(--line)}
   .ktable td{padding:9px 12px 9px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle}
   .ktable tr.wichtig td{background:rgba(255,107,108,.09)}
+  /* Der WhatsApp-Block nutzt die Tabelle der Kuechenliste, aber die
+     Namenszelle der Gaesteliste - dort ist der Zusatz eine eigene Zeile. */
+  #waliste .gname b{display:block}
+  #waliste .gname span{display:block;font-size:12px;color:var(--rosa);opacity:.7;margin-top:3px}
+  #waliste td{vertical-align:middle}
+  .gname .tnr{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:500;
+    letter-spacing:.08em;color:var(--rosa);opacity:.75;margin-left:8px;white-space:nowrap}
   .ktable td.uv{color:var(--coral);font-weight:500}
   .ktable td.diet{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 
@@ -434,6 +441,15 @@
     </div>
   </div>
 
+  <!-- 6b · Gäste ohne Mailadresse. Sie bekommen dieselbe Einladung, nur von
+       Hand über WhatsApp - ihr persönlicher Link steht hier zum Kopieren. -->
+  <div class="panel" id="wapanel" style="display:none">
+    <span class="label">Ohne Mailadresse · Einladung von Hand</span>
+    <h2>Über WhatsApp</h2>
+    <p class="fnote" id="wanote"></p>
+    <table class="ktable"><tbody id="waliste"></tbody></table>
+  </div>
+
   <!-- 7 · Der Einzelfall. Ganz unten, weil man hierher springt, wenn oben
        etwas auffällt – nicht umgekehrt. -->
   <div class="panel" id="mailpanel">
@@ -562,6 +578,10 @@ async function laden(){
       welleFunnel = raus.length ? raus[raus.length - 1].nr : null;
     const wf = raus.find(w => w.nr === welleFunnel);
     if(wf){ funnelwahlRendern(); funnelSetzen(wf); }
+    /* Ist noch keine Welle raus, blieben sonst die Demo-Zahlen aus dem HTML
+       stehen - im Livebetrieb die gefaehrlichste Sorte Zahl: sie sieht echt
+       aus. Also ausdruecklich leeren. */
+    else funnelLeeren();
     wellenRendern(letzteWellen);
     poolsRendern(d.pools || []);
     fassungenRendern(d.fassungen || []);
@@ -569,6 +589,7 @@ async function laden(){
     feedRendern(d.feed || []);
     quelleSetzen(d);
     await gaesteHolen();
+    await whatsappHolen();
     await hooksHolen();
     taktStarten();
   }catch(e){
@@ -656,6 +677,17 @@ function kpisSetzen(g){
 /* Der Funnel gilt IMMER für genau eine Welle. Ein Funnel "über alle Wellen"
    wäre wieder der gemischte Stand: das Save the Date ging an alle, die
    Einladung nur an einen Teil - eine gemeinsame Quote sagt nichts. */
+function funnelLeeren(){
+  document.querySelectorAll(".frow[data-k]").forEach(row => {
+    const b = row.querySelector("b");
+    if(b) b.textContent = "0";
+    const bar = row.querySelector("i");
+    if(bar) bar.style.width = "0%";
+  });
+  $("#funnellabel").textContent = "Noch keine Mail verschickt";
+  $("#funnelnote").hidden = true;
+}
+
 function funnelSetzen(w){
   const proz = { zugestellt: pct(w.zugestellt, w.versendet).slice(3),
                  geoeffnet:  pct(w.geoeffnet,  w.versendet).slice(3),
@@ -1040,6 +1072,48 @@ async function hooksHolen(){
 }
 
 /* ---------- Gästeliste ---------- */
+/* Die persoenlichen Links der Gaeste ohne Adresse. Eigener Aufruf, weil der
+   Server sie bewusst NICHT in der normalen Gaesteliste mitliefert: ein Link
+   eroeffnet die Zusage: wer ihn hat, kann fuer den Gast antworten. */
+async function whatsappHolen(){
+  try{
+    const r = await fetch("/api/admin/whatsapp" + (KEY ? "?key=" + encodeURIComponent(KEY) : ""),
+                          { cache: "no-store" });
+    if(!r.ok) return;
+    const d = await r.json();
+    if(!d.ok || !d.gaeste) return;
+    const tb = $("#waliste");
+    tb.innerHTML = "";
+    for(const g of d.gaeste){
+      const tr = document.createElement("tr");
+      const na = document.createElement("td");
+      txt(na.appendChild(document.createElement("b")), g.name || "—");
+      txt(na.appendChild(document.createElement("span")), [g.pool, g.rolle].filter(Boolean).join(" · "));
+      na.className = "gname";
+      const ak = document.createElement("td");
+      ak.style.textAlign = "right";
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "export";
+      b.textContent = "Nachricht kopieren";
+      b.addEventListener("click", async ()=>{
+        try{ await navigator.clipboard.writeText(g.nachricht); b.textContent = "Kopiert"; }
+        catch(e){ b.textContent = "Kopieren ging nicht"; }
+        setTimeout(()=>{ b.textContent = "Nachricht kopieren"; }, 2000);
+      });
+      ak.appendChild(b);
+      tr.append(na, ak);
+      tb.appendChild(tr);
+    }
+    $("#wanote").textContent = d.anzahl + (d.anzahl === 1 ? " Gast hat" : " Gäste haben") +
+      " keine Mailadresse. Die Nachricht enthält den persönlichen Link – " +
+      "damit zählt die Zusage genauso wie aus der Mail." +
+      (d.uebersprungen && d.uebersprungen.length
+        ? " Nicht dabei: " + d.uebersprungen.map(u => u.name).join(", ") + " – bekommt die Einladung per Mail."
+        : "");
+    $("#wapanel").style.display = d.anzahl ? "block" : "none";
+  }catch(e){ /* still: der Monitor bleibt ohne diesen Block benutzbar */ }
+}
+
 async function gaesteHolen(){
   try{
     const r = await fetch("/api/admin/gaeste" + (KEY ? "?key=" + encodeURIComponent(KEY) : ""),
@@ -1150,9 +1224,22 @@ function gaesteRendern(){
   for(const g of zeigen){
     const tr = document.createElement("tr");
     const name = document.createElement("td"); name.className = "gname";
-    txt(name.appendChild(document.createElement("b")), g.name || "—");
+    const nb = name.appendChild(document.createElement("b"));
+    txt(nb, g.name || "—");
+    /* Die Nummer im Kreis steht neben dem Namen - sie ist die Kennung, die
+       der Gast selbst sieht (auf seiner Bestaetigung und am Abend). */
+    /* Die Nummer nur bei Gaesten, die zugesagt haben. Jeder traegt seit dem
+       Import eine, aber vorher hat sie keine Bedeutung - neben einem offenen
+       Gast gelesen sieht sie aus wie eine Zusage. */
+    if(g.ticketNr && (g.status === "zugesagt" || g.status === "bezahlt")){
+      const nr = nb.appendChild(document.createElement("small"));
+      nr.className = "tnr";
+      nr.textContent = g.ticketNr;
+    }
+    /* Zweite Zeile: Unternehmen und Rolle, wenn der Gast sie angegeben hat -
+       danach die Adresse. Leere Felder fallen weg, statt Trenner zu hinterlassen. */
     txt(name.appendChild(document.createElement("span")),
-        [g.firma, g.email || "keine Adresse · WhatsApp"].filter(Boolean).join(" · "));
+        [g.firma, g.rolle, g.email || "keine Adresse · WhatsApp"].filter(Boolean).join(" · "));
     const pool = document.createElement("td");
     txt(pool.appendChild(document.createElement("span")), g.pool || "—").className = "pooltag";
     /* Eine Spalte je Welle - alle Mails nebeneinander. Vorher stand hier ein
