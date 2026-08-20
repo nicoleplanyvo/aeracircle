@@ -1958,10 +1958,30 @@ const server = http.createServer((req, res) => {
         gaeste: dran.map(inv => ({
           name: inv.name, pool: inv.pool,
           rolle: inv.typ === "ehrengast" ? "Ehrengast" : "Bezahlgast, 100 €",
+          token: inv.token,
+          raus: (inv.whatsapp && inv.whatsapp["1"]) || 0,
           link: inviteLink(inv.token),
           nachricht: whatsappText(inv)
         }))
       });
+    }
+
+    /* Vermerk: diese Einladung ist per WhatsApp rausgegangen.
+     * Der Server kann das nicht selbst wissen - verschickt wird von Hand,
+     * aus einem fremden Messenger. Also traegt es der Mensch ein, der es
+     * getan hat. Ohne diesen Vermerk stehen die Gaeste ohne Adresse auf
+     * ewig unter "nicht angeschrieben", obwohl sie laengst eingeladen sind.
+     * Bewusst KEIN Zustell- oder Lesestatus: wir wissen nur, dass jemand
+     * die Nachricht abgeschickt hat. */
+    if (req.method === "POST" && url === "/api/admin/whatsapp-vermerk") {
+      const inv = state.invites[String(q.get("token") || "")];
+      if (!inv) return json(res, 404, { error: "Unbekannter Gast" });
+      const welle = String(q.get("welle") || "1");
+      inv.whatsapp = inv.whatsapp || {};
+      if (q.get("zurueck") === "1") delete inv.whatsapp[welle];
+      else inv.whatsapp[welle] = Date.now();
+      dirty = true;
+      return json(res, 200, { ok: true, raus: inv.whatsapp[welle] || 0 });
     }
 
     if (req.method === "POST" && url === "/api/admin/testgast") {
@@ -2062,6 +2082,10 @@ const server = http.createServer((req, res) => {
         }
         return {
           wellen,
+          /* Von Hand per WhatsApp verschickt - je Welle ein Zeitpunkt.
+           * Steht neben den Mailwellen, damit ein Gast ohne Adresse nicht
+           * aussieht, als haette man ihn vergessen. */
+          whatsapp: inv.whatsapp || {},
           pool: inv.pool,
           typ: inv.typ,
           name: inv.name,

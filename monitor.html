@@ -1100,13 +1100,39 @@ async function whatsappHolen(){
         catch(e){ b.textContent = "Kopieren ging nicht"; }
         setTimeout(()=>{ b.textContent = "Nachricht kopieren"; }, 2000);
       });
-      ak.appendChild(b);
+      /* Der Vermerk. Verschickt wird von Hand aus einem fremden Messenger -
+         der Server kann es nicht sehen, also sagt es der Mensch, der es
+         getan hat. Erst danach verschwindet der Gast aus "WhatsApp offen". */
+      const v = document.createElement("button");
+      v.type = "button"; v.className = "export";
+      v.style.marginLeft = "8px";
+      const vSetzen = t => {
+        v.textContent = t ? "verschickt " + tag(t) : "Als verschickt vermerken";
+        v.setAttribute("aria-pressed", String(!!t));
+        v.style.opacity = t ? ".65" : "1";
+      };
+      vSetzen(g.raus);
+      v.addEventListener("click", async ()=>{
+        const zurueck = v.getAttribute("aria-pressed") === "true";
+        v.disabled = true;
+        try{
+          const r = await fetch("/api/admin/whatsapp-vermerk?token=" + encodeURIComponent(g.token) +
+                                "&welle=1" + (zurueck ? "&zurueck=1" : "") +
+                                (KEY ? "&key=" + encodeURIComponent(KEY) : ""), { method: "POST" });
+          const d = await r.json();
+          if(d.ok){ g.raus = d.raus; vSetzen(d.raus); gaesteHolen(); }
+        }catch(e){ /* Vermerk bleibt, wie er war */ }
+        v.disabled = false;
+      });
+      ak.append(b, v);
       tr.append(na, ak);
       tb.appendChild(tr);
     }
     $("#wanote").textContent = d.anzahl + (d.anzahl === 1 ? " Gast hat" : " Gäste haben") +
       " keine Mailadresse. Die Nachricht enthält den persönlichen Link – " +
-      "damit zählt die Zusage genauso wie aus der Mail." +
+      "damit zählt die Zusage genauso wie aus der Mail. " +
+      "Wer verschickt hat, vermerkt es hier: dann steht der Gast in der Liste " +
+      "als eingeladen und nicht mehr als vergessen." +
       (d.uebersprungen && d.uebersprungen.length
         ? " Nicht dabei: " + d.uebersprungen.map(u => u.name).join(", ") + " – bekommt die Einladung per Mail."
         : "");
@@ -1132,6 +1158,9 @@ async function gaesteHolen(){
 
 /* Die Filter über der Liste – und zugleich die Sprungziele aus dem
    Handlungsbedarf. Ein Chip erscheint nur, wenn er jemanden trifft. */
+/* Hat dieser Gast seine Einladung von Hand bekommen? */
+const waRaus = g => !!(g.whatsapp && Object.keys(g.whatsapp).length);
+
 const FILTER = [
   { k:"alle",       t:"Alle",                f:()=>true },
   { k:"offen",      t:"Offen",               f:g => g.status === "offen" },
@@ -1139,9 +1168,15 @@ const FILTER = [
   { k:"bezahlt",    t:"Bezahlt",             f:g => g.status === "bezahlt" },
   { k:"unbezahlt",  t:"Zusage ohne Zahlung", f:g => g.status === "zugesagt" && g.typ !== "ehrengast" },
   { k:"abgesagt",   t:"Abgesagt",            f:g => g.status === "abgesagt" },
-  { k:"nichtraus",  t:"Nicht angeschrieben", f:g => !g.mail.sent },
+  /* "Nicht angeschrieben" heisst: erreichbar, aber noch nichts bekommen.
+     Gaeste ohne Adresse gehoeren nicht hierher - die laufen ueber WhatsApp
+     und stehen unter "Ohne Adresse". Sonst zaehlt der Monitor Menschen als
+     vergessen, die Dylan laengst angeschrieben hat. */
+  { k:"nichtraus",  t:"Nicht angeschrieben", f:g => !!g.email && !g.mail.sent },
   { k:"bounce",     t:"Unzustellbar",        f:g => !!g.mail.bounced },
   { k:"ohnemail",   t:"Ohne Adresse",        f:g => !g.email },
+  { k:"waoffen",    t:"WhatsApp offen",      f:g => !g.email && !waRaus(g) &&
+                                                    g.status !== "abgesagt" && !g.abgemeldet },
   { k:"abgemeldet", t:"Abgemeldet",          f:g => !!g.abgemeldet }
 ];
 const filterFn = k => (FILTER.find(f => f.k === k) || FILTER[0]).f;
@@ -1179,9 +1214,16 @@ const STUFEN = [
   { f: "delivered", t: "zugestellt", c: "s2" },
   { f: "sent",      t: "verschickt", c: "s1" }
 ];
-function wellenZelle(w){
+function wellenZelle(w, wa){
   const td = document.createElement("td"); td.className = "wz";
   const stufe = w ? STUFEN.find(s => w[s.f]) : null;
+  /* Kein Mailstand, aber von Hand per WhatsApp raus: dann steht das da.
+     Ohne Zustell- oder Lesestand - den kennt nur Dylans Telefon. */
+  if(!stufe && wa){
+    txt(td.appendChild(document.createElement("span")), "WhatsApp").className = "ms s1";
+    txt(td.appendChild(document.createElement("span")), tag(wa) + " " + uhr(wa)).className = "mzeit";
+    return td;
+  }
   if(!stufe){ txt(td, "—").className = "wz leer"; return td; }
   txt(td.appendChild(document.createElement("span")), stufe.t).className = "ms " + stufe.c;
   txt(td.appendChild(document.createElement("span")), tag(w[stufe.f]) + " " + uhr(w[stufe.f])).className = "mzeit";
@@ -1246,7 +1288,8 @@ function gaesteRendern(){
        einziger, gemischter Stand; man konnte nicht sehen, ob DIE EINLADUNG
        angekommen ist. */
     tr.append(name, pool);
-    for(const w of letzteWellen) tr.appendChild(wellenZelle(g.wellen && g.wellen[String(w.nr)]));
+    for(const w of letzteWellen) tr.appendChild(wellenZelle(g.wellen && g.wellen[String(w.nr)],
+                                                            g.whatsapp && g.whatsapp[String(w.nr)]));
     const stand = document.createElement("td");
     const s = document.createElement("span");
     s.className = "stat" + (g.mail.bounced ? " bounce" : g.status === "bezahlt" ? " bez"
@@ -1280,8 +1323,8 @@ function todosRendern(){
   const punkte = [
     { n: zahl(filterFn("bounce")),    t: "unzustellbar",           e: "Adresse prüfen und korrigieren",              k: "bounce",     dring: true },
     { n: zahl(filterFn("unbezahlt")), t: "zugesagt, nicht bezahlt", e: "Nachfassen oder Zahllink erneut schicken",   k: "unbezahlt",  dring: true },
-    { n: zahl(filterFn("ohnemail")),  t: "ohne Mailadresse",        e: "Persönlicher Link per WhatsApp (/std?t=…)",  k: "ohnemail" },
-    { n: zahl(filterFn("nichtraus")), t: "noch nie angeschrieben",  e: "Stehen im Register, haben nichts bekommen",  k: "nichtraus" },
+    { n: zahl(filterFn("waoffen")),   t: "WhatsApp offen",          e: "Keine Adresse, Nachricht noch nicht vermerkt", k: "waoffen" },
+    { n: zahl(filterFn("nichtraus")), t: "noch nie angeschrieben",  e: "Haben eine Adresse, aber nichts bekommen",   k: "nichtraus" },
     { n: zahl(filterFn("abgemeldet")),t: "abgemeldet",              e: "Fällt aus allen weiteren Wellen",            k: "abgemeldet" }
   ].filter(p => p.n);
 
