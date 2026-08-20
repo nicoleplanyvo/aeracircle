@@ -1054,6 +1054,13 @@ const server = http.createServer((req, res) => {
       adminGeschuetzt: ADMIN_TOKENS.size > 0,
       adminZugaenge: ADMIN_TOKENS.size,
       stripe: !!STRIPE_KEY,
+      /* Live oder Test steht dem Schluessel selbst an der Stirn geschrieben.
+       * Ohne diese Angabe laesst sich von aussen nicht unterscheiden, ob
+       * echtes Geld fliesst - und ohne stripeWebhook nicht, ob eine Zahlung
+       * ueberhaupt im Register ankaeme: fehlt das Secret, weist der Server
+       * jede Stripe-Meldung ab und der Gast bleibt auf "zugesagt" stehen. */
+      stripeModus: STRIPE_KEY ? (STRIPE_KEY.startsWith("sk_live") ? "live" : "test") : "",
+      stripeWebhook: !!STRIPE_WEBHOOK_SECRET,
       /* Nur ob gesetzt, nie die Werte - sonst liesse sich von aussen nicht
        * pruefen, ob die Mail-Variablen im Panel angekommen sind. */
       mail: !!LETTERMINT_TOKEN,
