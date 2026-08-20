@@ -830,18 +830,42 @@ function renderMail(inv, datei) {
  * der Versand, wird er zurueckgenommen, damit ein spaeterer Anlauf ihn holt.
  * Fehler bleiben folgenlos fuer den Gast: seine Zusage ist da, ob die
  * Bestaetigung ankam oder nicht. */
+function bestaetigungFaellig(inv) {
+  if (!inv || !inv.email || inv.bestaetigung || inv.abgemeldet) return false;
+  /* Ehrengaeste sind mit der Zusage fertig. Bezahlgaeste erst mit der Zahlung:
+   * "Platz gesichert - 100 Euro bezahlt" an jemanden zu schicken, der nur
+   * zugesagt hat, waere schlicht falsch. */
+  return inv.typ === "ehrengast"
+    ? (inv.status === "zugesagt" || inv.status === "bezahlt")
+    : inv.status === "bezahlt";
+}
+
 function bestaetigungSenden(inv) {
   if (!LETTERMINT_TOKEN) return;                 // App ohne Token: still nichts tun
-  if (!inv || !inv.email || inv.bestaetigung) return;
+  if (!bestaetigungFaellig(inv)) return;
+  inv.bestaetigung = Date.now();                 // Platz belegen, BEVOR irgendetwas laeuft
+  dirty = true;
+  bestaetigungAbschicken(inv);
+}
+
+/* Setzt voraus, dass der Vermerk schon steht - siehe bestaetigungSenden und
+ * den Nachhol-Endpunkt. Getrennt, damit ein Stapel ALLE Vermerke sofort
+ * setzen kann und nicht erst beim Abschicken der einzelnen Mail: sonst
+ * faende ein zweiter Aufruf dieselben Gaeste noch einmal. */
+function bestaetigungAbschicken(inv) {
   const datei = inv.typ === "ehrengast"
     ? ((inv.partner && inv.partnerLogo) ? "bestaetigung-ehrengast-partner.html" : "bestaetigung-ehrengast.html")
     : "bestaetigung-ticket.html";
   let html;
   try { html = renderMail(inv, datei); }
-  catch (e) { console.error("Bestätigung " + datei + " bricht: " + e.message); return; }
+  catch (e) {
+    /* Vermerk zurueck: er steht seit dem Aufruf, und ohne Ruecknahme gaelte
+     * der Gast als bestaetigt, ohne je eine Mail bekommen zu haben. */
+    inv.bestaetigung = 0; dirty = true;
+    console.error("Bestätigung " + datei + " bricht: " + e.message);
+    return;
+  }
 
-  inv.bestaetigung = Date.now();
-  dirty = true;
   const text = [
     (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
     "",
@@ -1651,6 +1675,32 @@ const server = http.createServer((req, res) => {
      * und die Vorflugkontrolle zeigt ihn als zusaetzlichen Empfaenger an.
      * Bewusst mit Adresse @planyvo.com - faellt uns ein Loeschen durch, geht
      * die Mail an uns selbst und nicht an einen Gast. */
+    /* Bestaetigungen nachholen. Gebraucht fuer alle, die zugesagt haben,
+     * BEVOR es die Bestaetigung gab - und als Netz, falls Lettermint einmal
+     * nicht erreichbar war (dann steht der Vermerk wieder auf 0).
+     * Ohne &senden=1 nur eine Liste: wer bekaeme sie, mit welcher Vorlage.
+     * Nacheinander mit Abstand, damit ein Nachlauf ueber viele Gaeste nicht
+     * als Schwall beim Anbieter ankommt. */
+    if (req.method === "POST" && url === "/api/admin/bestaetigungen-nachholen") {
+      const dran = Object.values(state.invites).filter(bestaetigungFaellig);
+      const liste = dran.map(inv => ({
+        name: inv.name, email: inv.email, typ: inv.typ, partner: inv.partner || "",
+        status: inv.status,
+        vorlage: inv.typ === "ehrengast"
+          ? ((inv.partner && inv.partnerLogo) ? "bestaetigung-ehrengast-partner.html" : "bestaetigung-ehrengast.html")
+          : "bestaetigung-ticket.html"
+      }));
+      if (q.get("senden") !== "1") {
+        return json(res, 200, { ok: true, probelauf: true, anzahl: dran.length, gaeste: liste });
+      }
+      if (!LETTERMINT_TOKEN) return json(res, 503, { error: "LETTERMINT_TOKEN fehlt in der App" });
+      const jetzt = Date.now();
+      dran.forEach(inv => { inv.bestaetigung = jetzt; });   // erst alle belegen
+      dirty = true;
+      dran.forEach((inv, i) => setTimeout(() => bestaetigungAbschicken(inv), i * 400));
+      return json(res, 200, { ok: true, verschickt: dran.length, gaeste: liste });
+    }
+
     if (req.method === "POST" && url === "/api/admin/testgast") {
       const token = newToken();
       const typ = q.get("typ") === "ehrengast" ? "ehrengast" : "ticket";
