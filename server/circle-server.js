@@ -1813,6 +1813,16 @@ const server = http.createServer((req, res) => {
           partner: inv.partner || "",
           status: inv.status,
           abgemeldet: inv.abgemeldet || 0,
+          /* Die Angaben aus dem Zusageformular. Der Monitor zeigt sie noch
+           * nicht, aber ohne sie hier laesst sich von aussen nicht pruefen,
+           * ob die Kueche ueberhaupt etwas zu essen bestellen kann. */
+          firma: inv.firma || "",
+          rolle: inv.rolle || "",
+          daten: {
+            phone: (inv.daten && inv.daten.phone) || "",
+            diet: (inv.daten && inv.daten.diet) || "",
+            allergy: (inv.daten && inv.daten.allergy) || ""
+          },
           mail
         };
       });
