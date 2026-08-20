@@ -608,19 +608,27 @@ function wellenStats() {
   return Object.keys(WELLEN).map(nr => {
     const w = WELLEN[nr];
     let versendet = 0, faellig = 0, gesperrt = 0, erster = 0, letzter = 0;
+    /* Die Reaktionen zaehlen JE WELLE - fruehere Zahlen mischten alle
+     * Mailings in einen Topf und lasen sich dadurch falsch. */
+    let zugestellt = 0, geoeffnet = 0, geklickt = 0;
     for (const inv of all) {
       const ts = (hasOwn(vlog, inv.token) && vlog[inv.token][nr]) || 0;
       if (ts) {
         versendet++;
         if (!erster || ts < erster) erster = ts;
         if (ts > letzter) letzter = ts;
+        const w2 = (inv.wellen && inv.wellen[nr]) || null;
+        if (w2 && w2.delivered) zugestellt++;
+        if (w2 && w2.opened)    geoeffnet++;
+        if (w2 && w2.clicked)   geklickt++;
         continue;                                  // raus ist raus
       }
       if (!w.gilt(inv)) continue;                  // gehoert nicht in diese Welle
       if (!inv.email || inv.abgemeldet || (inv.mail && inv.mail.bounced)) gesperrt++;
       else faellig++;
     }
-    return { nr: Number(nr), name: w.name, versendet, faellig, gesperrt, erster, letzter };
+    return { nr: Number(nr), name: w.name, versendet, faellig, gesperrt, erster, letzter,
+             zugestellt, geoeffnet, geklickt };
   });
 }
 
@@ -648,8 +656,9 @@ function fassungStats() {
         versendet: 0, geoeffnet: 0, geklickt: 0, zugesagt: 0, bezahlt: 0, ticket: false
       });
       g.versendet++;
-      if (inv.mail.opened) g.geoeffnet++;
-      if (inv.mail.clicked) g.geklickt++;
+      const wm = (inv.wellen && inv.wellen[nr]) || {};
+      if (wm.opened)  g.geoeffnet++;
+      if (wm.clicked) g.geklickt++;
       if (inv.status === "zugesagt" || inv.status === "bezahlt") g.zugesagt++;
       if (inv.status === "bezahlt") g.bezahlt++;
       if (inv.typ !== "ehrengast") g.ticket = true;      // in dieser Fassung wird gezahlt
@@ -819,6 +828,81 @@ function versandLogSchreiben(log) {
    * nicht zerstoeren - sonst ginge die naechste Welle wieder an alle. */
   fs.writeFileSync(VERSAND_LOG + ".tmp", JSON.stringify(log));
   fs.renameSync(VERSAND_LOG + ".tmp", VERSAND_LOG);
+}
+
+/* Das Versand-Gedaechtnis gehoert der CLI; der Server liest es nur - aber
+ * er liest es oft (jeder Webhook fragt, zu welcher Welle das Ereignis
+ * gehoert). Deshalb kurz gepuffert. */
+let vlogCache = { t: 0, daten: {} };
+function versandLogLesenGepuffert() {
+  const jetzt = Date.now();
+  if (jetzt - vlogCache.t < 5000) return vlogCache.daten;
+  let daten = {};
+  try { daten = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log */ }
+  vlogCache = { t: jetzt, daten };
+  return daten;
+}
+
+/* ---------- Status JE WELLE ----------
+ *
+ * Warum das sein muss: inv.mail fuehrt EINEN Satz Zeitstempel
+ * (sent/delivered/opened/clicked) - aber es gibt drei Mailings. Und jeder
+ * Schreibzugriff galt "nur wenn noch leer". Ergebnis im Betrieb: hat ein
+ * Gast das Save the Date geoeffnet, sind seine Felder belegt; die
+ * Einladung eine Woche spaeter kann sie nicht mehr fuellen. Ihr
+ * "zugestellt/geoeffnet/geklickt" wurde verworfen ("schon gesetzt"), im
+ * Monitor stand weiter der Stand des Save the Date - und es sah aus, als
+ * lieferte Lettermint keine Webhooks mehr.
+ *
+ * Die Zuordnung war immer da, sie wurde nur weggeworfen: der Versand gibt
+ * jeder Mail metadata.welle mit, Lettermint gibt es im Webhook zurueck.
+ * inv.wellen[n] fuehrt jetzt die einzelne Sendung, inv.mail bleibt als
+ * Gesamtsicht ("hat der Gast ueberhaupt je geoeffnet") unveraendert - alle
+ * bisherigen Leser, Bounce-Sperre und Abmeldung eingeschlossen. */
+function wellenMail(inv, n) {
+  inv.wellen = inv.wellen || {};
+  return inv.wellen[n] || (inv.wellen[n] = { sent: 0, delivered: 0, opened: 0, clicked: 0 });
+}
+
+/* Zu welcher Welle gehoert ein Ereignis ohne metadata.welle? Zur zuletzt
+ * verschickten Welle, die VOR dem Ereignis rausging - das ist die Mail, die
+ * der Gast in dem Moment vor sich hatte. */
+function welleZuZeit(inv, ts) {
+  const log = versandLogLesenGepuffert()[inv.token];
+  if (!log) return "";
+  let treffer = "", besteZeit = 0;
+  for (const n of Object.keys(log)) {
+    const raus = log[n];
+    if (raus && raus <= ts + 60_000 && raus >= besteZeit) { besteZeit = raus; treffer = n; }
+  }
+  return treffer;
+}
+
+/* Einmal beim Start: den alten Sammel-Stand auf die Wellen aufteilen, damit
+ * nichts verloren geht, was schon im Register steht. Je FELD einzeln - die
+ * Felder koennen zu verschiedenen Wellen gehoeren (Save the Date verschickt,
+ * nie geoeffnet, dann die Einladung geoeffnet: sent gehoert zu Welle 0,
+ * opened zu Welle 1). Der Versandzeitpunkt je Welle kommt ohnehin aus dem
+ * Gedaechtnis, nicht aus dem Webhook. */
+function wellenNachruesten() {
+  const log = versandLogLesenGepuffert();
+  let ergaenzt = 0;
+  for (const inv of Object.values(state.invites)) {
+    if (inv.wellen) continue;                       // schon aufgeteilt
+    inv.wellen = {};
+    for (const n of Object.keys(log[inv.token] || {})) wellenMail(inv, n).sent = log[inv.token][n];
+    for (const feld of ["delivered", "opened", "clicked"]) {
+      const ts = inv.mail && inv.mail[feld];
+      if (!ts) continue;
+      const n = welleZuZeit(inv, ts);
+      if (n !== "") wellenMail(inv, n)[feld] = ts;
+    }
+    ergaenzt++;
+  }
+  if (ergaenzt) {
+    dirty = true;
+    console.log("Status je Welle nachgetragen: " + ergaenzt + " Gäste");
+  }
 }
 
 /* Vorlagen einmal von der Platte lesen und behalten. */
@@ -1332,9 +1416,22 @@ const server = http.createServer((req, res) => {
     // "Geklickt" nur zaehlen, wenn der Aufruf von der Landing Page kommt, nicht
     // vom App-Link (/?t=, ruft mit app=1). Sonst verfaelscht das Oeffnen der App
     // die Klickquote und meldet Gaeste als engagiert, die nur die App geladen haben.
-    if (q.get("app") !== "1" && !inv.mail.clicked) {
-      inv.mail.clicked = Date.now();
-      logEvent("geklickt", inv.name, inv.pool);
+    if (q.get("app") !== "1") {
+      /* Der persoenliche Link steht in der Einladung - der Klick gehoert
+       * also zu der Welle, die zuletzt an diesen Gast rausging. */
+      const jetzt = Date.now();
+      const n = welleZuZeit(inv, jetzt);
+      const w = n === "" ? null : wellenMail(inv, n);
+      if (w && !w.clicked) {
+        w.clicked = jetzt;
+        logEvent("geklickt", inv.name, (inv.pool || "") + " · Welle " + n);
+        dirty = true;
+      }
+      if (!inv.mail.clicked) {
+        inv.mail.clicked = jetzt;
+        if (!w) logEvent("geklickt", inv.name, inv.pool);
+        dirty = true;
+      }
     }
     return json(res, 200, { ok: true, gast: pubInvite(inv) });
   }
@@ -1545,23 +1642,51 @@ const server = http.createServer((req, res) => {
       }
       const feld = hasOwn(map, typ) ? map[typ] : null;
       inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };  // Altbestand
-      const warNeu = feld && !inv.mail[feld];
-      if (warNeu) {
-        /* Zeitpunkt des Ereignisses aus der Meldung selbst (ISO in
-         * body.timestamp) - nicht die Empfangszeit: Lettermint liefert
-         * auch mal mit Verzoegerung oder (nach einer Webhook-Pause)
-         * gar rueckwirkend nach. Plausibilitaetsfenster: nicht in der
-         * Zukunft, nicht aelter als der Projektstart. */
-        const gemeldet = Date.parse(body.timestamp || "");
-        const jetzt = Date.now();
-        inv.mail[feld] = (Number.isFinite(gemeldet) &&
-                          gemeldet <= jetzt + 60_000 &&
-                          gemeldet > Date.parse("2026-08-01")) ? gemeldet : jetzt;
-        logEvent(LABEL[feld], inv.name, inv.pool);
-        dirty = true;
+
+      /* Zeitpunkt des Ereignisses aus der Meldung selbst (ISO in
+       * body.timestamp) - nicht die Empfangszeit: Lettermint liefert
+       * auch mal mit Verzoegerung oder (nach einer Webhook-Pause)
+       * gar rueckwirkend nach. Plausibilitaetsfenster: nicht in der
+       * Zukunft, nicht aelter als der Projektstart. */
+      const gemeldet = Date.parse(body.timestamp || "");
+      const jetzt = Date.now();
+      const zeit = (Number.isFinite(gemeldet) &&
+                    gemeldet <= jetzt + 60_000 &&
+                    gemeldet > Date.parse("2026-08-01")) ? gemeldet : jetzt;
+
+      /* Zu WELCHER Mail gehoert das? Der Versand gibt jeder Mail
+       * metadata.welle mit; fehlt sie (aeltere Sendung, fremder Absender),
+       * wird sie aus dem Versandzeitpunkt erschlossen. Ohne diese
+       * Zuordnung landete jedes Ereignis in einem gemeinsamen Topf, und
+       * die zweite Welle konnte nichts mehr eintragen. */
+      const welleRoh = String((daten.metadata && daten.metadata.welle) ??
+                              (body.metadata && body.metadata.welle) ?? "");
+      const welle = /^[0-9]+$/.test(welleRoh) ? welleRoh : welleZuZeit(inv, zeit);
+
+      let neuInWelle = false;
+      if (feld && welle !== ""){
+        const w = wellenMail(inv, welle);
+        if (!w[feld]) { w[feld] = zeit; neuInWelle = true; }
       }
+      /* Gesamtsicht wie bisher: die erste Regung ueberhaupt. Daran haengen
+       * Bounce-Sperre, Abmeldung und die Gaesteliste. */
+      const warNeu = feld && !inv.mail[feld];
+      if (warNeu) inv.mail[feld] = zeit;
+
+      /* Ins Ereignis-Log gehoert, was in SEINER Welle neu ist - sonst
+       * bliebe die zweite Welle im Feed unsichtbar. */
+      if (neuInWelle || (warNeu && welle === "")) {
+        logEvent(LABEL[feld], inv.name, (inv.pool || "") + (welle !== "" ? " · Welle " + welle : ""));
+      }
+      if (warNeu || neuInWelle) dirty = true;
+
       webhookMerken({ t: Date.now(), event: ereignisKopf, typ, gast: inv.name,
-                      ergebnis: feld ? (warNeu ? "gesetzt: " + feld : "schon gesetzt: " + feld) : "unbekannter Typ" });
+                      welle: welle === "" ? "?" : welle,
+                      ergebnis: !feld ? "unbekannter Typ"
+                              : neuInWelle ? "gesetzt: " + feld + " (Welle " + welle + ")"
+                              : welle === "" ? (warNeu ? "gesetzt: " + feld + " (Welle unbekannt)"
+                                                       : "schon gesetzt: " + feld)
+                              : "schon gesetzt: " + feld + " (Welle " + welle + ")" });
       json(res, 200, { ok: true });
     });
     return;
@@ -1739,7 +1864,22 @@ const server = http.createServer((req, res) => {
           const zeiten = Object.values(vlog[inv.token]);
           if (zeiten.length) mail.sent = Math.min.apply(null, zeiten);
         }
+        /* Der Stand JE WELLE - das ist die Zeile, die im Monitor wirklich
+         * etwas aussagt. "Verschickt" kommt dabei aus dem Versand-
+         * Gedaechtnis und nicht aus dem Webhook: es ist die einzige
+         * Quelle, die auch dann stimmt, wenn Lettermint nichts meldet. */
+        const wellen = {};
+        for (const n of Object.keys(hasOwn(vlog, inv.token) ? vlog[inv.token] : {})) {
+          const w = (inv.wellen && inv.wellen[n]) || {};
+          wellen[n] = { sent: vlog[inv.token][n] || w.sent || 0,
+                        delivered: w.delivered || 0, opened: w.opened || 0, clicked: w.clicked || 0 };
+        }
+        /* Wellen, von denen nur der Webhook weiss (Versand-Log verloren) */
+        for (const n of Object.keys(inv.wellen || {})) {
+          if (!hasOwn(wellen, n)) wellen[n] = Object.assign({ sent: 0, delivered: 0, opened: 0, clicked: 0 }, inv.wellen[n]);
+        }
         return {
+          wellen,
           pool: inv.pool,
           typ: inv.typ,
           name: inv.name,
@@ -1806,10 +1946,16 @@ const server = http.createServer((req, res) => {
      * das Vorschaubild) duerfen nicht als Gast-Oeffnung zaehlen. */
     const ua = String(req.headers["user-agent"] || "");
     const vorschauBot = /whatsapp|facebookexternalhit|telegrambot|slackbot|twitterbot|linkedinbot|discordbot|skypeuripreview/i.test(ua);
-    if (!vorschauBot && !inv.mail.opened) {
-      inv.mail.opened = Date.now();
-      logEvent("geöffnet", inv.name, inv.pool);
-      dirty = true;
+    /* Diese Seite IST das Save the Date - also Welle 0, unabhaengig davon,
+     * was der Gast sonst schon geoeffnet hat. */
+    if (!vorschauBot) {
+      const w0 = wellenMail(inv, "0");
+      if (!w0.opened) {
+        w0.opened = Date.now();
+        if (!inv.mail.opened) inv.mail.opened = w0.opened;
+        logEvent("geöffnet", inv.name, (inv.pool || "") + " · Welle 0");
+        dirty = true;
+      }
     }
     let seite;
     try { seite = renderMail(inv, "save-the-date.html"); }
@@ -2342,6 +2488,8 @@ if (befehl) {
   }
   /* Befehl laeuft noch (Versand, Bilderpruefung) – er beendet sich selbst. */
 } else server.listen(PORT, () => {
+  /* Einmalig: alten Sammel-Stand auf die Wellen aufteilen. */
+  wellenNachruesten();
   const stats = gesamtStats();
   console.log("THE CIRCLE läuft auf " + PUBLIC_URL);
   console.log("  Landing Page:  " + PUBLIC_URL + "/einladung?t=TOKEN");
