@@ -1723,6 +1723,39 @@ const server = http.createServer((req, res) => {
       return json(res, 200, { ok: true, verschickt: dran.length, gaeste: liste });
     }
 
+    /* Die fertigen WhatsApp-Nachrichten fuer Gaeste ohne Mailadresse.
+     * Dieselbe Auswahl und derselbe Text wie der CLI-Befehl "whatsapp" -
+     * nur abrufbar, statt in einer Datei auf dem Server zu landen, die
+     * dann jemand suchen muss.
+     * Enthaelt persoenliche Links: bewusst NUR fuer Gaeste ohne Adresse,
+     * die ihren Link ohnehin von Hand bekommen. Alle anderen bleiben
+     * draussen, damit ein abhandengekommener Admin-Zugang nicht gleich
+     * die Zusage jedes Gastes eroeffnet. */
+    if (url === "/api/admin/whatsapp") {
+      const mitMail = new Set(Object.values(state.invites)
+        .filter(i => i.email).map(i => (i.name || "").trim().toLowerCase()));
+      const uebersprungen = [];
+      const dran = Object.values(state.invites).filter(inv => {
+        if (inv.email || inv.abgemeldet || inv.status === "abgesagt") return false;
+        if (mitMail.has((inv.name || "").trim().toLowerCase())) {
+          uebersprungen.push({ name: inv.name, pool: inv.pool, grund: "bekommt die Einladung per Mail" });
+          return false;
+        }
+        return true;
+      }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      return json(res, 200, {
+        ok: true,
+        anzahl: dran.length,
+        uebersprungen,
+        gaeste: dran.map(inv => ({
+          name: inv.name, pool: inv.pool,
+          rolle: inv.typ === "ehrengast" ? "Ehrengast" : "Bezahlgast, 100 €",
+          link: inviteLink(inv.token),
+          nachricht: whatsappText(inv)
+        }))
+      });
+    }
+
     if (req.method === "POST" && url === "/api/admin/testgast") {
       const token = newToken();
       const typ = q.get("typ") === "ehrengast" ? "ehrengast" : "ticket";
