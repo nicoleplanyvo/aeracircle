@@ -60,6 +60,16 @@ const PUBLIC_URL = (process.env.PUBLIC_URL || "http://localhost:" + PORT).replac
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 const TICKET_PRICE = parseInt(process.env.TICKET_PRICE, 10) || 10000;   // Cent
+/* Welche Zahlungsarten der Checkout anbietet. Ohne Angabe entscheidet Stripe
+ * selbst ("dynamic payment methods") - das setzt aber voraus, dass im
+ * Dashboard fuer Euro ueberhaupt eine Art aktiviert ist. Ist sie das nicht,
+ * bricht jede Sitzung mit "No valid payment method types" ab, und zwar erst
+ * beim Gast. Deshalb geben wir "card" fest vor: das deckt Karte, Apple Pay
+ * und Google Pay ab, also genau das, was wir den Gaesten versprechen.
+ * Mehr Arten (z.B. paypal) per STRIPE_ZAHLARTEN="card,paypal"; "auto"
+ * ueberlaesst die Wahl wieder Stripe. */
+const STRIPE_ZAHLARTEN = (process.env.STRIPE_ZAHLARTEN || "card")
+  .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
 /* Zugaenge zum Monitor. Entweder ein gemeinsames Geheimnis (ADMIN_TOKEN) oder
  * - besser - je Person eines (ADMIN_TOKENS="anne:xxx,desi:yyy"). Dann laesst
  * sich ein einzelner Zugang entziehen, ohne allen anderen den Link zu aendern,
@@ -992,9 +1002,12 @@ function stripeRequest(pfad, params, cb) {
 }
 
 function createCheckout(inv, cb) {
+  const arten = {};
+  if (STRIPE_ZAHLARTEN[0] !== "auto") STRIPE_ZAHLARTEN.forEach((a, i) => { arten[i] = a; });
   stripeRequest("checkout/sessions", {
     mode: "payment",
     locale: "de",
+    ...(Object.keys(arten).length ? { payment_method_types: arten } : {}),
     customer_email: inv.email,
     client_reference_id: inv.token,
     success_url: inviteLink(inv.token) + "&bezahlt=1",
