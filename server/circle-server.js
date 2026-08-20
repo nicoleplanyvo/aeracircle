@@ -593,7 +593,26 @@ function gesamtStats() {
  */
 
 /* Bilder in E-Mails brauchen feste, oeffentliche Adressen (kein data:). */
-function assetUrl(datei) { return PUBLIC_URL + "/assets/" + datei; }
+/* Bilder liefert der Server mit 30 Tagen Cache aus - richtig fuer Gaeste,
+ * falsch waehrend wir noch an den Logos arbeiten: die Adresse bleibt gleich,
+ * also holt kein Browser und kein Mail-Proxy die neue Datei. Deshalb haengt
+ * an jeder Asset-Adresse ein Kuerzel aus dem INHALT der Datei. Aendert sich
+ * die Datei, aendert sich die Adresse; bleibt sie gleich, bleibt der Cache.
+ * Einmal beim Start berechnet - im Versand laufen sonst 90 Mails x 8 Bilder. */
+const ASSET_STEMPEL = {};
+function assetStempel(datei) {
+  if (hasOwn(ASSET_STEMPEL, datei)) return ASSET_STEMPEL[datei];
+  let v = "";
+  try {
+    v = crypto.createHash("sha1").update(fs.readFileSync(path.join(__dirname, "..", "email", "assets", datei)))
+              .digest("hex").slice(0, 8);
+  } catch (e) { /* Datei fehlt: dann eben ohne Kuerzel - der Fehler faellt beim Abruf auf */ }
+  return (ASSET_STEMPEL[datei] = v);
+}
+function assetUrl(datei) {
+  const v = assetStempel(datei);
+  return PUBLIC_URL + "/assets/" + datei + (v ? "?v=" + v : "");
+}
 
 /* Partnerlogo als vollstaendige Adresse. In der Gaesteliste darf beides
    stehen: eine fertige URL oder nur der Dateiname aus email/assets/.
@@ -601,7 +620,13 @@ function assetUrl(datei) { return PUBLIC_URL + "/assets/" + datei; }
    anwenden, sonst zeigt die Mail das Logo und die Seite ein kaputtes Bild. */
 function partnerLogoUrl(inv) {
   if (!inv || !inv.partnerLogo) return "";
-  return /^https?:\/\//i.test(inv.partnerLogo) ? inv.partnerLogo : assetUrl(inv.partnerLogo);
+  const roh = inv.partnerLogo;
+  if (!/^https?:\/\//i.test(roh)) return assetUrl(roh);
+  /* Zeigt die fertige Adresse auf unsere eigenen Assets - so steht es in der
+   * Gaesteliste -, dann durch assetUrl schicken, damit sie das Kuerzel
+   * bekommt. Sonst haenge das Logo eines Partners am 30-Tage-Cache fest. */
+  const eigen = roh.split("?")[0].match(/^https?:\/\/[^/]+\/assets\/(.+)$/i);
+  return eigen ? assetUrl(eigen[1]) : roh;
 }
 
 /* Die Wellen. Zu jeder gehoert: wer sie bekommt, welche Vorlage gilt
@@ -757,6 +782,10 @@ function renderMail(inv, datei) {
      * Server mit den persoenlichen Links - die Website ist eine andere. */
     website_url: WEBSITE_URL,
     header_img_url: assetUrl("circle-header.jpg"),
+    /* Standen bis eben als feste Adresse in den Vorlagen und blieben damit
+     * als einzige ohne Cache-Kuerzel haengen. */
+    header_std_url: assetUrl("circle-header-std.jpg"),
+    planyvo_logo_url: assetUrl("planyvo-neg.png"),
     logo_url: assetUrl("logo-zentriert-neg.png"),
     partnerwand_url: assetUrl("partnerwand-bordeaux.jpg"),
     portrait_amiaz_url: assetUrl("portrait-amiaz.jpg"),
