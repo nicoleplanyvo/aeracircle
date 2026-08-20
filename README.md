@@ -56,7 +56,8 @@ die App ist Welle 2 und öffnet erst kurz vor dem Abend. Der Ablauf:
 die Einladung kommt von **THE CIRCLE selbst**, nie von einer einzelnen Person.
 Zwei Varianten (`?typ=ticket` mit 100-€-Beitrag über Stripe, `?typ=ehrengast`
 nur Zusage), Zusage/Absage, Daten-Schritt und Ticket-Nummer. Der Daten-Schritt
-erfasst neben Name und Unternehmen auch **E-Mail** (Pflicht – dorthin geht
+erfasst neben Name, **Unternehmen** und **Position/Funktion** (zwei getrennte
+Felder, beide freiwillig) auch **E-Mail** (Pflicht – dorthin geht
 später der App-Zugang), **Mobilnummer**, **bevorzugte Ernährung** (Alles /
 Vegetarisch / Vegan / Pescetarisch) und **Unverträglichkeiten** – diese
 Angaben wandern automatisch in die App: Kontaktdaten auf die Connect-Karte
@@ -129,7 +130,9 @@ Spalten (Semikolon oder Komma, Reihenfolge egal):
 | `pool` | – | Liste, aus der er kommt (Default „Allgemein") |
 | `typ` | – | `ticket` (100 € über Stripe) oder `ehrengast` (zahlt nicht) – **Partner-Gäste sind `ehrengast`** |
 | `anrede` | – | „Liebe" / „Lieber" für die persönliche Anrede |
-| `firma` | – | Unternehmen / Rolle |
+| `firma` | – | Unternehmen |
+| `position` (auch `funktion`) | – | Funktion im Unternehmen, für die Kontaktliste |
+| `telefon` (auch `mobil`) | – | überschreibt nie die Nummer, die der Gast selbst angegeben hat |
 | `partner`, `partner_logo` | – | wenn ein Partner eingeladen hat: Name + URL des Logos (negativ weiß) |
 
 Fehlt `typ`, leitet der Import ihn aus dem Pool-Namen ab (alles mit

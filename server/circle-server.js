@@ -389,6 +389,7 @@ function pubInvite(inv) {
     partner: inv.partner || "",
     partnerLogo: partnerLogoUrl(inv),
     firma: inv.firma || "",
+    position: inv.position || "",
     email: inv.email || "",
     pool: inv.pool,
     preis: inv.typ === "ticket" ? TICKET_PRICE : 0,
@@ -1485,6 +1486,7 @@ const server = http.createServer((req, res) => {
 
       if (body.name)   inv.name = cleanText(body.name, 60);
       if (body.firma !== undefined) inv.firma = cleanText(body.firma, 80);
+      if (body.position !== undefined) inv.position = cleanText(body.position, 80);
       /* E-Mail aus dem Zusage-Formular ins Register uebernehmen. Wichtig fuer
        * WhatsApp-Gaeste (ohne Adresse importiert, Link kam per Chat): ab der
        * Zusage sind sie fuer Welle 2 per Mail erreichbar. */
