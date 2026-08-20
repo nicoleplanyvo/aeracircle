@@ -441,7 +441,23 @@ function importRows(rows) {
   const npKey = (name, pool) => (name || "").toLowerCase().trim() + "|" + (pool || "").toLowerCase().trim();
   for (const inv of Object.values(state.invites)) if (!inv.email) byNamePool[npKey(inv.name, inv.pool)] = inv;
 
+  /* Korrigierte Adressen. Steht in der Liste eine Adresse, die das Register
+   * nicht kennt, waehrend genau EIN Gast mit demselben Namen im selben Pool
+   * schon eine andere hat, ist das eine Korrektur - kein neuer Mensch.
+   * Ohne diesen Griff legt der Import einen Doppelgaenger an: der alte Gast
+   * bleibt mit der toten Adresse liegen, der neue kommt dazu, und die
+   * Gaestezahl stimmt nicht mehr.
+   * Bewusst nur bei GENAU einem Treffer - zwei gleiche Namen im selben Pool
+   * waeren geraten, und Raten hat hier nichts zu suchen. Jede Aenderung wird
+   * gemeldet, damit sie ein Mensch sieht. */
+  const mitMailProNamePool = {};
+  for (const inv of Object.values(state.invites)) {
+    if (!inv.email) continue;
+    (mitMailProNamePool[npKey(inv.name, inv.pool)] ||= []).push(inv);
+  }
+
   let neu = 0, aktualisiert = 0;
+  const adressen = [];
   for (const r of rows.slice(1)) {
     const email = clean(r[iMail], 120).toLowerCase();
     const zeilenName = cleanText(r[iName], 60);
@@ -460,6 +476,12 @@ function importRows(rows) {
     /* Wiedererkennen: erst ueber die Mailadresse, sonst (auch: Adresse jetzt
      * nachgeliefert) ueber Name+Pool der mail-losen WhatsApp-Gaeste. */
     let inv = (email && byMail[email]) || byNamePool[npKey(zeilenName, pool)];
+    /* Adresse geaendert? Dann ist es derselbe Gast - mit seinem Token, seiner
+     * Ticketnummer und einer eventuell schon erteilten Zusage. */
+    if (!inv && email) {
+      const treffer = mitMailProNamePool[npKey(zeilenName, pool)] || [];
+      if (treffer.length === 1) inv = treffer[0];
+    }
     if (inv) {
       inv.pool = pool; inv.typ = typ;
       inv.name = zeilenName || inv.name;
@@ -467,6 +489,16 @@ function importRows(rows) {
         inv.email = email;
         delete byNamePool[npKey(zeilenName, pool)];
         byMail[email] = inv;
+      } else if (email && inv.email !== email) {     // Adresse korrigiert
+        adressen.push({ name: inv.name, vorher: inv.email, jetzt: email });
+        delete byMail[inv.email];
+        /* Einmal ist eine Korrektur, zweimal waeren zwei Menschen: nach dem
+         * Griff ist der Name+Pool-Schluessel verbraucht. */
+        delete mitMailProNamePool[npKey(zeilenName, pool)];
+        inv.email = email;
+        byMail[email] = inv;
+        /* Die neue Adresse hat die Bounce-Sperre der alten nicht verdient. */
+        if (inv.mail && inv.mail.bounced) inv.mail.bounced = 0;
       }
       if (iFirma >= 0) inv.firma = cleanText(r[iFirma], 80);
       if (iAnrede >= 0) inv.anrede = cleanText(r[iAnrede], 12);
@@ -495,7 +527,7 @@ function importRows(rows) {
     }
   }
   dirty = true;
-  return { neu, aktualisiert, gesamt: Object.keys(state.invites).length };
+  return { neu, aktualisiert, adressen, gesamt: Object.keys(state.invites).length };
 }
 
 /* Pool-Defaults: Ehrengast-Pools brauchen kein Ticket. Namen frei erweiterbar. */
@@ -1691,6 +1723,10 @@ if (befehl === "import") {
   } catch (e) { console.error("Import fehlgeschlagen: " + e.message); process.exit(1); }
   fs.writeFileSync(STATE_FILE, JSON.stringify(state));
   console.log(`Import: ${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert, ${ergebnis.gesamt} Gäste gesamt.`);
+  /* Eine geaenderte Adresse ist die einzige stille Aenderung am Register -
+   * sie muss ein Mensch gesehen haben. */
+  for (const a of ergebnis.adressen)
+    console.log(`  Adresse geändert: ${a.name}  ${a.vorher}  →  ${a.jetzt}`);
   for (const p of poolStats()) console.log(`  ${p.pool.padEnd(24)} ${String(p.gesamt).padStart(4)}  (${p.typ})`);
   console.log("\nVersandliste für Lettermint:  node server/circle-server.js export > versand.csv");
   process.exit(0);

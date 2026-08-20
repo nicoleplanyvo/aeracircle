@@ -98,6 +98,24 @@ node server/circle-server.js import gaesteliste.csv     # Vorlage: server/gaeste
 node server/circle-server.js export > versand.csv       # Kontrollliste (enthält die persönlichen Links)
 ```
 
+Ein zweiter Import derselben Liste aktualisiert, statt zu verdoppeln.
+Wiedererkannt wird ein Gast in dieser Reihenfolge:
+
+1. **über die Mailadresse** – der Normalfall
+2. **über Name + Pool**, wenn er bisher keine Adresse hatte (WhatsApp-Gast, der
+   jetzt eine bekommt)
+3. **über Name + Pool**, wenn seine Adresse sich geändert hat – aber nur, wenn
+   dort **genau ein** Gast steht
+
+Fall 3 ist die korrigierte Adresse. Sie behält Token, Ticketnummer und eine
+bereits erteilte Zusage, und die Bounce-Sperre der alten Adresse fällt weg –
+die neue hat sie nicht verdient. Jede solche Änderung meldet der Import als
+Zeile „Adresse geändert: …", denn es ist die einzige stille Änderung am
+Register.
+
+Stehen zwei Gäste mit demselben Namen im selben Pool, wird **nicht** geraten:
+dann entsteht ein neuer Eintrag, und `pruefen` warnt „steht 2× im Register".
+
 Spalten (Semikolon oder Komma, Reihenfolge egal):
 
 | Spalte | Pflicht | Bedeutung |
