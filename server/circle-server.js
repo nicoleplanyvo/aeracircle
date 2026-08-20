@@ -1567,20 +1567,34 @@ const server = http.createServer((req, res) => {
     /* Wegwerf-Testgast fuer Zahlungs-/Strecken-Tests: eigener Pool
      * "Stripe-Test", Ticket-Typ, klar als Test benannt. Loeschen geht nur
      * fuer Gaeste aus genau diesem Pool - echte Gaeste sind unantastbar. */
+    /* Wegwerf-Gast zum Anschauen und zum Stripe-Test.
+     *   ?typ=ticket|ehrengast   welche Fassung der Seite (Standard: ticket)
+     *   ?partner=neuland.ai     macht daraus einen Partnergast; das Logo wird
+     *                           aus dem Namen abgeleitet (partner-<name>-neg.png)
+     * Bleibt immer im Pool "Stripe-Test": nur der laesst sich wieder loeschen,
+     * und die Vorflugkontrolle zeigt ihn als zusaetzlichen Empfaenger an.
+     * Bewusst mit Adresse @planyvo.com - faellt uns ein Loeschen durch, geht
+     * die Mail an uns selbst und nicht an einen Gast. */
     if (req.method === "POST" && url === "/api/admin/testgast") {
       const token = newToken();
+      const typ = q.get("typ") === "ehrengast" ? "ehrengast" : "ticket";
+      const partner = cleanText(q.get("partner") || "", 60);
+      const logo = partner
+        ? "partner-" + partner.toLowerCase().replace(/\.ai$/, "").replace(/[^a-z0-9]/g, "") + "-neg.png"
+        : "";
       const inv = state.invites[token] = {
-        token, pool: "Stripe-Test", typ: "ticket",
-        name: "Testbuchung " + new Date().toISOString().slice(11, 16),
+        token, pool: "Stripe-Test", typ,
+        name: "Testgast " + (partner || (typ === "ehrengast" ? "Ehrengast" : "Bezahlgast")),
         email: "stripe-test@planyvo.com",
-        firma: "", anrede: "", partner: "", partnerLogo: "",
+        firma: "", anrede: "Liebe", partner, partnerLogo: logo,
         status: "offen",
         mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
         daten: {}, zahlung: null,
         ticketNr: ticketNumber(token), t: Date.now()
       };
       dirty = true;
-      return json(res, 200, { ok: true, token, link: inviteLink(token) });
+      return json(res, 200, { ok: true, token, typ, partner, partnerLogo: logo,
+                              link: inviteLink(token) });
     }
     if (req.method === "POST" && url === "/api/admin/testgast-loeschen") {
       const inv = findInvite(q.get("t"));
