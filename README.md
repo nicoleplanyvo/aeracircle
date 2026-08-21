@@ -56,7 +56,8 @@ die App ist Welle 2 und öffnet erst kurz vor dem Abend. Der Ablauf:
 die Einladung kommt von **THE CIRCLE selbst**, nie von einer einzelnen Person.
 Zwei Varianten (`?typ=ticket` mit 100-€-Beitrag über Stripe, `?typ=ehrengast`
 nur Zusage), Zusage/Absage, Daten-Schritt und Ticket-Nummer. Der Daten-Schritt
-erfasst neben Name und Unternehmen auch **E-Mail** (Pflicht – dorthin geht
+erfasst neben Name, **Unternehmen** und **Rolle** (zwei getrennte Felder,
+beide freiwillig) auch **E-Mail** (Pflicht – dorthin geht
 später der App-Zugang), **Mobilnummer**, **bevorzugte Ernährung** (Alles /
 Vegetarisch / Vegan / Pescetarisch) und **Unverträglichkeiten** – diese
 Angaben wandern automatisch in die App: Kontaktdaten auf die Connect-Karte
@@ -98,6 +99,29 @@ node server/circle-server.js import gaesteliste.csv     # Vorlage: server/gaeste
 node server/circle-server.js export > versand.csv       # Kontrollliste (enthält die persönlichen Links)
 ```
 
+Ein zweiter Import derselben Liste aktualisiert, statt zu verdoppeln.
+Wiedererkannt wird ein Gast in dieser Reihenfolge:
+
+1. **über die Mailadresse** – der Normalfall
+2. **über Name + Pool**, wenn er bisher keine Adresse hatte (WhatsApp-Gast, der
+   jetzt eine bekommt)
+3. **über Name + Pool**, wenn seine Adresse sich geändert hat – aber nur, wenn
+   dort **genau ein** Gast steht
+
+Fall 3 ist die korrigierte Adresse. Sie behält Token, Ticketnummer und eine
+bereits erteilte Zusage, und die Bounce-Sperre der alten Adresse fällt weg –
+die neue hat sie nicht verdient. Jede solche Änderung meldet der Import als
+Zeile „Adresse geändert: …", denn es ist die einzige stille Änderung am
+Register.
+
+Stehen zwei Gäste mit demselben Namen im selben Pool, wird **nicht** geraten:
+dann entsteht ein neuer Eintrag, und `pruefen` warnt „steht 2× im Register".
+
+Zusätzlich liest der Import optional **`telefon`** (auch `mobil`). Freiwillig –
+fehlt die Spalte, ändert sich nichts. Eine Nummer aus der Liste wird nur
+gesetzt, wenn der Gast nicht selbst eine angegeben hat; seine Angabe ist die
+neuere.
+
 Spalten (Semikolon oder Komma, Reihenfolge egal):
 
 | Spalte | Pflicht | Bedeutung |
@@ -106,7 +130,8 @@ Spalten (Semikolon oder Komma, Reihenfolge egal):
 | `pool` | – | Liste, aus der er kommt (Default „Allgemein") |
 | `typ` | – | `ticket` (100 € über Stripe) oder `ehrengast` (zahlt nicht) – **Partner-Gäste sind `ehrengast`** |
 | `anrede` | – | „Liebe" / „Lieber" für die persönliche Anrede |
-| `firma` | – | Unternehmen / Rolle |
+| `firma` | – | Unternehmen |
+| `telefon` (auch `mobil`) | – | überschreibt nie die Nummer, die der Gast selbst angegeben hat |
 | `partner`, `partner_logo` | – | wenn ein Partner eingeladen hat: Name + URL des Logos (negativ weiß) |
 
 Fehlt `typ`, leitet der Import ihn aus dem Pool-Namen ab (alles mit
@@ -141,7 +166,72 @@ node server/circle-server.js welle 1 --senden                 # die ganze Welle
 **Ohne `--senden` geht nichts raus.** Der Trockenlauf rendert trotzdem jede
 Mail vollständig durch und bricht ab, sobald ein Platzhalter offen bliebe –
 lieber hier ein Fehler als 200 Gäste, die „{{vorname}}" in der Anrede lesen.
-Weitere Schalter: `--pool="…"`, `--limit=n`.
+Weitere Schalter: `--pool="…"`, `--typ=ehrengast|ticket`, `--limit=n`.
+
+`--typ=` trennt die beiden Gästearten. Das ist der Notausgang, solange Stripe
+noch nicht scharf ist: Ehrengäste können raus, Bezahlgäste warten – bei ihnen
+liefe „Weiter zur Zahlung" sonst ins Leere.
+
+### Was die Küche braucht
+
+Die Angaben aus dem Zusageformular – Ernährung, Unverträglichkeiten,
+Mobilnummer – stehen im Register unter `daten`. Abrufbar sind sie hier:
+
+```bash
+node server/circle-server.js kueche              # Übersicht mit Summen
+node server/circle-server.js kueche --csv        # als Tabelle fürs Catering
+node server/circle-server.js export              # alles, inkl. Links
+```
+
+`kueche` zeigt nur Gäste, die **zugesagt oder bezahlt** haben – wer noch nicht
+geantwortet hat, isst auch nichts. Am Ende stehen die Summen je Ernährungsart
+und alle Unverträglichkeiten gesammelt, damit die Küche nicht zählen muss.
+
+### Vorflugkontrolle
+
+Der Trockenlauf beantwortet „bricht das Rendern?". Dieser Befehl beantwortet
+„stimmt, was da rausgeht?":
+
+```bash
+node server/circle-server.js pruefen 1                    # Register + Vorlagen
+node server/circle-server.js pruefen 1 --bilder           # ruft jede Bild-URL ab
+node server/circle-server.js pruefen 1 --beleg            # Liste zum Gegenlesen
+```
+
+Geprüft wird je Gast: Name und Anrede vorhanden, Adresse formal gültig und
+ohne Leerzeichen, Typ bekannt, Partner und Logo zusammen gesetzt, jeder
+Platzhalter ersetzt, der persönliche Link vorhanden **und kein Link mit dem
+Token eines anderen Gastes**. Über das Register hinweg: dieselbe Adresse
+zweimal (Fehler), derselbe Name zweimal (Warnung). Mit `--bilder` wird jede
+Bild-Adresse einmal wirklich abgerufen – ein fehlendes Partnerlogo fällt sonst
+erst auf, wenn dreißig Gäste ein leeres Kästchen sehen.
+
+`FEHLER` heißt: nicht senden. `WARNUNG` heißt: ein Mensch soll es gesehen
+haben. Der Befehl endet mit Exit-Code 1, sobald ein Fehler dabei ist – er
+lässt sich also vor den Versand hängen.
+
+Was er **nicht** kann: erkennen, dass jemand in der Gästeliste als Ehrengast
+steht, der eigentlich zahlen soll. Das ist keine technische Frage. Dafür gibt
+es `--beleg`: eine Liste „Name → Typ → Partner → Vorlage" zum Gegenlesen.
+
+### Gäste ohne Mailadresse
+
+Manche Gäste kommen über WhatsApp statt über eine Adresse. Sie bekommen
+denselben persönlichen Link, nur von Hand:
+
+```bash
+node server/circle-server.js whatsapp          # nur Gäste ohne Adresse
+node server/circle-server.js whatsapp --alle   # alle
+```
+
+Der Befehl schreibt je Gast eine fertige Nachricht zum Kopieren. Der Link ist
+derselbe wie in der Mail – die Zusage landet also im selben Register, mit
+derselben Ticketnummer. **Auf dem Server ausführen**, nicht lokal: die Tokens
+stehen im Register, ein lokales Register erzeugt andere und damit tote Links.
+
+Ins Versand-Gedächtnis trägt der Befehl bewusst nichts ein. Ob die Nachricht
+wirklich rausging, weiß nur der Mensch, der sie verschickt hat – und wer
+später eine Adresse nachträgt, soll die Mail trotzdem bekommen.
 
 Wer welche Vorlage bekommt, entscheidet der Server: Ehrengäste die
 Ehrengast-Fassung, Gäste eines Partners die Fassung mit dem Logo ihres
@@ -213,13 +303,85 @@ angenommen – sonst könnte jeder Fremde Zustellzahlen erfinden. Zugeordnet wir
 über den Token aus den Metadaten, nicht über die Adresse. Klicks erkennt der
 Server ohnehin selbst, sobald der Gast die Landing Page öffnet.
 
+### Der Status hängt an der Welle, nicht am Gast
+
+Jede Mail trägt `metadata.welle`, und Lettermint gibt sie im Webhook zurück.
+Der Server führt deshalb **je Welle** einen eigenen Stand
+(`inv.wellen[n] = {sent, delivered, opened, clicked}`); `inv.mail` bleibt
+daneben als Gesamtsicht bestehen („hat der Gast je geöffnet"), und daran
+hängen weiterhin Bounce-Sperre und Abmeldung.
+
+> **Warum das sein muss:** Vorher gab es *einen* Satz Zeitstempel für *drei*
+> Mailings, und jeder Schreibzugriff galt nur, solange das Feld leer war. Hatte
+> ein Gast das Save the Date geöffnet, waren seine Felder belegt – die
+> Einladung eine Woche später konnte nichts mehr eintragen. Ihr
+> „zugestellt/geöffnet/geklickt" wurde verworfen, im Monitor stand weiter der
+> Stand des Save the Date, und es sah aus, als lieferte Lettermint keine
+> Webhooks mehr. Die Fangschaltung zeigte in dem Fall „schon gesetzt: opened".
+
+Fehlt die Welle in den Metadaten (ältere Sendung, fremder Absender), wird sie
+aus dem Versandzeitpunkt erschlossen: es gilt die zuletzt verschickte Welle,
+die vor dem Ereignis rausging. Beim ersten Start nach dem Update teilt der
+Server einen vorhandenen Sammelstand **je Feld** auf die Wellen auf und meldet
+das im Log („Status je Welle nachgetragen: n Gäste") – nichts geht verloren.
+
+**Kommt überhaupt etwas an?** Der Monitor zeigt unten die **Fangschaltung**:
+die letzten 30 Meldungen von Lettermint mit dem, was der Server daraus gemacht
+hat – *gesetzt*, *schon gesetzt*, *401 Signatur* (Secret stimmt nicht) oder
+*kein Gast*. Bleibt die Liste leer, während eine Welle draußen ist, liegt es
+wirklich an der Webhook-Einrichtung. Die Liste lebt nur im Speicher und ist
+nach einem Neustart leer.
+
 ### Der Monitor (`monitor.html`)
 
-Der Blick für alle Beteiligten: Versandstand, Öffnungs-/Klickraten, Zusagen,
-Stripe-Umsatz, die Wellen-Planung und die **Pool-Übersicht** (wer wie viele
-Gäste eingeladen hat und wie viele davon zugesagt bzw. bezahlt haben). Läuft
-der Server, holt sich der Monitor die echten Zahlen über
-`https://thecircle.planyvo.com/monitor?key=<zugang>`; sonst zeigt er Demo-Daten.
+Der Blick für alle Beteiligten – aufgebaut in der Reihenfolge, in der man ihn
+liest: **was jetzt zu tun ist**, dann die Zahlen, dann der Einzelfall.
+
+| Block | Was dort steht |
+|---|---|
+| **Handlungsbedarf** | Was auf jemanden wartet: unzustellbare Adressen, Zusagen ohne Zahlung, Gäste ohne Mailadresse (WhatsApp-Weg), noch nie Angeschriebene, Abmeldungen – und wie viele Gäste die nächste Welle bekämen. Jede Kachel springt gefiltert in die Gästeliste; die Wellen-Kachel nennt den Befehl, der sie rausschickt. |
+| Kennzahlen | Versendet, zugestellt, geöffnet, geklickt, zugesagt, bezahlt, abgesagt |
+| Die Wellen | Je Welle: verschickt, zugestellt, geöffnet, geklickt – **getrennt gezählt**, nicht in einen Topf geworfen. Dazu offen und gesperrt aus dem **Versand-Gedächtnis** und derselben `gilt()`-Regel, nach der der Versand entscheidet. Was hier „offen" heißt, geht beim nächsten `welle n --senden` wirklich raus. Keine handgepflegten Termine mehr. |
+| Die Pools | Wer wie viele Gäste eingeladen hat und wie viele davon zugesagt bzw. bezahlt haben |
+| Funnel & Fassungen | Der Weg vom Versand zum Ticket, dazu je Vorlage (Ticket, Ehrengast, Ehrengast-Partner, App-Zugang) |
+| Ticketumsatz | Stripe-Summe und die letzten Zahlungen |
+| Zuletzt passiert | Die Ereigniskette aus Register und Lettermint |
+| Gästeliste | Jede Mail einzeln, mit Filterchips und Suche – **mit Wellenwahl:** die Punkte zeigen die gewählte Sendung, nicht einen gemischten Gesamtstand. Vorgabe ist die zuletzt verschickte Welle („ist die Einladung angekommen?") |
+| **Für die Küche** | Nur Zusagen: wie viele essen was (Alles / Vegetarisch / Vegan / Pescetarisch), und namentlich, wer eine Unverträglichkeit angegeben hat – die stehen oben und farbig |
+| Webhook-Eingang | Die Fangschaltung: was Lettermint zuletzt gemeldet hat und was der Server daraus gemacht hat |
+
+Läuft der Server, holt sich der Monitor die echten Zahlen über
+`https://thecircle.planyvo.com/monitor?key=<zugang>` und **aktualisiert sich
+alle 60 Sekunden selbst** (im Hintergrundtab ruht er, beim Zurückwechseln lädt
+er sofort nach).
+
+**Demo oder live – nie dazwischen.** Ohne erreichbaren Server oder ohne
+gültigen Zugang gelten die Platzhalterzahlen aus dem HTML, und der Kopf sagt
+das: *Demo · Platzhalterdaten*, *Kein Zugriff* oder *Monitor nicht
+eingerichtet*. Mit gültigem Zugang wird **jeder** Block aus dem Register
+gespeist – auch Wellen, Fassungen, Umsatz und der Fußtext. Reißt die
+Verbindung später ab, bleiben die letzten echten Zahlen stehen, aber der Kopf
+meldet *Zahlen frieren ein*. Halb Demo, halb echt wäre die gefährlichste
+Anzeige von allen: niemand wüsste, welche Zahl gilt.
+
+> **Zur Deutung von „Nach Fassung":** Gezählt werden Gäste, die diese Fassung
+> bekommen haben; geöffnet und geklickt zählen die Reaktion **auf genau diese
+> Welle**. Zugesagt und bezahlt sind dagegen der heutige Stand des Gastes – eine
+> Zusage gehört keiner einzelnen Mail. Wer zwei Wellen bekommen hat, steht in
+> beiden Zeilen. Der **Funnel** daneben bleibt bewusst gästeweise („hat er
+> irgendeine Mail geöffnet"); je Welle stehen die Zahlen in der Wellen-Übersicht.
+
+**Zwei Ausgaben als CSV.** Beide entstehen im Browser aus dem, was gerade auf
+dem Schirm steht – Semikolon und BOM, damit Excel sie ohne Nachfrage und mit
+richtigen Umlauten öffnet:
+
+- **Liste als CSV** – die Gästeliste im aktuellen Filter, mit Unternehmen,
+  Rolle, E-Mail, Telefon, Ticketnummer, Ernährung, Unverträglichkeit und
+  dem Stand **jeder einzelnen Mail** (je Welle vier Spalten).
+- **Küchenliste als CSV** – nur Zusagen, mit Ernährung und Unverträglichkeit.
+
+Ein aktiver Filter wirkt auch auf die Datei: erst „Zusage ohne Zahlung"
+anklicken, dann ausgeben, ergibt genau diese Liste.
 
 **Zugänge je Person.** `ADMIN_TOKENS` nimmt eine Liste im Format
 `name:token,name:token` – jede Person bekommt ihren eigenen Link. Fällt einer
@@ -268,7 +430,7 @@ negative Varianten anfragen).
 |---|---|
 | `landing.html` | **Welle 1** – Landing Page mit Event-Infos, Zusage und Stripe-Checkout (Ziel der Einladungsmail) |
 | `index.html` | **Welle 2** – die App zum Abend (Programm, Menü, Live, Connect) |
-| `monitor.html` | Einladungs-Monitor: Wellen, Pools, Funnel, Umsatz |
+| `monitor.html` | Einladungs-Monitor: Handlungsbedarf, Wellen, Pools, Funnel, Umsatz, Gästeliste |
 | `email/*.html` | Mailvorlagen der drei Wellen (der Server füllt sie und verschickt) |
 | `server/circle-server.js` | Gästeregister mit Pools, Stripe, Webhooks, Live-Ebene |
 | `server/gaesteliste-vorlage.csv` | Spaltenvorlage für die Pool-Listen |

@@ -60,6 +60,16 @@ const PUBLIC_URL = (process.env.PUBLIC_URL || "http://localhost:" + PORT).replac
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 const TICKET_PRICE = parseInt(process.env.TICKET_PRICE, 10) || 10000;   // Cent
+/* Welche Zahlungsarten der Checkout anbietet. Ohne Angabe entscheidet Stripe
+ * selbst ("dynamic payment methods") - das setzt aber voraus, dass im
+ * Dashboard fuer Euro ueberhaupt eine Art aktiviert ist. Ist sie das nicht,
+ * bricht jede Sitzung mit "No valid payment method types" ab, und zwar erst
+ * beim Gast. Deshalb geben wir "card" fest vor: das deckt Karte, Apple Pay
+ * und Google Pay ab, also genau das, was wir den Gaesten versprechen.
+ * Mehr Arten (z.B. paypal) per STRIPE_ZAHLARTEN="card,paypal"; "auto"
+ * ueberlaesst die Wahl wieder Stripe. */
+const STRIPE_ZAHLARTEN = (process.env.STRIPE_ZAHLARTEN || "card")
+  .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
 /* Zugaenge zum Monitor. Entweder ein gemeinsames Geheimnis (ADMIN_TOKEN) oder
  * - besser - je Person eines (ADMIN_TOKENS="anne:xxx,desi:yyy"). Dann laesst
  * sich ein einzelner Zugang entziehen, ohne allen anderen den Link zu aendern,
@@ -105,6 +115,16 @@ const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.d
 /* Rueckmeldefrist der Einladung. Steht in drei Vorlagen - deshalb an EINER
  * Stelle, sonst laeuft sie beim naechsten Verschieben auseinander. */
 const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "27.08.2026";
+/* Die Bezahlgaeste sind eine Woche spaeter dran als die Ehrengaeste: ihre
+ * Einladung geht spaeter raus, und ueberwiesen sein will sie auch noch.
+ * Zwei Fristen statt einer - sonst stuende in der Bezahlgast-Einladung ein
+ * Datum, das beim Verschicken schon fast abgelaufen ist. */
+const RSVP_DEADLINE_TICKET = process.env.RSVP_DEADLINE_TICKET || "28.08.2026";
+const rsvpFrist = inv => (inv && inv.typ === "ticket") ? RSVP_DEADLINE_TICKET : RSVP_DEADLINE;
+/* Was dieser eine Gast zahlt. Regulaer der Ticketpreis - abweichend nur bei
+ * Testgaesten, damit eine echte Live-Zahlung geprueft werden kann, ohne
+ * dafuer jedes Mal 100 Euro zu bewegen. */
+const preisVon = inv => (inv && inv.preis > 0) ? inv.preis : TICKET_PRICE;
 
 const VOTES = ["ja", "vielleicht", "nein"];
 const MOMENTS_TOTAL = 6;
@@ -285,7 +305,7 @@ function serveFile(res, file, type) {
 /* ================= EINLADUNG: Pools, Gästeliste, Zusagen ================= */
 
 /* Ein Gast der Einladungsliste:
- *   { token, pool, typ:"ticket"|"ehrengast", name, email, firma,
+ *   { token, pool, typ:"ticket"|"ehrengast", name, email, firma, position,
  *     anrede,                                        <- "Liebe"/"Lieber", sonst "Hallo"
  *     partner, partnerLogo,                          <- wenn ein Partner eingeladen hat
  *     status:"offen"|"zugesagt"|"bezahlt"|"abgesagt",
@@ -379,9 +399,10 @@ function pubInvite(inv) {
     partner: inv.partner || "",
     partnerLogo: partnerLogoUrl(inv),
     firma: inv.firma || "",
+    rolle: inv.rolle || "",
     email: inv.email || "",
     pool: inv.pool,
-    preis: inv.typ === "ticket" ? TICKET_PRICE : 0,
+    preis: inv.typ === "ticket" ? preisVon(inv) : 0,
     ticketNr: inv.status === "zugesagt" || inv.status === "bezahlt" ? inv.ticketNr : "",
     /* Eigene Angaben aus der Zusage - nur der Token-Inhaber sieht sie.
      * Damit oeffnet sich die App aus der Welle-2-Mail fertig personalisiert. */
@@ -418,7 +439,10 @@ function parseCSV(text) {
 }
 
 /* Erwartete Spalten (Reihenfolge egal, Groß/Klein egal):
- *   pool, typ, name, email, firma, anrede, partner, partner_logo
+ *   pool, typ, name, email, firma, rolle, anrede, partner, partner_logo
+ * firma und rolle sind getrennt: "gadplan GmbH" und "Geschaeftsfuehrer"
+ * lassen sich sonst fuer Namensschilder nicht auseinandernehmen. Fehlt die
+ * Spalte 'rolle', bleibt eine vom Gast selbst eingetragene Rolle erhalten.
  * typ: "ticket" (100 € über Stripe) oder "ehrengast" (nur Zusage).
  * Fehlt typ, gilt der Pool-Default aus poolTyp() – sonst "ticket".
  * Wiederholter Import aktualisiert bestehende Gäste (Schlüssel: E-Mail).
@@ -428,7 +452,11 @@ function importRows(rows) {
   const col = name => header.indexOf(name);
   const iPool = col("pool"), iTyp = col("typ"), iName = col("name"),
         iMail = col("email") >= 0 ? col("email") : col("e-mail"), iFirma = col("firma"),
-        iAnrede = col("anrede"), iPartner = col("partner"), iPartnerLogo = col("partner_logo");
+        iAnrede = col("anrede"), iPartner = col("partner"), iPartnerLogo = col("partner_logo"),
+        iRolle = col("rolle"),
+        /* Optional: Telefon aus der Liste. Fehlt die Spalte, bleibt es beim
+         * Bisherigen - niemand muss seine Listen umbauen. */
+        iTelefon = col("telefon") >= 0 ? col("telefon") : col("mobil");
   if (iName < 0 || iMail < 0) throw new Error("CSV braucht mindestens die Spalten 'name' und 'email'");
 
   const byMail = {};
@@ -441,7 +469,23 @@ function importRows(rows) {
   const npKey = (name, pool) => (name || "").toLowerCase().trim() + "|" + (pool || "").toLowerCase().trim();
   for (const inv of Object.values(state.invites)) if (!inv.email) byNamePool[npKey(inv.name, inv.pool)] = inv;
 
+  /* Korrigierte Adressen. Steht in der Liste eine Adresse, die das Register
+   * nicht kennt, waehrend genau EIN Gast mit demselben Namen im selben Pool
+   * schon eine andere hat, ist das eine Korrektur - kein neuer Mensch.
+   * Ohne diesen Griff legt der Import einen Doppelgaenger an: der alte Gast
+   * bleibt mit der toten Adresse liegen, der neue kommt dazu, und die
+   * Gaestezahl stimmt nicht mehr.
+   * Bewusst nur bei GENAU einem Treffer - zwei gleiche Namen im selben Pool
+   * waeren geraten, und Raten hat hier nichts zu suchen. Jede Aenderung wird
+   * gemeldet, damit sie ein Mensch sieht. */
+  const mitMailProNamePool = {};
+  for (const inv of Object.values(state.invites)) {
+    if (!inv.email) continue;
+    (mitMailProNamePool[npKey(inv.name, inv.pool)] ||= []).push(inv);
+  }
+
   let neu = 0, aktualisiert = 0;
+  const adressen = [];
   for (const r of rows.slice(1)) {
     const email = clean(r[iMail], 120).toLowerCase();
     const zeilenName = cleanText(r[iName], 60);
@@ -460,6 +504,12 @@ function importRows(rows) {
     /* Wiedererkennen: erst ueber die Mailadresse, sonst (auch: Adresse jetzt
      * nachgeliefert) ueber Name+Pool der mail-losen WhatsApp-Gaeste. */
     let inv = (email && byMail[email]) || byNamePool[npKey(zeilenName, pool)];
+    /* Adresse geaendert? Dann ist es derselbe Gast - mit seinem Token, seiner
+     * Ticketnummer und einer eventuell schon erteilten Zusage. */
+    if (!inv && email) {
+      const treffer = mitMailProNamePool[npKey(zeilenName, pool)] || [];
+      if (treffer.length === 1) inv = treffer[0];
+    }
     if (inv) {
       inv.pool = pool; inv.typ = typ;
       inv.name = zeilenName || inv.name;
@@ -467,8 +517,25 @@ function importRows(rows) {
         inv.email = email;
         delete byNamePool[npKey(zeilenName, pool)];
         byMail[email] = inv;
+      } else if (email && inv.email !== email) {     // Adresse korrigiert
+        adressen.push({ name: inv.name, vorher: inv.email, jetzt: email });
+        delete byMail[inv.email];
+        /* Einmal ist eine Korrektur, zweimal waeren zwei Menschen: nach dem
+         * Griff ist der Name+Pool-Schluessel verbraucht. */
+        delete mitMailProNamePool[npKey(zeilenName, pool)];
+        inv.email = email;
+        byMail[email] = inv;
+        /* Die neue Adresse hat die Bounce-Sperre der alten nicht verdient. */
+        if (inv.mail && inv.mail.bounced) inv.mail.bounced = 0;
       }
       if (iFirma >= 0) inv.firma = cleanText(r[iFirma], 80);
+      if (iRolle >= 0) inv.rolle = cleanText(r[iRolle], 80);
+      /* Telefon aus der Liste nur setzen, wenn der Gast nicht selbst eine
+       * Nummer angegeben hat - seine Angabe ist die neuere. */
+      if (iTelefon >= 0 && r[iTelefon] && !(inv.daten && inv.daten.phone)) {
+        inv.daten = inv.daten || {};
+        inv.daten.phone = cleanText(r[iTelefon], 30);
+      }
       if (iAnrede >= 0) inv.anrede = cleanText(r[iAnrede], 12);
       if (iPartner >= 0) inv.partner = cleanText(r[iPartner], 60);
       if (iPartnerLogo >= 0) inv.partnerLogo = cleanText(r[iPartnerLogo], 200);
@@ -479,12 +546,13 @@ function importRows(rows) {
         token, pool, typ,
         name: zeilenName, email,
         firma: iFirma >= 0 ? cleanText(r[iFirma], 80) : "",
+        rolle: iRolle >= 0 ? cleanText(r[iRolle], 80) : "",
         anrede: iAnrede >= 0 ? cleanText(r[iAnrede], 12) : "",
         partner: iPartner >= 0 ? cleanText(r[iPartner], 60) : "",
         partnerLogo: iPartnerLogo >= 0 ? cleanText(r[iPartnerLogo], 200) : "",
         status: "offen",
         mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
-        daten: {},
+        daten: iTelefon >= 0 && r[iTelefon] ? { phone: cleanText(r[iTelefon], 30) } : {},
         zahlung: null,
         ticketNr: ticketNumber(token),
         t: Date.now()
@@ -495,7 +563,7 @@ function importRows(rows) {
     }
   }
   dirty = true;
-  return { neu, aktualisiert, gesamt: Object.keys(state.invites).length };
+  return { neu, aktualisiert, adressen, gesamt: Object.keys(state.invites).length };
 }
 
 /* Pool-Defaults: Ehrengast-Pools brauchen kein Ticket. Namen frei erweiterbar. */
@@ -550,6 +618,86 @@ function gesamtStats() {
   };
 }
 
+/* Wellenstand fuer den Monitor. Zwei Quellen, beide hart: das Versand-
+ * Gedaechtnis (versand-log.json - wer hat Welle n schon bekommen) und
+ * dieselbe gilt()-Regel, nach der der Versand entscheidet. Damit steht im
+ * Monitor genau das, was ein "welle n --senden" jetzt tun WUERDE - und
+ * niemand muss die Wellenzeilen von Hand pflegen.
+ *   versendet  hat die Welle bekommen (Log)
+ *   faellig    bekaeme sie beim naechsten Lauf
+ *   gesperrt   gehoert in die Welle, ist aber nicht anschreibbar
+ *              (keine Adresse, abgemeldet oder Bounce) */
+function wellenStats() {
+  let vlog = {};
+  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
+  const all = Object.values(state.invites);
+  return Object.keys(WELLEN).map(nr => {
+    const w = WELLEN[nr];
+    let versendet = 0, faellig = 0, gesperrt = 0, erster = 0, letzter = 0;
+    /* Die Reaktionen zaehlen JE WELLE - fruehere Zahlen mischten alle
+     * Mailings in einen Topf und lasen sich dadurch falsch. */
+    let zugestellt = 0, geoeffnet = 0, geklickt = 0, zugesagt = 0, bezahlt = 0;
+    for (const inv of all) {
+      const ts = (hasOwn(vlog, inv.token) && vlog[inv.token][nr]) || 0;
+      if (ts) {
+        versendet++;
+        if (!erster || ts < erster) erster = ts;
+        if (ts > letzter) letzter = ts;
+        const w2 = (inv.wellen && inv.wellen[nr]) || null;
+        if (w2 && w2.delivered) zugestellt++;
+        if (w2 && w2.opened)    geoeffnet++;
+        if (w2 && w2.clicked)   geklickt++;
+        /* Zusage und Zahlung gehoeren keiner einzelnen Mail - hier zaehlen
+         * sie den heutigen Stand DERER, die diese Welle bekommen haben.
+         * So laesst sich lesen: "von den 62 Eingeladenen haben 16 zugesagt". */
+        if (inv.status === "zugesagt" || inv.status === "bezahlt") zugesagt++;
+        if (inv.status === "bezahlt") bezahlt++;
+        continue;                                  // raus ist raus
+      }
+      if (!w.gilt(inv)) continue;                  // gehoert nicht in diese Welle
+      if (!inv.email || inv.abgemeldet || (inv.mail && inv.mail.bounced)) gesperrt++;
+      else faellig++;
+    }
+    return { nr: Number(nr), name: w.name, versendet, faellig, gesperrt, erster, letzter,
+             zugestellt, geoeffnet, geklickt, zugesagt, bezahlt };
+  });
+}
+
+/* Welche Fassung ist wie gelaufen. Gruppiert die Gaeste nach der Vorlage,
+ * die sie in der jeweiligen Welle bekommen haben (Welle 1 zerfaellt in
+ * Ticket / Ehrengast / Ehrengast-Partner).
+ * ACHTUNG bei der Deutung: geoeffnet/geklickt/zugesagt/bezahlt sind der
+ * HEUTIGE Stand des Gastes, nicht die Reaktion auf genau diese eine Mail -
+ * das Register fuehrt pro Gast einen Stand, nicht pro Sendung. Wer zwei
+ * Wellen bekommen hat, zaehlt in beiden Gruppen. Der Monitor schreibt das
+ * unter die Tabelle dazu. */
+function fassungStats() {
+  let vlog = {};
+  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
+  const gruppen = {};
+  for (const inv of Object.values(state.invites)) {
+    if (!hasOwn(vlog, inv.token)) continue;
+    for (const nr of Object.keys(WELLEN)) {
+      if (!vlog[inv.token][nr]) continue;
+      let datei;
+      try { datei = WELLEN[nr].vorlage(inv); } catch (e) { continue; }
+      const key = nr + "|" + datei;
+      const g = gruppen[key] || (gruppen[key] = {
+        welle: Number(nr), name: WELLEN[nr].name, vorlage: datei,
+        versendet: 0, geoeffnet: 0, geklickt: 0, zugesagt: 0, bezahlt: 0, ticket: false
+      });
+      g.versendet++;
+      const wm = (inv.wellen && inv.wellen[nr]) || {};
+      if (wm.opened)  g.geoeffnet++;
+      if (wm.clicked) g.geklickt++;
+      if (inv.status === "zugesagt" || inv.status === "bezahlt") g.zugesagt++;
+      if (inv.status === "bezahlt") g.bezahlt++;
+      if (inv.typ !== "ehrengast") g.ticket = true;      // in dieser Fassung wird gezahlt
+    }
+  }
+  return Object.values(gruppen).sort((a, b) => a.welle - b.welle || b.versendet - a.versendet);
+}
+
 /* ================= MAILVERSAND (Lettermint, ohne SDK) =================
  *
  * Warum der Server selbst verschickt und nicht Lettermint aus einer Liste:
@@ -561,7 +709,26 @@ function gesamtStats() {
  */
 
 /* Bilder in E-Mails brauchen feste, oeffentliche Adressen (kein data:). */
-function assetUrl(datei) { return PUBLIC_URL + "/assets/" + datei; }
+/* Bilder liefert der Server mit 30 Tagen Cache aus - richtig fuer Gaeste,
+ * falsch waehrend wir noch an den Logos arbeiten: die Adresse bleibt gleich,
+ * also holt kein Browser und kein Mail-Proxy die neue Datei. Deshalb haengt
+ * an jeder Asset-Adresse ein Kuerzel aus dem INHALT der Datei. Aendert sich
+ * die Datei, aendert sich die Adresse; bleibt sie gleich, bleibt der Cache.
+ * Einmal beim Start berechnet - im Versand laufen sonst 90 Mails x 8 Bilder. */
+const ASSET_STEMPEL = {};
+function assetStempel(datei) {
+  if (hasOwn(ASSET_STEMPEL, datei)) return ASSET_STEMPEL[datei];
+  let v = "";
+  try {
+    v = crypto.createHash("sha1").update(fs.readFileSync(path.join(__dirname, "..", "email", "assets", datei)))
+              .digest("hex").slice(0, 8);
+  } catch (e) { /* Datei fehlt: dann eben ohne Kuerzel - der Fehler faellt beim Abruf auf */ }
+  return (ASSET_STEMPEL[datei] = v);
+}
+function assetUrl(datei) {
+  const v = assetStempel(datei);
+  return PUBLIC_URL + "/assets/" + datei + (v ? "?v=" + v : "");
+}
 
 /* Partnerlogo als vollstaendige Adresse. In der Gaesteliste darf beides
    stehen: eine fertige URL oder nur der Dateiname aus email/assets/.
@@ -569,7 +736,13 @@ function assetUrl(datei) { return PUBLIC_URL + "/assets/" + datei; }
    anwenden, sonst zeigt die Mail das Logo und die Seite ein kaputtes Bild. */
 function partnerLogoUrl(inv) {
   if (!inv || !inv.partnerLogo) return "";
-  return /^https?:\/\//i.test(inv.partnerLogo) ? inv.partnerLogo : assetUrl(inv.partnerLogo);
+  const roh = inv.partnerLogo;
+  if (!/^https?:\/\//i.test(roh)) return assetUrl(roh);
+  /* Zeigt die fertige Adresse auf unsere eigenen Assets - so steht es in der
+   * Gaesteliste -, dann durch assetUrl schicken, damit sie das Kuerzel
+   * bekommt. Sonst haenge das Logo eines Partners am 30-Tage-Cache fest. */
+  const eigen = roh.split("?")[0].match(/^https?:\/\/[^/]+\/assets\/(.+)$/i);
+  return eigen ? assetUrl(eigen[1]) : roh;
 }
 
 /* Die Wellen. Zu jeder gehoert: wer sie bekommt, welche Vorlage gilt
@@ -688,6 +861,81 @@ function versandLogSchreiben(log) {
   fs.renameSync(VERSAND_LOG + ".tmp", VERSAND_LOG);
 }
 
+/* Das Versand-Gedaechtnis gehoert der CLI; der Server liest es nur - aber
+ * er liest es oft (jeder Webhook fragt, zu welcher Welle das Ereignis
+ * gehoert). Deshalb kurz gepuffert. */
+let vlogCache = { t: 0, daten: {} };
+function versandLogLesenGepuffert() {
+  const jetzt = Date.now();
+  if (jetzt - vlogCache.t < 5000) return vlogCache.daten;
+  let daten = {};
+  try { daten = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log */ }
+  vlogCache = { t: jetzt, daten };
+  return daten;
+}
+
+/* ---------- Status JE WELLE ----------
+ *
+ * Warum das sein muss: inv.mail fuehrt EINEN Satz Zeitstempel
+ * (sent/delivered/opened/clicked) - aber es gibt drei Mailings. Und jeder
+ * Schreibzugriff galt "nur wenn noch leer". Ergebnis im Betrieb: hat ein
+ * Gast das Save the Date geoeffnet, sind seine Felder belegt; die
+ * Einladung eine Woche spaeter kann sie nicht mehr fuellen. Ihr
+ * "zugestellt/geoeffnet/geklickt" wurde verworfen ("schon gesetzt"), im
+ * Monitor stand weiter der Stand des Save the Date - und es sah aus, als
+ * lieferte Lettermint keine Webhooks mehr.
+ *
+ * Die Zuordnung war immer da, sie wurde nur weggeworfen: der Versand gibt
+ * jeder Mail metadata.welle mit, Lettermint gibt es im Webhook zurueck.
+ * inv.wellen[n] fuehrt jetzt die einzelne Sendung, inv.mail bleibt als
+ * Gesamtsicht ("hat der Gast ueberhaupt je geoeffnet") unveraendert - alle
+ * bisherigen Leser, Bounce-Sperre und Abmeldung eingeschlossen. */
+function wellenMail(inv, n) {
+  inv.wellen = inv.wellen || {};
+  return inv.wellen[n] || (inv.wellen[n] = { sent: 0, delivered: 0, opened: 0, clicked: 0 });
+}
+
+/* Zu welcher Welle gehoert ein Ereignis ohne metadata.welle? Zur zuletzt
+ * verschickten Welle, die VOR dem Ereignis rausging - das ist die Mail, die
+ * der Gast in dem Moment vor sich hatte. */
+function welleZuZeit(inv, ts) {
+  const log = versandLogLesenGepuffert()[inv.token];
+  if (!log) return "";
+  let treffer = "", besteZeit = 0;
+  for (const n of Object.keys(log)) {
+    const raus = log[n];
+    if (raus && raus <= ts + 60_000 && raus >= besteZeit) { besteZeit = raus; treffer = n; }
+  }
+  return treffer;
+}
+
+/* Einmal beim Start: den alten Sammel-Stand auf die Wellen aufteilen, damit
+ * nichts verloren geht, was schon im Register steht. Je FELD einzeln - die
+ * Felder koennen zu verschiedenen Wellen gehoeren (Save the Date verschickt,
+ * nie geoeffnet, dann die Einladung geoeffnet: sent gehoert zu Welle 0,
+ * opened zu Welle 1). Der Versandzeitpunkt je Welle kommt ohnehin aus dem
+ * Gedaechtnis, nicht aus dem Webhook. */
+function wellenNachruesten() {
+  const log = versandLogLesenGepuffert();
+  let ergaenzt = 0;
+  for (const inv of Object.values(state.invites)) {
+    if (inv.wellen) continue;                       // schon aufgeteilt
+    inv.wellen = {};
+    for (const n of Object.keys(log[inv.token] || {})) wellenMail(inv, n).sent = log[inv.token][n];
+    for (const feld of ["delivered", "opened", "clicked"]) {
+      const ts = inv.mail && inv.mail[feld];
+      if (!ts) continue;
+      const n = welleZuZeit(inv, ts);
+      if (n !== "") wellenMail(inv, n)[feld] = ts;
+    }
+    ergaenzt++;
+  }
+  if (ergaenzt) {
+    dirty = true;
+    console.log("Status je Welle nachgetragen: " + ergaenzt + " Gäste");
+  }
+}
+
 /* Vorlagen einmal von der Platte lesen und behalten. */
 const vorlagenCache = new Map();
 function vorlageLesen(datei) {
@@ -720,11 +968,19 @@ function renderMail(inv, datei) {
      * Dateiname wird auf unsere Asset-Adresse gehoben. */
     partner_logo_url: partnerLogoUrl(inv),
     abmelden_url: abmeldeLink(inv.token),
-    rueckmeldung_datum: RSVP_DEADLINE,
+    rueckmeldung_datum: rsvpFrist(inv),
+    /* Nur fuer die Zusage-Bestaetigung: der Kalendereintrag und der Beitrag,
+     * den der Gast bezahlt hat. */
+    termin_ics_url: PUBLIC_URL + "/termin.ics",
+    beitrag: (preisVon(inv) / 100).toFixed(2).replace(".", ",") + " Euro",
     /* CTA der Welle 0: die Homepage, nicht die App. PUBLIC_URL ist der
      * Server mit den persoenlichen Links - die Website ist eine andere. */
     website_url: WEBSITE_URL,
     header_img_url: assetUrl("circle-header.jpg"),
+    /* Standen bis eben als feste Adresse in den Vorlagen und blieben damit
+     * als einzige ohne Cache-Kuerzel haengen. */
+    header_std_url: assetUrl("circle-header-std.jpg"),
+    planyvo_logo_url: assetUrl("planyvo-neg.png"),
     logo_url: assetUrl("logo-zentriert-neg.png"),
     partnerwand_url: assetUrl("partnerwand-bordeaux.jpg"),
     portrait_amiaz_url: assetUrl("portrait-amiaz.jpg"),
@@ -745,6 +1001,84 @@ function renderMail(inv, datei) {
 
 /* Reine Textfassung als Rueckfallebene: Mail-Clients ohne HTML und
  * Spamfilter, die HTML-only misstrauisch finden. */
+/* Bestaetigung nach der Zusage. Anders als die Wellen loest sie kein Mensch
+ * aus, sondern der Gast selbst - Ehrengaeste mit ihrer Zusage, Bezahlgaeste
+ * mit der eingegangenen Zahlung. Deshalb verschickt sie der laufende Server
+ * und nicht die Kommandozeile; dafuer braucht die App LETTERMINT_TOKEN.
+ *
+ * Genau einmal je Gast: der Vermerk steht VOR dem Versand im Register, sonst
+ * schickt ein zweites Abschicken des Formulars eine zweite Mail. Scheitert
+ * der Versand, wird er zurueckgenommen, damit ein spaeterer Anlauf ihn holt.
+ * Fehler bleiben folgenlos fuer den Gast: seine Zusage ist da, ob die
+ * Bestaetigung ankam oder nicht. */
+function bestaetigungFaellig(inv) {
+  if (!inv || !inv.email || inv.bestaetigung || inv.abgemeldet) return false;
+  /* Ehrengaeste sind mit der Zusage fertig. Bezahlgaeste erst mit der Zahlung:
+   * "Platz gesichert - 100 Euro bezahlt" an jemanden zu schicken, der nur
+   * zugesagt hat, waere schlicht falsch. */
+  return inv.typ === "ehrengast"
+    ? (inv.status === "zugesagt" || inv.status === "bezahlt")
+    : inv.status === "bezahlt";
+}
+
+function bestaetigungSenden(inv) {
+  if (!LETTERMINT_TOKEN) return;                 // App ohne Token: still nichts tun
+  if (!bestaetigungFaellig(inv)) return;
+  inv.bestaetigung = Date.now();                 // Platz belegen, BEVOR irgendetwas laeuft
+  dirty = true;
+  bestaetigungAbschicken(inv);
+}
+
+/* Setzt voraus, dass der Vermerk schon steht - siehe bestaetigungSenden und
+ * den Nachhol-Endpunkt. Getrennt, damit ein Stapel ALLE Vermerke sofort
+ * setzen kann und nicht erst beim Abschicken der einzelnen Mail: sonst
+ * faende ein zweiter Aufruf dieselben Gaeste noch einmal. */
+function bestaetigungAbschicken(inv) {
+  const datei = inv.typ === "ehrengast"
+    ? ((inv.partner && inv.partnerLogo) ? "bestaetigung-ehrengast-partner.html" : "bestaetigung-ehrengast.html")
+    : "bestaetigung-ticket.html";
+  let html;
+  try { html = renderMail(inv, datei); }
+  catch (e) {
+    /* Vermerk zurueck: er steht seit dem Aufruf, und ohne Ruecknahme gaelte
+     * der Gast als bestaetigt, ohne je eine Mail bekommen zu haben. */
+    inv.bestaetigung = 0; dirty = true;
+    console.error("Bestätigung " + datei + " bricht: " + e.message);
+    return;
+  }
+
+  const text = [
+    (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
+    "",
+    "du bist im Kreis" + (inv.ticketNr ? " – " + inv.ticketNr : "") + ".",
+    "",
+    "16. September 2026, 18:00 bis 23:00 Uhr",
+    "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
+    inv.typ === "ticket" ? "Beitrag: " + (preisVon(inv) / 100).toFixed(2).replace(".", ",") + " Euro, bezahlt" : null,
+    "",
+    "Termin in den Kalender: " + PUBLIC_URL + "/termin.ics",
+    "Deine Seite: " + inviteLink(inv.token),
+    "",
+    "Keine weiteren Mails: " + abmeldeLink(inv.token)
+  ].filter(z => z !== null).join("\n");
+
+  lettermintSenden({
+    to: inv.email,
+    subject: inv.typ === "ticket" ? "Dein Platz bei THE CIRCLE No1 ist gesichert"
+                                  : "Deine Zusage zu THE CIRCLE No1",
+    html, text,
+    abmeldeUrl: abmeldeLink(inv.token),
+    metadata: { token: inv.token, art: "bestaetigung", pool: inv.pool || "" }
+  }, (err) => {
+    if (err) {
+      inv.bestaetigung = 0; dirty = true;        // beim naechsten Anlass neu versuchen
+      console.error("Bestätigung an " + inv.email + " fehlgeschlagen: " + err.message);
+    } else {
+      console.log("Bestätigung an " + inv.email + " verschickt.");
+    }
+  });
+}
+
 function textFassung(inv, welle) {
   /* Welle 0 hat bewusst KEINEN persoenlichen Link - die HTML-Fassung zeigt
    * nur die Website, also darf die Textfassung nicht heimlich den Zusage-
@@ -763,6 +1097,34 @@ function textFassung(inv, welle) {
     "Keine weiteren Mails: " + abmeldeLink(inv.token)
   ];
   return zeilen.filter(z => z !== null).join("\n");
+}
+
+/* Dieselbe Einladung als WhatsApp-Nachricht, zum Kopieren. Kein HTML, keine
+ * Abmeldezeile: Wer per WhatsApp schreibt, hat den Kontakt ohnehin in der
+ * Hand. Der Link ist derselbe wie in der Mail - die Zusage landet also im
+ * selben Register, mit derselben Ticketnummer. */
+function whatsappText(inv) {
+  const partnerZeile = inv.typ === "ehrengast"
+    ? (inv.partner ? "Du bist eingeladen von unserem Partner " + inv.partner + "."
+                   : "Du bist eingeladen von THE CIRCLE.")
+    : "Teilnahme: 100 Euro.";
+  return [
+    (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
+    "",
+    "du bist eingeladen zu THE CIRCLE No1 – connecting generations.",
+    "",
+    "Ein Abend im ausgewählten Kreis: Gäste über Generationen hinweg, " +
+      "ein Menü in drei Gängen – und ein Werk von Max Leinfelder, das vor deinen Augen entsteht.",
+    "",
+    "16. September 2026, 18:00 bis 23:00 Uhr",
+    "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
+    partnerZeile,
+    "",
+    "Die Plätze sind limitiert. Wir bitten um Rückmeldung bis zum " + rsvpFrist(inv) + ".",
+    "",
+    "Dein persönlicher Link – zusagen oder absagen dauert eine Minute:",
+    inviteLink(inv.token)
+  ].join("\n");
 }
 
 /* Ein Aufruf an die Lettermint-API. Kein SDK: eine einzige POST-Anfrage
@@ -903,9 +1265,12 @@ function stripeRequest(pfad, params, cb) {
 }
 
 function createCheckout(inv, cb) {
+  const arten = {};
+  if (STRIPE_ZAHLARTEN[0] !== "auto") STRIPE_ZAHLARTEN.forEach((a, i) => { arten[i] = a; });
   stripeRequest("checkout/sessions", {
     mode: "payment",
     locale: "de",
+    ...(Object.keys(arten).length ? { payment_method_types: arten } : {}),
     customer_email: inv.email,
     client_reference_id: inv.token,
     success_url: inviteLink(inv.token) + "&bezahlt=1",
@@ -920,7 +1285,7 @@ function createCheckout(inv, cb) {
         quantity: 1,
         price_data: {
           currency: "eur",
-          unit_amount: TICKET_PRICE,
+          unit_amount: preisVon(inv),
           product_data: {
             name: "THE CIRCLE N°1 – 16. September 2026",
             description: "Persönliche Einladung · 1 Platz · Playa Cologne"
@@ -963,11 +1328,12 @@ function zahlungBuchen(token, session) {
   inv.zahlung = {
     sessionId: session.id,
     paymentIntent: session.payment_intent || "",
-    amount: session.amount_total || TICKET_PRICE,
+    amount: session.amount_total || preisVon(inv),
     paidAt: Date.now()
   };
   logEvent("bezahlt", inv.name, inv.pool);
   dirty = true;
+  bestaetigungSenden(inv);
 }
 
 /* ---------- Server ---------- */
@@ -994,6 +1360,13 @@ const server = http.createServer((req, res) => {
       adminGeschuetzt: ADMIN_TOKENS.size > 0,
       adminZugaenge: ADMIN_TOKENS.size,
       stripe: !!STRIPE_KEY,
+      /* Live oder Test steht dem Schluessel selbst an der Stirn geschrieben.
+       * Ohne diese Angabe laesst sich von aussen nicht unterscheiden, ob
+       * echtes Geld fliesst - und ohne stripeWebhook nicht, ob eine Zahlung
+       * ueberhaupt im Register ankaeme: fehlt das Secret, weist der Server
+       * jede Stripe-Meldung ab und der Gast bleibt auf "zugesagt" stehen. */
+      stripeModus: STRIPE_KEY ? (STRIPE_KEY.startsWith("sk_live") ? "live" : "test") : "",
+      stripeWebhook: !!STRIPE_WEBHOOK_SECRET,
       /* Nur ob gesetzt, nie die Werte - sonst liesse sich von aussen nicht
        * pruefen, ob die Mail-Variablen im Panel angekommen sind. */
       mail: !!LETTERMINT_TOKEN,
@@ -1157,9 +1530,22 @@ const server = http.createServer((req, res) => {
     // "Geklickt" nur zaehlen, wenn der Aufruf von der Landing Page kommt, nicht
     // vom App-Link (/?t=, ruft mit app=1). Sonst verfaelscht das Oeffnen der App
     // die Klickquote und meldet Gaeste als engagiert, die nur die App geladen haben.
-    if (q.get("app") !== "1" && !inv.mail.clicked) {
-      inv.mail.clicked = Date.now();
-      logEvent("geklickt", inv.name, inv.pool);
+    if (q.get("app") !== "1") {
+      /* Der persoenliche Link steht in der Einladung - der Klick gehoert
+       * also zu der Welle, die zuletzt an diesen Gast rausging. */
+      const jetzt = Date.now();
+      const n = welleZuZeit(inv, jetzt);
+      const w = n === "" ? null : wellenMail(inv, n);
+      if (w && !w.clicked) {
+        w.clicked = jetzt;
+        logEvent("geklickt", inv.name, (inv.pool || "") + " · Welle " + n);
+        dirty = true;
+      }
+      if (!inv.mail.clicked) {
+        inv.mail.clicked = jetzt;
+        if (!w) logEvent("geklickt", inv.name, inv.pool);
+        dirty = true;
+      }
     }
     return json(res, 200, { ok: true, gast: pubInvite(inv) });
   }
@@ -1195,6 +1581,10 @@ const server = http.createServer((req, res) => {
 
       if (body.name)   inv.name = cleanText(body.name, 60);
       if (body.firma !== undefined) inv.firma = cleanText(body.firma, 80);
+      /* Rolle steht getrennt von der Firma - sonst landen "gadplan GmbH"
+       * und "Geschaeftsfuehrer" wieder in einem Feld und lassen sich fuer
+       * Namensschilder und Sitzordnung nicht mehr auseinandernehmen. */
+      if (body.rolle !== undefined) inv.rolle = cleanText(body.rolle, 80);
       /* E-Mail aus dem Zusage-Formular ins Register uebernehmen. Wichtig fuer
        * WhatsApp-Gaeste (ohne Adresse importiert, Link kam per Chat): ab der
        * Zusage sind sie fuer Welle 2 per Mail erreichbar. */
@@ -1213,6 +1603,10 @@ const server = http.createServer((req, res) => {
       if (inv.typ === "ehrengast") {
         if (inv.status !== "bezahlt") inv.status = "zugesagt";
         logEvent("zugesagt", inv.name, inv.pool);
+        /* Ehrengaeste sind mit der Zusage fertig - also bestaetigen wir jetzt.
+         * Bezahlgaeste erst nach der Zahlung, sonst bestaetigten wir einen
+         * Platz, der noch offen ist (siehe zahlungBuchen). */
+        bestaetigungSenden(inv);
       } else if (inv.status === "offen" || inv.status === "abgesagt") {
         inv.status = "zugesagt";                    // zugesagt, Zahlung offen
         logEvent("zugesagt", inv.name, inv.pool);
@@ -1370,23 +1764,51 @@ const server = http.createServer((req, res) => {
       }
       const feld = hasOwn(map, typ) ? map[typ] : null;
       inv.mail = inv.mail || { sent: 0, delivered: 0, opened: 0, clicked: 0 };  // Altbestand
-      const warNeu = feld && !inv.mail[feld];
-      if (warNeu) {
-        /* Zeitpunkt des Ereignisses aus der Meldung selbst (ISO in
-         * body.timestamp) - nicht die Empfangszeit: Lettermint liefert
-         * auch mal mit Verzoegerung oder (nach einer Webhook-Pause)
-         * gar rueckwirkend nach. Plausibilitaetsfenster: nicht in der
-         * Zukunft, nicht aelter als der Projektstart. */
-        const gemeldet = Date.parse(body.timestamp || "");
-        const jetzt = Date.now();
-        inv.mail[feld] = (Number.isFinite(gemeldet) &&
-                          gemeldet <= jetzt + 60_000 &&
-                          gemeldet > Date.parse("2026-08-01")) ? gemeldet : jetzt;
-        logEvent(LABEL[feld], inv.name, inv.pool);
-        dirty = true;
+
+      /* Zeitpunkt des Ereignisses aus der Meldung selbst (ISO in
+       * body.timestamp) - nicht die Empfangszeit: Lettermint liefert
+       * auch mal mit Verzoegerung oder (nach einer Webhook-Pause)
+       * gar rueckwirkend nach. Plausibilitaetsfenster: nicht in der
+       * Zukunft, nicht aelter als der Projektstart. */
+      const gemeldet = Date.parse(body.timestamp || "");
+      const jetzt = Date.now();
+      const zeit = (Number.isFinite(gemeldet) &&
+                    gemeldet <= jetzt + 60_000 &&
+                    gemeldet > Date.parse("2026-08-01")) ? gemeldet : jetzt;
+
+      /* Zu WELCHER Mail gehoert das? Der Versand gibt jeder Mail
+       * metadata.welle mit; fehlt sie (aeltere Sendung, fremder Absender),
+       * wird sie aus dem Versandzeitpunkt erschlossen. Ohne diese
+       * Zuordnung landete jedes Ereignis in einem gemeinsamen Topf, und
+       * die zweite Welle konnte nichts mehr eintragen. */
+      const welleRoh = String((daten.metadata && daten.metadata.welle) ??
+                              (body.metadata && body.metadata.welle) ?? "");
+      const welle = /^[0-9]+$/.test(welleRoh) ? welleRoh : welleZuZeit(inv, zeit);
+
+      let neuInWelle = false;
+      if (feld && welle !== ""){
+        const w = wellenMail(inv, welle);
+        if (!w[feld]) { w[feld] = zeit; neuInWelle = true; }
       }
+      /* Gesamtsicht wie bisher: die erste Regung ueberhaupt. Daran haengen
+       * Bounce-Sperre, Abmeldung und die Gaesteliste. */
+      const warNeu = feld && !inv.mail[feld];
+      if (warNeu) inv.mail[feld] = zeit;
+
+      /* Ins Ereignis-Log gehoert, was in SEINER Welle neu ist - sonst
+       * bliebe die zweite Welle im Feed unsichtbar. */
+      if (neuInWelle || (warNeu && welle === "")) {
+        logEvent(LABEL[feld], inv.name, (inv.pool || "") + (welle !== "" ? " · Welle " + welle : ""));
+      }
+      if (warNeu || neuInWelle) dirty = true;
+
       webhookMerken({ t: Date.now(), event: ereignisKopf, typ, gast: inv.name,
-                      ergebnis: feld ? (warNeu ? "gesetzt: " + feld : "schon gesetzt: " + feld) : "unbekannter Typ" });
+                      welle: welle === "" ? "?" : welle,
+                      ergebnis: !feld ? "unbekannter Typ"
+                              : neuInWelle ? "gesetzt: " + feld + " (Welle " + welle + ")"
+                              : welle === "" ? (warNeu ? "gesetzt: " + feld + " (Welle unbekannt)"
+                                                       : "schon gesetzt: " + feld)
+                              : "schon gesetzt: " + feld + " (Welle " + welle + ")" });
       json(res, 200, { ok: true });
     });
     return;
@@ -1435,7 +1857,7 @@ const server = http.createServer((req, res) => {
     if (!ADMIN_TOKENS.size) {
       return json(res, 503, {
         error: "Monitor ist nicht konfiguriert – ADMIN_TOKENS fehlt. " +
-               "Aus Datenschutzgruenden bleibt der Zugang gesperrt."
+               "Aus Datenschutzgründen bleibt der Zugang gesperrt."
       });
     }
     const wer = adminName(q.get("key"));
@@ -1444,17 +1866,23 @@ const server = http.createServer((req, res) => {
     if (url === "/api/admin/pools") {
       return json(res, 200, {
         ok: true,
+        stand: Date.now(),                         // "Stand HH:MM" im Monitor
         gesamt: gesamtStats(),
         pools: poolStats(),
+        wellen: wellenStats(),
+        fassungen: fassungStats(),
         feed: state.feed.slice(0, 30)
       });
     }
     // Kontrollliste als CSV: Name, E-Mail, Typ, persönlicher Link
     if (url === "/api/admin/versandliste") {
-      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
+      const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "mobil", "ernaehrung", "unvertraeglichkeiten", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
       for (const inv of Object.values(state.invites)) {
         zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
-                     inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
+                     inv.name, inv.email, inv.firma || "", inv.rolle || "",
+                     (inv.daten && inv.daten.phone) || "", (inv.daten && inv.daten.diet) || "",
+                     (inv.daten && inv.daten.allergy) || "",
+                     inv.partner || "", inv.partnerLogo || "",
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
       }
@@ -1471,20 +1899,131 @@ const server = http.createServer((req, res) => {
     /* Wegwerf-Testgast fuer Zahlungs-/Strecken-Tests: eigener Pool
      * "Stripe-Test", Ticket-Typ, klar als Test benannt. Loeschen geht nur
      * fuer Gaeste aus genau diesem Pool - echte Gaeste sind unantastbar. */
+    /* Wegwerf-Gast zum Anschauen und zum Stripe-Test.
+     *   ?typ=ticket|ehrengast   welche Fassung der Seite (Standard: ticket)
+     *   ?partner=neuland.ai     macht daraus einen Partnergast; das Logo wird
+     *                           aus dem Namen abgeleitet (partner-<name>-neg.png)
+     * Bleibt immer im Pool "Stripe-Test": nur der laesst sich wieder loeschen,
+     * und die Vorflugkontrolle zeigt ihn als zusaetzlichen Empfaenger an.
+     * Bewusst mit Adresse @planyvo.com - faellt uns ein Loeschen durch, geht
+     * die Mail an uns selbst und nicht an einen Gast. */
+    /* Bestaetigungen nachholen. Gebraucht fuer alle, die zugesagt haben,
+     * BEVOR es die Bestaetigung gab - und als Netz, falls Lettermint einmal
+     * nicht erreichbar war (dann steht der Vermerk wieder auf 0).
+     * Ohne &senden=1 nur eine Liste: wer bekaeme sie, mit welcher Vorlage.
+     * Nacheinander mit Abstand, damit ein Nachlauf ueber viele Gaeste nicht
+     * als Schwall beim Anbieter ankommt. */
+    if (req.method === "POST" && url === "/api/admin/bestaetigungen-nachholen") {
+      /* ?nur=adresse schickt an genau einen - der Weg, eine neue Vorlage
+       * einmal an sich selbst zu schicken, bevor sie an Gaeste geht. */
+      const nur = String(q.get("nur") || "").toLowerCase().trim();
+      const dran = Object.values(state.invites)
+        .filter(bestaetigungFaellig)
+        .filter(inv => !nur || (inv.email || "").toLowerCase() === nur);
+      if (nur && !dran.length) {
+        return json(res, 404, { error: "Kein fälliger Gast mit dieser Adresse: " + nur });
+      }
+      const liste = dran.map(inv => ({
+        name: inv.name, email: inv.email, typ: inv.typ, partner: inv.partner || "",
+        status: inv.status,
+        vorlage: inv.typ === "ehrengast"
+          ? ((inv.partner && inv.partnerLogo) ? "bestaetigung-ehrengast-partner.html" : "bestaetigung-ehrengast.html")
+          : "bestaetigung-ticket.html"
+      }));
+      if (q.get("senden") !== "1") {
+        return json(res, 200, { ok: true, probelauf: true, anzahl: dran.length, gaeste: liste });
+      }
+      if (!LETTERMINT_TOKEN) return json(res, 503, { error: "LETTERMINT_TOKEN fehlt in der App" });
+      const jetzt = Date.now();
+      dran.forEach(inv => { inv.bestaetigung = jetzt; });   // erst alle belegen
+      dirty = true;
+      dran.forEach((inv, i) => setTimeout(() => bestaetigungAbschicken(inv), i * 400));
+      return json(res, 200, { ok: true, verschickt: dran.length, gaeste: liste });
+    }
+
+    /* Die fertigen WhatsApp-Nachrichten fuer Gaeste ohne Mailadresse.
+     * Dieselbe Auswahl und derselbe Text wie der CLI-Befehl "whatsapp" -
+     * nur abrufbar, statt in einer Datei auf dem Server zu landen, die
+     * dann jemand suchen muss.
+     * Enthaelt persoenliche Links: bewusst NUR fuer Gaeste ohne Adresse,
+     * die ihren Link ohnehin von Hand bekommen. Alle anderen bleiben
+     * draussen, damit ein abhandengekommener Admin-Zugang nicht gleich
+     * die Zusage jedes Gastes eroeffnet. */
+    if (url === "/api/admin/whatsapp") {
+      const mitMail = new Set(Object.values(state.invites)
+        .filter(i => i.email).map(i => (i.name || "").trim().toLowerCase()));
+      const uebersprungen = [];
+      const dran = Object.values(state.invites).filter(inv => {
+        if (inv.email || inv.abgemeldet || inv.status === "abgesagt") return false;
+        if (mitMail.has((inv.name || "").trim().toLowerCase())) {
+          uebersprungen.push({ name: inv.name, pool: inv.pool, grund: "bekommt die Einladung per Mail" });
+          return false;
+        }
+        return true;
+      }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      return json(res, 200, {
+        ok: true,
+        anzahl: dran.length,
+        uebersprungen,
+        gaeste: dran.map(inv => ({
+          name: inv.name, pool: inv.pool,
+          rolle: inv.typ === "ehrengast" ? "Ehrengast" : "Bezahlgast, 100 €",
+          token: inv.token,
+          raus: (inv.whatsapp && inv.whatsapp["1"]) || 0,
+          link: inviteLink(inv.token),
+          nachricht: whatsappText(inv)
+        }))
+      });
+    }
+
+    /* Vermerk: diese Einladung ist per WhatsApp rausgegangen.
+     * Der Server kann das nicht selbst wissen - verschickt wird von Hand,
+     * aus einem fremden Messenger. Also traegt es der Mensch ein, der es
+     * getan hat. Ohne diesen Vermerk stehen die Gaeste ohne Adresse auf
+     * ewig unter "nicht angeschrieben", obwohl sie laengst eingeladen sind.
+     * Bewusst KEIN Zustell- oder Lesestatus: wir wissen nur, dass jemand
+     * die Nachricht abgeschickt hat. */
+    if (req.method === "POST" && url === "/api/admin/whatsapp-vermerk") {
+      const inv = state.invites[String(q.get("token") || "")];
+      if (!inv) return json(res, 404, { error: "Unbekannter Gast" });
+      const welle = String(q.get("welle") || "1");
+      inv.whatsapp = inv.whatsapp || {};
+      if (q.get("zurueck") === "1") delete inv.whatsapp[welle];
+      else inv.whatsapp[welle] = Date.now();
+      dirty = true;
+      return json(res, 200, { ok: true, raus: inv.whatsapp[welle] || 0 });
+    }
+
     if (req.method === "POST" && url === "/api/admin/testgast") {
       const token = newToken();
+      const typ = q.get("typ") === "ehrengast" ? "ehrengast" : "ticket";
+      const partner = cleanText(q.get("partner") || "", 60);
+      const logo = partner
+        ? "partner-" + partner.toLowerCase().replace(/\.ai$/, "").replace(/[^a-z0-9]/g, "") + "-neg.png"
+        : "";
+      /* Eigene Adresse, damit die Bestaetigungsmail beim Test wirklich
+       * ankommt und geprueft werden kann - statt an eine Sammeladresse zu
+       * gehen, die vielleicht gar nicht existiert und dann bounct. */
+      const mail = clean(q.get("email"), 120).toLowerCase();
+      /* Abweichender Betrag in Cent. Eine Live-Zahlung ueber 1 Euro beweist
+       * dasselbe wie eine ueber 100 - kostet aber nur die Gebuehr, falls
+       * die Rueckerstattung liegen bleibt. Nur fuer Testgaeste. */
+      const preis = Math.max(100, Math.min(10000, parseInt(q.get("preis"), 10) || 0));
       const inv = state.invites[token] = {
-        token, pool: "Stripe-Test", typ: "ticket",
-        name: "Testbuchung " + new Date().toISOString().slice(11, 16),
-        email: "stripe-test@planyvo.com",
-        firma: "", anrede: "", partner: "", partnerLogo: "",
+        token, pool: "Stripe-Test", typ,
+        name: "Testgast " + (partner || (typ === "ehrengast" ? "Ehrengast" : "Bezahlgast")),
+        email: (mail.indexOf("@") > 0 ? mail : "stripe-test@planyvo.com"),
+        firma: "", anrede: "Liebe", partner, partnerLogo: logo,
         status: "offen",
+        preis: q.get("preis") ? preis : 0,
         mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
         daten: {}, zahlung: null,
         ticketNr: ticketNumber(token), t: Date.now()
       };
       dirty = true;
-      return json(res, 200, { ok: true, token, link: inviteLink(token) });
+      return json(res, 200, { ok: true, token, typ, partner, partnerLogo: logo,
+                              email: inv.email, preis: preisVon(inv),
+                              link: inviteLink(token) });
     }
     if (req.method === "POST" && url === "/api/admin/testgast-loeschen") {
       const inv = findInvite(q.get("t"));
@@ -1547,7 +2086,26 @@ const server = http.createServer((req, res) => {
           const zeiten = Object.values(vlog[inv.token]);
           if (zeiten.length) mail.sent = Math.min.apply(null, zeiten);
         }
+        /* Der Stand JE WELLE - das ist die Zeile, die im Monitor wirklich
+         * etwas aussagt. "Verschickt" kommt dabei aus dem Versand-
+         * Gedaechtnis und nicht aus dem Webhook: es ist die einzige
+         * Quelle, die auch dann stimmt, wenn Lettermint nichts meldet. */
+        const wellen = {};
+        for (const n of Object.keys(hasOwn(vlog, inv.token) ? vlog[inv.token] : {})) {
+          const w = (inv.wellen && inv.wellen[n]) || {};
+          wellen[n] = { sent: vlog[inv.token][n] || w.sent || 0,
+                        delivered: w.delivered || 0, opened: w.opened || 0, clicked: w.clicked || 0 };
+        }
+        /* Wellen, von denen nur der Webhook weiss (Versand-Log verloren) */
+        for (const n of Object.keys(inv.wellen || {})) {
+          if (!hasOwn(wellen, n)) wellen[n] = Object.assign({ sent: 0, delivered: 0, opened: 0, clicked: 0 }, inv.wellen[n]);
+        }
         return {
+          wellen,
+          /* Von Hand per WhatsApp verschickt - je Welle ein Zeitpunkt.
+           * Steht neben den Mailwellen, damit ein Gast ohne Adresse nicht
+           * aussieht, als haette man ihn vergessen. */
+          whatsapp: inv.whatsapp || {},
           pool: inv.pool,
           typ: inv.typ,
           name: inv.name,
@@ -1555,6 +2113,23 @@ const server = http.createServer((req, res) => {
           partner: inv.partner || "",
           status: inv.status,
           abgemeldet: inv.abgemeldet || 0,
+          /* Die Angaben aus dem Zusageformular - der Monitor zeigt sie in
+           * der Kuechenliste. Unvertraeglichkeiten sind Gesundheitsdaten:
+           * sie stehen nur hinter dem Admin-Zugang, so wie Namen und
+           * Adressen auch, und werden nach dem Event geloescht. */
+          firma: inv.firma || "",
+          rolle: inv.rolle || "",
+          daten: {
+            phone: (inv.daten && inv.daten.phone) || "",
+            diet: (inv.daten && inv.daten.diet) || "",
+            allergy: (inv.daten && inv.daten.allergy) || ""
+          },
+          ticketNr: inv.ticketNr || "",
+          /* Nur der gebuchte Betrag und wann - fuer "zuletzt bezahlt" im
+           * Monitor. Session- und PaymentIntent-ID bleiben hier drin. */
+          zahlung: (inv.zahlung && inv.zahlung.paidAt)
+            ? { betrag: inv.zahlung.amount || 0, t: inv.zahlung.paidAt }
+            : null,
           mail
         };
       });
@@ -1609,10 +2184,16 @@ const server = http.createServer((req, res) => {
      * das Vorschaubild) duerfen nicht als Gast-Oeffnung zaehlen. */
     const ua = String(req.headers["user-agent"] || "");
     const vorschauBot = /whatsapp|facebookexternalhit|telegrambot|slackbot|twitterbot|linkedinbot|discordbot|skypeuripreview/i.test(ua);
-    if (!vorschauBot && !inv.mail.opened) {
-      inv.mail.opened = Date.now();
-      logEvent("geöffnet", inv.name, inv.pool);
-      dirty = true;
+    /* Diese Seite IST das Save the Date - also Welle 0, unabhaengig davon,
+     * was der Gast sonst schon geoeffnet hat. */
+    if (!vorschauBot) {
+      const w0 = wellenMail(inv, "0");
+      if (!w0.opened) {
+        w0.opened = Date.now();
+        if (!inv.mail.opened) inv.mail.opened = w0.opened;
+        logEvent("geöffnet", inv.name, (inv.pool || "") + " · Welle 0");
+        dirty = true;
+      }
     }
     let seite;
     try { seite = renderMail(inv, "save-the-date.html"); }
@@ -1663,16 +2244,71 @@ if (befehl === "import") {
   } catch (e) { console.error("Import fehlgeschlagen: " + e.message); process.exit(1); }
   fs.writeFileSync(STATE_FILE, JSON.stringify(state));
   console.log(`Import: ${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert, ${ergebnis.gesamt} Gäste gesamt.`);
+  /* Eine geaenderte Adresse ist die einzige stille Aenderung am Register -
+   * sie muss ein Mensch gesehen haben. */
+  for (const a of ergebnis.adressen)
+    console.log(`  Adresse geändert: ${a.name}  ${a.vorher}  →  ${a.jetzt}`);
   for (const p of poolStats()) console.log(`  ${p.pool.padEnd(24)} ${String(p.gesamt).padStart(4)}  (${p.typ})`);
   console.log("\nVersandliste für Lettermint:  node server/circle-server.js export > versand.csv");
   process.exit(0);
 }
 
+/* Kuechenliste: was das Catering wirklich braucht, ohne alles andere.
+ * Nur Gaeste, die zugesagt oder bezahlt haben - wer noch nicht geantwortet
+ * hat, isst auch nichts. Am Ende die Summen, damit die Kueche nicht zaehlen
+ * muss.
+ *
+ *   node server/circle-server.js kueche              Uebersicht
+ *   node server/circle-server.js kueche --csv        als Tabelle
+ */
+if (befehl === "kueche") {
+  const dabei = Object.values(state.invites)
+    .filter(i => i.status === "zugesagt" || i.status === "bezahlt")
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+  const kost = { alles: "Alles", vegetarisch: "Vegetarisch", vegan: "Vegan", pescetarisch: "Pescetarisch" };
+  const zeile = i => ({
+    name: i.name || "", diet: (i.daten && i.daten.diet) || "",
+    allergy: (i.daten && i.daten.allergy) || "", phone: (i.daten && i.daten.phone) || ""
+  });
+
+  if (flagge("csv")) {
+    const raus = [["name", "ernaehrung", "unvertraeglichkeiten", "mobil", "status"]];
+    for (const i of dabei) {
+      const z = zeile(i);
+      raus.push([z.name, kost[z.diet] || z.diet, z.allergy, z.phone, i.status]);
+    }
+    process.stdout.write(raus.map(r => r.map(csvCell).join(",")).join("\n") + "\n");
+    process.exit(0);
+  }
+
+  console.log("Küchenliste · " + dabei.length + " zugesagte Gäste\n");
+  const zaehl = {};
+  for (const i of dabei) {
+    const z = zeile(i);
+    zaehl[z.diet || "(nicht angegeben)"] = (zaehl[z.diet || "(nicht angegeben)"] || 0) + 1;
+    console.log("  " + (z.name || "?").padEnd(28) +
+                (kost[z.diet] || z.diet || "—").padEnd(15) +
+                (z.allergy ? "⚠ " + z.allergy : ""));
+  }
+  console.log("\nNach Ernährung:");
+  for (const [k, n] of Object.entries(zaehl).sort((a, b) => b[1] - a[1]))
+    console.log("  " + (kost[k] || k).padEnd(20) + n);
+  const allergien = dabei.map(zeile).filter(z => z.allergy);
+  console.log("\nUnverträglichkeiten: " + allergien.length);
+  for (const z of allergien) console.log("  " + z.name.padEnd(28) + z.allergy);
+  console.log("\nAls Tabelle:  node server/circle-server.js kueche --csv > kueche.csv");
+  process.exit(0);
+}
+
 if (befehl === "export") {
-  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
+  const zeilen = [["pool", "typ", "anrede", "vorname", "name", "email", "firma", "rolle", "mobil", "ernaehrung", "unvertraeglichkeiten", "partner_name", "partner_logo_url", "platz_satz", "link", "app_link", "std_link", "ticket_nr", "status", "abgemeldet"]];
   for (const inv of Object.values(state.invites)) {
     zeilen.push([inv.pool, inv.typ, inv.anrede || "Hallo", (inv.name || "").split(" ")[0],
-                     inv.name, inv.email, inv.partner || "", inv.partnerLogo || "",
+                     inv.name, inv.email, inv.firma || "", inv.rolle || "",
+                     (inv.daten && inv.daten.phone) || "", (inv.daten && inv.daten.diet) || "",
+                     (inv.daten && inv.daten.allergy) || "",
+                     inv.partner || "", inv.partnerLogo || "",
                      platzSatz(inv), inviteLink(inv.token), appLink(inv.token), stdLink(inv.token), inv.ticketNr, inv.status,
                      inv.abgemeldet ? "ja" : ""]);
   }
@@ -1680,10 +2316,200 @@ if (befehl === "export") {
   process.exit(0);
 }
 
+/* Vorflugkontrolle vor einer Welle. Der Trockenlauf beantwortet "bricht das
+ * Rendern?" - dieser Befehl beantwortet "stimmt, was da rausgeht?".
+ *
+ *   node server/circle-server.js pruefen 1
+ *   node server/circle-server.js pruefen 1 --bilder   ruft jede Bild-URL ab
+ *
+ * FEHLER halten den Versand auf, WARNUNG will ein Mensch gesehen haben.
+ * Was der Befehl NICHT kann: erkennen, ob jemand in der Gaesteliste als
+ * Ehrengast steht, der eigentlich zahlen soll. Dafuer gibt es --beleg.
+ */
+if (befehl === "pruefen") {
+  const ERLAUBT_P = /^--(bilder|beleg)$/;
+  const kaputtP = argv.slice(2).filter(a => !ERLAUBT_P.test(a));
+  if (kaputtP.length) {
+    console.error("Unbekanntes Argument: " + kaputtP.join(" "));
+    console.error("Aufruf: node server/circle-server.js pruefen <0|1|2> [--bilder] [--beleg]");
+    process.exit(1);
+  }
+  const nrP = String(arg || "").replace(/[^0-9]/g, "");
+  const welleP = hasOwn(WELLEN, nrP) ? WELLEN[nrP] : null;
+  if (!welleP) {
+    console.error("Aufruf: node server/circle-server.js pruefen <0|1|2> [--bilder] [--beleg]");
+    process.exit(1);
+  }
+  const fehler = [], warnung = [];
+  const merke = (liste, gast, text) => liste.push((gast || "—").padEnd(28) + " " + text);
+
+  const alleGaeste = Object.values(state.invites);
+  const empfaenger = alleGaeste.filter(inv =>
+    inv.email && !inv.abgemeldet && !(inv.mail && inv.mail.bounced) && welleP.gilt(inv));
+
+  /* --- Register als Ganzes: Doppelgaenger faenden erst beim Gast auf --- */
+  const proMail = {}, proName = {};
+  for (const inv of alleGaeste) {
+    if (inv.email) (proMail[inv.email.toLowerCase()] ||= []).push(inv);
+    const n = (inv.name || "").toLowerCase().trim();
+    if (n) (proName[n] ||= []).push(inv);
+  }
+  for (const [mail, liste] of Object.entries(proMail))
+    if (liste.length > 1) merke(fehler, liste[0].name, "Adresse " + mail + " steht " + liste.length + "× im Register (" + liste.map(i => i.pool).join(", ") + ")");
+  for (const [, liste] of Object.entries(proName))
+    if (liste.length > 1) merke(warnung, liste[0].name, "steht " + liste.length + "× im Register – zwei Einladungen? (" + liste.map(i => i.email || "ohne Adresse").join(", ") + ")");
+
+  /* --- Gast fuer Gast --- */
+  const bilder = new Set();
+  const beleg = [];
+  for (const inv of empfaenger) {
+    const g = inv.name || inv.email;
+    if (!(inv.name || "").trim()) merke(fehler, inv.email, "kein Name – die Anrede bliebe leer");
+    if (!inv.anrede) merke(warnung, g, "keine Anrede – die Mail beginnt mit „Hallo“");
+    if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(inv.email)) merke(fehler, g, "Adresse sieht nicht wie eine Adresse aus: " + inv.email);
+    if (inv.email !== inv.email.trim() || /\s/.test(inv.email)) merke(fehler, g, "Leerzeichen in der Adresse: „" + inv.email + "“");
+    if (inv.typ !== "ticket" && inv.typ !== "ehrengast") merke(fehler, g, "unbekannter Typ „" + inv.typ + "“");
+    /* Der teuerste denkbare Fehler: ein Gast, den ein Partner eingeladen
+     * hat, wird nach 100 Euro gefragt. */
+    if (inv.partner && inv.typ === "ticket") merke(fehler, g, "kommt über Partner " + inv.partner + ", ist aber Bezahlgast – zahlt er wirklich?");
+    if (inv.partner && !inv.partnerLogo) merke(fehler, g, "Partner " + inv.partner + " ohne Logo – die Mail zeigt ein leeres Feld");
+    if (inv.partnerLogo && !inv.partner) merke(warnung, g, "Logo hinterlegt, aber kein Partnername");
+
+    const datei = welleP.vorlage(inv);
+    let html;
+    try { html = renderMail(inv, datei); }
+    catch (e) { merke(fehler, g, "Vorlage " + datei + " bricht: " + e.message); continue; }
+
+    const offen = html.match(/\{\{\s*[a-z_]+\s*\}\}/gi);
+    if (offen) merke(fehler, g, "Platzhalter nicht ersetzt: " + [...new Set(offen)].join(" "));
+
+    /* Jeder Link muss auf unsere Basis zeigen und den Token DIESES Gastes
+     * tragen - ein vertauschter Link waere der Fehler, den niemand sieht. */
+    const fremd = (html.match(/href="(https?:\/\/[^"]+)"/g) || [])
+      .map(h => h.slice(6, -1))
+      .filter(u => u.startsWith(PUBLIC_URL + "/") && !u.includes(inv.token));
+    if (fremd.length) merke(fehler, g, "Link mit fremdem Token: " + fremd[0]);
+    if (nrP !== "0" && !html.includes(inviteLink(inv.token))) merke(fehler, g, "der persönliche Link fehlt in der Mail");
+
+    for (const m of html.match(/src="(https?:\/\/[^"]+)"/g) || []) bilder.add(m.slice(5, -1));
+    beleg.push([inv.pool || "-", inv.name, inv.email, inv.typ === "ehrengast" ? "Ehrengast" : "Bezahlgast 100 €",
+                inv.partner || "—", datei, welleP.betreff(inv)]);
+  }
+
+  console.log("Vorflugkontrolle · " + welleP.name);
+  console.log("Links & Bilder über: " + PUBLIC_URL);
+  console.log(empfaenger.length + " Empfänger von " + alleGaeste.length + " im Register\n");
+
+  const uebrig = alleGaeste.length - empfaenger.length;
+  if (uebrig) {
+    const ohneMail = alleGaeste.filter(i => !i.email).length;
+    const raus = alleGaeste.filter(i => i.abgemeldet).length;
+    const tot = alleGaeste.filter(i => i.email && i.mail && i.mail.bounced).length;
+    const nichtDran = uebrig - ohneMail - raus - tot;
+    console.log("Nicht dabei: " + ohneMail + " ohne Adresse · " + tot + " unzustellbar · " +
+                raus + " abgemeldet · " + nichtDran + " nach Status dieser Welle\n");
+  }
+
+  const zeigen = () => {
+    for (const z of fehler) console.log("  FEHLER   " + z);
+    for (const z of warnung) console.log("  WARNUNG  " + z);
+    console.log("");
+    console.log(fehler.length + " Fehler · " + warnung.length + " Warnungen");
+    if (flagge("beleg")) {
+      console.log("\nBeleg – wer bekommt was (zum Gegenlesen):\n");
+      for (const b of beleg)
+        console.log("  " + b[0].padEnd(22) + " " + b[1].padEnd(26) + " " + b[3].padEnd(18) +
+                    " Partner: " + b[4].padEnd(16) + " " + b[5]);
+    }
+    process.exit(fehler.length ? 1 : 0);
+  };
+
+  if (!flagge("bilder")) {
+    console.log("(Bild-URLs nicht geprüft – dafür --bilder anhängen)\n");
+    return zeigen();
+  }
+
+  /* Ein fehlendes Logo faellt sonst erst auf, wenn 30 Partnergaeste ein
+   * leeres Kaestchen sehen. Deshalb jede URL einmal wirklich abrufen. */
+  const urls = [...bilder];
+  let offenN = urls.length;
+  console.log("Prüfe " + offenN + " Bild-Adressen …\n");
+  for (const u of urls) {
+    const mod = u.startsWith("https:") ? https : http;
+    const req = mod.request(u, { method: "HEAD", timeout: 10000 }, r => {
+      if (r.statusCode !== 200) merke(fehler, "Bild", u + " antwortet mit " + r.statusCode);
+      r.resume();
+      if (--offenN === 0) zeigen();
+    });
+    req.on("timeout", () => req.destroy(new Error("Zeitüberschreitung")));
+    req.on("error", e => { merke(fehler, "Bild", u + " nicht erreichbar: " + e.message); if (--offenN === 0) zeigen(); });
+    req.end();
+  }
+}
+
+/* Einladungen fuer Gaeste, die keine Mailadresse haben - sie bekommen
+ * denselben persoenlichen Link, nur von Hand ueber WhatsApp statt per Mail.
+ * Der Link ist derselbe wie in der Mail, also zaehlt auch die Zusage gleich.
+ *
+ *   node server/circle-server.js whatsapp          nur Gaeste ohne Adresse
+ *   node server/circle-server.js whatsapp --alle   alle Gaeste
+ *
+ * Bewusst KEIN Eintrag im Versand-Gedaechtnis: Ob die Nachricht wirklich
+ * rausging, weiss nur der Mensch, der sie verschickt hat. Wer spaeter eine
+ * Adresse nachtraegt, soll die Mail trotzdem bekommen.
+ */
+if (befehl === "whatsapp") {
+  const alle = argv.slice(1).includes("--alle");
+  const kaputt = argv.slice(1).filter(a => a !== "--alle");
+  if (kaputt.length) {
+    console.error("Aufruf: node server/circle-server.js whatsapp [--alle]");
+    process.exit(1);
+  }
+  /* Wer unter demselben Namen anderswo MIT Adresse im Register steht, bekommt
+   * seine Einladung schon per Mail. Ihn hier nochmal aufzufuehren hiesse: der
+   * Gast wird zweimal angeschrieben, per Mail und per WhatsApp. Kommt vor,
+   * wenn eine aeltere Liste denselben Menschen ohne Adresse enthielt. */
+  const mitMail = new Set(Object.values(state.invites)
+    .filter(i => i.email).map(i => (i.name || "").trim().toLowerCase()));
+  const doppelt = [];
+  const gaeste = Object.values(state.invites)
+    .filter(inv => {
+      if (inv.abgemeldet || inv.status === "abgesagt") return false;
+      if (!alle && inv.email) return false;
+      if (!inv.email && mitMail.has((inv.name || "").trim().toLowerCase())) {
+        doppelt.push(inv); return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (a.pool || "").localeCompare(b.pool || "") || (a.name || "").localeCompare(b.name || ""));
+
+  if (doppelt.length) {
+    console.log("Nicht dabei, weil sie ihre Einladung per Mail bekommen:");
+    for (const i of doppelt) console.log("  " + (i.name || "?") + "  (Pool " + (i.pool || "-") + ", ohne Adresse)");
+    console.log("");
+  }
+
+  if (!gaeste.length) {
+    console.log(alle ? "Keine Gäste in der Liste." : "Alle Gäste haben eine Mailadresse – nichts zu tun.");
+    process.exit(0);
+  }
+  console.log(gaeste.length + (alle ? " Gäste" : " Gäste ohne Mailadresse") + "\n");
+  for (const inv of gaeste) {
+    console.log("─".repeat(72));
+    console.log((inv.name || "(ohne Namen)") + "   ·   " + (inv.pool || "-") +
+                "   ·   " + (inv.typ === "ehrengast" ? "Ehrengast" : "Bezahlgast, 100 €"));
+    console.log("");
+    console.log(whatsappText(inv));
+    console.log("");
+  }
+  process.exit(0);
+}
+
 /* Wellenversand.
  *   node server/circle-server.js welle 1                  -> Trockenlauf
  *   node server/circle-server.js welle 1 --senden         -> verschickt wirklich
  *   ... --pool=neuland             nur Pools, deren Name das enthaelt
+ *   ... --typ=ehrengast            nur Ehrengaeste (oder --typ=ticket)
  *   ... --nur=max@example.com      genau eine Adresse (Testmail; ueberspringt
  *                                  Status-Regeln UND Versand-Gedaechtnis)
  *   ... --limit=5                  hoechstens fuenf Mails
@@ -1703,24 +2529,32 @@ if (befehl === "welle") {
   /* Unbekannte oder wertlose Argumente hart abweisen: "--nur max@x.de"
    * (Leerzeichen statt =) wuerde sonst still ignoriert - und der Befehl,
    * der eine Testmail schicken sollte, schickt die ganze Welle. */
-  const ERLAUBT = /^--(senden|erneut|pool=.+|nur=.+|limit=[1-9]\d*|vorschau=.+)$/;
+  const ERLAUBT = /^--(senden|erneut|pool=.+|typ=.+|nur=.+|limit=[1-9]\d*|vorschau=.+)$/;
   const kaputt = argv.slice(2).filter(a => !ERLAUBT.test(a));
   if (kaputt.length) {
     console.error("Unbekanntes oder unvollständiges Argument: " + kaputt.join(" "));
-    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--nur=mail] [--limit=n] [--vorschau=datei.html]");
+    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--typ=…] [--nur=mail] [--limit=n] [--vorschau=datei.html]");
     console.error("Werte immer mit '=': --nur=max@example.com (nicht: --nur max@example.com)");
     process.exit(1);
   }
   const nr = String(arg || "").replace(/[^0-9]/g, "");
   const welle = hasOwn(WELLEN, nr) ? WELLEN[nr] : null;
   if (!welle) {
-    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--nur=mail] [--limit=n]");
+    console.error("Aufruf: node server/circle-server.js welle <0|1|2> [--senden] [--erneut] [--pool=…] [--typ=…] [--nur=mail] [--limit=n]");
     process.exit(1);
   }
   const echt = flagge("senden");
   const erneut = flagge("erneut");
   const nurPool = wert("pool").toLowerCase();
   const nurMail = wert("nur").toLowerCase();
+  /* Ehrengaeste koennen losgeschickt werden, bevor Stripe steht - fuer
+   * Bezahlgaeste liefe der Knopf "Weiter zur Zahlung" ins Leere. Ein
+   * vertippter Wert wuerde sonst still niemanden treffen, deshalb hart. */
+  const nurTyp = wert("typ").toLowerCase();
+  if (nurTyp && nurTyp !== "ticket" && nurTyp !== "ehrengast") {
+    console.error("--typ= kennt nur 'ticket' oder 'ehrengast' (nicht: " + nurTyp + ")");
+    process.exit(1);
+  }
   const limit = parseInt(wert("limit"), 10) || 0;
 
   /* Ohne PUBLIC_URL zeigt jeder Link und jedes Bild in den Mails auf
@@ -1740,6 +2574,7 @@ if (befehl === "welle") {
     if (!inv.email) return false;
     if (inv.abgemeldet) return false;                 // Abmeldung gilt fuer alle Wellen
     if (nurMail) return inv.email.toLowerCase() === nurMail;
+    if (nurTyp && inv.typ !== nurTyp) return false;
     if (nurPool && !String(inv.pool || "").toLowerCase().includes(nurPool)) return false;
     if (!welle.gilt(inv)) return false;
     /* Tote Adressen (Bounce aus einer frueheren Welle) nicht erneut
@@ -1812,14 +2647,79 @@ if (befehl === "welle") {
   }
   if (!LETTERMINT_TOKEN) { console.error("\nLETTERMINT_TOKEN fehlt – kein Versand."); process.exit(1); }
 
+  /* Sind Bezahlgaeste dabei, muss der LAUFENDE Server Stripe scharf haben -
+   * und zwar im Live-Modus. Sonst klicken sie "Weiter zur Zahlung" und
+   * landen in einer Fehlermeldung oder, schlimmer, in einem Testkonto:
+   * 48 Zusagen ohne einen Cent, und niemandem faellt es auf.
+   * Der Versand laeuft in einem eigenen Prozess ohne die Panel-Variablen,
+   * kann Stripe also nicht selbst pruefen - deshalb die Gesundheitsseite
+   * des Servers fragen, der die Zahlungen tatsaechlich entgegennimmt. */
+  let i = 0, ok = 0, fehler = 0;
+  const mitBezahlgaesten = fertig.some(m => m.inv.typ === "ticket");
+  if (!mitBezahlgaesten) return versandStarten();
+
+  https.get(PUBLIC_URL + "/api/live/health", { timeout: 10000 }, r => {
+    let roh = "";
+    r.on("data", c => roh += c);
+    r.on("end", () => {
+      let g = {};
+      try { g = JSON.parse(roh); } catch (e) { /* unten abgefangen */ }
+      const zahl = fertig.filter(m => m.inv.typ === "ticket").length;
+      if (!g.stripe || g.stripeModus !== "live" || !g.stripeWebhook) {
+        console.error("\nABBRUCH: " + zahl + " Bezahlgäste in dieser Welle, aber der Server unter");
+        console.error(PUBLIC_URL + " kann keine Zahlungen annehmen:");
+        console.error("  Stripe-Schlüssel: " + (g.stripe ? g.stripeModus.toUpperCase() : "fehlt"));
+        console.error("  Webhook-Secret:   " + (g.stripeWebhook ? "gesetzt" : "FEHLT"));
+        console.error("\nEntweder Stripe in Ordnung bringen – oder erst die Ehrengäste schicken:");
+        console.error("  node server/circle-server.js welle " + nr + " --senden --typ=ehrengast");
+        process.exit(1);
+      }
+      /* Gesetzte Schluessel heissen nicht, dass Stripe auch Geld annimmt:
+       * ein pausiertes Konto sieht von aussen genauso aus. Deshalb einmal
+       * wirklich eine Checkout-Sitzung anlegen - sie wird nie geoeffnet und
+       * verfaellt von selbst. Genau dieser Fall (Konto pausiert, keine
+       * Zahlungsart fuer Euro) waere sonst erst beim ersten Gast aufgefallen. */
+      const probeGast = fertig.find(m => m.inv.typ === "ticket").inv;
+      const daten = JSON.stringify({ t: probeGast.token });
+      const anfrage = https.request(PUBLIC_URL + "/api/invite/checkout", {
+        method: "POST", timeout: 15000,
+        headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(daten) }
+      }, a => {
+        let p = "";
+        a.on("data", c => p += c);
+        a.on("end", () => {
+          let j = {};
+          try { j = JSON.parse(p); } catch (e) { /* unten */ }
+          if (a.statusCode === 200 && j.url) return versandStarten();
+          console.error("\nABBRUCH: " + zahl + " Bezahlgäste in dieser Welle, aber Stripe");
+          console.error("nimmt gerade kein Geld an. Antwort auf eine Testbuchung:");
+          console.error("  " + (j.error || ("HTTP " + a.statusCode)));
+          console.error("\nErst die Ehrengäste schicken:");
+          console.error("  node server/circle-server.js welle " + nr + " --senden --typ=ehrengast");
+          process.exit(1);
+        });
+      });
+      anfrage.on("error", e => {
+        console.error("\nABBRUCH: Stripe-Probe fehlgeschlagen: " + e.message);
+        process.exit(1);
+      });
+      anfrage.end(daten);
+    });
+  }).on("error", e => {
+    console.error("\nABBRUCH: Bezahlgäste in dieser Welle, aber " + PUBLIC_URL +
+                  " antwortet nicht (" + e.message + ").");
+    console.error("Läuft die App? Ohne sie kann niemand zusagen oder zahlen.");
+    process.exit(1);
+  });
+
   /* Nacheinander, nicht alle auf einmal: das schont das Sendelimit und die
    * Zustellbarkeit einer noch jungen Absenderdomain.
    * WICHTIG: Dieser Prozess schreibt live-state.json NICHT - die laufende
    * App darf waehrend des Versands weiterlaufen (Landing Page, Zusagen,
    * Zahlungen). Jeder Erfolg landet sofort im Versand-Gedaechtnis, damit
    * auch ein Strg-C bei Mail 120 von 200 nichts vergisst. */
-  let i = 0, ok = 0, fehler = 0;
-  (function weiter() {
+  function versandStarten() { weiter(); }
+  function weiter() {
     if (i >= fertig.length) {
       console.log("\n" + ok + " verschickt, " + fehler + " fehlgeschlagen.");
       if (fehler) console.log("Nochmal ausführen schickt NUR an die Fehlgeschlagenen (Versand-Gedächtnis).");
@@ -1843,7 +2743,7 @@ if (befehl === "welle") {
       }
       setTimeout(weiter, 250);
     });
-  })();
+  }
   return;
 }
 
@@ -1862,7 +2762,23 @@ process.on("unhandledRejection", (err) => {
   console.error("unhandledRejection:", err && err.stack || err);
 });
 
-server.listen(PORT, () => {
+/* Ab hier laeuft nur noch der Server - und zwar NUR, wenn gar kein Befehl
+ * angegeben wurde. Die meisten Befehle beenden sich vorher selbst; der echte
+ * Versand und die Bilderpruefung warten dagegen auf Antworten und laufen bis
+ * hierher weiter. Wuerde dann der Server starten und der Port waere schon von
+ * der laufenden App belegt, brechen EADDRINUSE und der Fehlerhaken den Prozess
+ * ab - mitten in einer Welle, nach vierzig von vierundneunzig Mails. */
+if (befehl) {
+  const BEKANNT = ["import", "export", "welle", "whatsapp", "pruefen", "kueche"];
+  if (!BEKANNT.includes(befehl)) {
+    console.error("Unbekannter Befehl: " + befehl);
+    console.error("Bekannt: " + BEKANNT.join(", "));
+    process.exit(1);
+  }
+  /* Befehl laeuft noch (Versand, Bilderpruefung) – er beendet sich selbst. */
+} else server.listen(PORT, () => {
+  /* Einmalig: alten Sammel-Stand auf die Wellen aufteilen. */
+  wellenNachruesten();
   const stats = gesamtStats();
   console.log("THE CIRCLE läuft auf " + PUBLIC_URL);
   console.log("  Landing Page:  " + PUBLIC_URL + "/einladung?t=TOKEN");
