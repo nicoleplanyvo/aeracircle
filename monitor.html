@@ -448,6 +448,13 @@
     <h2>Über WhatsApp</h2>
     <p class="fnote" id="wanote"></p>
     <table class="ktable"><tbody id="waliste"></tbody></table>
+    <!-- Nachreichen: kommt oefter vor, als man denkt. Die Mail landet im
+         Spam, der Gast loescht sie, und dann braucht jemand den Link von
+         Hand - fuer einen Gast, der sehr wohl eine Adresse hat. -->
+    <div class="mailtools" style="margin-top:18px">
+      <input id="wanach" type="search" placeholder="Nachreichen: E-Mail-Adresse des Gastes …" autocomplete="off">
+      <button type="button" class="export" id="wanachknopf">Nachricht erzeugen</button>
+    </div>
   </div>
 
   <!-- 7 · Der Einzelfall. Ganz unten, weil man hierher springt, wenn oben
@@ -550,6 +557,7 @@ addEventListener("load", ()=>{
   /* Zurück aus dem Hintergrund: sofort nachladen, nicht bis zum nächsten
      Takt warten – sonst schaut man auf eine halbe Stunde alte Zahlen. */
   document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) laden(); });
+  nachreichenBinden();
 
   laden();
 });
@@ -1090,9 +1098,13 @@ async function hooksHolen(){
 /* Die persoenlichen Links der Gaeste ohne Adresse. Eigener Aufruf, weil der
    Server sie bewusst NICHT in der normalen Gaesteliste mitliefert: ein Link
    eroeffnet die Zusage: wer ihn hat, kann fuer den Gast antworten. */
+/* Adressen, fuer die eine Nachricht nachgereicht werden soll (Mail im
+   Spam gelandet). Leben nur in dieser Ansicht - nach dem Neuladen weg. */
+let waNachreichen = [];
 async function whatsappHolen(){
   try{
-    const r = await fetch("/api/admin/whatsapp" + (KEY ? "?key=" + encodeURIComponent(KEY) : ""),
+    const r = await fetch("/api/admin/whatsapp?x=1" + (KEY ? "&key=" + encodeURIComponent(KEY) : "") +
+                          (waNachreichen.length ? "&auch=" + encodeURIComponent(waNachreichen.join(",")) : ""),
                           { cache: "no-store" });
     if(!r.ok) return;
     const d = await r.json();
@@ -1103,7 +1115,8 @@ async function whatsappHolen(){
       const tr = document.createElement("tr");
       const na = document.createElement("td");
       txt(na.appendChild(document.createElement("b")), g.name || "—");
-      txt(na.appendChild(document.createElement("span")), [g.pool, g.rolle].filter(Boolean).join(" · "));
+      txt(na.appendChild(document.createElement("span")),
+          [g.pool, g.rolle, g.nachgereicht ? "nachgereicht · " + g.email : ""].filter(Boolean).join(" · "));
       na.className = "gname";
       const ak = document.createElement("td");
       ak.style.textAlign = "right";
@@ -1151,8 +1164,33 @@ async function whatsappHolen(){
       (d.uebersprungen && d.uebersprungen.length
         ? " Nicht dabei: " + d.uebersprungen.map(u => u.name).join(", ") + " – bekommt die Einladung per Mail."
         : "");
-    $("#wapanel").style.display = d.anzahl ? "block" : "none";
+    $("#wapanel").style.display = (d.anzahl || waNachreichen.length) ? "block" : "none";
   }catch(e){ /* still: der Monitor bleibt ohne diesen Block benutzbar */ }
+}
+
+/* Nachreichen: Adresse eintippen, Nachricht erscheint in der Liste darüber.
+   Der Gast bleibt im Register unverändert - das hier erzeugt nur den Text. */
+function nachreichenBinden(){
+  const feld = $("#wanach"), knopf = $("#wanachknopf");
+  if(!feld || !knopf) return;
+  const los = async ()=>{
+    const mail = (feld.value || "").trim().toLowerCase();
+    if(mail.indexOf("@") < 1){ feld.focus(); return; }
+    if(!waNachreichen.includes(mail)) waNachreichen.push(mail);
+    knopf.disabled = true; knopf.textContent = "…";
+    await whatsappHolen();
+    knopf.disabled = false; knopf.textContent = "Nachricht erzeugen";
+    /* Kein Treffer? Dann steht die Adresse nicht im Register - sagen, statt
+       stumm nichts zu tun. */
+    const drin = [...document.querySelectorAll("#waliste .gname span")]
+      .some(s => s.textContent.includes(mail));
+    feld.value = drin ? "" : feld.value;
+    if(!drin){ waNachreichen = waNachreichen.filter(m => m !== mail);
+               knopf.textContent = "Keine Adresse im Register";
+               setTimeout(()=>{ knopf.textContent = "Nachricht erzeugen"; }, 2500); }
+  };
+  knopf.addEventListener("click", los);
+  feld.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); los(); } });
 }
 
 async function gaesteHolen(){

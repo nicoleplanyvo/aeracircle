@@ -1965,8 +1965,15 @@ const server = http.createServer((req, res) => {
     if (url === "/api/admin/whatsapp") {
       const mitMail = new Set(Object.values(state.invites)
         .filter(i => i.email).map(i => (i.name || "").trim().toLowerCase()));
+      /* Nachreichen fuer einen benannten Gast MIT Adresse: die Einladung
+       * ist im Spam gelandet oder geloescht worden, und jemand braucht den
+       * Link von Hand. Bewusst nur gegen eine ausdruecklich genannte
+       * Adresse - kein Weg, sich die Liste aller Links ausgeben zu lassen. */
+      const auch = new Set(String(q.get("auch") || "").toLowerCase()
+        .split(",").map(s => s.trim()).filter(s => s.indexOf("@") > 0));
       const uebersprungen = [];
       const dran = Object.values(state.invites).filter(inv => {
+        if (auch.size && inv.email && auch.has(inv.email.toLowerCase())) return true;
         if (inv.email || inv.abgemeldet || inv.status === "abgesagt") return false;
         if (mitMail.has((inv.name || "").trim().toLowerCase())) {
           uebersprungen.push({ name: inv.name, pool: inv.pool, grund: "bekommt die Einladung per Mail" });
@@ -1981,6 +1988,9 @@ const server = http.createServer((req, res) => {
         gaeste: dran.map(inv => ({
           name: inv.name, pool: inv.pool,
           rolle: inv.typ === "ehrengast" ? "Ehrengast" : "Bezahlgast, 100 €",
+          /* Hat eine Adresse und steht trotzdem hier: nachgereicht. */
+          nachgereicht: !!inv.email,
+          email: inv.email || "",
           token: inv.token,
           raus: (inv.whatsapp && inv.whatsapp["1"]) || 0,
           link: inviteLink(inv.token),
