@@ -332,10 +332,41 @@ function serveFile(res, file, type) {
 
 const newToken = () => crypto.randomBytes(9).toString("base64url");   // 12 Zeichen, unerratbar
 
-function ticketNumber(token) {                 // stabile Nummer aus dem Token
+/* Die Nummer im Kreis.
+ *
+ * Erste Fassung war "11 + (hash % 88)" - 88 moegliche Nummern. Bei 107
+ * Gaesten ist eine Doppelung nicht unwahrscheinlich, sondern zwingend, und
+ * schon ab etwa 15 Gaesten wahrscheinlicher als nicht (Geburtstagsparadox).
+ * Gemerkt hat es niemand, weil die Nummer erst mit der Zusage sichtbar wird
+ * - und dann steht sie in der Bestaetigungsmail.
+ *
+ * Jetzt: derselbe Hash als VORSCHLAG, aber in einem Bereich mit Luft, und
+ * belegte Nummern werden weitergezaehlt. Die Nummer bleibt zufaellig
+ * verteilt - eine laufende Nummer wuerde verraten, wer als Erster zugesagt
+ * hat. */
+const NUMMERN_BEREICH = 299;                   // 001 … 299
+
+function ticketNumber(token) {                 // Vorschlag aus dem Token
   let h = 0;
   for (const c of token) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return "№ " + String(11 + (h % 88)).padStart(3, "0");
+  return h;
+}
+const nummerText = n => "№ " + String(n).padStart(3, "0");
+
+/* Die naechste freie Nummer ab dem Vorschlag. `belegt` ist ein Set der
+ * bereits vergebenen Nummern - wer viele Gaeste auf einmal anlegt, reicht
+ * dasselbe Set durch und spart sich den Aufbau je Gast. */
+function ticketNummerVergeben(token, belegt) {
+  if (!belegt) {
+    belegt = new Set();
+    for (const i of Object.values(state.invites)) if (i.ticketNr) belegt.add(i.ticketNr);
+  }
+  const start = ticketNumber(token) % NUMMERN_BEREICH;
+  for (let i = 0; i < NUMMERN_BEREICH; i++) {
+    const nr = nummerText(1 + ((start + i) % NUMMERN_BEREICH));
+    if (!belegt.has(nr)) { belegt.add(nr); return nr; }
+  }
+  return "";                                   // alle 299 vergeben - dann fehlt sie lieber
 }
 
 function logEvent(art, gast, detail) {
@@ -512,6 +543,11 @@ function importRows(rows) {
 
   let neu = 0, aktualisiert = 0;
   const adressen = [];
+  /* Einmal aufgebaut und durchgereicht: sonst vergaebe ein Import mit zwei
+   * neuen Gaesten beiden dieselbe freie Nummer, weil der zweite den ersten
+   * noch nicht im Register sieht. */
+  const belegteNummern = new Set();
+  for (const i of Object.values(state.invites)) if (i.ticketNr) belegteNummern.add(i.ticketNr);
   for (const r of rows.slice(1)) {
     const email = clean(r[iMail], 120).toLowerCase();
     const zeilenName = cleanText(r[iName], 60);
@@ -580,7 +616,7 @@ function importRows(rows) {
         mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
         daten: iTelefon >= 0 && r[iTelefon] ? { phone: cleanText(r[iTelefon], 30) } : {},
         zahlung: null,
-        ticketNr: ticketNumber(token),
+        ticketNr: ticketNummerVergeben(token, belegteNummern),
         t: Date.now()
       };
       if (email) byMail[email] = inv;
@@ -2126,6 +2162,59 @@ const server = http.createServer((req, res) => {
       return;
     }
 
+    /* Doppelte Kreis-Nummern einsammeln und neu vergeben.
+     *
+     * Noetig geworden durch den zu engen Zahlenbereich der ersten Fassung
+     * (88 Nummern fuer 107 Gaeste). Ohne ?senden=1 nur die Liste: wer
+     * behaelt seine Nummer, wer bekommt eine neue.
+     *
+     * Wer seine Nummer schon KENNT, behaelt sie - sie stand in seiner
+     * Bestaetigungsmail und auf seinem Bildschirm. Bei mehreren Wissenden
+     * in derselben Gruppe kann nur einer sie behalten; dann gewinnt, wer
+     * zuerst reagiert hat (frueherer Klick), und die anderen werden in der
+     * Antwort einzeln aufgefuehrt - die muss ein Mensch sehen. */
+    if (req.method === "POST" && url === "/api/admin/nummern") {
+      const alle = Object.values(state.invites);
+      const kennt = i => i.status === "zugesagt" || i.status === "bezahlt";
+      const gruppen = {};
+      for (const i of alle) if (i.ticketNr) (gruppen[i.ticketNr] ||= []).push(i);
+
+      /* Wer in seiner Gruppe die Nummer behaelt. */
+      const rang = i => [kennt(i) ? 0 : 1,
+                         (i.mail && i.mail.clicked) || Number.MAX_SAFE_INTEGER,
+                         i.name || ""];
+      const behalten = new Set();
+      const neuVergeben = [];
+      for (const nr of Object.keys(gruppen)) {
+        const liste = gruppen[nr].slice().sort((a, b) => {
+          const ra = rang(a), rb = rang(b);
+          return ra[0] - rb[0] || ra[1] - rb[1] || String(ra[2]).localeCompare(String(rb[2]));
+        });
+        behalten.add(liste[0].token);
+        for (const i of liste.slice(1)) neuVergeben.push(i);
+      }
+      const belegt = new Set();
+      for (const i of alle) if (i.ticketNr && behalten.has(i.token)) belegt.add(i.ticketNr);
+
+      const aenderungen = neuVergeben.map(inv => {
+        const neu = ticketNummerVergeben(inv.token, belegt);
+        return { name: inv.name, email: inv.email || "", status: inv.status,
+                 vorher: inv.ticketNr, jetzt: neu,
+                 /* Diese Gaeste haben ihre alte Nummer schon gesehen. */
+                 kannteSieSchon: kennt(inv) };
+      });
+      if (q.get("senden") !== "1") {
+        return json(res, 200, { ok: true, probelauf: true, anzahl: aenderungen.length,
+                                schonMitgeteilt: aenderungen.filter(a => a.kannteSieSchon),
+                                aenderungen });
+      }
+      aenderungen.forEach((a, i) => { neuVergeben[i].ticketNr = a.jetzt; });
+      dirty = true;
+      return json(res, 200, { ok: true, geaendert: aenderungen.length,
+                              schonMitgeteilt: aenderungen.filter(a => a.kannteSieSchon),
+                              aenderungen });
+    }
+
     /* Jemanden von der Warteliste nachruecken lassen - wenn ein Bezahlgast
      * abgesagt hat oder ein Platz erstattet wurde. Der Gast steht danach
      * auf "zugesagt": der Platz gehoert ihm, die Zahlung fehlt noch. Die
@@ -2197,7 +2286,7 @@ const server = http.createServer((req, res) => {
         preis: q.get("preis") ? preis : 0,
         mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
         daten: {}, zahlung: null,
-        ticketNr: ticketNumber(token), t: Date.now()
+        ticketNr: ticketNummerVergeben(token), t: Date.now()
       };
       dirty = true;
       return json(res, 200, { ok: true, token, typ, partner, partnerLogo: logo,
