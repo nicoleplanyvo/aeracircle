@@ -2017,6 +2017,52 @@ const server = http.createServer((req, res) => {
       return json(res, 200, { ok: true, raus: inv.whatsapp[welle] || 0 });
     }
 
+    /* Einen Gast nachtragen, waehrend die Wellen laufen. Absagen und
+     * Nachrueckerinnen kommen jetzt taeglich - und der CSV-Import ist dafuer
+     * der falsche Weg: der schreibt live-state.json aus einem ZWEITEN
+     * Prozess, waehrend die laufende App dieselbe Datei alle zwei Sekunden
+     * aus ihrem eigenen Speicher zurueckschreibt. Wer waehrenddessen zusagt
+     * oder zahlt, faellt durch den Rost. Hier passiert es IN der App.
+     * Dieselbe Funktion wie der Import, damit es nur eine Regel gibt, wie
+     * ein Gast entsteht (Token, Ticketnummer, Wiedererkennung). */
+    if (req.method === "POST" && url === "/api/admin/gast") {
+      const name = cleanText(q.get("name") || "", 60);
+      const email = clean(q.get("email") || "", 120).toLowerCase();
+      if (!name) return json(res, 400, { error: "name fehlt" });
+      if (email && email.indexOf("@") < 1) return json(res, 400, { error: "email ohne @" });
+      const kopf = ["pool", "typ", "anrede", "name", "email", "firma", "rolle", "partner", "partner_logo", "telefon"];
+      const zeile = kopf.map(k => cleanText(q.get(k === "email" ? "email" : k) || "", 200));
+      let ergebnis;
+      try { ergebnis = importRows([kopf, zeile]); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+      dirty = true;
+      const inv = (email && Object.values(state.invites).find(i => (i.email || "").toLowerCase() === email)) ||
+                  Object.values(state.invites).find(i => i.name === name);
+      return json(res, 200, {
+        ok: true, neu: ergebnis.neu, aktualisiert: ergebnis.aktualisiert,
+        gast: inv ? { name: inv.name, pool: inv.pool, typ: inv.typ, email: inv.email,
+                      ticketNr: inv.ticketNr, status: inv.status, link: inviteLink(inv.token) } : null
+      });
+    }
+
+    /* Absage von Hand vermerken - der Gast hat ueber Dylan oder am Telefon
+     * abgesagt und wird seinen persoenlichen Link nicht selbst benutzen.
+     * Bezahlte Teilnahmen bleiben aussen vor: da haengt Geld dran, das erst
+     * erstattet werden muss. */
+    if (req.method === "POST" && url === "/api/admin/absage") {
+      const mail = String(q.get("email") || "").toLowerCase().trim();
+      const inv = findInvite(q.get("t")) ||
+                  (mail ? Object.values(state.invites).find(i => (i.email || "").toLowerCase() === mail) : null);
+      if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+      if (inv.status === "bezahlt") {
+        return json(res, 409, { error: "bereits bezahlt – erst in Stripe erstatten" });
+      }
+      inv.status = q.get("zurueck") === "1" ? "offen" : "abgesagt";
+      logEvent(inv.status === "abgesagt" ? "abgesagt" : "zurueckgesetzt", inv.name, inv.pool);
+      dirty = true;
+      return json(res, 200, { ok: true, name: inv.name, status: inv.status });
+    }
+
     if (req.method === "POST" && url === "/api/admin/testgast") {
       const token = newToken();
       const typ = q.get("typ") === "ehrengast" ? "ehrengast" : "ticket";
