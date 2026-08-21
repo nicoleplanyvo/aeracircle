@@ -577,14 +577,23 @@ function poolTyp(pool) {
 
 function poolStats() {
   const pools = {};
+  /* "Versendet" hat zwei Quellen - genau wie in gesamtStats. Ohne das
+   * Versand-Gedaechtnis stand in jeder Poolzeile eine 0, waehrend die
+   * Kopfzeile 94 meldete: derselbe Bildschirm, zwei Wahrheiten. */
+  const vlog = versandLogLesenGepuffert();
   for (const inv of Object.values(state.invites)) {
     const p = pools[inv.pool] || (pools[inv.pool] = {
       pool: inv.pool, typ: inv.typ, gesamt: 0,
+      /* Pools sind nicht sortenrein: in AERA sitzen Ehrengaeste UND
+       * Bezahlgaeste. Ein einzelnes typ-Feld (das des ersten Gastes)
+       * schrieb ganzen Pools die falsche Rolle zu. */
+      ehrengaeste: 0, tickets: 0,
       versendet: 0, geoeffnet: 0, geklickt: 0,
       zugesagt: 0, bezahlt: 0, abgesagt: 0, offen: 0, umsatz: 0
     });
     p.gesamt++;
-    if (inv.mail.sent) p.versendet++;
+    if (inv.typ === "ehrengast") p.ehrengaeste++; else p.tickets++;
+    if (inv.mail.sent || (hasOwn(vlog, inv.token) && Object.keys(vlog[inv.token]).length)) p.versendet++;
     if (inv.mail.opened) p.geoeffnet++;
     if (inv.mail.clicked) p.geklickt++;
     if (inv.status === "zugesagt" || inv.status === "bezahlt") p.zugesagt++;
@@ -601,8 +610,7 @@ function gesamtStats() {
   /* "Versendet" hat zwei Quellen: den sent-Webhook von Lettermint UND das
    * Versand-Gedaechtnis der CLI (nur lesend). Ohne das Log zeigte der
    * Monitor "0 versendet", obwohl die Welle laengst draussen ist. */
-  let vlog = {};
-  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
+  const vlog = versandLogLesenGepuffert();
   return {
     gesamt: all.length,
     versendet: zaehl(i => i.mail.sent || (hasOwn(vlog, i.token) && Object.keys(vlog[i.token]).length)),
@@ -628,12 +636,11 @@ function gesamtStats() {
  *   gesperrt   gehoert in die Welle, ist aber nicht anschreibbar
  *              (keine Adresse, abgemeldet oder Bounce) */
 function wellenStats() {
-  let vlog = {};
-  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
+  const vlog = versandLogLesenGepuffert();
   const all = Object.values(state.invites);
   return Object.keys(WELLEN).map(nr => {
     const w = WELLEN[nr];
-    let versendet = 0, faellig = 0, gesperrt = 0, erster = 0, letzter = 0;
+    let versendet = 0, faellig = 0, gesperrt = 0, erster = 0, letzter = 0, ueberholt = 0;
     /* Die Reaktionen zaehlen JE WELLE - fruehere Zahlen mischten alle
      * Mailings in einen Topf und lasen sich dadurch falsch. */
     let zugestellt = 0, geoeffnet = 0, geklickt = 0, zugesagt = 0, bezahlt = 0;
@@ -655,10 +662,17 @@ function wellenStats() {
         continue;                                  // raus ist raus
       }
       if (!w.gilt(inv)) continue;                  // gehoert nicht in diese Welle
-      if (!inv.email || inv.abgemeldet || (inv.mail && inv.mail.bounced)) gesperrt++;
+      if (!inv.email || inv.abgemeldet || (inv.mail && inv.mail.bounced)) { gesperrt++; continue; }
+      /* Wer schon eine SPAeTERE Welle bekommen hat, ist fuer diese hier
+       * durch. Sonst stuende bei "Save the Date" auf ewig "41 faellig" -
+       * fuer Gaeste, die laengst ihre Einladung haben. Ein Nachlauf haette
+       * ihnen nach der Einladung noch die Vorankuendigung geschickt. */
+      const spaeter = hasOwn(vlog, inv.token) &&
+        Object.keys(vlog[inv.token]).some(n => Number(n) > Number(nr) && vlog[inv.token][n]);
+      if (spaeter) ueberholt++;
       else faellig++;
     }
-    return { nr: Number(nr), name: w.name, versendet, faellig, gesperrt, erster, letzter,
+    return { nr: Number(nr), name: w.name, versendet, faellig, gesperrt, ueberholt, erster, letzter,
              zugestellt, geoeffnet, geklickt, zugesagt, bezahlt };
   });
 }
@@ -672,8 +686,7 @@ function wellenStats() {
  * Wellen bekommen hat, zaehlt in beiden Gruppen. Der Monitor schreibt das
  * unter die Tabelle dazu. */
 function fassungStats() {
-  let vlog = {};
-  try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* kein Log = kein Versand */ }
+  const vlog = versandLogLesenGepuffert();
   const gruppen = {};
   for (const inv of Object.values(state.invites)) {
     if (!hasOwn(vlog, inv.token)) continue;
@@ -2078,8 +2091,7 @@ const server = http.createServer((req, res) => {
        * Lettermint UND dem Versand-Gedaechtnis der CLI (nur LESEND - die
        * Datei gehoert der CLI, siehe dort). So zeigt der Monitor den
        * Versand auch, wenn der Webhook noch nicht eingerichtet ist. */
-      let vlog = {};
-      try { vlog = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); } catch (e) { /* egal hier */ }
+      const vlog = versandLogLesenGepuffert();
       const gaeste = Object.values(state.invites).map(inv => {
         const mail = Object.assign({ sent: 0, delivered: 0, opened: 0, clicked: 0 }, inv.mail);
         if (!mail.sent && hasOwn(vlog, inv.token)) {

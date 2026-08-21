@@ -787,6 +787,8 @@ function wellenNote(w){
     teile.push("Noch nicht verschickt");
   }
   if(w.faellig)  teile.push(w.faellig + (w.faellig === 1 ? " würde" : " würden") + " jetzt rausgehen");
+  /* Gäste, die schon eine spätere Welle haben: für diese hier erledigt. */
+  if(w.ueberholt) teile.push(w.ueberholt + " haben stattdessen die nächste Welle bekommen");
   if(w.versendet && w.zugestellt < w.versendet)
     teile.push((w.versendet - w.zugestellt) + " ohne Zustellmeldung");
   if(w.gesperrt) teile.push(w.gesperrt + " nicht anschreibbar (keine Adresse, Bounce oder abgemeldet)");
@@ -807,17 +809,30 @@ function poolsRendern(pools){
     const row = document.createElement("div"); row.className = "prow";
     const name = document.createElement("div"); name.className = "pname";
     txt(name.appendChild(document.createElement("b")), p.pool);
-    txt(name.appendChild(document.createElement("span")), p.typ === "ehrengast" ? "Zusage · kein Ticket" : "Ticket · 100 €");
+    /* Gemischte Pools beim Namen nennen: "AERA · Ticket 100 €" war falsch,
+       dort sitzen auch Ehrengäste. Ältere Antworten ohne die beiden Zähler
+       fallen auf das alte Verhalten zurück. */
+    const eh = p.ehrengaeste, tk = p.tickets;
+    const rolle = (eh === undefined || tk === undefined)
+      ? (p.typ === "ehrengast" ? "Zusage · kein Ticket" : "Ticket · 100 €")
+      : (eh && tk) ? tk + "× Ticket · " + eh + "× Ehrengast"
+      : eh ? "Zusage · kein Ticket" : "Ticket · 100 €";
+    txt(name.appendChild(document.createElement("span")), rolle + " · " + p.gesamt + " im Pool");
     const track = document.createElement("div"); track.className = "ptrack";
     const bar = track.appendChild(document.createElement("i"));
-    if(p.typ === "ehrengast") bar.className = "bez";
+    if(!tk) bar.className = "bez";
     const nums = document.createElement("div"); nums.className = "pnum";
-    nums.append(zelle(String(p.gesamt), "Eingeladen"),
+    /* "Eingeladen" stand auf der Poolgröße – auch für Gäste ohne Adresse,
+       die noch gar nichts bekommen haben. Jetzt zählt, was raus ist. */
+    nums.append(zelle(String(p.versendet), "Angeschrieben"),
                 zelle(String(p.zugesagt), "Zugesagt"),
-                zelle(p.typ === "ehrengast" ? "—" : String(p.bezahlt), "Bezahlt"));
+                zelle(tk ? String(p.bezahlt) : "—", "Bezahlt"));
     row.append(name, track, nums);
     box.appendChild(row);
-    requestAnimationFrame(()=>{ bar.style.width = (p.gesamt ? Math.round(p.zugesagt / p.gesamt * 100) : 0) + "%"; });
+    /* Zusagequote gegen die Angeschriebenen, nicht gegen die Poolgröße –
+       wer nichts bekommen hat, kann auch nicht zugesagt haben. */
+    const basis = p.versendet || p.gesamt;
+    requestAnimationFrame(()=>{ bar.style.width = (basis ? Math.round(p.zugesagt / basis * 100) : 0) + "%"; });
   }
 }
 
@@ -1160,6 +1175,13 @@ async function gaesteHolen(){
    Handlungsbedarf. Ein Chip erscheint nur, wenn er jemanden trifft. */
 /* Hat dieser Gast seine Einladung von Hand bekommen? */
 const waRaus = g => !!(g.whatsapp && Object.keys(g.whatsapp).length);
+/* Manche stehen doppelt im Register - einmal mit Adresse, einmal ohne
+   (zwei Pools, dieselbe Person). Der Eintrag ohne Adresse gehört dann NICHT
+   auf Dylans Liste: sie hat ihre Einladung längst per Mail. Genau diese
+   Regel wendet auch /api/admin/whatsapp an, sonst zählte der Chip einen
+   Gast mehr als das Panel darunter zeigt. */
+const perMailErreicht = g => !g.email && alleGaeste.some(a =>
+  a !== g && a.email && (a.name || "").trim().toLowerCase() === (g.name || "").trim().toLowerCase());
 
 const FILTER = [
   { k:"alle",       t:"Alle",                f:()=>true },
@@ -1175,7 +1197,7 @@ const FILTER = [
   { k:"nichtraus",  t:"Nicht angeschrieben", f:g => !!g.email && !g.mail.sent },
   { k:"bounce",     t:"Unzustellbar",        f:g => !!g.mail.bounced },
   { k:"ohnemail",   t:"Ohne Adresse",        f:g => !g.email },
-  { k:"waoffen",    t:"WhatsApp offen",      f:g => !g.email && !waRaus(g) &&
+  { k:"waoffen",    t:"WhatsApp offen",      f:g => !g.email && !waRaus(g) && !perMailErreicht(g) &&
                                                     g.status !== "abgesagt" && !g.abgemeldet },
   { k:"abgemeldet", t:"Abgemeldet",          f:g => !!g.abgemeldet }
 ];
