@@ -382,6 +382,11 @@ const TERMIN_ICS = [
 /* Satz ueber dem CTA der Ehrengast-Mail. Hat ein Partner eingeladen, waere
  * "Einladung des Hauses" ein Widerspruch zum Partner-Block darueber. */
 function platzSatz(inv) {
+  /* Nur Ehrengaeste haben einen Platz geschenkt bekommen. In den Vorlagen
+   * greift der Satz ohnehin nur dort - aber die Kontrollliste rechnet ihn
+   * fuer JEDEN Gast aus, und dort stand bei Bezahlgaesten "Einladung des
+   * Hauses" neben "Beitrag 100 Euro". */
+  if (inv.typ !== "ehrengast") return "";
   return inv.partner
     ? "Dein Platz ist für dich freigehalten — es genügt ein Wort."
     : "Dein Platz ist eine Einladung des Hauses — es genügt ein Wort.";
