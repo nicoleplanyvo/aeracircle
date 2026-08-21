@@ -311,6 +311,8 @@
     <div class="kpi"><b data-k="zugesagt" data-n="58">0</b><span>Zugesagt</span></div>
     <div class="kpi"><b data-k="bezahlt" data-n="41">0</b><span>Bezahlt</span></div>
     <div class="kpi"><b data-k="abgesagt" data-n="9">0</b><span>Abgesagt</span></div>
+    <div class="kpi"><b data-k="ticketFrei" data-n="0">0</b><span>Bezahlplätze frei</span></div>
+    <div class="kpi" id="kpiWarteliste" style="display:none"><b data-k="warteliste" data-n="0">0</b><span>Warteliste</span></div>
     <div class="kpi"><b data-k="unzustellbar" data-n="3">0</b><span>Unzustellbar</span></div>
     <div class="kpi"><b data-k="abgemeldet" data-n="2">0</b><span>Abgemeldet</span></div>
   </div>
@@ -671,9 +673,17 @@ const pct = (a, b) => (b && a != null) ? " · " + Math.round(a / b * 100) + " %"
    Sendung. Alles Sendungsbezogene steht je Welle. */
 function kpisSetzen(g){
   const werte  = { gesamt:g.gesamt, versendet:g.versendet, zugesagt:g.zugesagt, bezahlt:g.bezahlt,
-                   abgesagt:g.abgesagt, unzustellbar:g.unzustellbar, abgemeldet:g.abgemeldet };
+                   abgesagt:g.abgesagt, unzustellbar:g.unzustellbar, abgemeldet:g.abgemeldet,
+                   ticketFrei:g.ticketFrei, warteliste:g.warteliste };
   const labels = { gesamt:"Gäste", versendet:"Angeschrieben", zugesagt:"Zugesagt", bezahlt:"Bezahlt",
-                   abgesagt:"Abgesagt", unzustellbar:"Unzustellbar", abgemeldet:"Abgemeldet" };
+                   abgesagt:"Abgesagt", unzustellbar:"Unzustellbar", abgemeldet:"Abgemeldet",
+                   /* Der Deckel gehört ins Bild, sonst sieht "3 bezahlt"
+                      nach viel Luft aus, wo längst keine mehr ist. */
+                   ticketFrei:"Bezahlplätze frei von " + (g.ticketLimit || 50),
+                   warteliste:"Warteliste" };
+  /* Die Warteliste erscheint erst, wenn jemand darauf steht. */
+  const wl = document.getElementById("kpiWarteliste");
+  if(wl) wl.style.display = g.warteliste ? "" : "none";
   document.querySelectorAll(".kpi b[data-k]").forEach(el => {
     const k = el.dataset.k;
     el.textContent = werte[k] == null ? 0 : werte[k];
@@ -1228,6 +1238,7 @@ const FILTER = [
   { k:"bezahlt",    t:"Bezahlt",             f:g => g.status === "bezahlt" },
   { k:"unbezahlt",  t:"Zusage ohne Zahlung", f:g => g.status === "zugesagt" && g.typ !== "ehrengast" },
   { k:"abgesagt",   t:"Abgesagt",            f:g => g.status === "abgesagt" },
+  { k:"warteliste", t:"Warteliste",          f:g => g.status === "warteliste" },
   /* "Nicht angeschrieben" heisst: erreichbar, aber noch nichts bekommen.
      Gaeste ohne Adresse gehoeren nicht hierher - die laufen ueber WhatsApp
      und stehen unter "Ohne Adresse". Sonst zaehlt der Monitor Menschen als
@@ -1265,7 +1276,8 @@ function chipSetzen(k){
   $("#mailpanel").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-const STAND_LABEL = { offen:"Offen", zugesagt:"Zugesagt", bezahlt:"Bezahlt", abgesagt:"Abgesagt" };
+const STAND_LABEL = { offen:"Offen", zugesagt:"Zugesagt", bezahlt:"Bezahlt", abgesagt:"Abgesagt",
+                      warteliste:"Warteliste" };
 /* Wie weit ist diese eine Mail gekommen? Ein Wort statt vier Punkten -
    "geöffnet" versteht jeder, vier Kreise muss man sich erklären lassen. */
 const STUFEN = [
@@ -1383,6 +1395,7 @@ function todosRendern(){
   const punkte = [
     { n: zahl(filterFn("bounce")),    t: "unzustellbar",           e: "Adresse prüfen und korrigieren",              k: "bounce",     dring: true },
     { n: zahl(filterFn("unbezahlt")), t: "zugesagt, nicht bezahlt", e: "Nachfassen oder Zahllink erneut schicken",   k: "unbezahlt",  dring: true },
+    { n: zahl(filterFn("warteliste")),t: "auf der Warteliste",      e: "Nachrücken lassen, sobald ein Platz frei wird", k: "warteliste", dring: true },
     { n: zahl(filterFn("waoffen")),   t: "WhatsApp offen",          e: "Keine Adresse, Nachricht noch nicht vermerkt", k: "waoffen" },
     { n: zahl(filterFn("nichtraus")), t: "noch nie angeschrieben",  e: "Haben eine Adresse, aber nichts bekommen",   k: "nichtraus" },
     { n: zahl(filterFn("abgemeldet")),t: "abgemeldet",              e: "Fällt aus allen weiteren Wellen",            k: "abgemeldet" }

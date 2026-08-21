@@ -121,6 +121,21 @@ const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "27.08.2026";
  * Datum, das beim Verschicken schon fast abgelaufen ist. */
 const RSVP_DEADLINE_TICKET = process.env.RSVP_DEADLINE_TICKET || "28.08.2026";
 const rsvpFrist = inv => (inv && inv.typ === "ticket") ? RSVP_DEADLINE_TICKET : RSVP_DEADLINE;
+/* Wie viele Bezahlgaeste hoechstens in den Kreis duerfen. Der Saal ist
+ * endlich, und die Plaetze der Partner- und Ehrengaeste sind zugesagt,
+ * bevor der erste Bezahlgast antwortet - ohne Deckel wuerde ein guter Tag
+ * bei den Bezahlgaesten genau die Plaetze wegnehmen, die schon vergeben
+ * sind. Wer danach kommt, landet auf der Warteliste statt vor einer
+ * Bezahlseite, die er nicht mehr haette nutzen duerfen. */
+const TICKET_LIMIT = parseInt(process.env.TICKET_LIMIT, 10) || 50;
+/* Belegt ist ein Platz mit der Zusage, nicht erst mit der Zahlung: zwischen
+ * beidem liegen bei manchen Tage, und in dieser Zeit darf der Platz nicht
+ * ein zweites Mal vergeben werden. */
+function ticketZusagen() {
+  return Object.values(state.invites)
+    .filter(i => i.typ !== "ehrengast" && (i.status === "zugesagt" || i.status === "bezahlt")).length;
+}
+const ticketPlaetzeFrei = () => Math.max(0, TICKET_LIMIT - ticketZusagen());
 /* Was dieser eine Gast zahlt. Regulaer der Ticketpreis - abweichend nur bei
  * Testgaesten, damit eine echte Live-Zahlung geprueft werden kann, ohne
  * dafuer jedes Mal 100 Euro zu bewegen. */
@@ -408,6 +423,12 @@ function pubInvite(inv) {
     email: inv.email || "",
     pool: inv.pool,
     preis: inv.typ === "ticket" ? preisVon(inv) : 0,
+    /* Wie viele Bezahlplaetze noch offen sind. Die Seite sagt es dem Gast,
+     * BEVOR er das Formular ausfuellt - niemand soll seine Daten eintippen
+     * und danach erfahren, dass er nur auf die Warteliste kommt.
+     * Wer schon einen Platz hat, sieht keine Warteliste. */
+    ticketFrei: (inv.status === "zugesagt" || inv.status === "bezahlt")
+      ? TICKET_LIMIT : ticketPlaetzeFrei(),
     ticketNr: inv.status === "zugesagt" || inv.status === "bezahlt" ? inv.ticketNr : "",
     /* Eigene Angaben aus der Zusage - nur der Token-Inhaber sieht sie.
      * Damit oeffnet sich die App aus der Welle-2-Mail fertig personalisiert. */
@@ -594,7 +615,7 @@ function poolStats() {
        * schrieb ganzen Pools die falsche Rolle zu. */
       ehrengaeste: 0, tickets: 0,
       versendet: 0, geoeffnet: 0, geklickt: 0,
-      zugesagt: 0, bezahlt: 0, abgesagt: 0, offen: 0, umsatz: 0
+      zugesagt: 0, bezahlt: 0, abgesagt: 0, offen: 0, warteliste: 0, umsatz: 0
     });
     p.gesamt++;
     if (inv.typ === "ehrengast") p.ehrengaeste++; else p.tickets++;
@@ -605,6 +626,7 @@ function poolStats() {
     if (inv.status === "bezahlt") { p.bezahlt++; p.umsatz += (inv.zahlung && inv.zahlung.amount) || 0; }
     if (inv.status === "abgesagt") p.abgesagt++;
     if (inv.status === "offen") p.offen++;
+    if (inv.status === "warteliste") p.warteliste++;
   }
   return Object.values(pools).sort((a, b) => b.gesamt - a.gesamt);
 }
@@ -625,6 +647,10 @@ function gesamtStats() {
     zugesagt: zaehl(i => i.status === "zugesagt" || i.status === "bezahlt"),
     bezahlt: zaehl(i => i.status === "bezahlt"),
     abgesagt: zaehl(i => i.status === "abgesagt"),
+    /* Der Deckel fuer Bezahlgaeste - und wer davor wartet. */
+    warteliste: zaehl(i => i.status === "warteliste"),
+    ticketLimit: TICKET_LIMIT,
+    ticketFrei: ticketPlaetzeFrei(),
     unzustellbar: zaehl(i => i.mail.bounced),
     abgemeldet: zaehl(i => i.abgemeldet),
     umsatz: all.reduce((s, i) => s + ((i.zahlung && i.zahlung.amount) || 0), 0)
@@ -1625,9 +1651,20 @@ const server = http.createServer((req, res) => {
          * Bezahlgaeste erst nach der Zahlung, sonst bestaetigten wir einen
          * Platz, der noch offen ist (siehe zahlungBuchen). */
         bestaetigungSenden(inv);
-      } else if (inv.status === "offen" || inv.status === "abgesagt") {
-        inv.status = "zugesagt";                    // zugesagt, Zahlung offen
-        logEvent("zugesagt", inv.name, inv.pool);
+      } else if (inv.status === "offen" || inv.status === "abgesagt" || inv.status === "warteliste") {
+        /* Der Deckel greift genau hier: nicht erst an der Bezahlseite,
+         * sondern in dem Moment, in dem der Platz beansprucht wird. Wer
+         * schon zugesagt hat, faellt nicht in diesen Zweig und verliert
+         * seinen Platz auch dann nicht, wenn er das Formular ein zweites
+         * Mal abschickt. */
+        if (ticketPlaetzeFrei() <= 0) {
+          inv.status = "warteliste";
+          inv.wartelisteSeit = inv.wartelisteSeit || Date.now();
+          logEvent("warteliste", inv.name, inv.pool);
+        } else {
+          inv.status = "zugesagt";                  // zugesagt, Zahlung offen
+          logEvent("zugesagt", inv.name, inv.pool);
+        }
       }
       dirty = true;
       json(res, 200, { ok: true, gast: pubInvite(inv) });
@@ -1645,6 +1682,17 @@ const server = http.createServer((req, res) => {
       if (!inv) return json(res, 404, { error: "unbekannte Einladung" });
       if (inv.typ !== "ticket") return json(res, 400, { error: "Für dich ist kein Beitrag fällig." });
       if (inv.status === "bezahlt") return json(res, 200, { ok: true, bereitsBezahlt: true });
+      /* Zweite Sperre hinter der ersten: die Bezahlseite darf sich auch
+       * nicht ueber einen alten Tab oder einen zurueckgelegten Link oeffnen
+       * lassen, wenn der Kreis voll ist. Wer bereits zugesagt hat, haelt
+       * seinen Platz und darf immer zahlen - auch wenn der Deckel inzwischen
+       * erreicht ist, denn er ist ja mitgezaehlt. */
+      if (inv.status === "warteliste" || (inv.status !== "zugesagt" && ticketPlaetzeFrei() <= 0)) {
+        return json(res, 409, {
+          error: "Die Plätze für Bezahlgäste sind vergeben – du stehst auf der Warteliste.",
+          warteliste: true
+        });
+      }
       if (!STRIPE_KEY) return json(res, 503, { error: "Zahlung ist noch nicht scharf geschaltet (STRIPE_SECRET_KEY fehlt)." });
 
       createCheckout(inv, (err, session) => {
@@ -2072,6 +2120,35 @@ const server = http.createServer((req, res) => {
         });
       });
       return;
+    }
+
+    /* Jemanden von der Warteliste nachruecken lassen - wenn ein Bezahlgast
+     * abgesagt hat oder ein Platz erstattet wurde. Der Gast steht danach
+     * auf "zugesagt": der Platz gehoert ihm, die Zahlung fehlt noch. Die
+     * Antwort enthaelt seinen persoenlichen Link, damit ihm jemand
+     * schreiben kann - der Server tut das nicht von selbst, denn wer
+     * nachrueckt und wann, ist eine Entscheidung und keine Regel. */
+    if (req.method === "POST" && url === "/api/admin/nachruecken") {
+      const mail = String(q.get("email") || "").toLowerCase().trim();
+      const inv = findInvite(q.get("t")) ||
+                  (mail ? Object.values(state.invites).find(i => (i.email || "").toLowerCase() === mail) : null);
+      if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+      if (inv.status !== "warteliste") {
+        return json(res, 409, { error: "Steht nicht auf der Warteliste (Stand: " + inv.status + ")" });
+      }
+      if (ticketPlaetzeFrei() <= 0 && q.get("trotzdem") !== "1") {
+        return json(res, 409, {
+          error: "Kein Platz frei (" + ticketZusagen() + " von " + TICKET_LIMIT +
+                 "). Mit &trotzdem=1 ueber den Deckel hinaus."
+        });
+      }
+      inv.status = "zugesagt";
+      logEvent("nachgerückt", inv.name, inv.pool);
+      dirty = true;
+      return json(res, 200, {
+        ok: true, name: inv.name, email: inv.email, ticketNr: inv.ticketNr,
+        link: inviteLink(inv.token), frei: ticketPlaetzeFrei()
+      });
     }
 
     /* Absage von Hand vermerken - der Gast hat ueber Dylan oder am Telefon
@@ -2788,6 +2865,9 @@ if (befehl === "welle") {
           let j = {};
           try { j = JSON.parse(p); } catch (e) { /* unten */ }
           if (a.statusCode === 200 && j.url) return versandStarten();
+          /* Voller Kreis heisst nicht kaputtes Stripe: die Probe traf einen
+           * Gast, der auf die Warteliste gehoert. Der Versand darf laufen. */
+          if (j.warteliste) return versandStarten();
           console.error("\nABBRUCH: " + zahl + " Bezahlgäste in dieser Welle, aber Stripe");
           console.error("nimmt gerade kein Geld an. Antwort auf eine Testbuchung:");
           console.error("  " + (j.error || ("HTTP " + a.statusCode)));
