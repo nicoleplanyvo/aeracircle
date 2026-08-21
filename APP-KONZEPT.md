@@ -127,8 +127,10 @@ kommen nur noch die Namen hinein.
   Prüfung: bis zu 24 Stunden. Dafür braucht es Annes **Steuer-ID** – bei einer
   GbR gibt es keine Handelsregister-Eintragung.
 - **Welle 1 geht raus, sobald verifiziert ist** – Ziel: Donnerstag, 20.08.
-- **Rückmeldefrist 26.08. → 27.08.** (Versand verschiebt sich um einen Tag). Im
-  Register bereits geändert.
+- **Zwei Rückmeldefristen:** Ehrengäste bis zum **27.08.** (ein Tag später als
+  geplant, weil der Versand sich verschiebt), Bezahlgäste bis zum **28.08.** –
+  ihre Einladung geht später raus, und der Beitrag will überwiesen sein. Beide
+  stehen im Register (`RSVP_DEADLINE`, `RSVP_DEADLINE_TICKET`).
 - **Gäste ohne E-Mail-Adresse** bekommen ihren persönlichen Link als
   WhatsApp-Link, Dylan leitet ihn weiter – aktuell 13 Gäste in Welle 1.
 - **Tilman Stoeck** und **Jonas Hector**: nur an die geschäftliche Adresse.
