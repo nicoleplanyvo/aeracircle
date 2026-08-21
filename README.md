@@ -99,6 +99,26 @@ node server/circle-server.js import gaesteliste.csv     # Vorlage: server/gaeste
 node server/circle-server.js export > versand.csv       # Kontrollliste (enthält die persönlichen Links)
 ```
 
+**Sobald die Wellen laufen, nicht mehr über die CLI importieren.** Der
+Befehl schreibt `live-state.json` aus einem zweiten Prozess, während die
+laufende App dieselbe Datei aus ihrem eigenen Speicher zurückschreibt: eine
+Zusage, die genau in diesen Sekunden eintrifft, geht verloren – oder der
+Import wird von der App überschrieben. Solange der Betrieb läuft, geht
+dasselbe über die App, und dort gibt es keinen zweiten Schreiber:
+
+```bash
+# eine ganze Liste
+curl -X POST --data-binary @gaesteliste.csv \
+  "https://thecircle.planyvo.com/api/admin/import?key=…"
+
+# ein einzelner Gast (Nachrückerin)
+curl -X POST "https://thecircle.planyvo.com/api/admin/gast?key=…\
+&name=Jodie%20Calussi&email=jodie@example.com&pool=AERA&typ=ticket&anrede=Liebe"
+
+# eine Absage, die nicht über den persönlichen Link kam
+curl -X POST "https://thecircle.planyvo.com/api/admin/absage?key=…&email=…"
+```
+
 Ein zweiter Import derselben Liste aktualisiert, statt zu verdoppeln.
 Wiedererkannt wird ein Gast in dieser Reihenfolge:
 

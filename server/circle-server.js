@@ -2045,6 +2045,30 @@ const server = http.createServer((req, res) => {
       });
     }
 
+    /* Eine ganze Liste einspielen, waehrend die Wellen laufen - derselbe
+     * Grund wie oben: der CLI-Import schreibt live-state.json aus einem
+     * zweiten Prozess und ueberfaehrt damit alles, was die laufende App
+     * seit ihrem Start gesehen hat. Hier laeuft dieselbe Funktion IN der
+     * App, und die Antwort sagt genauso wie die CLI, was sich geaendert
+     * hat - besonders die stillen Adressaenderungen.
+     * Der Rumpf ist die CSV selbst, nicht JSON. */
+    if (req.method === "POST" && url === "/api/admin/import") {
+      let roh = "", zuGross = false;
+      req.on("data", c => { roh += c; if (roh.length > 500_000) { zuGross = true; req.destroy(); } });
+      req.on("end", () => {
+        if (zuGross) return json(res, 413, { error: "CSV zu groß (max. 500 KB)" });
+        let ergebnis;
+        try { ergebnis = importRows(parseCSV(roh)); }
+        catch (e) { return json(res, 400, { error: "Import fehlgeschlagen: " + e.message }); }
+        dirty = true;
+        return json(res, 200, {
+          ok: true, neu: ergebnis.neu, aktualisiert: ergebnis.aktualisiert,
+          gesamt: ergebnis.gesamt, adressen: ergebnis.adressen
+        });
+      });
+      return;
+    }
+
     /* Absage von Hand vermerken - der Gast hat ueber Dylan oder am Telefon
      * abgesagt und wird seinen persoenlichen Link nicht selbst benutzen.
      * Bezahlte Teilnahmen bleiben aussen vor: da haengt Geld dran, das erst
