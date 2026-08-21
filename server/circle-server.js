@@ -1689,7 +1689,11 @@ const server = http.createServer((req, res) => {
        * erreicht ist, denn er ist ja mitgezaehlt. */
       if (inv.status === "warteliste" || (inv.status !== "zugesagt" && ticketPlaetzeFrei() <= 0)) {
         return json(res, 409, {
-          error: "Die Plätze für Bezahlgäste sind vergeben – du stehst auf der Warteliste.",
+          /* Enthält bewusst das Wort "Warteliste": die Landing Page erkennt
+           * daran, dass sie den Warteliste-Schritt zeigen muss statt einer
+           * Fehlermeldung. Gaesten gegenueber heisst es nie "Bezahlgast" -
+           * das ist unsere interne Einteilung, nicht ihre. */
+          error: "Die Gästeliste ist aktuell voll – du stehst auf der Warteliste.",
           warteliste: true
         });
       }
