@@ -115,6 +115,16 @@ const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.d
 /* Rueckmeldefrist der Einladung. Steht in drei Vorlagen - deshalb an EINER
  * Stelle, sonst laeuft sie beim naechsten Verschieben auseinander. */
 const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "27.08.2026";
+/* Die Bezahlgaeste sind eine Woche spaeter dran als die Ehrengaeste: ihre
+ * Einladung geht spaeter raus, und ueberwiesen sein will sie auch noch.
+ * Zwei Fristen statt einer - sonst stuende in der Bezahlgast-Einladung ein
+ * Datum, das beim Verschicken schon fast abgelaufen ist. */
+const RSVP_DEADLINE_TICKET = process.env.RSVP_DEADLINE_TICKET || "28.08.2026";
+const rsvpFrist = inv => (inv && inv.typ === "ticket") ? RSVP_DEADLINE_TICKET : RSVP_DEADLINE;
+/* Was dieser eine Gast zahlt. Regulaer der Ticketpreis - abweichend nur bei
+ * Testgaesten, damit eine echte Live-Zahlung geprueft werden kann, ohne
+ * dafuer jedes Mal 100 Euro zu bewegen. */
+const preisVon = inv => (inv && inv.preis > 0) ? inv.preis : TICKET_PRICE;
 
 const VOTES = ["ja", "vielleicht", "nein"];
 const MOMENTS_TOTAL = 6;
@@ -392,7 +402,7 @@ function pubInvite(inv) {
     rolle: inv.rolle || "",
     email: inv.email || "",
     pool: inv.pool,
-    preis: inv.typ === "ticket" ? TICKET_PRICE : 0,
+    preis: inv.typ === "ticket" ? preisVon(inv) : 0,
     ticketNr: inv.status === "zugesagt" || inv.status === "bezahlt" ? inv.ticketNr : "",
     /* Eigene Angaben aus der Zusage - nur der Token-Inhaber sieht sie.
      * Damit oeffnet sich die App aus der Welle-2-Mail fertig personalisiert. */
@@ -958,11 +968,11 @@ function renderMail(inv, datei) {
      * Dateiname wird auf unsere Asset-Adresse gehoben. */
     partner_logo_url: partnerLogoUrl(inv),
     abmelden_url: abmeldeLink(inv.token),
-    rueckmeldung_datum: RSVP_DEADLINE,
+    rueckmeldung_datum: rsvpFrist(inv),
     /* Nur fuer die Zusage-Bestaetigung: der Kalendereintrag und der Beitrag,
      * den der Gast bezahlt hat. */
     termin_ics_url: PUBLIC_URL + "/termin.ics",
-    beitrag: (TICKET_PRICE / 100).toFixed(2).replace(".", ",") + " Euro",
+    beitrag: (preisVon(inv) / 100).toFixed(2).replace(".", ",") + " Euro",
     /* CTA der Welle 0: die Homepage, nicht die App. PUBLIC_URL ist der
      * Server mit den persoenlichen Links - die Website ist eine andere. */
     website_url: WEBSITE_URL,
@@ -1044,7 +1054,7 @@ function bestaetigungAbschicken(inv) {
     "",
     "16. September 2026, 18:00 bis 23:00 Uhr",
     "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
-    inv.typ === "ticket" ? "Beitrag: " + (TICKET_PRICE / 100).toFixed(2).replace(".", ",") + " Euro, bezahlt" : null,
+    inv.typ === "ticket" ? "Beitrag: " + (preisVon(inv) / 100).toFixed(2).replace(".", ",") + " Euro, bezahlt" : null,
     "",
     "Termin in den Kalender: " + PUBLIC_URL + "/termin.ics",
     "Deine Seite: " + inviteLink(inv.token),
@@ -1110,7 +1120,7 @@ function whatsappText(inv) {
     "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
     partnerZeile,
     "",
-    "Die Plätze sind limitiert. Wir bitten um Rückmeldung bis zum " + RSVP_DEADLINE + ".",
+    "Die Plätze sind limitiert. Wir bitten um Rückmeldung bis zum " + rsvpFrist(inv) + ".",
     "",
     "Dein persönlicher Link – zusagen oder absagen dauert eine Minute:",
     inviteLink(inv.token)
@@ -1275,7 +1285,7 @@ function createCheckout(inv, cb) {
         quantity: 1,
         price_data: {
           currency: "eur",
-          unit_amount: TICKET_PRICE,
+          unit_amount: preisVon(inv),
           product_data: {
             name: "THE CIRCLE N°1 – 16. September 2026",
             description: "Persönliche Einladung · 1 Platz · Playa Cologne"
@@ -1318,7 +1328,7 @@ function zahlungBuchen(token, session) {
   inv.zahlung = {
     sessionId: session.id,
     paymentIntent: session.payment_intent || "",
-    amount: session.amount_total || TICKET_PRICE,
+    amount: session.amount_total || preisVon(inv),
     paidAt: Date.now()
   };
   logEvent("bezahlt", inv.name, inv.pool);
@@ -1991,18 +2001,28 @@ const server = http.createServer((req, res) => {
       const logo = partner
         ? "partner-" + partner.toLowerCase().replace(/\.ai$/, "").replace(/[^a-z0-9]/g, "") + "-neg.png"
         : "";
+      /* Eigene Adresse, damit die Bestaetigungsmail beim Test wirklich
+       * ankommt und geprueft werden kann - statt an eine Sammeladresse zu
+       * gehen, die vielleicht gar nicht existiert und dann bounct. */
+      const mail = clean(q.get("email"), 120).toLowerCase();
+      /* Abweichender Betrag in Cent. Eine Live-Zahlung ueber 1 Euro beweist
+       * dasselbe wie eine ueber 100 - kostet aber nur die Gebuehr, falls
+       * die Rueckerstattung liegen bleibt. Nur fuer Testgaeste. */
+      const preis = Math.max(100, Math.min(10000, parseInt(q.get("preis"), 10) || 0));
       const inv = state.invites[token] = {
         token, pool: "Stripe-Test", typ,
         name: "Testgast " + (partner || (typ === "ehrengast" ? "Ehrengast" : "Bezahlgast")),
-        email: "stripe-test@planyvo.com",
+        email: (mail.indexOf("@") > 0 ? mail : "stripe-test@planyvo.com"),
         firma: "", anrede: "Liebe", partner, partnerLogo: logo,
         status: "offen",
+        preis: q.get("preis") ? preis : 0,
         mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 },
         daten: {}, zahlung: null,
         ticketNr: ticketNumber(token), t: Date.now()
       };
       dirty = true;
       return json(res, 200, { ok: true, token, typ, partner, partnerLogo: logo,
+                              email: inv.email, preis: preisVon(inv),
                               link: inviteLink(token) });
     }
     if (req.method === "POST" && url === "/api/admin/testgast-loeschen") {
