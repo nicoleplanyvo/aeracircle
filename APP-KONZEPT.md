@@ -1,6 +1,6 @@
 # Die App zum Abend – was der Call vom 19.08.2026 ergeben hat
 
-Teilnehmer: Dylan, Desiree, Anne, Johann (THE CIRCLE) · Nicole, Matthias (planyvo)
+Teilnehmer: Dylan, Desiree, Anne, Johann (THE CIRCLE) · Nicole, Mathis (planyvo)
 
 Die Fassung für die Runde liegt als `pitch/app-stand.html` und als PDF daneben –
 dort steht nur, was feststeht und was ihr zuliefert. Dieses Dokument hält fest, worauf wir uns geeinigt haben, was ihr in eurer
@@ -11,7 +11,7 @@ nicht dem Handy – die App verbindet, sie beschäftigt nicht.
 
 **Eckdaten:** THE CIRCLE N°1 · Mi, 16.09.2026 · 18:00–23:00 Uhr · Playa Cologne ·
 Tischordnung liegt am Mo, 14.09. vor · Nicole ist Mo–Do auf einer Konferenz in
-London, **Matthias ist vor Ort**.
+London, **Mathis ist vor Ort**.
 
 ---
 
@@ -55,7 +55,7 @@ Person danach wieder?*
   und rechts sitzt, ist damit kein Rätsel mehr, sondern ein Gesprächsanfang.
 - **Ihr steuert selbst.** Alle Signale – Als Nächstes, Tischwechsel, Applaus,
   Aufforderung zum Bieten – kommen aus dem Dashboard. Dafür muss niemand von uns
-  vor Ort sein; Matthias ist es trotzdem und drückt gern.
+  vor Ort sein; Mathis ist es trotzdem und drückt gern.
 - **Blackout.** Beschlossen: bei bestimmten Programmpunkten (z. B. dem Impuls von
   Ien Svea Bäumler) läuft in der App nichts. Auslösung vor Ort, ein Klick. Die
   Fenster gehören in den Ablaufplan, damit sie niemand vergisst.
@@ -110,11 +110,11 @@ einspielen, euch zeigen und in Ruhe nachjustieren.
 | Menü final (3 Gänge, Wortlaut) | Desiree | 07.09. |
 | Partnerlogos negativ (SVG oder PNG mit Transparenz) | Anne | laufend |
 | Dresscode, Einlass, Ortshinweise bestätigen | Desiree | 07.09. |
-| Blackout-Fenster im Ablaufplan markieren, Briefing Matthias | Desiree, Dylan | 11.09. |
+| Blackout-Fenster im Ablaufplan markieren, Briefing Mathis | Desiree, Dylan | 11.09. |
 | Tisch-Slide von Johann (als Maske, Namen später) | Johann | sobald da |
 | Finale Tischordnung | Johann | Mo, 14.09. |
 | Walkthrough: was das Dashboard kann und was nicht | alle | Woche vom 07.09. |
-| Fotos + Zuordnung (Dateibenennung oder Excel) | Matthias / Fotograf | nach dem Abend |
+| Fotos + Zuordnung (Dateibenennung oder Excel) | Mathis / Fotograf | nach dem Abend |
 | Hinweis auf die Teilnehmerliste in der letzten Info-Mail | Desiree | mit Welle 2 |
 
 Die Maske für die Tischordnung bauen wir **vorher** mit Platzhaltern – am 14.09.

@@ -6,7 +6,7 @@ die Fassung für den Kunden in [`pitch/app-stand.html`](pitch/app-stand.html) un
 als PDF daneben.
 
 **Der Abend:** Mi, 16.09.2026 · 18:00–23:00 · Playa Cologne
-**Tischordnung:** liegt Mo, 14.09. vor · **Vor Ort:** Matthias
+**Tischordnung:** liegt Mo, 14.09. vor · **Vor Ort:** Mathis
 
 ---
 
