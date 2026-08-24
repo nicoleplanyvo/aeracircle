@@ -29,9 +29,10 @@ Person danach wieder?*
 - **Teilnehmerliste.** Alle Gäste des Abends sind sichtbar, auch die, die ihre
   Kontaktdaten nicht freigeben. Sichtbar heißt dann: Name, Unternehmen, Bild –
   die Kontaktdaten bleiben leer.
-- **Kontaktdaten nur mit Freigabe.** Schon im Zusage-Formular entscheidet jeder
-  per Checkbox: *Kontaktdaten sichtbar* oder *nur kontaktierbar*. Damit steht
-  die Einwilligung vor dem ersten Kontakt und nicht mittendrin.
+- **Kontaktdaten nur mit Freigabe.** Bei der Registrierung in der App – dort, wo
+  auch das Profilbild hochgeladen wird – entscheidet jeder per Checkbox:
+  *Kontaktdaten sichtbar* oder *nur kontaktierbar*. Damit steht die Einwilligung
+  vor dem ersten Kontakt und nicht mittendrin.
 - **Verbinden nur beidseitig.** Anfrage → Zustimmung → Visitenkarten sind
   getauscht. Dazu ein leiser zweiter Weg: „Lass uns später sprechen."
 - **Mein Kreis.** Alle Begegnungen des Abends an einem Ort. Aus der App heraus
@@ -125,12 +126,12 @@ kommen nur noch die Namen hinein.
 ## Intern (nicht Teil des Kundendokuments)
 
 **Gap-Check gegen die Planyvo-Module.** Der Call ist zum größten Teil mit dem
-abgedeckt, was die Plattform ohnehin hat: Formulare (Freigabe-Checkbox),
-Messaging, Push, Announcements („Als Nächstes"), Table Rotation (Switch),
-NFC-Stationen. Echte Lücken sind drei:
+abgedeckt, was die Plattform ohnehin hat: Formulare, Messaging, Push,
+Announcements („Als Nächstes"), Table Rotation (Switch), NFC-Stationen.
+Echte Lücken sind drei:
 
-1. **Profil- und Verbindungs-Modul** – beidseitiges Opt-in, Visitenkarten-Tausch,
-   „Mein Kreis". Das ist der Kern des Auftrags und kein Sonderfall: das braucht
+1. **Profil- und Verbindungs-Modul** – Registrierung mit Bild und
+   Freigabe-Checkbox, beidseitiges Opt-in, Visitenkarten-Tausch, „Mein Kreis". Das ist der Kern des Auftrags und kein Sonderfall: das braucht
    jedes Netzwerk-Event. Kandidat für ein Plattform-Feature.
 2. **Galerie mit personalisierten Highlights** – Zuordnung Foto → Gast, Push,
    Download aus der App.

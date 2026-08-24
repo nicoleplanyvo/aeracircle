@@ -25,7 +25,7 @@ als PDF daneben.
 | # | Was | Steht auf |
 |---|---|---|
 | [#5](../../issues/5) | Profil und Vernetzung: beidseitiges Verbinden, „Mein Kreis" | #4, #6 |
-| [#6](../../issues/6) | Teilnehmerliste und Freigabe der Kontaktdaten | – |
+| [#6](../../issues/6) | Registrierung in der App: Profilbild und Freigabe der Kontaktdaten | – |
 | [#7](../../issues/7) | Tischordnung: Plan, persönlicher Hinweis, visuelle Darstellung | #4, Tisch-Slide von Johann |
 | [#8](../../issues/8) | Abend-Steuerung im Dashboard | Programm final (07.09.) |
 | [#9](../../issues/9) | Blackout-Fenster | Ablaufplan-Markierung (11.09.) |
