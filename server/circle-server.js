@@ -1351,10 +1351,40 @@ function stripeRequest(pfad, params, cb) {
 function createCheckout(inv, cb) {
   const arten = {};
   if (STRIPE_ZAHLARTEN[0] !== "auto") STRIPE_ZAHLARTEN.forEach((a, i) => { arten[i] = a; });
+  /* Rechnung statt blossem Zahlungsbeleg.
+   *
+   * Stripe schickt nach jeder Zahlung einen Beleg ("receipt") - der zeigt
+   * nur, dass Geld geflossen ist. Wer die 100 Euro absetzen will, braucht
+   * eine Rechnung mit Nummer, Aussteller und Steuerausweis. Genau die
+   * erzeugt invoice_creation: der Gast bekommt sie als PDF und findet sie
+   * unter dem Link in seiner Zahlungsbestaetigung.
+   *
+   * Bewusst per Schalter und standardmaessig AUS: auf der Rechnung stehen
+   * Firmierung, Anschrift und Steuerausweis aus dem Stripe-Konto. Eine
+   * Rechnung mit falschem oder fehlendem Umsatzsteuerausweis ist schlimmer
+   * als gar keine - das muss jemand entscheiden, der die steuerliche Lage
+   * kennt, nicht der Server. */
+  const rechnung = process.env.STRIPE_RECHNUNG === "1";
   stripeRequest("checkout/sessions", {
     mode: "payment",
     locale: "de",
     ...(Object.keys(arten).length ? { payment_method_types: arten } : {}),
+    ...(rechnung ? {
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          description: "Teilnahme THE CIRCLE N°1 · 16. September 2026 · Playa Cologne, Köln",
+          /* Stehen oben auf der Rechnung - so ist sie ohne Rueckfrage
+           * einem Gast und einem Platz zuzuordnen. */
+          custom_fields: {
+            0: { name: "Gast",  value: (inv.name || "—").slice(0, 30) },
+            1: { name: "Platz", value: inv.ticketNr || "—" }
+          },
+          metadata: { token: inv.token },
+          rendering_options: { amount_tax_display: "include_inclusive_tax" }
+        }
+      }
+    } : {}),
     customer_email: inv.email,
     client_reference_id: inv.token,
     success_url: inviteLink(inv.token) + "&bezahlt=1",
