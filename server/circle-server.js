@@ -1373,9 +1373,12 @@ function createCheckout(inv, cb) {
       invoice_creation: {
         enabled: true,
         invoice_data: {
-          description: "Teilnahme THE CIRCLE N°1 · 16. September 2026 · Playa Cologne, Köln",
-          /* Stehen oben auf der Rechnung - so ist sie ohne Rueckfrage
-           * einem Gast und einem Platz zuzuordnen. */
+          /* KEIN description hier: der Vermerk gehoert nach Stripe unter
+           * Billing -> Rechnungen -> Standardvermerk. Setzten wir ihn auch
+           * hier, gaebe es zwei Stellen fuer denselben Satz - und die aus
+           * dem Code gewaenne, waehrend im Dashboard etwas anderes steht.
+           * Hier nur, was Stripe nicht wissen kann: welcher Gast, welcher
+           * Platz. */
           custom_fields: {
             0: { name: "Gast",  value: (inv.name || "—").slice(0, 30) },
             1: { name: "Platz", value: inv.ticketNr || "—" }
