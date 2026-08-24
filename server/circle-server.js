@@ -344,7 +344,11 @@ const newToken = () => crypto.randomBytes(9).toString("base64url");   // 12 Zeic
  * belegte Nummern werden weitergezaehlt. Die Nummer bleibt zufaellig
  * verteilt - eine laufende Nummer wuerde verraten, wer als Erster zugesagt
  * hat. */
-const NUMMERN_BEREICH = 299;                   // 001 … 299
+/* 001 bis 199. Der Bereich muss groesser sein als die Gaesteliste - sonst
+ * kaeme die Doppelung zurueck - aber nicht viel groesser: die Nummer ist
+ * eine Aussage ueber die Groesse des Kreises. Bei 110 Gaesten liest sich
+ * "No 294" wie ein Saal fuer dreihundert. */
+const NUMMERN_BEREICH = 199;                   // 001 … 199
 
 function ticketNumber(token) {                 // Vorschlag aus dem Token
   let h = 0;
