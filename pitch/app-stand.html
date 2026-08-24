@@ -1,0 +1,300 @@
+<meta charset="utf-8">
+<title>Die App zum Abend</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Montserrat:wght@300;400;500;600&display=swap">
+<style>
+  :root{
+    --grund:#122648;
+    --flaeche:#0d1c36;
+    --flaeche-hoch:#1a3159;
+    --akzent:#ff6b6c;
+    --hell:#d8d3c3;
+    --text:#e9e6dd;
+    --text-leise:#a8b0c0;
+    --linie:rgba(216,211,195,.22);
+    --serif:"Cinzel","Trajan Pro 3",Georgia,serif;
+    --sans:"Montserrat","Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--grund);color:var(--text);
+    font-family:var(--sans);font-weight:300;font-size:17px;line-height:1.72;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:52rem;margin:0 auto;padding:clamp(2.5rem,6vw,4.5rem) clamp(1.25rem,5vw,3rem) 4.5rem}
+  header{border-bottom:1px solid var(--linie);padding-bottom:2rem;display:flex;flex-direction:column;gap:.9rem}
+  .marke{font-weight:500;font-size:.72rem;letter-spacing:.28em;text-transform:uppercase;color:var(--akzent)}
+  h1{
+    font-family:var(--serif);font-weight:400;text-transform:uppercase;letter-spacing:.06em;
+    line-height:1.16;text-wrap:balance;font-size:clamp(1.9rem,5.2vw,2.9rem);margin:0;color:var(--hell);
+  }
+  .unter{margin:0;color:var(--text-leise);max-width:40rem}
+  .fakten{
+    display:grid;gap:1px;background:var(--linie);border:1px solid var(--linie);
+    grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));margin-top:2rem;
+  }
+  .fakt{background:var(--flaeche);padding:.9rem 1.1rem;display:flex;flex-direction:column;gap:.25rem}
+  .fakt dt{font-size:.64rem;letter-spacing:.22em;text-transform:uppercase;color:var(--text-leise);font-weight:500}
+  .fakt dd{margin:0;font-family:var(--serif);font-size:1rem;letter-spacing:.03em;color:var(--hell);font-variant-numeric:tabular-nums}
+  main{display:flex;flex-direction:column;gap:3rem;margin-top:3rem}
+  .kapitel{display:flex;flex-direction:column;gap:2rem}
+  .kapitelkopf{display:flex;flex-direction:column;gap:.5rem;border-top:2px solid var(--akzent);padding-top:1.1rem}
+  .kapitelkopf h2{
+    font-family:var(--serif);font-weight:400;text-transform:uppercase;letter-spacing:.05em;
+    font-size:clamp(1.4rem,3.4vw,1.9rem);margin:0;color:var(--hell);text-wrap:balance;
+  }
+  .kapitelkopf p{color:var(--text-leise)}
+  section{display:flex;flex-direction:column;gap:.85rem;break-inside:avoid}
+  .eyebrow{font-size:.67rem;letter-spacing:.26em;text-transform:uppercase;color:var(--akzent);font-weight:500}
+  h3{font-family:var(--sans);font-weight:600;font-size:1.02rem;letter-spacing:.01em;margin:0;color:#fff}
+  p{margin:0;max-width:40rem}
+  ul{margin:0;padding-left:1.15rem;display:flex;flex-direction:column;gap:.55rem;max-width:40rem}
+  li::marker{color:var(--akzent)}
+  strong{font-weight:600;color:#fff}
+  .tabelle{border:1px solid var(--linie);background:var(--flaeche);overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:32rem;font-size:.92rem}
+  th,td{text-align:left;padding:.7rem .95rem;border-bottom:1px solid var(--linie);vertical-align:top}
+  thead th{font-size:.64rem;letter-spacing:.2em;text-transform:uppercase;color:var(--text-leise);font-weight:500;background:var(--flaeche-hoch)}
+  tbody tr:last-child td{border-bottom:none}
+  td.frist{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--hell)}
+  .entscheidung{border-left:2px solid var(--akzent);padding-left:1.15rem;display:flex;flex-direction:column;gap:.45rem;break-inside:avoid}
+  .entscheidung .rat{color:var(--text-leise)}
+  .jetzt{border:1px solid var(--akzent);background:var(--flaeche);padding:1.05rem 1.2rem;display:flex;flex-direction:column;gap:.5rem;break-inside:avoid}
+  .jetzt .eyebrow{color:var(--akzent)}
+  .jetzt ul{gap:.4rem;font-size:.95rem}
+  footer{margin-top:3.5rem;padding-top:1.5rem;border-top:1px solid var(--linie);color:var(--text-leise);font-size:.85rem;display:flex;flex-direction:column;gap:.35rem;break-inside:avoid}
+  @media (max-width:34rem){body{font-size:16px}}
+
+  @media print{
+    :root{
+      --grund:#fffdf8;--flaeche:#f6f3ea;--flaeche-hoch:#ece7da;
+      --akzent:#741a33;--hell:#122648;--text:#141d33;--text-leise:#4d566a;
+      --linie:rgba(18,38,72,.2);
+    }
+    body{font-size:10.5pt;line-height:1.6;font-weight:400}
+    .wrap{max-width:none;padding:0}
+    strong{color:#122648}
+    h3{color:#122648}
+    .kapitel{break-before:page}
+    .kapitel:first-of-type{break-before:auto}
+    .tabelle{overflow:visible}
+    table{min-width:0}
+    @page{size:A4;margin:18mm 16mm}
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="marke">THE CIRCLE N°1 &middot; connecting generations</div>
+    <h1>Die App zum Abend</h1>
+    <p class="unter">Der Stand nach unserem Call am 19. August: was feststeht – und was wir
+      dafür vom Circle-Team brauchen.</p>
+  </header>
+
+  <dl class="fakten">
+    <div class="fakt"><dt>Der Abend</dt><dd>Mi, 16.09.2026</dd></div>
+    <div class="fakt"><dt>App-Zugang</dt><dd>Welle 2, kurz vorher</dd></div>
+    <div class="fakt"><dt>Tischordnung</dt><dd>Mo, 14.09.2026</dd></div>
+    <div class="fakt"><dt>Vor Ort</dt><dd>Mathis</dd></div>
+  </dl>
+
+  <main>
+    <div class="kapitel">
+      <div class="kapitelkopf">
+        <div class="eyebrow">Teil 1</div>
+        <h2>Was feststeht</h2>
+        <p>Diese Punkte sind im Call entschieden – daran arbeiten wir ab sofort.</p>
+      </div>
+
+      <section>
+        <h3>Der Rahmen</h3>
+        <p>Die App ist <strong>Welle 2</strong>: Sie geht erst wenige Tage vor dem Abend an die
+          Gäste, die zugesagt haben. Der Abend gehört dem Programm – deshalb blocken wir die App
+          dort, wo der Raum die Aufmerksamkeit braucht, und geben ihr dort Platz, wo sie etwas
+          kann, was der Raum nicht kann: Menschen zusammenbringen und danach zusammenhalten.</p>
+      </section>
+
+      <section>
+        <h3>Keine App aus dem Store</h3>
+        <p>Die App ist eine <strong>Progressive Web App</strong>: Sie läuft im Browser. Der Gast
+          öffnet seinen persönlichen Link und legt die App mit einem Tipp auf den
+          Home-Bildschirm – danach startet sie mit eigenem Symbol und im Vollbild, wie eine
+          gewohnte App.</p>
+        <p>Das heißt für den Abend: <strong>kein Download, kein App Store, keine Freigabe, auf
+          die wir warten müssten.</strong> Wer den Link öffnet, ist drin. Und wenn sich am 15.
+          September noch etwas ändert, spielen wir es ein – niemand muss ein Update
+          installieren.</p>
+      </section>
+
+      <section>
+        <h3>Zugang und Profil</h3>
+        <ul>
+          <li>Jeder Gast bekommt einen <strong>eigenen Zugang</strong>. Sein Profil ist aus der
+            Zusage bereits vorbefüllt: Name, Unternehmen, Rolle.</li>
+          <li>Beim ersten Öffnen vervollständigt er es und wird eingeladen, <strong>ein Bild
+            hochzuladen</strong>. Das macht die Teilnehmerliste greifbar.</li>
+          <li>Über die App kommt nur, wer zugesagt hat.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>Die Vernetzung – das Herzstück</h3>
+        <ul>
+          <li><strong>Teilnehmerliste.</strong> Alle Gäste des Abends sind sichtbar, auch die,
+            die ihre Kontaktdaten nicht freigeben. Sichtbar heißt dann: Name, Unternehmen, Bild –
+            die Kontaktdaten bleiben leer. Das ist das digitale Gästebuch.</li>
+          <li><strong>Kontaktdaten nur mit Freigabe.</strong> Bei der Registrierung in der App –
+            dort, wo auch das Profilbild hochgeladen wird – entscheidet jeder per Checkbox:
+            Kontaktdaten sichtbar, oder nur kontaktierbar. Damit steht die Einwilligung vor dem
+            ersten Kontakt und nicht mittendrin.</li>
+          <li><strong>Verbinden nur beidseitig.</strong> Anfrage, Zustimmung, Visitenkarten
+            getauscht. Dazu ein leiser zweiter Weg: „Lass uns später sprechen.“</li>
+          <li><strong>Mein Kreis.</strong> Alle Begegnungen des Abends an einem Ort – Kontakt
+            speichern und Mail schreiben direkt aus der App, nach dem Abend eine Erinnerung:
+            Ihr habt euch verbunden.</li>
+          <li>Alles bleibt <strong>in einer Oberfläche</strong>. Die automatische
+            Vernetzungsmail an beide bleibt als Ausbaustufe liegen; sie lässt sich später
+            ergänzen, ohne dass sich am Abend etwas ändert.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>Der Abend in der App</h3>
+        <ul>
+          <li><strong>Check-in „Ich bin da“</strong> – ihr seht laufend, wie viele im Haus sind.</li>
+          <li><strong>Programm und Menü</strong> – die Timeline des Abends, dazu ein
+            „Als Nächstes“-Signal, das ihr auslöst.</li>
+          <li><strong>Tischordnung und Switch.</strong> Der Plan ist einsehbar, damit nicht 100
+            Gäste vor dem Bildschirm stehen. Zum Wechsel bekommt jeder <strong>persönlich eine
+            Push</strong>: „Dein nächster Gang findet an Tisch 7 statt.“ – auch dann, wenn das
+            Handy in der Tasche steckt.</li>
+          <li><strong>Der Tisch wird visuell dargestellt</strong> – Profilkreise ringsum,
+            antippen zeigt ein Kurzprofil. Wer links und rechts sitzt, ist damit kein Rätsel
+            mehr, sondern ein Gesprächsanfang.</li>
+          <li><strong>Blackout.</strong> Bei bestimmten Programmpunkten läuft in der App nichts,
+            etwa beim Impuls von Ien Svea Bäumler – auch keine Push. Auslösung vor Ort, ein
+            Klick.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>Ihr steuert, wir stehen daneben</h3>
+        <p>Alle Signale – Als Nächstes, Tischwechsel, Applaus, Aufforderung zum Bieten – kommen
+          aus dem <strong>Dashboard</strong>, das ihr selbst bedient. Dafür muss niemand von uns
+          vor Ort sein; Mathis ist am 16. September trotzdem da und drückt gern. Vor dem Abend
+          spielen wir gemeinsam durch, was das Dashboard kann und was nicht.</p>
+      </section>
+
+      <section>
+        <h3>Nach dem Abend</h3>
+        <ul>
+          <li><strong>Galerie in der App.</strong> Eine gemeinsame Galerie plus persönliche
+            Highlights: Fotos, auf denen der Gast selbst zu sehen ist, landen auf seiner
+            Oberfläche – mit Push und Download direkt aus der App, ohne zweiten Link. Die
+            Zuordnung machen wir zunächst manuell über benannte Dateien; ob die
+            Gesichtserkennung bei dem Licht trägt, prüfen wir, verlassen wollen wir uns nicht
+            darauf.</li>
+          <li><strong>Feedback.</strong> Kein langes Formular am Abend, sondern 24 bis 36 Stunden
+            später eine Push: Daumen hoch oder runter und ein Feld für einen Satz.</li>
+          <li><strong>Die App bleibt liegen.</strong> News, Recap, Save-the-Date – und die
+            Bewerbung für das nächste Event per Push. Das gibt euch nebenbei ein Gefühl für die
+            Nachfrage, bevor ihr einladet.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>Wie die Nachrichten ankommen</h3>
+        <p>Die App meldet sich zweimal von selbst: <strong>am Abend</strong>, wenn es persönlich
+          wird – der Tisch wechselt –, und <strong>danach</strong>, wenn die Galerie offen ist
+          oder wir nach dem Feedback fragen. Beides als Push auf den Sperrbildschirm, damit
+          niemand von sich aus nachschauen muss.</p>
+        <p>Damit das auf dem iPhone funktioniert, muss die App auf dem Home-Bildschirm liegen.
+          Wir bitten bei der Registrierung darum und erklären es in einem Satz. <strong>Wer es
+          nicht tut, verpasst nichts Wesentliches:</strong> Tischordnung und Programm stehen
+          jederzeit in der App, und die Ansage im Raum bleibt ohnehin.</p>
+      </section>
+
+    </div>
+
+    <div class="kapitel">
+      <div class="kapitelkopf">
+        <div class="eyebrow">Teil 2</div>
+        <h2>Was wir vom Circle-Team brauchen</h2>
+        <p>Vier Entscheidungen und eine Liste von Zulieferungen. Lieber früh und in Stücken als
+          kurz vorher am Stück – dann können wir einspielen, euch zeigen und in Ruhe
+          nachjustieren.</p>
+      </div>
+
+      <div class="jetzt">
+        <div class="eyebrow">Diese Woche</div>
+        <p><strong>Mi, 26.08.</strong> – Entscheidung über die Aktivierungen. Alles Weitere hat
+          Zeit; dieser eine Punkt entscheidet, was wir bis zum 16. September bauen.</p>
+      </div>
+
+      <section>
+        <div class="eyebrow">Entscheidungen</div>
+        <div class="entscheidung">
+          <h3>1 &middot; Welche Aktivierungen wollt ihr?</h3>
+          <p>Zur Wahl stehen: Applaus im Raum, Live-Votum zum Pitch, Bieten auf das Kunstwerk,
+            Schätzspiel zum Erlös, Circle Bingo und Impulskarten.</p>
+          <p class="rat">Unser Rat: mit der Basis starten und höchstens zwei dazunehmen. Euer
+            Ablaufplan ist schon so voll, dass ihr kürzen müsst – und für N°2 und N°3 bleibt
+            etwas in der Hinterhand, damit es nicht jedes Mal dieselbe Mechanik ist.</p>
+        </div>
+        <div class="entscheidung">
+          <h3>2 &middot; Wo liegen die Blackout-Fenster?</h3>
+          <p class="rat">Bitte im Ablaufplan markieren, welche Programmpunkte app-frei sind, und
+            Mathis kurz briefen. Technisch ist es ein Klick – es muss nur jemand wissen, wann.</p>
+        </div>
+        <div class="entscheidung">
+          <h3>3 &middot; Push – seid ihr einverstanden?</h3>
+          <p>Von unserer Seite gesetzt: Die App meldet sich per Push, am Abend beim Tischwechsel
+            und danach bei Galerie und Feedback. Zwei Dinge solltet ihr dazu wissen.</p>
+          <p><strong>Auf dem iPhone geht Push nur, wenn die App auf dem Home-Bildschirm liegt.</strong>
+            Wir bitten bei der Registrierung darum – das ist ein zusätzlicher Schritt, und ein
+            Teil der Gäste wird ihn überspringen. Für den Abend ist das verkraftbar: der
+            Tischplan steht ohnehin in der App und der Wechsel wird angesagt.</p>
+          <p class="rat">Für die Nachrichten <strong>nach</strong> dem Abend raten wir zu Push
+            und E-Mail nebeneinander: Push für alle, die es erlaubt haben, E-Mail für den Rest.
+            So kommt die Galerie bei jedem an, und niemand wird zweimal angeschrieben. Sagt uns,
+            ob euch das recht ist.</p>
+        </div>
+        <div class="entscheidung">
+          <h3>4 &middot; Was hält die Community zusammen?</h3>
+          <p class="rat">Der Gästekreis wechselt von Mal zu Mal fast vollständig. Damit die App
+            danach trägt, braucht es Inhalte, die über den einzelnen Abend hinausgehen – Recaps,
+            Partner, Rückblicke. Das definieren wir gemeinsam, sobald die ersten Inhalte da sind;
+            es eilt nicht vor dem 16. September.</p>
+        </div>
+      </section>
+
+      <section>
+        <div class="eyebrow">Zulieferungen</div>
+        <div class="tabelle">
+          <table>
+            <thead><tr><th>Was</th><th>Von wem</th><th>Bis wann</th></tr></thead>
+            <tbody>
+              <tr><td>Entscheidung über die Aktivierungen</td><td>Dylan, Desiree</td><td class="frist">26.08.</td></tr>
+              <tr><td>Programm final: Punkte, Reihenfolge, Uhrzeiten</td><td>Desiree</td><td class="frist">bis 01.09.</td></tr>
+              <tr><td>Menü final, im Wortlaut</td><td>Desiree</td><td class="frist">01.09.</td></tr>
+              <tr><td>Dresscode, Einlass und Ortshinweise bestätigen</td><td>Desiree</td><td class="frist">01.09.</td></tr>
+              <tr><td>Walkthrough: was das Dashboard kann und was nicht</td><td>alle</td><td class="frist">KW 37</td></tr>
+              <tr><td>Blackout-Fenster im Ablaufplan, Briefing Mathis</td><td>Desiree, Dylan</td><td class="frist">11.09.</td></tr>
+              <tr><td>Tisch-Slide von Jonan als Maske – die Namen kommen später</td><td>Jonan</td><td class="frist">sobald da</td></tr>
+              <tr><td>Finale Tischordnung</td><td>Jonan</td><td class="frist">Mo, 14.09.</td></tr>
+              <tr><td>Hinweis auf die Teilnehmerliste in der letzten Info-Mail</td><td>Desiree</td><td class="frist">mit Welle 2</td></tr>
+              <tr><td>Fotos und ihre Zuordnung, über benannte Dateien oder eine Liste</td><td>Fotograf, Mathis</td><td class="frist">nach dem Abend</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Die Maske für die Tischordnung bauen wir vorher mit Platzhaltern – am 14. September
+          kommen nur noch die Namen hinein.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div>Stand: 24.08.2026 &middot; Zusammenfassung des Calls vom 19.08.2026 zwischen THE CIRCLE und planyvo</div>
+  </footer>
+</div>
