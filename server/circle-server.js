@@ -136,6 +136,40 @@ function ticketZusagen() {
     .filter(i => i.typ !== "ehrengast" && (i.status === "zugesagt" || i.status === "bezahlt")).length;
 }
 const ticketPlaetzeFrei = () => Math.max(0, TICKET_LIMIT - ticketZusagen());
+
+/* ---------- Rechnung ----------
+ *
+ * Warum wir sie selbst schreiben und nicht Stripe schreiben lassen:
+ * Das Stripe-Konto laeuft auf eine andere Gesellschaft als die, die
+ * Rechnungssteller sein soll. Die Kontodaten zu aendern hiesse, die gerade
+ * erst abgeschlossene Pruefung erneut auszuloesen - und ohne Stripe kann
+ * niemand mehr zahlen. Eine eigene Rechnung aus unserer Mail kostet uns
+ * nichts und ruehrt an nichts.
+ *
+ * 100 Euro sind eine Kleinbetragsrechnung nach Paragraf 33 UStDV (bis 250
+ * Euro brutto). Die braucht KEINE Anschrift des Empfaengers und keine
+ * fortlaufende Nummer - beides haben wir ohnehin nicht vollstaendig. Noetig
+ * sind: Aussteller mit Anschrift, Datum, Art der Leistung, Bruttobetrag und
+ * der Steuersatz bzw. der Hinweis auf die Steuerbefreiung. Eine Nummer
+ * vergeben wir trotzdem: die Buchhaltung dankt es.
+ *
+ * Alles Ausstellerbezogene kommt aus der Umgebung - es steht auf einem
+ * steuerlichen Dokument und gehoert nicht in ein Repository. */
+const RECHNUNG_AKTIV    = process.env.RECHNUNG_AKTIV === "1";
+const RECHNUNG_FIRMA    = process.env.RECHNUNG_FIRMA || "";
+/* Zeilen mit | getrennt: "Musterstr. 1|50667 Köln" */
+const RECHNUNG_ANSCHRIFT= process.env.RECHNUNG_ANSCHRIFT || "";
+const RECHNUNG_STEUER   = process.env.RECHNUNG_STEUER || "";
+/* 19 = ausgewiesen, 0 = keine (dann gehoert der Grund in RECHNUNG_HINWEIS) */
+const RECHNUNG_USTSATZ  = parseFloat(process.env.RECHNUNG_USTSATZ || "0") || 0;
+const RECHNUNG_HINWEIS  = process.env.RECHNUNG_HINWEIS || "";
+const RECHNUNG_PRAEFIX  = process.env.RECHNUNG_PRAEFIX || "CIRCLE-2026-";
+const RECHNUNG_KONTAKT  = process.env.RECHNUNG_KONTAKT || MAIL_FROM.replace(/^.*<|>.*$/g, "");
+
+/* Ohne Aussteller und Anschrift ist es keine Rechnung, sondern ein Zettel. */
+const rechnungMoeglich = () => RECHNUNG_AKTIV && !!RECHNUNG_FIRMA && !!RECHNUNG_ANSCHRIFT;
+
+const euroText = cent => (cent / 100).toFixed(2).replace(".", ",") + " €";
 /* Was dieser eine Gast zahlt. Regulaer der Ticketpreis - abweichend nur bei
  * Testgaesten, damit eine echte Live-Zahlung geprueft werden kann, ohne
  * dafuer jedes Mal 100 Euro zu bewegen. */
@@ -1038,7 +1072,7 @@ function esc(s) {
 }
 
 /* Alle Platzhalter einer Vorlage fuer genau einen Gast fuellen. */
-function renderMail(inv, datei) {
+function renderMail(inv, datei, extra) {
   const werte = {
     anrede: inv.anrede || "Hallo",
     name: inv.name || "",
@@ -1071,7 +1105,19 @@ function renderMail(inv, datei) {
     portrait_ien_url: assetUrl("portrait-ien.jpg"),
     portrait_max_url: assetUrl("portrait-max.jpg")
   };
-  const roh = vorlageLesen(datei);
+  /* Zusaetzliche Werte fuer Vorlagen, die nicht jeder Gast braucht (die
+   * Rechnung). Bewusst NACH den Standardwerten: eine Vorlage darf einen
+   * Standardwert ueberschreiben, nicht umgekehrt. */
+  if (extra) Object.assign(werte, extra);
+  /* Optionale Abschnitte: {{#schluessel}} … {{/schluessel}} bleibt nur
+   * stehen, wenn der Wert gefuellt ist. Gebraucht fuer die Rechnung: ohne
+   * ausgewiesene Umsatzsteuer darf dort keine leere Steuerzeile stehen -
+   * "Umsatzsteuer" mit nichts dahinter liest sich wie ein Fehler.
+   * Vor der Platzhalterpruefung, damit entfernte Abschnitte keine
+   * unbekannten Platzhalter mehr melden koennen. */
+  const roh = vorlageLesen(datei)
+    .replace(/\{\{#([a-z_]+)\}\}([\s\S]*?)\{\{\/\1\}\}/g,
+             (ganz, schluessel, inhalt) => werte[schluessel] ? inhalt : "");
   /* Unbekannte Platzhalter am ROHEN Template pruefen, nicht am Ergebnis:
    * Gastdaten koennten "{{...}}" enthalten (Altbestand vor dem cleanText-
    * Filter) - am fertigen HTML gemessen saehe das wie ein Vorlagenfehler aus
@@ -1437,6 +1483,100 @@ function webhookGueltig(sigHeader, rawBody) {
   });
 }
 
+/* Faellig ist eine Rechnung fuer bezahlte Bezahlgaeste - genau einmal.
+ * Ehrengaeste zahlen nichts, ueber nichts stellt man keine Rechnung. */
+function rechnungFaellig(inv) {
+  if (!rechnungMoeglich()) return false;
+  if (!inv || !inv.email || inv.typ === "ehrengast") return false;
+  if (inv.status !== "bezahlt") return false;
+  return !(inv.rechnung && inv.rechnung.verschickt);
+}
+
+/* Die Nummer wird EINMAL vergeben und bleibt dann am Gast kleben - auch
+ * wenn der Versand scheitert. Ein zweiter Anlauf schickt dieselbe Rechnung
+ * mit derselben Nummer. Eine Nummer neu zu vergeben, weil eine Mail nicht
+ * durchkam, hiesse dieselbe Leistung zweimal zu berechnen. */
+function rechnungNummer(inv) {
+  if (inv.rechnung && inv.rechnung.nr) return inv.rechnung.nr;
+  state.rechnungZaehler = (state.rechnungZaehler || 0) + 1;
+  inv.rechnung = { nr: RECHNUNG_PRAEFIX + String(state.rechnungZaehler).padStart(4, "0"),
+                   t: Date.now(), verschickt: 0 };
+  dirty = true;
+  return inv.rechnung.nr;
+}
+
+function rechnungSenden(inv) {
+  if (!LETTERMINT_TOKEN) return;
+  if (!rechnungFaellig(inv)) return;
+  const nr = rechnungNummer(inv);
+  const brutto = (inv.zahlung && inv.zahlung.amount) || preisVon(inv);
+  /* Bei ausgewiesener Steuer ist der gezahlte Betrag der BRUTTObetrag -
+   * herausgerechnet, nicht aufgeschlagen. Der Gast hat 100 Euro gezahlt,
+   * nicht 119. */
+  const netto = RECHNUNG_USTSATZ > 0
+    ? Math.round(brutto / (1 + RECHNUNG_USTSATZ / 100))
+    : brutto;
+  const ust = brutto - netto;
+  const datum = new Date(inv.rechnung.t);
+  const dstr = d => String(d.getDate()).padStart(2, "0") + "." +
+                    String(d.getMonth() + 1).padStart(2, "0") + "." + d.getFullYear();
+  const extra = {
+    rechnung_nr: nr,
+    rechnung_datum: dstr(datum),
+    zahlung_datum: dstr(new Date((inv.zahlung && inv.zahlung.paidAt) || inv.rechnung.t)),
+    aussteller: RECHNUNG_FIRMA,
+    aussteller_anschrift: RECHNUNG_ANSCHRIFT.split("|").map(z => z.trim()).filter(Boolean).join(", "),
+    aussteller_steuer: RECHNUNG_STEUER,
+    aussteller_kontakt: RECHNUNG_KONTAKT,
+    empfaenger: [inv.name, inv.firma].filter(Boolean).join(", "),
+    betrag_brutto: euroText(brutto),
+    betrag_netto: euroText(netto),
+    ust_satz: RECHNUNG_USTSATZ > 0 ? String(RECHNUNG_USTSATZ).replace(".", ",") + " %" : "",
+    ust_betrag: RECHNUNG_USTSATZ > 0 ? euroText(ust) : "",
+    /* Steht statt der Steuerzeile, wenn keine ausgewiesen wird - der Grund
+     * MUSS auf der Rechnung stehen, sonst fehlt eine Pflichtangabe. */
+    steuer_hinweis: RECHNUNG_USTSATZ > 0 ? "" : RECHNUNG_HINWEIS,
+    leistungsdatum: "16.09.2026"
+  };
+  let html;
+  try { html = renderMail(inv, "rechnung.html", extra); }
+  catch (e) { console.error("Rechnung bricht: " + e.message); return; }
+
+  const text = [
+    (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
+    "",
+    "anbei die Rechnung über deine Teilnahme an THE CIRCLE No1.",
+    "",
+    "Rechnung " + nr + " vom " + extra.rechnung_datum,
+    RECHNUNG_FIRMA, extra.aussteller_anschrift,
+    RECHNUNG_STEUER, "",
+    "Teilnahme THE CIRCLE No1 · 16. September 2026 · Playa Cologne, Köln",
+    RECHNUNG_USTSATZ > 0
+      ? "Netto " + extra.betrag_netto + " · zzgl. " + extra.ust_satz + " USt " + extra.ust_betrag
+      : RECHNUNG_HINWEIS,
+    "Gesamtbetrag " + extra.betrag_brutto + " – bezahlt am " + extra.zahlung_datum + ".",
+    "",
+    "Fragen zur Rechnung: " + RECHNUNG_KONTAKT
+  ].filter(Boolean).join("\n");
+
+  lettermintSenden({
+    to: inv.email,
+    subject: "Deine Rechnung zu THE CIRCLE No1 · " + nr,
+    html, text,
+    metadata: { token: inv.token, art: "rechnung", pool: inv.pool || "" }
+  }, (err) => {
+    if (err) {
+      /* Nummer BLEIBT - nur der Versandvermerk fehlt, der naechste Anlauf
+       * schickt dieselbe Rechnung. */
+      console.error("Rechnung " + nr + " an " + inv.email + " fehlgeschlagen: " + err.message);
+    } else {
+      inv.rechnung.verschickt = Date.now();
+      dirty = true;
+      console.log("Rechnung " + nr + " an " + inv.email + " verschickt.");
+    }
+  });
+}
+
 function zahlungBuchen(token, session) {
   const inv = findInvite(token);
   if (!inv) return;
@@ -1451,6 +1591,10 @@ function zahlungBuchen(token, session) {
   logEvent("bezahlt", inv.name, inv.pool);
   dirty = true;
   bestaetigungSenden(inv);
+  /* Mit Abstand, damit Bestaetigung und Rechnung nicht in derselben Sekunde
+   * beim Anbieter ankommen - und damit sie in der richtigen Reihenfolge im
+   * Postfach liegen. */
+  setTimeout(() => rechnungSenden(inv), 4000);
 }
 
 /* ---------- Server ---------- */
@@ -2250,6 +2394,34 @@ const server = http.createServer((req, res) => {
       return json(res, 200, { ok: true, geaendert: aenderungen.length,
                               schonMitgeteilt: aenderungen.filter(a => a.kannteSieSchon),
                               aenderungen });
+    }
+
+    /* Rechnungen nachholen - fuer alle, die bezahlt haben, BEVOR es die
+     * Rechnung gab, und als Netz, falls Lettermint einmal nicht erreichbar
+     * war. Ohne ?senden=1 nur die Liste. Wer schon eine Nummer hat, behaelt
+     * sie: dieselbe Leistung wird nicht zweimal berechnet. */
+    if (req.method === "POST" && url === "/api/admin/rechnungen") {
+      if (!rechnungMoeglich()) {
+        return json(res, 503, {
+          error: "Rechnungsversand ist nicht eingerichtet. Nötig: RECHNUNG_AKTIV=1, " +
+                 "RECHNUNG_FIRMA, RECHNUNG_ANSCHRIFT (und RECHNUNG_USTSATZ bzw. RECHNUNG_HINWEIS)."
+        });
+      }
+      const dran = Object.values(state.invites).filter(rechnungFaellig);
+      const liste = dran.map(inv => ({
+        name: inv.name, email: inv.email, ticketNr: inv.ticketNr,
+        betrag: euroText((inv.zahlung && inv.zahlung.amount) || preisVon(inv)),
+        nummer: (inv.rechnung && inv.rechnung.nr) || "(wird vergeben)"
+      }));
+      if (q.get("senden") !== "1") {
+        return json(res, 200, { ok: true, probelauf: true, anzahl: dran.length,
+                                aussteller: RECHNUNG_FIRMA,
+                                ustsatz: RECHNUNG_USTSATZ, hinweis: RECHNUNG_HINWEIS,
+                                gaeste: liste });
+      }
+      if (!LETTERMINT_TOKEN) return json(res, 503, { error: "LETTERMINT_TOKEN fehlt in der App" });
+      dran.forEach((inv, i) => setTimeout(() => rechnungSenden(inv), i * 600));
+      return json(res, 200, { ok: true, verschickt: dran.length, gaeste: liste });
     }
 
     /* Jemanden von der Warteliste nachruecken lassen - wenn ein Bezahlgast
