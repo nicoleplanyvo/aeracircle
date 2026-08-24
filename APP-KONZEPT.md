@@ -125,10 +125,9 @@ einspielen, euch zeigen und in Ruhe nachjustieren.
 | Was | Von wem | Bis wann |
 |---|---|---|
 | Entscheidung: welche Aktivierungen | Dylan, Desiree | nach der Klausur, möglichst 26.08. |
-| Programm final (Punkte, Reihenfolge, Uhrzeiten) | Desiree | schrittweise, spätestens 07.09. |
-| Menü final (3 Gänge, Wortlaut) | Desiree | 07.09. |
-| Partnerlogos negativ (SVG oder PNG mit Transparenz) | Anne | laufend |
-| Dresscode, Einlass, Ortshinweise bestätigen | Desiree | 07.09. |
+| Programm final (Punkte, Reihenfolge, Uhrzeiten) | Desiree | schrittweise, spätestens 01.09. |
+| Menü final (3 Gänge, Wortlaut) | Desiree | 01.09. |
+| Dresscode, Einlass, Ortshinweise bestätigen | Desiree | 01.09. |
 | Blackout-Fenster im Ablaufplan markieren, Briefing Mathis | Desiree, Dylan | 11.09. |
 | Tisch-Slide von Jonan (als Maske, Namen später) | Jonan | sobald da |
 | Finale Tischordnung | Jonan | Mo, 14.09. |

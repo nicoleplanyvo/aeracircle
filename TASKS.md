@@ -28,7 +28,7 @@ als PDF daneben.
 | [#5](../../issues/5) | Profil und Vernetzung: beidseitiges Verbinden, „Mein Kreis" | #4, #6 |
 | [#6](../../issues/6) | Registrierung in der App: Profilbild und Freigabe der Kontaktdaten | – |
 | [#7](../../issues/7) | Tischordnung: Plan, persönlicher Hinweis, visuelle Darstellung | #4, Tisch-Slide von Jonan |
-| [#8](../../issues/8) | Abend-Steuerung im Dashboard | Programm final (07.09.) |
+| [#8](../../issues/8) | Abend-Steuerung im Dashboard | Programm final (01.09.) |
 | [#9](../../issues/9) | Blackout-Fenster | Ablaufplan-Markierung (11.09.) |
 | [#10](../../issues/10) | Aktivierungen – blockiert bis zur Klausur-Entscheidung | Entscheidung 26.08. |
 | [#11](../../issues/11) | Check-in „Ich bin da" | #5 |
