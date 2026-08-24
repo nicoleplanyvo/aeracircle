@@ -120,30 +120,6 @@ einspielen, euch zeigen und in Ruhe nachjustieren.
 Die Maske für die Tischordnung bauen wir **vorher** mit Platzhaltern – am 14.09.
 kommen nur noch die Namen hinein.
 
-## 6. Einladung und Zahlung – der Stand von heute
-
-- **Stripe läuft vollständig auf Anne** (Gewerbeanmeldung und Unternehmens-
-  bezeichnung müssen übereinstimmen, sonst verifiziert Stripe nicht). Neue
-  Prüfung: bis zu 24 Stunden. Dafür braucht es Annes **Steuer-ID** – bei einer
-  GbR gibt es keine Handelsregister-Eintragung.
-- **Welle 1 geht raus, sobald verifiziert ist** – Ziel: Donnerstag, 20.08.
-- **Zwei Rückmeldefristen:** Ehrengäste bis zum **27.08.** (ein Tag später als
-  geplant, weil der Versand sich verschiebt), Bezahlgäste bis zum **28.08.** –
-  ihre Einladung geht später raus, und der Beitrag will überwiesen sein. Beide
-  stehen im Register (`RSVP_DEADLINE`, `RSVP_DEADLINE_TICKET`).
-- **Gäste ohne E-Mail-Adresse** bekommen ihren persönlichen Link als
-  WhatsApp-Link, Dylan leitet ihn weiter – aktuell 13 Gäste in Welle 1.
-- **Tilman Stoeck** und **Jonas Hector**: nur an die geschäftliche Adresse.
-  Bei Tilman Stoeck fehlt sie im Register noch.
-- **Maik Brodowski**: die Adresse bei Bitpanda bounct hart – wir brauchen eine
-  andere (Dylan fragt über Lars).
-- **Moritz Eiland**: Status offen (Kaffee-Sponsoring, eigener Stand, ggf.
-  trotzdem 100 €). Bleibt bis zur Klärung aus dem Versand.
-- **Lars**: bitte kurz bestätigen, wer gemeint ist – Lars Meyer (Playa Cologne)
-  steht bereits als Ehrengast in der Liste.
-- **Langfristig:** nach N°1 saubere Übergabe der Zahlungsabwicklung an die neue
-  GbR inklusive Umsatzsteuer-ID.
-
 ---
 
 ## Intern (nicht Teil des Kundendokuments)
