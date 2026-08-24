@@ -434,6 +434,7 @@ negative Varianten anfragen).
 | `email/*.html` | Mailvorlagen der drei Wellen (der Server füllt sie und verschickt) |
 | `server/circle-server.js` | Gästeregister mit Pools, Stripe, Webhooks, Live-Ebene |
 | `server/gaesteliste-vorlage.csv` | Spaltenvorlage für die Pool-Listen |
+| `TASKS.md` | Arbeitsstand: welche Issues offen sind, was blockiert ist und worauf es wartet |
 | `APP-KONZEPT.md` | **Die App zum Abend** – Ergebnis des Konzept-Calls vom 19.08.2026: was fest ist, was ihr entscheidet, was wir bis wann brauchen |
 | `pitch/app-stand.html` | Dokument für die Runde: was nach dem Call vom 19.08. feststeht und was das Circle-Team zuliefert (Quelle des PDFs) |
 | `pitch/THE-CIRCLE-App-Stand.pdf` | dasselbe als A4 zum Verschicken |
