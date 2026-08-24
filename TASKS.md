@@ -39,7 +39,7 @@ als PDF daneben.
 | # | Was |
 |---|---|
 | [#12](../../issues/12) | Galerie mit persönlichen Highlights und Push |
-| [#13](../../issues/13) | Zustellweg der Nachrichten, Feedback, Recap |
+| [#13](../../issues/13) | Push als Zustellweg — am Abend und danach |
 
 ## Gemeinsam mit dem Circle-Team
 

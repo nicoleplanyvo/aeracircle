@@ -12,8 +12,10 @@ nicht dem Handy – die App verbindet, sie beschäftigt nicht.
 **Keine native App, sondern eine PWA.** Sie läuft im Browser; der Gast öffnet
 seinen persönlichen Link und legt sie mit einem Tipp auf den Home-Bildschirm,
 danach startet sie mit eigenem Symbol im Vollbild. Kein Download, kein App
-Store, keine Freigabe, auf die wir warten – und Änderungen sind sofort bei
-allen da, ohne dass jemand ein Update installiert.
+Store, keine Freigabe, auf die wir warten – und Änderungen spielen wir ein,
+ohne dass jemand ein Update installiert. Gilt nur mit der richtigen
+Cache-Strategie im Service Worker: eine alte Fassung, die sich haelt, wäre
+genau der Fehler, der am 16.09. auffiele.
 
 **Eckdaten:** THE CIRCLE N°1 · Mi, 16.09.2026 · 18:00–23:00 Uhr · Playa Cologne ·
 Tischordnung liegt am Mo, 14.09. vor · Nicole ist Mo–Do auf einer Konferenz in
@@ -96,14 +98,20 @@ N°3 in der Hinterhand behalten – sonst ist es jedes Mal dieselbe Mechanik.
 - **Die App bleibt liegen.** News, Recap, Save-the-Date, und – der Gedanke aus
   der Runde – die **Bewerbung für das nächste Event per Push**. Das gibt euch
   ganz nebenbei ein Gefühl für die Nachfrage, bevor ihr einladet.
-- **Wie die Nachrichten ankommen.** Am Abend braucht es keine Benachrichtigung –
-  die App ist offen. Danach schon. Drei Wege, kombinierbar:
-  **Push aus der App** (Sperrbildschirm; auf Android sofort, auf dem iPhone nur
-  bei App auf dem Home-Bildschirm – wir bitten bei der Registrierung darum),
-  **E-Mail** (erreicht jeden im Register, braucht keine Erlaubnis, landet aber
-  im Postfach) und **nur in der App** (wartet, bis der Gast hereinschaut).
-  Unser Rat an die Runde: Push und E-Mail zusammen, jeder Gast bekommt es
-  einmal. Entscheidung offen.
+- **Push, auch während des Abends.** Entschieden: Die App meldet sich von selbst –
+  am Abend beim Tischwechsel, danach bei Galerie und Feedback. Ein SSE-Signal
+  allein reicht nicht, weil die Handys in der Tasche liegen und die Bildschirme
+  gesperrt sind.
+  Haken: Auf dem iPhone geht Web-Push nur für PWAs auf dem Home-Bildschirm, und
+  die Erlaubnis muss aus der installierten App heraus erteilt werden – die
+  Registrierung braucht also zwei Schritte (registrieren → auf den
+  Home-Bildschirm legen → von dort öffnen → Push erlauben). Ein Teil der Gäste
+  wird abspringen; für den Abend ist das verkraftbar, weil Tischplan und
+  Programm ohnehin in der App stehen und der Wechsel angesagt wird.
+  Für die Nachrichten **nach** dem Abend: Push und E-Mail nebeneinander, damit
+  Galerie und Feedback jeden erreichen. Rückfrage an die Runde läuft.
+- **Blackout hält auch Push zurück.** Während eines Fensters geht nichts raus –
+  serverseitig, nicht nur in der Oberfläche.
 - **Offen:** Der Gästekreis wechselt fast vollständig. Damit trotzdem eine
   Community entsteht, braucht es Inhalte, die **über die einzelne Veranstaltung
   hinaus** gelten – Recaps, Partner, Rückblicke. Was das konkret ist, definieren
