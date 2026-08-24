@@ -1,6 +1,6 @@
 # Die App zum Abend – was der Call vom 19.08.2026 ergeben hat
 
-Teilnehmer: Dylan, Desiree, Anne, Johann (THE CIRCLE) · Nicole, Mathis (planyvo)
+Teilnehmer: Dylan, Desiree, Anne, Jonan (THE CIRCLE) · Nicole, Mathis (planyvo)
 
 Die Fassung für die Runde liegt als `pitch/app-stand.html` und als PDF daneben –
 dort steht nur, was feststeht und was ihr zuliefert. Dieses Dokument hält fest, worauf wir uns geeinigt haben, was ihr in eurer
@@ -8,6 +8,12 @@ Klausur entscheidet und was wir bis wann von euch brauchen. Der Rahmen bleibt
 wie besprochen: **die App ist Welle 2** und wird erst wenige Tage vor dem Abend
 an die Gäste kommuniziert, die zugesagt haben. Der Abend gehört dem Programm,
 nicht dem Handy – die App verbindet, sie beschäftigt nicht.
+
+**Keine native App, sondern eine PWA.** Sie läuft im Browser; der Gast öffnet
+seinen persönlichen Link und legt sie mit einem Tipp auf den Home-Bildschirm,
+danach startet sie mit eigenem Symbol im Vollbild. Kein Download, kein App
+Store, keine Freigabe, auf die wir warten – und Änderungen sind sofort bei
+allen da, ohne dass jemand ein Update installiert.
 
 **Eckdaten:** THE CIRCLE N°1 · Mi, 16.09.2026 · 18:00–23:00 Uhr · Playa Cologne ·
 Tischordnung liegt am Mo, 14.09. vor · Nicole ist Mo–Do auf einer Konferenz in
@@ -75,10 +81,6 @@ N°3 in der Hinterhand behalten – sonst ist es jedes Mal dieselbe Mechanik.
 | Schätzspiel zum Erlös | Leichte Variante der Auktion | Guter Ersatz, wenn nicht digital geboten wird |
 | Circle Bingo / Impulskarten | Gesprächsanlässe | Eher für ein Publikum, das sich noch nicht kennt – hier verzichtbar |
 
-Wenn ihr Applaus oder Votum wollt, ohne dass Handys hochkommen: die
-**NFC-Variante** (Armband am Handgelenk, Stationen im Raum) hält das Handy in
-der Tasche. Kein Muss – aber die Option steht.
-
 ## 4. Nach dem Abend
 
 - **Galerie in der App.** Eine gemeinsame Galerie plus **persönliche
@@ -94,6 +96,14 @@ der Tasche. Kein Muss – aber die Option steht.
 - **Die App bleibt liegen.** News, Recap, Save-the-Date, und – der Gedanke aus
   der Runde – die **Bewerbung für das nächste Event per Push**. Das gibt euch
   ganz nebenbei ein Gefühl für die Nachfrage, bevor ihr einladet.
+- **Wie die Nachrichten ankommen.** Am Abend braucht es keine Benachrichtigung –
+  die App ist offen. Danach schon. Drei Wege, kombinierbar:
+  **Push aus der App** (Sperrbildschirm; auf Android sofort, auf dem iPhone nur
+  bei App auf dem Home-Bildschirm – wir bitten bei der Registrierung darum),
+  **E-Mail** (erreicht jeden im Register, braucht keine Erlaubnis, landet aber
+  im Postfach) und **nur in der App** (wartet, bis der Gast hereinschaut).
+  Unser Rat an die Runde: Push und E-Mail zusammen, jeder Gast bekommt es
+  einmal. Entscheidung offen.
 - **Offen:** Der Gästekreis wechselt fast vollständig. Damit trotzdem eine
   Community entsteht, braucht es Inhalte, die **über die einzelne Veranstaltung
   hinaus** gelten – Recaps, Partner, Rückblicke. Was das konkret ist, definieren
@@ -112,8 +122,8 @@ einspielen, euch zeigen und in Ruhe nachjustieren.
 | Partnerlogos negativ (SVG oder PNG mit Transparenz) | Anne | laufend |
 | Dresscode, Einlass, Ortshinweise bestätigen | Desiree | 07.09. |
 | Blackout-Fenster im Ablaufplan markieren, Briefing Mathis | Desiree, Dylan | 11.09. |
-| Tisch-Slide von Johann (als Maske, Namen später) | Johann | sobald da |
-| Finale Tischordnung | Johann | Mo, 14.09. |
+| Tisch-Slide von Jonan (als Maske, Namen später) | Jonan | sobald da |
+| Finale Tischordnung | Jonan | Mo, 14.09. |
 | Walkthrough: was das Dashboard kann und was nicht | alle | Woche vom 07.09. |
 | Fotos + Zuordnung (Dateibenennung oder Excel) | Mathis / Fotograf | nach dem Abend |
 | Hinweis auf die Teilnehmerliste in der letzten Info-Mail | Desiree | mit Welle 2 |
@@ -127,8 +137,8 @@ kommen nur noch die Namen hinein.
 
 **Gap-Check gegen die Planyvo-Module.** Der Call ist zum größten Teil mit dem
 abgedeckt, was die Plattform ohnehin hat: Formulare, Messaging, Push,
-Announcements („Als Nächstes"), Table Rotation (Switch), NFC-Stationen.
-Echte Lücken sind drei:
+Announcements („Als Nächstes"), Table Rotation (Switch). Echte Lücken sind
+drei:
 
 1. **Profil- und Verbindungs-Modul** – Registrierung mit Bild und
    Freigabe-Checkbox, beidseitiges Opt-in, Visitenkarten-Tausch, „Mein Kreis". Das ist der Kern des Auftrags und kein Sonderfall: das braucht

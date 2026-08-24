@@ -7,6 +7,7 @@ als PDF daneben.
 
 **Der Abend:** Mi, 16.09.2026 · 18:00–23:00 · Playa Cologne
 **Tischordnung:** liegt Mo, 14.09. vor · **Vor Ort:** Mathis
+**Die App:** eine PWA, keine native App – kein Store, kein Download ([#18](../../issues/18))
 
 ---
 
@@ -26,18 +27,19 @@ als PDF daneben.
 |---|---|---|
 | [#5](../../issues/5) | Profil und Vernetzung: beidseitiges Verbinden, „Mein Kreis" | #4, #6 |
 | [#6](../../issues/6) | Registrierung in der App: Profilbild und Freigabe der Kontaktdaten | – |
-| [#7](../../issues/7) | Tischordnung: Plan, persönlicher Hinweis, visuelle Darstellung | #4, Tisch-Slide von Johann |
+| [#7](../../issues/7) | Tischordnung: Plan, persönlicher Hinweis, visuelle Darstellung | #4, Tisch-Slide von Jonan |
 | [#8](../../issues/8) | Abend-Steuerung im Dashboard | Programm final (07.09.) |
 | [#9](../../issues/9) | Blackout-Fenster | Ablaufplan-Markierung (11.09.) |
 | [#10](../../issues/10) | Aktivierungen – blockiert bis zur Klausur-Entscheidung | Entscheidung 26.08. |
 | [#11](../../issues/11) | Check-in „Ich bin da" | #5 |
+| [#18](../../issues/18) | PWA: Installierbarkeit, Home-Bildschirm, Push-Erlaubnis | #4 |
 
 ## Nach dem Abend
 
 | # | Was |
 |---|---|
 | [#12](../../issues/12) | Galerie mit persönlichen Highlights und Push |
-| [#13](../../issues/13) | Feedback-Push, Recap, die App als bleibendes Gadget |
+| [#13](../../issues/13) | Zustellweg der Nachrichten, Feedback, Recap |
 
 ## Gemeinsam mit dem Circle-Team
 
