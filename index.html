@@ -535,6 +535,38 @@
   #complete h2{font-family:var(--disp);font-weight:600;font-size:27px;margin-bottom:10px}
   #complete p{color:var(--muted);max-width:300px;font-size:13.5px;margin-bottom:32px}
 
+  /* ---------- App-freie Stellen ----------
+     Der Hinweis im Ablauf ist absichtlich ruhig und ohne Ausrufezeichen:
+     Er soll gelesen und akzeptiert werden, nicht ermahnen. */
+  .t-appfrei{
+    display:inline-block;margin-top:8px;
+    font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--sand);border:1px solid var(--line-soft);
+    padding:5px 10px;
+  }
+  #appfrei{
+    position:fixed;inset:0;z-index:115;
+    /* Fast deckend und zusaetzlich weichgezeichnet: Ein halbdurchsichtiges
+       Blatt, durch das die Startseite noch lesbar ist, sagt "gleich weiter"
+       statt "jetzt nicht". Wo backdrop-filter fehlt, traegt die Deckung
+       allein. */
+    background:linear-gradient(180deg,rgba(18,38,72,.988),rgba(10,20,40,.995));
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    display:none;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:40px;
+  }
+  #appfrei.show{display:flex;animation:fadein .6s ease}
+  #appfrei .label{color:var(--sand)}
+  #appfrei h2{font-family:var(--disp);font-weight:600;font-size:25px;
+    letter-spacing:.04em;margin:18px 0 12px;max-width:14em;line-height:1.35}
+  #appfrei p{color:var(--muted);max-width:20em;font-size:13.5px;line-height:1.75;margin-bottom:30px}
+  #appfrei .rule{width:44px;height:1px;background:var(--coral);margin-bottom:26px}
+  #appfrei .weiter{
+    margin-top:22px;background:none;border:0;cursor:pointer;
+    font-family:var(--sans);font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--faint);padding:10px;
+  }
+
   /* ---------- Toast ---------- */
   #toast{
     position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px);
@@ -1206,6 +1238,15 @@
   <button class="btn btn--solid" id="completeClose">Weiter im Abend</button>
 </div>
 
+<!-- App-freie Stelle: Impulsvortraege und Versteigerung -->
+<div id="appfrei" role="dialog" aria-modal="true" aria-label="App-freie Zeit">
+  <span class="label" id="appfreiWas">Jetzt im Raum</span>
+  <h2 id="appfreiTitel">Leg das Handy kurz weg.</h2>
+  <div class="rule" aria-hidden="true"></div>
+  <p id="appfreiText"></p>
+  <button class="weiter" id="appfreiWeiter" type="button">Trotzdem öffnen</button>
+</div>
+
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -1225,6 +1266,23 @@ const CONFIG = {
     av8:     { from: "19:45", to: "20:15" },
     auktion: { from: "22:45", to: "23:00" }
   },
+  /* App-freie Stellen (die gelb markierten in Desis Timing vom 04.09.).
+     Hier soll der Abend im Raum stattfinden und nicht auf dem Bildschirm:
+     zwei Impulsvortraege und die Versteigerung.
+     Die App sperrt sich dabei NICHT - sie legt sich mit einem ruhigen Blatt
+     davor und laesst sich mit einem Tippen beiseiteschieben. Wer waehrend
+     des Vortrags kurz nachsieht, an welchem Tisch er sitzt, darf das; er
+     soll nur nicht aus Versehen im Feed haengenbleiben. Ein hartes Schloss
+     waere hier falsch - es wuerde ausgerechnet die Gaeste aussperren, die
+     etwas Konkretes brauchen. */
+  appfrei: [
+    { id:"impuls1", from:"19:30", to:"19:45", was:"Impuls · Ien Bäumler",
+      hinweis:"Teil 1. Fünfzehn Minuten, die es wert sind." },
+    { id:"impuls2", from:"21:15", to:"21:30", was:"Impuls · Ien Bäumler",
+      hinweis:"Teil 2 – dort, wo der erste aufgehört hat." },
+    { id:"auktion", from:"22:45", to:"22:55", was:"Auktion · Live Painting",
+      hinweis:"Max Leinfelders Werk findet sein Zuhause. Augen nach vorn." }
+  ],
   /* Ablauf nach dem Timing von Desi (04.09.2026). */
   timeline: [
     { id:"empfang",  time:"18:00", title:"Empfang & Check-in",           ort:"Wechselbereich",
@@ -1235,20 +1293,28 @@ const CONFIG = {
       desc:"Das Sharing-Menü beginnt. Alles kommt in die Mitte." },
     { id:"vortrag1", time:"19:30", title:"Impuls · Ien Bäumler (I)",     ort:"Dinnerbereich",
       desc:"Ein relevantes Thema, ein starker Gedanke – Mehrwert für jeden im Raum.",
-      moment:"impuls", momentLabel:"Impuls mitgenommen" },
+      appfrei:true },
+    /* Der Moment "Impuls" haengt bewusst an der Pause, nicht am Vortrag:
+       waehrend des Vortrags ist die App zu, und ein Knopf, den man nur
+       waehrend der app-freien Viertelstunde druecken koennte, waere kein
+       Angebot, sondern eine Falle. Mitgenommen hat man den Gedanken
+       ohnehin erst danach. */
     { id:"wechsel1", time:"19:45", title:"Austausch & Gespräche",        ort:"Wechselbereich · bis 20:15",
-      desc:"Zeit für den Kreis. Hier lernst du die Menschen kennen, wegen denen du hier bist." },
+      desc:"Zeit für den Kreis. Hier lernst du die Menschen kennen, wegen denen du hier bist.",
+      moment:"impuls", momentLabel:"Impuls mitgenommen" },
     { id:"gang2",    time:"20:25", title:"Zweiter Gang · Hauptspeise",   ort:"Dinnerbereich",
       desc:"Weiter geht’s – geteilt wird auch hier." },
     { id:"vortrag2", time:"21:15", title:"Impuls · Ien Bäumler (II)",    ort:"Dinnerbereich",
-      desc:"Der zweite Teil – dort, wo der erste aufgehört hat." },
+      desc:"Der zweite Teil – dort, wo der erste aufgehört hat.",
+      appfrei:true },
     { id:"painting", time:"21:30", title:"Live Painting · Max Leinfelder", ort:"Wechselbereich · bis 22:00",
       desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm.",
       moment:"kunst", momentLabel:"Kunst erlebt" },
     { id:"gang3",    time:"22:15", title:"Dritter Gang · Dessert",       ort:"Dinnerbereich",
       desc:"Süßer Abschluss, bevor die Nacht beginnt." },
     { id:"auktion",  time:"22:45", title:"Auktion · Live Painting",      ort:"Dinnerbereich",
-      desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet." },
+      desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet.",
+      appfrei:true },
     { id:"dj",       time:"22:55", title:"Ausklang · Drinks & DJ",       ort:"",
       desc:"Der Abend endet, wie er begonnen hat: mit Atmosphäre." }
   ]
@@ -1549,6 +1615,9 @@ function renderTimeline(){
            Wechselbereich, während im Dinnerbereich der Gang serviert wird. */
         (it.ort ? '<span class="t-ort">'+it.ort+'</span>' : '')+
         '<p>'+it.desc+'</p>'+
+        /* Steht schon im Ablauf, nicht erst wenn es soweit ist: So weiss
+           der Gast vorher, wann er das Handy weglegen soll. */
+        (it.appfrei ? '<span class="t-appfrei">Ohne App</span>' : '')+
         (it.moment ? '<button class="btn t-collect" data-tl-moment="'+it.moment+'">'+(S.moments[it.moment] ? "✓ Moment gesetzt" : (it.momentLabel||"Moment sammeln"))+'</button>' : "")+
       '</div>';
     wrap.appendChild(div);
@@ -1604,7 +1673,33 @@ function renderGates(){
     const g = CONFIG.gates[el.dataset.gate];
     if(g) el.classList.toggle("locked", !inWindow(g));
   });
+  renderAppfrei();
 }
+
+/* ---- App-freie Stellen ----
+   Beiseitegeschoben wird je Fenster, nicht ein Mal fuer den ganzen Abend:
+   Wer waehrend des ersten Impulses etwas nachsehen musste, soll vor der
+   Versteigerung trotzdem wieder den Hinweis bekommen. Gemerkt wird das
+   nur im Speicher der Seite - nach einem Neuladen steht der Hinweis
+   wieder, und das ist richtig so. */
+const appfreiWeg = {};
+function appfreiFenster(){
+  return (CONFIG.appfrei || []).find(f => inWindow(f)) || null;
+}
+function renderAppfrei(){
+  const el = $("#appfrei");
+  if(!el) return;
+  const f = appfreiFenster();
+  if(!f || appfreiWeg[f.id]){ el.classList.remove("show"); return; }
+  $("#appfreiWas").textContent = f.was;
+  $("#appfreiText").textContent = f.hinweis;
+  el.classList.add("show");
+}
+$("#appfreiWeiter").addEventListener("click", ()=>{
+  const f = appfreiFenster();
+  if(f) appfreiWeg[f.id] = true;
+  $("#appfrei").classList.remove("show");
+});
 
 /* ================= DEMO-MODUS (Platzhalterdaten) ================= */
 const DEMO = CONFIG.demo || new URLSearchParams(location.search).get("demo") === "1";
