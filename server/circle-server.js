@@ -114,18 +114,18 @@ const LETTERMINT_WEBHOOK_SECRET = process.env.LETTERMINT_WEBHOOK_SECRET || "";
 const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.de";
 /* Rueckmeldefrist der Einladung. Steht in drei Vorlagen - deshalb an EINER
  * Stelle, sonst laeuft sie beim naechsten Verschieben auseinander.
- * Verschoben auf den 03.09.: die urspruenglichen Fristen (27./28.08.) waren
- * verstrichen, waehrend noch nachgefasst wurde - jede neue Einladung haette
- * ein abgelaufenes Datum genannt. Der Wert steht bewusst HIER und nicht nur
+ * Verschoben auf den 09.09. (zuvor 27./28.08., dann 03.09.): waehrend noch
+ * nachgefasst wird, laeuft die Frist immer wieder ab, und jede neue
+ * Einladung nennt dann ein Datum aus der Vergangenheit. Der Wert steht bewusst HIER und nicht nur
  * in der Umgebung: eine Frist, die von einer Variablen abhaengt, ist beim
  * naechsten Tippfehler im Panel wieder falsch, und man sieht es der Mail
  * nicht an. */
-const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "03.09.2026";
+const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "09.09.2026";
 /* Die Bezahlgaeste sind eine Woche spaeter dran als die Ehrengaeste: ihre
  * Einladung geht spaeter raus, und ueberwiesen sein will sie auch noch.
  * Zwei Fristen statt einer - sonst stuende in der Bezahlgast-Einladung ein
  * Datum, das beim Verschicken schon fast abgelaufen ist. */
-const RSVP_DEADLINE_TICKET = process.env.RSVP_DEADLINE_TICKET || "03.09.2026";
+const RSVP_DEADLINE_TICKET = process.env.RSVP_DEADLINE_TICKET || "09.09.2026";
 const rsvpFrist = inv => (inv && inv.typ === "ticket") ? RSVP_DEADLINE_TICKET : RSVP_DEADLINE;
 /* Wie viele Bezahlgaeste hoechstens in den Kreis duerfen. Der Saal ist
  * endlich, und die Plaetze der Partner- und Ehrengaeste sind zugesagt,
