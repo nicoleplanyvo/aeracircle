@@ -955,12 +955,13 @@
       <div class="panel rv gated" data-gate="av8">
         <div class="gate" aria-hidden="true">
           <b>Noch geschlossen</b>
-          <span>Öffnet um 19:45 im Wechselbereich</span>
-          <i>Bis dahin: gute Gespräche.</i>
+          <span>Öffnet mit dem ersten Gang</span>
+          <i>Die Moderation stellt die Gründer vorher kurz vor.</i>
         </div>
         <span class="label">Feedback für AV8</span>
         <h3>Würdest du investieren?</h3>
-        <p>Kein Handzeichen nötig – dein Bauchgefühl zählt.</p>
+        <p>Die Gründer sind den ganzen Abend an ihrem Stand – geh vorbei,
+           probier, frag. Kein Handzeichen nötig, dein Bauchgefühl zählt.</p>
         <div class="vote-row">
           <button class="btn" data-vote="ja">Sofort</button>
           <button class="btn" data-vote="vielleicht">Vielleicht</button>
@@ -1277,7 +1278,14 @@ const CONFIG = {
      zugehört, im Wechselbereich gesprochen. Die Aktivierungen liegen
      deshalb in den Wechselzeiten, nicht mitten im Gang oder im Vortrag. */
   gates: {
-    av8:     { from: "19:45", to: "20:15" },
+    /* AV8 hat den GANZEN Abend einen Stand, und die Moderation stellt die
+       Gruender vor der Vorspeise kurz vor (Desi, 04.09.). Das Fenster lag
+       vorher auf 19:45-20:15 - geraten, und in beide Richtungen falsch:
+       Es haette 45 Minuten nach der Vorstellung geoeffnet und schon zu
+       gewesen, waehrend die Gaeste noch am Stand standen. Jetzt oeffnet es
+       mit dem ersten Gang und bleibt bis zum Ende offen; wer erst um halb
+       elf am Stand vorbeikommt, kann den Jungs immer noch etwas mitgeben. */
+    av8:     { from: "19:00", to: "23:00" },
     auktion: { from: "22:45", to: "23:00" }
   },
   /* App-freie Stellen (die gelb markierten in Desis Timing vom 04.09.).
@@ -1303,6 +1311,13 @@ const CONFIG = {
       desc:"Ankommen in der Playa Cologne. Erste Gespräche, erste Drinks." },
     { id:"opening",  time:"18:30", title:"Begrüßung · Amiaz Habtu",      ort:"Dinnerbereich",
       desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
+    /* Steht so nicht in Desis Timing-Liste, gehoert aber in den Abend: Die
+       Moderation stellt AV8 vor der Vorspeise kurz vor, und die Gruender
+       haben den ganzen Abend einen Stand (Desi, 04.09.). Ohne diesen Punkt
+       weiss der Gast nicht, warum in der App ploetzlich nach AV8 gefragt
+       wird - und findet den Stand nicht. */
+    { id:"av8",      time:"18:55", title:"AV8 stellt sich vor",          ort:"Dinnerbereich",
+      desc:"Kurz vorgestellt von der Moderation. Ihr Stand ist den ganzen Abend geöffnet – geh vorbei und probier." },
     { id:"gang1",    time:"19:00", title:"Erster Gang · Vorspeise",      ort:"Dinnerbereich",
       desc:"Das Sharing-Menü beginnt. Alles kommt in die Mitte." },
     { id:"vortrag1", time:"19:30", title:"Impuls · Ien Bäumler (I)",     ort:"Dinnerbereich",
