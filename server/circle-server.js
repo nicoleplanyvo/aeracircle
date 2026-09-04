@@ -365,10 +365,12 @@ function pubGuest(band) {
   };
 }
 
-function serveFile(res, file, type) {
+/* extra: zusaetzliche Kopfzeilen (z. B. Cache-Control fuer den Service
+ * Worker, der niemals aus dem Zwischenspeicher kommen darf). */
+function serveFile(res, file, type, extra) {
   fs.readFile(path.join(ROOT, file), (err, buf) => {
     if (err) { res.writeHead(500); return res.end(file + " fehlt"); }
-    res.writeHead(200, { "Content-Type": type });
+    res.writeHead(200, Object.assign({ "Content-Type": type }, extra || {}));
     res.end(buf);
   });
 }
@@ -2741,6 +2743,24 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === "GET" && (url === "/" || url === "/index.html")) {
     return serveFile(res, "index.html", "text/html; charset=utf-8");
+  }
+
+  /* --- Die App auf dem Startbildschirm --- */
+
+  if (req.method === "GET" && url === "/manifest.webmanifest") {
+    return serveFile(res, "manifest.webmanifest", "application/manifest+json; charset=utf-8");
+  }
+
+  /* Der Service Worker MUSS unter / liegen, sonst gilt er nur fuer einen
+   * Unterordner und die Startseite faellt aus seiner Zustaendigkeit.
+   *
+   * Und er darf NICHT zwischengespeichert werden: Der Browser holt genau
+   * diese Datei, um zu erkennen, ob es eine neue Fassung gibt. Liegt sie
+   * aus dem Cache vor, bleibt die App auf dem Stand von gestern - und man
+   * sieht es ihr nicht an, weil sie ja laedt. Deshalb no-store. */
+  if (req.method === "GET" && url === "/sw.js") {
+    return serveFile(res, "sw.js", "text/javascript; charset=utf-8",
+                     { "Cache-Control": "no-store" });
   }
   if (req.method === "GET" && url === "/termin.ics") {
     res.writeHead(200, {
