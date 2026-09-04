@@ -182,13 +182,16 @@ const euroText = cent => (cent / 100).toFixed(2).replace(".", ",") + " €";
 const preisVon = inv => (inv && inv.preis > 0) ? inv.preis : TICKET_PRICE;
 
 const VOTES = ["ja", "vielleicht", "nein"];
-const MOMENTS_TOTAL = 6;
+/* Fuenf Momente statt sechs: Start-Up-Pitch und Mentor-Minuten stehen nicht
+ * mehr im Ablauf (Programm Desi, 04.09.). Der Kreis schliesst sich also
+ * frueher - die Zahl steht hier UND in index.html, beide muessen zusammen
+ * passen, sonst bleibt der Kreis auf 5/6 stehen und schliesst sich nie. */
+const MOMENTS_TOTAL = 5;
 const VOTE_LABEL = { ja: "Sofort", vielleicht: "Vielleicht", nein: "Heute nicht" };
 /* Stationen, die genau einen Moment setzen */
 const STATION_MOMENT = {
   checkin: "ankommen",
   impuls: "impuls",
-  mentor: "mentor",
   kunst: "kunst",
   verbindung: "verbindung"
 };
@@ -196,6 +199,11 @@ const STATION_MOMENT = {
 let state = {
   applause: 0,
   votes: { ja: 0, vielleicht: 0, nein: 0 },
+  /* Rueckmeldung an AV8. Kein Pitch-Votum, sondern ein Stimmungsbild:
+   * die Frage nach der Investition (votes), eine Sterne-Bewertung des
+   * Produkts und zwei Angebote, die ein Gast markieren kann. */
+  sterne: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  interesse: { intro: 0, investor: 0 },
   bid: null,            // { amount, paddle, name, t }
   bids: [],             // letzte Gebote, neueste zuerst
   guests: {},           // bandId -> { name, table, moments:{}, applause, vote, t }
@@ -262,6 +270,8 @@ function snapshot() {
   return JSON.stringify({
     applause: state.applause,
     votes: state.votes,
+    sterne: state.sterne,
+    interesse: state.interesse,
     bid: state.bid,
     bids: state.bids.slice(0, 5),
     guests: clients.size,
@@ -1674,6 +1684,36 @@ const server = http.createServer((req, res) => {
       const prev = VOTES.includes(body.prev) ? body.prev : null;
       if (prev && state.votes[prev] > 0) state.votes[prev]--;
       if (vote) state.votes[vote]++;
+      dirty = true; broadcast();
+      json(res, 200, { ok: true });
+    });
+  }
+
+  /* Sterne fuer das Produkt. Wie beim Votum schickt der Klient seine
+   * vorherige Wahl mit, damit ein Umentscheiden nicht doppelt zaehlt -
+   * der Server fuehrt bewusst keine Liste, wer was gewaehlt hat. */
+  if (req.method === "POST" && url === "/api/live/stern") {
+    if (!rateLimit(req, res, "live", 60, 10_000)) return;
+    return readBody(req, res, body => {
+      const gueltig = n => Number.isInteger(n) && n >= 1 && n <= 5;
+      const stern = gueltig(body.stern) ? body.stern : null;
+      const prev = gueltig(body.prev) ? body.prev : null;
+      if (prev && state.sterne[prev] > 0) state.sterne[prev]--;
+      if (stern) state.sterne[stern] = (state.sterne[stern] || 0) + 1;
+      dirty = true; broadcast();
+      json(res, 200, { ok: true });
+    });
+  }
+
+  /* "Ich biete ein Intro" / "Ich moechte als Investor:in sprechen".
+   * Ein Schalter, kein Zaehler: der Gast kann ihn wieder ausmachen. */
+  if (req.method === "POST" && url === "/api/live/interesse") {
+    if (!rateLimit(req, res, "live", 60, 10_000)) return;
+    return readBody(req, res, body => {
+      const art = (body.art === "intro" || body.art === "investor") ? body.art : null;
+      if (!art) return json(res, 400, { error: "unbekannte Art" });
+      if (body.an) state.interesse[art] = (state.interesse[art] || 0) + 1;
+      else if (state.interesse[art] > 0) state.interesse[art]--;
       dirty = true; broadcast();
       json(res, 200, { ok: true });
     });

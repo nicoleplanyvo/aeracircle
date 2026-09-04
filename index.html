@@ -206,6 +206,8 @@
 
   /* ---------- Timeline ---------- */
   .timeline{padding:6px 24px 0}
+  .t-ort{display:block;font-size:9px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--paper-muted);margin:2px 0 6px}
   .t-item{position:relative;padding:30px 0 26px;border-bottom:1px solid var(--line-soft)}
   .t-item:last-child{border-bottom:0}
   .t-ghost{
@@ -231,6 +233,19 @@
   .t-collect{margin-top:14px;padding:10px 16px;font-size:9.5px}
 
   /* ---------- Menü: das helle Blatt ---------- */
+  .stars{display:flex;gap:6px;justify-content:center;margin:16px 0 6px}
+  .star{background:none;border:0;padding:6px 4px;font-size:30px;line-height:1;cursor:pointer;
+    color:rgba(245,243,239,.22);transition:color .18s ease,transform .12s ease}
+  .star.an{color:var(--koralle)}
+  .star:active{transform:scale(.88)}
+  .star:focus-visible{outline:2px solid var(--ivory);outline-offset:3px;border-radius:6px}
+  .interesse{display:flex;flex-direction:column;gap:9px;margin-top:14px}
+  .ibtn{text-align:left;line-height:1.4}
+  .ibtn.an{background:var(--koralle);border-color:var(--koralle);color:#122648}
+  .dishes{list-style:none;margin:10px 0 0;padding:0}
+  .dishes li{font-size:13.5px;line-height:1.55;padding:3px 0;color:var(--paper-ink)}
+  .dishes li em{font-style:normal;font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--paper-muted);margin-left:7px;vertical-align:.12em}
   section[data-view="menu"]{
     background:linear-gradient(178deg,var(--paper-hi) 0%,#e9e5dc 55%,var(--paper-lo) 100%);
     color:var(--paper-ink);
@@ -707,7 +722,7 @@
     </div>
     <div id="ringMini" title="Dein Kreis">
       <canvas id="ensoMini" width="76" height="76" aria-hidden="true"></canvas>
-      <span id="ringMiniNum">0/6</span>
+      <span id="ringMiniNum">0/5</span>
     </div>
   </header>
 
@@ -837,32 +852,47 @@
     <!-- ============ MENÜ ============ -->
     <section data-view="menu">
       <div class="menu-head rv">
-        <span class="label">3-Gang-Menü</span>
+        <span class="label">Sharing-Menü</span>
         <h2>Weil die besten Gespräche mit Genuss verbunden sind</h2>
-        <p style="margin-top:10px;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--paper-muted)">Drei Gänge · mit Tischwechsel</p>
+        <p style="margin-top:10px;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--paper-muted)">Drei Gänge · für den Tisch zum Teilen</p>
       </div>
       <div class="course rv">
         <span class="roman" aria-hidden="true">I</span>
-        <h3>Gebeizter Saibling</h3>
-        <p>Gurke · Dill · Buttermilch · Rheinischer Senf</p>
-        <span class="pair">Riesling Sekt Brut</span>
+        <h3>Vorspeise</h3>
+        <ul class="dishes">
+          <li>Feine Crêpe-Röllchen mit Lachs</li>
+          <li>Mini-Wrap mit Huhn und mediterranem Gemüse</li>
+          <li>Roastbeef-Röllchen, Asia-Gemüse &amp; Sesam</li>
+          <li>Wassermelonensalat mit Hirtenkäse &amp; Minze</li>
+          <li>Glasnudelsalat</li>
+          <li>Kartoffelsalat <em>vegan</em></li>
+        </ul>
       </div>
       <canvas class="brushline" width="260" height="28" aria-hidden="true"></canvas>
       <div class="course rv">
         <span class="roman" aria-hidden="true">II</span>
-        <h3>Rinderfilet vom Bergischen Weiderind</h3>
-        <p>Selleriecreme · junge Karotte · Jus mit dunklem Kölsch</p>
-        <span class="pair">Spätburgunder, Ahr</span>
+        <h3>Hauptspeise</h3>
+        <ul class="dishes">
+          <li>Kalbsfilet mit Kräuterhaube</li>
+          <li>Pilzragout <em>vegan</em></li>
+          <li>Frisches Marktgemüse <em>vegan</em></li>
+          <li>Rosmarinkartoffeln <em>vegan</em></li>
+          <li>Prinzessböhnchen <em>vegan</em></li>
+          <li>Kartoffelgratin</li>
+        </ul>
       </div>
       <canvas class="brushline" width="260" height="28" aria-hidden="true"></canvas>
       <div class="course rv">
         <span class="roman" aria-hidden="true">III</span>
-        <h3>Valrhona-Schokolade &amp; Kirsche</h3>
-        <p>Ganache · Amarena · Tonkabohne</p>
-        <span class="pair">Espresso Martini</span>
+        <h3>Dessert</h3>
+        <ul class="dishes">
+          <li>Kokos-Chia-Creme mit Himbeersauce <em>vegan</em></li>
+          <li>Crème brûlée</li>
+          <li>Käseauswahl</li>
+        </ul>
       </div>
       <p class="menu-note" id="menuPref" style="display:none"></p>
-      <p class="menu-note">Vegetarische Alternative bei jedem Gang – das Serviceteam berät dich gern.<br>Beispielmenü – die finale Karte folgt am Abend.</p>
+      <p class="menu-note">Alles kommt in die Mitte – nehmt euch, was ihr mögt.<br>Sag dem Serviceteam Bescheid, wenn du etwas nicht verträgst.</p>
     </section>
 
     <!-- ============ LIVE ============ -->
@@ -873,30 +903,16 @@
         <p class="lede" id="liveGuests" style="display:none;margin-top:10px">Gerade im Kreis: <b>–</b> Geräte</p>
       </div>
 
-      <div class="studio rv gated" data-gate="pitch">
-        <div class="gate" aria-hidden="true">
-          <b>Der Raum hat Pause</b>
-          <span>Öffnet um 20:30 mit dem Start-Up Pitch</span>
-          <i>Bis dahin: gute Gespräche.</i>
-        </div>
-        <div id="splat"></div>
-        <span class="label" style="display:block;margin-bottom:8px">Start-Up Pitch</span>
-        <p class="lede" style="position:relative;z-index:2;margin-bottom:26px;font-size:13px">Eine Idee, drei Minuten.<br>Dein Applaus zählt.</p>
-        <button id="applauseBtn" aria-label="Applaus geben">Applaus</button>
-        <div id="applauseCount">0</div>
-        <span class="label" style="font-size:8.5px">Dein Applaus an diesem Abend</span>
-        <div id="roomRow">
-          <div id="roomApplause" class="grad">0</div>
-          <span class="label" style="font-size:8.5px">Applaus im ganzen Raum</span>
-        </div>
-      </div>
-
-      <div class="panel rv gated" data-gate="pitch">
+      <!-- AV8. Kein Pitch mit Applaus, sondern ein Stimmungsbild: die
+           Gründer werden kurz vorgestellt, und wer mag, gibt ihnen etwas
+           mit. Drei Fragen, jede in einer Sekunde beantwortet. -->
+      <div class="panel rv gated" data-gate="av8">
         <div class="gate" aria-hidden="true">
           <b>Noch geschlossen</b>
-          <span>Das Votum öffnet mit dem Pitch um 20:30</span>
+          <span>Öffnet um 19:45 im Wechselbereich</span>
+          <i>Bis dahin: gute Gespräche.</i>
         </div>
-        <span class="label">Dein Votum</span>
+        <span class="label">Feedback für AV8</span>
         <h3>Würdest du investieren?</h3>
         <p>Kein Handzeichen nötig – dein Bauchgefühl zählt.</p>
         <div class="vote-row">
@@ -911,10 +927,44 @@
         </div>
       </div>
 
+      <div class="panel rv gated" data-gate="av8">
+        <div class="gate" aria-hidden="true">
+          <b>Noch geschlossen</b>
+          <span>Öffnet um 19:45 im Wechselbereich</span>
+        </div>
+        <span class="label">Dein Eindruck</span>
+        <h3>Wie gefällt dir das Produkt?</h3>
+        <p>Ein Tippen genügt – du kannst es jederzeit ändern.</p>
+        <div class="stars" id="stars" role="radiogroup" aria-label="Bewertung von eins bis fünf Sternen">
+          <button type="button" class="star" data-stern="1" role="radio" aria-checked="false" aria-label="1 von 5">★</button>
+          <button type="button" class="star" data-stern="2" role="radio" aria-checked="false" aria-label="2 von 5">★</button>
+          <button type="button" class="star" data-stern="3" role="radio" aria-checked="false" aria-label="3 von 5">★</button>
+          <button type="button" class="star" data-stern="4" role="radio" aria-checked="false" aria-label="4 von 5">★</button>
+          <button type="button" class="star" data-stern="5" role="radio" aria-checked="false" aria-label="5 von 5">★</button>
+        </div>
+        <div id="sterneSchnitt" class="grad" style="display:none"></div>
+        <span class="label" id="sterneMeta" style="font-size:8.5px;display:none">Durchschnitt im Raum</span>
+      </div>
+
+      <div class="panel rv gated" data-gate="av8">
+        <div class="gate" aria-hidden="true">
+          <b>Noch geschlossen</b>
+          <span>Öffnet um 19:45 im Wechselbereich</span>
+        </div>
+        <span class="label">Interesse markieren</span>
+        <h3>Willst du weiterreden?</h3>
+        <p>Wir sagen den Gründern nach dem Abend Bescheid, wer sich gemeldet hat.</p>
+        <div class="interesse">
+          <button type="button" class="btn ibtn" data-interesse="intro" aria-pressed="false">Ich biete ein Intro oder eine Partnerschaft</button>
+          <button type="button" class="btn ibtn" data-interesse="investor" aria-pressed="false">Ich möchte als Investor:in sprechen</button>
+        </div>
+        <div id="interesseLive" class="label" style="font-size:8.5px;margin-top:12px"></div>
+      </div>
+
       <div class="lot rv gated" data-gate="auktion" id="paddleBox">
         <div class="gate" aria-hidden="true">
           <b>Das Werk entsteht noch</b>
-          <span>Die Versteigerung öffnet um 21:45</span>
+          <span>Die Versteigerung öffnet um 22:45</span>
           <i>Schau Max beim Malen zu.</i>
         </div>
         <span class="label">Live Painting · Versteigerung</span>
@@ -1008,13 +1058,6 @@
         <span class="label">Meine Erkenntnis</span>
         <h3>Was nimmst du mit?</h3>
         <textarea id="notesArea" maxlength="500" placeholder="Ein Satz, der bleibt &hellip;"></textarea>
-      </div>
-
-      <div class="panel rv" style="margin-top:20px">
-        <span class="label">Mentor-Minuten</span>
-        <h3>Wenn Erfahrung auf Offenheit trifft</h3>
-        <p style="margin-bottom:18px">Ein Unternehmer teilt, was er sich damals gewünscht hätte zu wissen. Hör zu – und nimm dir eine Erkenntnis mit.</p>
-        <button class="btn btn--full" data-moment="mentor">Meine Erkenntnis notiert</button>
       </div>
 
       <div style="padding:6px 24px 10px">
@@ -1174,29 +1217,50 @@ const CONFIG = {
   eventDate: "2026-09-16",           // 16. September 2026, Playa Cologne
   liveServer: "",                    // leer = gleiche Domain (server/circle-server.js); sonst z. B. "https://circle-live.onrender.com"
   demo: false,                       // true oder ?demo=1: Vorführmodus mit Platzhalterdaten
-  gates: {                           // Screentime-Steuerung: Live-Funktionen nur im Programmfenster
-    pitch:   { from: "20:30", to: "20:50" },
-    auktion: { from: "21:45", to: "22:10" }
+  /* Screentime-Steuerung: Live-Funktionen nur im Programmfenster.
+     Der Abend hat zwei Bereiche - im Dinnerbereich wird gegessen und
+     zugehört, im Wechselbereich gesprochen. Die Aktivierungen liegen
+     deshalb in den Wechselzeiten, nicht mitten im Gang oder im Vortrag. */
+  gates: {
+    av8:     { from: "19:45", to: "20:15" },
+    auktion: { from: "22:45", to: "23:00" }
   },
+  /* Ablauf nach dem Timing von Desi (04.09.2026). */
   timeline: [
-    { id:"empfang",  time:"18:00", title:"Empfang & Aperitif",           desc:"Ankommen in der Playa Cologne. Erste Gespräche, erste Drinks." },
-    { id:"opening",  time:"19:15", title:"Opening mit Amiaz Habtu",      desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
-    { id:"vortrag",  time:"19:30", title:"Impuls-Vortrag · Ien Bäumler", desc:"Ein relevantes Thema, ein starker Gedanke – Mehrwert für jeden im Raum.", moment:"impuls", momentLabel:"Impuls mitgenommen" },
-    { id:"gang1",    time:"20:00", title:"Erster Gang",                  desc:"Das bewegte Menü beginnt – neue Plätze, neue Gesichter." },
-    { id:"pitch",    time:"20:30", title:"Start-Up Pitch",               desc:"Eine Idee, drei Minuten, dein Applaus. Öffne den Live-Bereich und mach mit." },
-    { id:"gang2",    time:"20:50", title:"Zweiter Gang",                 desc:"Weiter geht’s – die Tischordnung mischt den Kreis neu." },
-    { id:"mentor",   time:"21:20", title:"Mentor-Minuten",               desc:"Wenn Erfahrung auf Offenheit trifft – ein Unternehmer teilt, was er damals gern gewusst hätte." },
-    { id:"auktion",  time:"21:45", title:"Live Painting · Versteigerung", desc:"Max Leinfelders Werk entsteht live – und findet jetzt sein Zuhause. Der Erlös wird gespendet.", moment:"kunst", momentLabel:"Kunst erlebt" },
-    { id:"gang3",    time:"22:10", title:"Dritter Gang",                 desc:"Süßer Abschluss, bevor die Nacht beginnt." },
-    { id:"dj",       time:"22:45", title:"DJ & Ausklang",                desc:"Der Abend endet, wie er begonnen hat: mit Atmosphäre." }
+    { id:"empfang",  time:"18:00", title:"Empfang & Check-in",           ort:"Wechselbereich",
+      desc:"Ankommen in der Playa Cologne. Erste Gespräche, erste Drinks." },
+    { id:"opening",  time:"18:30", title:"Begrüßung · Amiaz Habtu",      ort:"Dinnerbereich",
+      desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
+    { id:"gang1",    time:"19:00", title:"Erster Gang · Vorspeise",      ort:"Dinnerbereich",
+      desc:"Das Sharing-Menü beginnt. Alles kommt in die Mitte." },
+    { id:"vortrag1", time:"19:30", title:"Impuls · Ien Bäumler (I)",     ort:"Dinnerbereich",
+      desc:"Ein relevantes Thema, ein starker Gedanke – Mehrwert für jeden im Raum.",
+      moment:"impuls", momentLabel:"Impuls mitgenommen" },
+    { id:"wechsel1", time:"19:45", title:"Austausch & Gespräche",        ort:"Wechselbereich · bis 20:15",
+      desc:"Zeit für den Kreis. Hier lernst du die Menschen kennen, wegen denen du hier bist." },
+    { id:"gang2",    time:"20:25", title:"Zweiter Gang · Hauptspeise",   ort:"Dinnerbereich",
+      desc:"Weiter geht’s – geteilt wird auch hier." },
+    { id:"vortrag2", time:"21:15", title:"Impuls · Ien Bäumler (II)",    ort:"Dinnerbereich",
+      desc:"Der zweite Teil – dort, wo der erste aufgehört hat." },
+    { id:"painting", time:"21:30", title:"Live Painting · Max Leinfelder", ort:"Wechselbereich · bis 22:00",
+      desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm.",
+      moment:"kunst", momentLabel:"Kunst erlebt" },
+    { id:"gang3",    time:"22:15", title:"Dritter Gang · Dessert",       ort:"Dinnerbereich",
+      desc:"Süßer Abschluss, bevor die Nacht beginnt." },
+    { id:"auktion",  time:"22:45", title:"Auktion · Live Painting",      ort:"Dinnerbereich",
+      desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet." },
+    { id:"dj",       time:"22:55", title:"Ausklang · Drinks & DJ",       ort:"",
+      desc:"Der Abend endet, wie er begonnen hat: mit Atmosphäre." }
   ]
 };
 
+/* Fünf Momente. Start-Up-Pitch und Mentor-Minuten stehen nicht mehr im
+   Ablauf; an ihre Stelle tritt die Rückmeldung an AV8. Die Zahl muss zu
+   MOMENTS_TOTAL im Server passen, sonst schließt sich der Kreis nie. */
 const MOMENTS = [
   { id:"ankommen",   label:"Angekommen" },
   { id:"impuls",     label:"Impuls" },
-  { id:"pitch",      label:"Applaus" },
-  { id:"mentor",     label:"Erkenntnis" },
+  { id:"av8",        label:"Feedback" },
   { id:"kunst",      label:"Kunst" },
   { id:"verbindung", label:"Verbindung" }
 ];
@@ -1224,6 +1288,7 @@ const store = {
   save(s){ localStorage.setItem("circle.v1", JSON.stringify(s)) }
 };
 let S = Object.assign({ name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
+  stern:0, interesse:{},
   contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0 }, store.load());
 /* Demo/Vorschau: ?name=Anna&firma=AERA überspringt das Onboarding */
 {
@@ -1400,7 +1465,9 @@ function renderRing(){
   const n = momentCount();
   drawEnso($("#ensoMini"), n, MOMENTS.length, {lineFrac:.14});
   drawEnso($("#ensoBig"),  n, MOMENTS.length, {lineFrac:.15});
-  $("#ringMiniNum").textContent = n + "/6";
+  /* Aus MOMENTS abgeleitet, nicht fest verdrahtet: sonst steht dort 0/6,
+     während sich der Kreis schon bei fünf schließt. */
+  $("#ringMiniNum").textContent = n + "/" + MOMENTS.length;
   $("#ringBigNum").innerHTML = n + "<small>&hairsp;/&hairsp;6</small>";
   const dots = $("#momentDots");
   dots.innerHTML = "";
@@ -1477,7 +1544,11 @@ function renderTimeline(){
       '<span class="t-ghost">'+it.time+'</span>'+
       '<div class="t-body">'+
         '<span class="t-live-tag">Jetzt</span>'+
-        '<h3>'+it.title+'</h3><p>'+it.desc+'</p>'+
+        '<h3>'+it.title+'</h3>'+
+        /* Der Abend hat zwei Räume. Ohne den Ort steht der Gast im
+           Wechselbereich, während im Dinnerbereich der Gang serviert wird. */
+        (it.ort ? '<span class="t-ort">'+it.ort+'</span>' : '')+
+        '<p>'+it.desc+'</p>'+
         (it.moment ? '<button class="btn t-collect" data-tl-moment="'+it.moment+'">'+(S.moments[it.moment] ? "✓ Moment gesetzt" : (it.momentLabel||"Moment sammeln"))+'</button>' : "")+
       '</div>';
     wrap.appendChild(div);
@@ -1540,47 +1611,59 @@ const DEMO = CONFIG.demo || new URLSearchParams(location.search).get("demo") ===
 const DEMO_STOPS = [
   { t:"17:30", label:"Vor dem Abend" },
   { t:"19:36", label:"Impuls läuft" },
-  { t:"20:33", label:"Pitch live" },
-  { t:"21:52", label:"Versteigerung" },
-  { t:"22:50", label:"Ausklang" }
+  { t:"19:55", label:"Feedback für AV8" },
+  { t:"21:40", label:"Live Painting" },
+  { t:"22:50", label:"Auktion" }
 ];
 let demoStop = 2;
 function nowLive(){
   return DEMO ? eventTime(DEMO_STOPS[demoStop].t) : new Date();
 }
 
-/* ================= APPLAUS ================= */
-const applauseBtn = $("#applauseBtn");
-function renderApplause(){ $("#applauseCount").textContent = S.applause }
-function fleck(container){
-  const f = document.createElement("span");
-  f.className = "fleck";
-  const s = 2 + Math.random()*10;
-  f.style.width = s+"px"; f.style.height = s*(0.7+Math.random()*.6)+"px";
-  f.style.left = (8+Math.random()*84)+"%";
-  f.style.top  = (6+Math.random()*80)+"%";
-  f.style.setProperty("--o", (.12+Math.random()*.35).toFixed(2));
-  container.appendChild(f);
-  const flecks = container.children;
-  if(flecks.length > 46) container.removeChild(flecks[0]);
+/* ================= AV8-RÜCKMELDUNG =================
+   Der Applaus-Knopf ist mit dem Start-Up-Pitch entfallen. An seine Stelle
+   treten drei Fragen an den Raum: investieren, Sterne, Interesse. Alle drei
+   schicken nur Zahlen an den Server - wer was gewählt hat, speichert er
+   nicht. */
+
+/* Sterne. Der Klient merkt sich seine letzte Wahl und schickt sie mit,
+   damit ein Umentscheiden im Raum nicht doppelt zählt. */
+function renderSterne(){
+  $$("#stars .star").forEach(b=>{
+    const an = S.stern && Number(b.dataset.stern) <= S.stern;
+    b.classList.toggle("an", !!an);
+    b.setAttribute("aria-checked", String(Number(b.dataset.stern) === S.stern));
+  });
 }
-applauseBtn.addEventListener("click", ()=>{
-  S.applause++; persist();
-  renderApplause();
-  buzz(12);
-  if(S.applause >= 5) collect("pitch", "Dein Applaus zählt – ein Strich mehr im Kreis.");
-  if(!reduceMotion){
-    const n = 1+Math.floor(Math.random()*3);
-    for(let i=0;i<n;i++) fleck($("#splat"));
-  }
-  if(LIVE.on){                       // gebündelt in den Raum senden
-    LIVE.pending++;
-    clearTimeout(LIVE.timer);
-    LIVE.timer = setTimeout(()=>{
-      const n = LIVE.pending; LIVE.pending = 0;
-      LIVE.post("/api/live/applause", {n}).catch(()=>{});
-    }, 350);
-  }
+$$("#stars .star").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    const wert = Number(b.dataset.stern);
+    const vorher = S.stern || null;
+    if(wert === vorher) return;
+    S.stern = wert; persist(); renderSterne(); buzz(10);
+    collect("av8", "Danke – dein Eindruck ist beim Team.");
+    if(LIVE.on) LIVE.post("/api/live/stern", { stern: wert, prev: vorher }).catch(()=>{});
+  });
+});
+
+/* Interesse. Ein Schalter, kein Zähler - er lässt sich wieder ausmachen. */
+function renderInteresse(){
+  $$(".ibtn").forEach(b=>{
+    const an = !!(S.interesse && S.interesse[b.dataset.interesse]);
+    b.setAttribute("aria-pressed", String(an));
+    b.classList.toggle("an", an);
+  });
+}
+$$(".ibtn").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    const art = b.dataset.interesse;
+    S.interesse = S.interesse || {};
+    const an = !S.interesse[art];
+    S.interesse[art] = an;
+    persist(); renderInteresse(); buzz(10);
+    if(an) collect("av8", "Notiert – wir geben es nach dem Abend weiter.");
+    if(LIVE.on) LIVE.post("/api/live/interesse", { art, an }).catch(()=>{});
+  });
 });
 
 /* ================= BIETERKARTE ================= */
@@ -1779,8 +1862,7 @@ renderTipp();
 $("#recapBtn").addEventListener("click", async ()=>{
   const parts = [
     "THE CIRCLE · 16.09.2026 · Playa Cologne",
-    "Mein Abend: " + momentCount() + "/6 Momente im Kreis",
-    S.applause ? S.applause + "× Applaus" : null,
+    "Mein Abend: " + momentCount() + "/" + MOMENTS.length + " Momente im Kreis",
     S.contacts.length ? S.contacts.length + (S.contacts.length===1?" neue Verbindung":" neue Verbindungen") : null,
     S.bingoLines ? "Circle-Bingo: " + S.bingoLines + (S.bingoLines===1?" Reihe":" Reihen") : null,
     S.notes ? "Meine Erkenntnis: „" + S.notes.slice(0,120) + "“" : null,
@@ -1820,14 +1902,30 @@ function renderLiveState(){
   const g = $("#liveGuests");
   g.style.display = "block";
   g.querySelector("b").textContent = d.guests;
-  $("#roomRow").style.display = "block";
-  $("#roomApplause").textContent = (d.applause||0).toLocaleString("de-DE");
   const total = d.votes.ja + d.votes.vielleicht + d.votes.nein;
   $("#voteLive").style.display = "block";
   ["ja","vielleicht","nein"].forEach(k=>{
     $("#vb-"+k).style.width = total ? (d.votes[k]/total*100).toFixed(1)+"%" : "0%";
     $("#vc-"+k).textContent = d.votes[k];
   });
+  /* Sterne als Durchschnitt, nicht als fünf Balken: die eine Zahl sagt dem
+     Team mehr, und im Raum liest sie sich in einer Sekunde. */
+  if(d.sterne){
+    let summe = 0, anzahl = 0;
+    for(let i=1;i<=5;i++){ const n = d.sterne[i]||0; summe += i*n; anzahl += n; }
+    const el = $("#sterneSchnitt"), meta = $("#sterneMeta");
+    if(anzahl){
+      el.style.display = "block"; meta.style.display = "block";
+      el.textContent = (summe/anzahl).toFixed(1).replace(".", ",") + " ★";
+      meta.textContent = anzahl === 1 ? "1 Bewertung im Raum" : anzahl + " Bewertungen im Raum";
+    }else{ el.style.display = "none"; meta.style.display = "none"; }
+  }
+  if(d.interesse){
+    const i = d.interesse, teile = [];
+    if(i.intro)    teile.push(i.intro + "× Intro angeboten");
+    if(i.investor) teile.push(i.investor + "× Investorengespräch");
+    $("#interesseLive").textContent = teile.join(" · ");
+  }
   $("#bidRow").style.display = "flex";
   if(d.bid){
     $("#bidBoard").style.display = "block";
@@ -2066,6 +2164,7 @@ if(S.name) $("#onboarding").classList.add("hidden");
     if(S.token && S.token !== t){
       try{ localStorage.removeItem("circle.v1"); }catch(e){}
       S = { name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
+            stern:0, interesse:{},
         contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0 };
     }
     fetch("/api/invite?t=" + encodeURIComponent(t) + "&app=1")
@@ -2150,7 +2249,8 @@ const BRANDLOGO_Z = "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZ
 $$("img.brandlogo-z").forEach(i=>{ i.src = BRANDLOGO_Z; });
 renderCard();
 renderMenuPref();
-renderApplause();
+renderSterne();
+renderInteresse();
 renderPaddle();
 renderTimeline();
 renderStatus();
