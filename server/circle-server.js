@@ -116,16 +116,22 @@ const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.d
  * Stelle, sonst laeuft sie beim naechsten Verschieben auseinander.
  * Verschoben auf den 09.09. (zuvor 27./28.08., dann 03.09.): waehrend noch
  * nachgefasst wird, laeuft die Frist immer wieder ab, und jede neue
- * Einladung nennt dann ein Datum aus der Vergangenheit. Der Wert steht bewusst HIER und nicht nur
- * in der Umgebung: eine Frist, die von einer Variablen abhaengt, ist beim
- * naechsten Tippfehler im Panel wieder falsch, und man sieht es der Mail
- * nicht an. */
-const RSVP_DEADLINE = process.env.RSVP_DEADLINE || "09.09.2026";
-/* Die Bezahlgaeste sind eine Woche spaeter dran als die Ehrengaeste: ihre
- * Einladung geht spaeter raus, und ueberwiesen sein will sie auch noch.
- * Zwei Fristen statt einer - sonst stuende in der Bezahlgast-Einladung ein
- * Datum, das beim Verschicken schon fast abgelaufen ist. */
-const RSVP_DEADLINE_TICKET = process.env.RSVP_DEADLINE_TICKET || "09.09.2026";
+ * Einladung nennt dann ein Datum aus der Vergangenheit.
+ *
+ * BEWUSST OHNE process.env. Die Frist war frueher ueberschreibbar, und genau
+ * das ist zweimal schiefgegangen: einmal hiess die Variable im Panel
+ * "RSVP_DEADLINE " mit einem Leerzeichen am Ende und wirkte deshalb gar
+ * nicht, einmal stand dort eine laengst abgelaufene Frist und schlug den
+ * frisch ausgerollten Code. Beides sieht man der Mail nicht an - man sieht
+ * es erst, wenn der Gast ein Datum von gestern liest. Eine Frist, die in
+ * jeder Einladung steht, gehoert in den Code, wo sie im Diff auftaucht und
+ * ueberprueft werden kann, nicht in ein Textfeld.
+ *
+ * Zwei Fristen statt einer, weil die Bezahlgaeste spaeter dran waren: ihre
+ * Einladung ging spaeter raus, und ueberwiesen sein wollte sie auch noch.
+ * Stand heute laufen beide auf denselben Tag. */
+const RSVP_DEADLINE = "09.09.2026";
+const RSVP_DEADLINE_TICKET = "09.09.2026";
 const rsvpFrist = inv => (inv && inv.typ === "ticket") ? RSVP_DEADLINE_TICKET : RSVP_DEADLINE;
 /* Wie viele Bezahlgaeste hoechstens in den Kreis duerfen. Der Saal ist
  * endlich, und die Plaetze der Partner- und Ehrengaeste sind zugesagt,
