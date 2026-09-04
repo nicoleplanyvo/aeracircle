@@ -202,7 +202,41 @@ const STATION_MOMENT = {
   verbindung: "verbindung"
 };
 
+/* ---------- Zeiten des Abends ----------
+ *
+ * App-freie Stellen und die Fenster der Live-Funktionen. Standen bis
+ * hierher in index.html - also in einer Datei, die nur ein Deploy aendert.
+ * Am Abend selbst ist das die falsche Stelle: Wenn der Impuls zehn Minuten
+ * spaeter anfaengt, weil das Dessert laenger braucht, muss das jemand aus
+ * dem Monitor verschieben koennen, waehrend er im Raum steht.
+ *
+ * "aus" schaltet ein Fenster ab, ohne es zu loeschen - eine Zeit, die man
+ * geloescht hat, muss man neu eintippen; eine ausgeschaltete steht wieder
+ * da, wenn man sie braucht.
+ *
+ * "jetzt" ist der Griff fuer den Fall, dass alles anders kommt: ein
+ * Handschalter, der die App JETZT app-frei stellt, unabhaengig von jeder
+ * Uhrzeit, bis jemand ihn wieder loest. Der Ablauf im Raum haelt sich nicht
+ * an Tabellen, und wer vorne steht, hat keine Zeit, Uhrzeiten zu rechnen. */
+const ZEITEN_STANDARD = {
+  appfrei: [
+    { id: "impuls1", from: "19:30", to: "19:45", was: "Impuls · Ien Bäumler",
+      hinweis: "Teil 1. Fünfzehn Minuten, die es wert sind.", aus: false },
+    { id: "impuls2", from: "21:15", to: "21:30", was: "Impuls · Ien Bäumler",
+      hinweis: "Teil 2 – dort, wo der erste aufgehört hat.", aus: false },
+    { id: "auktion", from: "22:45", to: "22:55", was: "Auktion · Live Painting",
+      hinweis: "Max Leinfelders Werk findet sein Zuhause. Augen nach vorn.", aus: false }
+  ],
+  gates: {
+    av8:     { from: "19:00", to: "23:00" },
+    auktion: { from: "22:45", to: "23:00" }
+  },
+  /* null = kein Handschalter. Sonst { was, hinweis, seit } */
+  jetzt: null
+};
+
 let state = {
+  zeiten: JSON.parse(JSON.stringify(ZEITEN_STANDARD)),
   applause: 0,
   votes: { ja: 0, vielleicht: 0, nein: 0 },
   /* Rueckmeldung an AV8. Kein Pitch-Votum, sondern ein Stimmungsbild:
@@ -234,6 +268,17 @@ try {
 if (!state.guests) state.guests = {};
 if (!state.invites) state.invites = {};
 if (!state.feed) state.feed = [];
+/* Zeiten aus einer aelteren Zustandsdatei koennen unvollstaendig sein -
+ * fehlende Teile aus dem Standard nachlegen, statt die App ohne Fenster
+ * laufen zu lassen. */
+if (!state.zeiten || typeof state.zeiten !== "object") state.zeiten = {};
+if (!Array.isArray(state.zeiten.appfrei)) {
+  state.zeiten.appfrei = JSON.parse(JSON.stringify(ZEITEN_STANDARD.appfrei));
+}
+if (!state.zeiten.gates || typeof state.zeiten.gates !== "object") {
+  state.zeiten.gates = JSON.parse(JSON.stringify(ZEITEN_STANDARD.gates));
+}
+if (!("jetzt" in state.zeiten)) state.zeiten.jetzt = null;
 
 let dirty = false;
 setInterval(() => {
@@ -283,6 +328,19 @@ function snapshot() {
     guests: clients.size,
     checkedIn: guestCount()
   });
+}
+
+/* Die Zeiten gehen als EIGENES Ereignis raus, nicht im snapshot: Der
+ * snapshot fliegt bei jedem Applaus und jeder Stimme durch die Leitung, die
+ * Zeiten aendern sich an einem Abend vielleicht dreimal. Sie jedes Mal
+ * mitzuschicken hiesse, das WLAN ausgerechnet dort zu belasten, wo 130
+ * Geraete an derselben Zelle haengen. */
+function zeitenZeile() {
+  return "event: zeiten\ndata: " + JSON.stringify(state.zeiten) + "\n\n";
+}
+function zeitenSenden() {
+  const line = zeitenZeile();
+  for (const res of clients) res.write(line);
 }
 
 let pushTimer = null;
@@ -1636,6 +1694,16 @@ const server = http.createServer((req, res) => {
   }
 
   /* --- Live-API (aggregiert, für die App) --- */
+
+  /* Die Zeiten des Abends, oeffentlich lesbar. Der Weg ueber den Stream ist
+   * der normale; dieser Abruf ist der Rueckfallweg fuer den Fall, dass der
+   * Stream nicht zustande kommt (Firmen-WLAN mit Proxy, alter Browser).
+   * Ohne ihn haetten genau die Gaeste mit der schlechtesten Verbindung die
+   * veralteten Zeiten aus der App-Datei. */
+  if (req.method === "GET" && url === "/api/live/zeiten") {
+    return json(res, 200, { ok: true, zeiten: state.zeiten });
+  }
+
   /* Health verraet keine Geheimnisse, aber ob der Monitor-Schutz greift –
    * sonst laesst sich von aussen nicht pruefen, ob ADMIN_TOKENS angekommen
    * ist (Tippfehler im Variablennamen faellt sonst niemandem auf). */
@@ -1670,6 +1738,8 @@ const server = http.createServer((req, res) => {
     res.write("retry: 3000\n\n");
     clients.add(res);
     res.write("data: " + snapshot() + "\n\n");
+    /* Die Zeiten einmal beim Verbinden - danach nur noch bei Aenderung. */
+    res.write(zeitenZeile());
     broadcast();                                   // Gäste-Zähler an alle
     req.on("close", () => { clients.delete(res); broadcast(); });
     return;
@@ -2408,6 +2478,70 @@ const server = http.createServer((req, res) => {
      * in derselben Gruppe kann nur einer sie behalten; dann gewinnt, wer
      * zuerst reagiert hat (frueherer Klick), und die anderen werden in der
      * Antwort einzeln aufgefuehrt - die muss ein Mensch sehen. */
+    /* Zeiten des Abends aendern.
+     *
+     * Erwartet {appfrei:[...], gates:{...}, jetzt:...} - alles einzeln
+     * optional, damit ein Knopf im Monitor nur das schicken muss, was er
+     * anfasst. Ein Aufruf, der versehentlich nur die Gates enthaelt, darf
+     * nicht die app-freien Stellen loeschen.
+     *
+     * Jede Uhrzeit wird geprueft. Eine "19:6O" mit einem O statt einer Null
+     * faellt am Abend niemandem auf: Das Fenster ginge einfach nie auf, und
+     * alle wuerden auf eine Kachel starren, die geschlossen bleibt. Lieber
+     * hier ein Fehler, den ein Mensch liest. */
+    if (req.method === "POST" && url === "/api/admin/zeiten") {
+      return readBody(req, res, body => {
+        const UHR = /^([01]\d|2[0-3]):([0-5]\d)$/;
+        const fehler = [];
+        const neu = JSON.parse(JSON.stringify(state.zeiten));
+
+        if (Array.isArray(body.appfrei)) {
+          neu.appfrei = body.appfrei.map((f, i) => {
+            if (!UHR.test(String(f.from))) fehler.push("appfrei[" + i + "].from: " + f.from);
+            if (!UHR.test(String(f.to)))   fehler.push("appfrei[" + i + "].to: " + f.to);
+            if (UHR.test(String(f.from)) && UHR.test(String(f.to)) && String(f.to) <= String(f.from)) {
+              fehler.push("appfrei[" + i + "]: Ende liegt nicht nach dem Anfang");
+            }
+            return {
+              id: clean(f.id, 40) || ("fenster" + i),
+              from: String(f.from), to: String(f.to),
+              was: cleanText(f.was, 80), hinweis: cleanText(f.hinweis, 200),
+              aus: !!f.aus
+            };
+          });
+        }
+
+        if (body.gates && typeof body.gates === "object") {
+          const g = {};
+          for (const k of Object.keys(body.gates)) {
+            const w = body.gates[k] || {};
+            if (!UHR.test(String(w.from))) fehler.push("gates." + k + ".from: " + w.from);
+            if (!UHR.test(String(w.to)))   fehler.push("gates." + k + ".to: " + w.to);
+            g[clean(k, 40)] = { from: String(w.from), to: String(w.to) };
+          }
+          neu.gates = g;
+        }
+
+        /* Handschalter. "jetzt": true schaltet an, false/null wieder aus. */
+        if ("jetzt" in body) {
+          if (!body.jetzt) neu.jetzt = null;
+          else neu.jetzt = {
+            was: cleanText(body.jetzt.was, 80) || "Jetzt im Raum",
+            hinweis: cleanText(body.jetzt.hinweis, 200) || "Gleich geht es weiter.",
+            seit: Date.now()
+          };
+        }
+
+        if (fehler.length) return json(res, 400, { error: "Ungültige Zeiten", felder: fehler });
+
+        state.zeiten = neu;
+        dirty = true;
+        zeitenSenden();
+        logEvent("Zeiten geändert", wer, "");
+        return json(res, 200, { ok: true, zeiten: state.zeiten });
+      });
+    }
+
     if (req.method === "POST" && url === "/api/admin/nummern") {
       const alle = Object.values(state.invites);
       const kennt = i => i.status === "zugesagt" || i.status === "bezahlt";

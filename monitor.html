@@ -262,6 +262,25 @@
     font-family:var(--sans);font-size:9px;letter-spacing:.2em;text-transform:uppercase;padding:8px 18px;cursor:pointer}
   .export:hover{border-color:var(--blau);color:var(--ivory)}
 
+  /* Zeiten des Abends. Bedient wird das im Stehen, mit einer Hand -
+     deshalb groessere Felder als sonst im Monitor. */
+  .jetztbox{display:flex;gap:16px;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;border:1px solid var(--line-soft);padding:16px 18px;margin-bottom:12px}
+  .jetztbox b{display:block;font-family:var(--sans);font-weight:500;font-size:14px}
+  .jetztbox.an{border-color:var(--coral)}
+  .jetztbox.an b{color:var(--coral)}
+  .export.gross{font-size:10px;padding:13px 24px}
+  .ztab{width:100%;border-collapse:collapse;margin-top:18px;font-size:12.5px}
+  .ztab td{padding:11px 0;border-top:1px solid var(--line-soft);vertical-align:middle}
+  .ztab tr:first-child td{border-top:0}
+  .ztab .zwas{font-family:var(--sans);font-weight:500}
+  .ztab .zvon{color:var(--faint);font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+  .ztab input[type=time]{background:none;border:1px solid var(--line-soft);color:var(--ivory);
+    font-family:var(--sans);font-size:13px;padding:8px 10px;width:124px}
+  .ztab input[type=time]:focus{outline:none;border-color:var(--blau)}
+  .ztab td.znum{text-align:right;white-space:nowrap}
+  .ztab .zaus{opacity:.45}
+
   /* Fangschaltung: was kam wirklich von Lettermint an */
   .hooks{font-size:11.5px}
   .hook{display:flex;gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line-soft);
@@ -459,6 +478,33 @@
     </div>
   </div>
 
+  <!-- 6c · Die Zeiten des Abends. Am 16. September steht hier jemand mit dem
+       Telefon in der Hand im Raum, während vorne der Ablauf verrutscht.
+       Deshalb: große Knöpfe, wenige Felder, und der Handschalter ganz oben -
+       den braucht man am dringendsten und hat am wenigsten Zeit dafür. -->
+  <div class="panel" id="zeitpanel">
+    <span class="label">Gilt sofort für alle geöffneten Apps</span>
+    <h2>Der Abend</h2>
+
+    <div class="jetztbox" id="jetztbox">
+      <div>
+        <b id="jetztstatus">Die App läuft normal</b>
+        <span class="fnote" id="jetztseit" style="margin:0"></span>
+      </div>
+      <button class="export gross" id="jetztknopf" type="button">Jetzt ohne App</button>
+    </div>
+    <p class="fnote">
+      Der Handschalter legt sofort ein Blatt über die App – ohne Uhrzeit, bis du
+      ihn wieder löst. Für die Momente, die in keiner Liste stehen.
+    </p>
+
+    <table class="ztab"><tbody id="zliste"></tbody></table>
+    <div class="exportzeile">
+      <button class="export" id="zspeichern" type="button">Zeiten speichern</button>
+      <span class="fussnote" style="margin:0" id="znote"></span>
+    </div>
+  </div>
+
   <!-- 7 · Der Einzelfall. Ganz unten, weil man hierher springt, wenn oben
        etwas auffällt – nicht umgekehrt. -->
   <div class="panel" id="mailpanel">
@@ -601,6 +647,7 @@ async function laden(){
     await gaesteHolen();
     await whatsappHolen();
     await hooksHolen();
+    await zeitenHolen();
     taktStarten();
   }catch(e){
     zustand(0, "");
@@ -1111,6 +1158,95 @@ async function hooksHolen(){
 /* Adressen, fuer die eine Nachricht nachgereicht werden soll (Mail im
    Spam gelandet). Leben nur in dieser Ansicht - nach dem Neuladen weg. */
 let waNachreichen = [];
+/* ---------- Die Zeiten des Abends ----------
+ * Gelesen wird oeffentlich (/api/live/zeiten), geschrieben nur mit Zugang.
+ * Der Server prueft jede Uhrzeit noch einmal - was hier durchrutscht, faellt
+ * dort auf, und zwar mit einer Meldung, die ein Mensch lesen kann. */
+let zeitenStand = null;
+
+function zeitenZeichnen(z){
+  zeitenStand = z;
+  const box = $("#jetztbox"), knopf = $("#jetztknopf");
+  const an = !!z.jetzt;
+  box.classList.toggle("an", an);
+  txt($("#jetztstatus"), an ? "Ohne App: " + z.jetzt.was : "Die App läuft normal");
+  txt($("#jetztseit"), an && z.jetzt.seit
+      ? "seit " + new Date(z.jetzt.seit).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"})
+      : "");
+  knopf.textContent = an ? "Wieder freigeben" : "Jetzt ohne App";
+
+  const tb = $("#zliste");
+  tb.innerHTML = "";
+  (z.appfrei || []).forEach((f, i) => {
+    const tr = document.createElement("tr");
+    if(f.aus) tr.className = "zaus";
+    const td1 = document.createElement("td");
+    const b = document.createElement("div"); b.className = "zwas"; b.textContent = f.was || f.id;
+    /* Die Uhrzeit zusaetzlich als Text, immer 24-stuendig. Das Zeitfeld
+       selbst folgt der Spracheinstellung des Browsers - in einem englischen
+       steht dort "07:30 PM", und wer den Abend fährt, soll nicht erst
+       umrechnen muessen, um zu sehen, was eingestellt ist. */
+    const s = document.createElement("div"); s.className = "zvon";
+    s.textContent = "ohne App · " + f.from + "–" + f.to;
+    td1.appendChild(b); td1.appendChild(s);
+    const td2 = document.createElement("td"); td2.className = "znum";
+    const von = document.createElement("input"); von.type = "time"; von.value = f.from; von.dataset.i = i; von.dataset.k = "from";
+    const bis = document.createElement("input"); bis.type = "time"; bis.value = f.to;   bis.dataset.i = i; bis.dataset.k = "to";
+    td2.appendChild(von); td2.append(" – "); td2.appendChild(bis);
+    const td3 = document.createElement("td"); td3.className = "znum";
+    const aus = document.createElement("button");
+    aus.type = "button"; aus.className = "export";
+    aus.textContent = f.aus ? "Aus" : "An";
+    /* Ausschalten statt loeschen: Eine geloeschte Zeit muss man neu
+       eintippen, eine ausgeschaltete steht wieder da, wenn man sie braucht. */
+    aus.addEventListener("click", () => { f.aus = !f.aus; zeitenZeichnen(z); });
+    td3.appendChild(aus);
+    tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+    tb.appendChild(tr);
+  });
+}
+
+async function zeitenHolen(){
+  try{
+    const r = await fetch("/api/live/zeiten", { cache: "no-store" });
+    if(!r.ok) return;
+    const d = await r.json();
+    if(d.ok && d.zeiten) zeitenZeichnen(d.zeiten);
+  }catch(e){}
+}
+
+async function zeitenSchreiben(rumpf, note){
+  if(!KEY){ txt($("#znote"), "Kein Zugang – Link ohne key."); return; }
+  try{
+    const r = await fetch("/api/admin/zeiten?key=" + encodeURIComponent(KEY), {
+      method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf)
+    });
+    const d = await r.json();
+    if(!r.ok){
+      txt($("#znote"), (d.error || "Fehlgeschlagen") + (d.felder ? ": " + d.felder.join(", ") : ""));
+      return;
+    }
+    zeitenZeichnen(d.zeiten);
+    txt($("#znote"), note + " · " + new Date().toLocaleTimeString("de-DE"));
+  }catch(e){ txt($("#znote"), "Server nicht erreichbar."); }
+}
+
+$("#jetztknopf").addEventListener("click", () => {
+  const an = !!(zeitenStand && zeitenStand.jetzt);
+  if(an) return zeitenSchreiben({ jetzt: false }, "Wieder freigegeben");
+  const was = prompt("Was läuft gerade? (steht dann in der App)", "Jetzt im Raum");
+  if(was === null) return;
+  zeitenSchreiben({ jetzt: { was, hinweis: "Leg das Handy kurz weg." } }, "Ohne App gestellt");
+});
+
+$("#zspeichern").addEventListener("click", () => {
+  if(!zeitenStand) return;
+  const felder = document.querySelectorAll("#zliste input[type=time]");
+  const neu = JSON.parse(JSON.stringify(zeitenStand.appfrei || []));
+  felder.forEach(el => { neu[el.dataset.i][el.dataset.k] = el.value; });
+  zeitenSchreiben({ appfrei: neu }, "Gespeichert");
+});
+
 async function whatsappHolen(){
   try{
     const r = await fetch("/api/admin/whatsapp?x=1" + (KEY ? "&key=" + encodeURIComponent(KEY) : "") +

@@ -1267,6 +1267,12 @@
 <script>
 "use strict";
 
+/* Handschalter aus dem Monitor: stellt die App SOFORT app-frei, ohne
+   Uhrzeit, bis jemand ihn wieder loest. Der Ablauf im Raum haelt sich nicht
+   an Tabellen. Steht hier oben, damit er gesetzt ist, bevor die erste
+   Serverantwort eintrifft. */
+let JETZT_APPFREI = null;
+
 /* ================= CONFIG =================
    Datum & Zeiten hier anpassen. */
 const CONFIG = {
@@ -1288,6 +1294,13 @@ const CONFIG = {
     av8:     { from: "19:00", to: "23:00" },
     auktion: { from: "22:45", to: "23:00" }
   },
+  /* ACHTUNG: Die folgenden Zeiten sind nur der NOTVORRAT.
+     Im Betrieb kommen sie vom Server (state.zeiten) - ueber den Live-Stream,
+     ersatzweise ueber /api/live/zeiten - und werden hier ueberschrieben.
+     Geaendert wird am Abend im Monitor, nicht in dieser Datei.
+     Diese Werte greifen nur, solange der Server nichts gesagt hat: beim
+     allerersten Aufbau und wenn die App offline geoeffnet wird. */
+
   /* App-freie Stellen (die gelb markierten in Desis Timing vom 04.09.).
      Hier soll der Abend im Raum stattfinden und nicht auf dem Bildschirm:
      zwei Impulsvortraege und die Versteigerung.
@@ -1321,8 +1334,7 @@ const CONFIG = {
     { id:"gang1",    time:"19:00", title:"Erster Gang · Vorspeise",      ort:"Dinnerbereich",
       desc:"Das Sharing-Menü beginnt. Alles kommt in die Mitte." },
     { id:"vortrag1", time:"19:30", title:"Impuls · Ien Bäumler (I)",     ort:"Dinnerbereich",
-      desc:"Ein relevantes Thema, ein starker Gedanke – Mehrwert für jeden im Raum.",
-      appfrei:true },
+      desc:"Ein relevantes Thema, ein starker Gedanke – Mehrwert für jeden im Raum." },
     /* Der Moment "Impuls" haengt bewusst an der Pause, nicht am Vortrag:
        waehrend des Vortrags ist die App zu, und ein Knopf, den man nur
        waehrend der app-freien Viertelstunde druecken koennte, waere kein
@@ -1334,16 +1346,14 @@ const CONFIG = {
     { id:"gang2",    time:"20:25", title:"Zweiter Gang · Hauptspeise",   ort:"Dinnerbereich",
       desc:"Weiter geht’s – geteilt wird auch hier." },
     { id:"vortrag2", time:"21:15", title:"Impuls · Ien Bäumler (II)",    ort:"Dinnerbereich",
-      desc:"Der zweite Teil – dort, wo der erste aufgehört hat.",
-      appfrei:true },
+      desc:"Der zweite Teil – dort, wo der erste aufgehört hat." },
     { id:"painting", time:"21:30", title:"Live Painting · Max Leinfelder", ort:"Wechselbereich · bis 22:00",
       desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm.",
       moment:"kunst", momentLabel:"Kunst erlebt" },
     { id:"gang3",    time:"22:15", title:"Dritter Gang · Dessert",       ort:"Dinnerbereich",
       desc:"Süßer Abschluss, bevor die Nacht beginnt." },
     { id:"auktion",  time:"22:45", title:"Auktion · Live Painting",      ort:"Dinnerbereich",
-      desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet.",
-      appfrei:true },
+      desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet." },
     { id:"dj",       time:"22:55", title:"Ausklang · Drinks & DJ",       ort:"",
       desc:"Der Abend endet, wie er begonnen hat: mit Atmosphäre." }
   ]
@@ -1660,7 +1670,7 @@ function renderTimeline(){
         '<p>'+it.desc+'</p>'+
         /* Steht schon im Ablauf, nicht erst wenn es soweit ist: So weiss
            der Gast vorher, wann er das Handy weglegen soll. */
-        (it.appfrei ? '<span class="t-appfrei">Ohne App</span>' : '')+
+        (istAppfrei(it) ? '<span class="t-appfrei">Ohne App</span>' : '')+
         (it.moment ? '<button class="btn t-collect" data-tl-moment="'+it.moment+'">'+(S.moments[it.moment] ? "✓ Moment gesetzt" : (it.momentLabel||"Moment sammeln"))+'</button>' : "")+
       '</div>';
     wrap.appendChild(div);
@@ -1727,7 +1737,22 @@ function renderGates(){
    wieder, und das ist richtig so. */
 const appfreiWeg = {};
 function appfreiFenster(){
+  /* Der Handschalter schlaegt jede Uhrzeit. Er bekommt eine eigene Kennung
+     mit dem Einschaltzeitpunkt: Wird er ein zweites Mal gelegt, ist es ein
+     neues Fenster - und der Hinweis kommt auch bei dem wieder, der ihn
+     beim ersten Mal weggetippt hat. */
+  if(JETZT_APPFREI){
+    return { id: "jetzt-" + (JETZT_APPFREI.seit || 0),
+             was: JETZT_APPFREI.was, hinweis: JETZT_APPFREI.hinweis };
+  }
   return (CONFIG.appfrei || []).find(f => inWindow(f)) || null;
+}
+/* Ob ein Programmpunkt in eine app-freie Zeit faellt. Bewusst aus den
+   Fenstern abgeleitet und nicht als Merkmal am Punkt selbst: Wird ein
+   Fenster im Monitor verschoben, wandert die Markierung mit, statt am
+   alten Punkt kleben zu bleiben. */
+function istAppfrei(it){
+  return (CONFIG.appfrei || []).some(f => it.time >= f.from && it.time < f.to);
 }
 function renderAppfrei(){
   const el = $("#appfrei");
@@ -2033,7 +2058,34 @@ const LIVE = { on:false, d:null, pending:0, timer:null, post:null };
       try{ LIVE.d = JSON.parse(e.data); }catch(err){ return; }
       renderLiveState();
     };
+    /* Zeiten kommen als eigenes Ereignis: einmal beim Verbinden und danach
+       nur, wenn jemand sie im Monitor aendert. */
+    es.addEventListener("zeiten", e => {
+      try{ zeitenUebernehmen(JSON.parse(e.data)); }catch(err){}
+    });
   }
+  /* Rueckfallweg, falls der Stream nicht zustande kommt (Proxy, alter
+     Browser): einmal abfragen. Sonst haetten ausgerechnet die Gaeste mit
+     der schlechtesten Verbindung die veralteten Zeiten aus der Datei. */
+  fetch(api("/api/live/zeiten"))
+    .then(r => r.ok ? r.json() : null)
+    .then(a => { if(a && a.zeiten) zeitenUebernehmen(a.zeiten); })
+    .catch(()=>{});
+}
+
+/* Zeiten vom Server uebernehmen.
+   Bewusst nur, was auch angekommen ist: Ein Server, der aus irgendeinem
+   Grund ein leeres Feld schickt, darf nicht dazu fuehren, dass die App
+   ueberhaupt keine Fenster mehr kennt. Lieber die Werte aus der Datei als
+   gar keine. */
+function zeitenUebernehmen(z){
+  if(!z || typeof z !== "object") return;
+  if(Array.isArray(z.appfrei)) CONFIG.appfrei = z.appfrei.filter(f => !f.aus);
+  if(z.gates && typeof z.gates === "object") CONFIG.gates = z.gates;
+  /* Handschalter aus dem Monitor: gilt sofort und ohne Uhrzeit. */
+  JETZT_APPFREI = z.jetzt || null;
+  renderTimeline();
+  renderStatus();
 }
 function renderLiveState(){
   const d = LIVE.d; if(!d) return;
