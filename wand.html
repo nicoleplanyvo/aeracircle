@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE CIRCLE · Wand</title>
+<!--
+  Die Wand im Raum: was der Beamer zeigt.
+
+  Haengt am selben Live-Stream wie die Gaeste-App und zeigt nur, was
+  ohnehin an alle Handys geht - deshalb ohne Schluessel. Vier Zustaende:
+
+    ruhe     Wortmarke, "x im Raum", der Satz an den Raum / Als Naechstes
+    av8      Votum als drei Balken, Sterne-Schnitt. Hinter dem VORHANG nur
+             "n Rueckmeldungen sind da" - die Balken kommen auf Knopfdruck
+             aus dem Monitor. Ein Ergebnis statt eines Tickers.
+    auktion  Hoechstgebot gross, Karte, Countdown; nach dem Zuschlag der
+             Erloes und die Aufloesung des Schaetzspiels.
+    kreis    Der Enso schliesst sich - "41 Kreise geschlossen".
+
+  "auto" folgt dem Abend (Signal, Fenster); der Monitor kann jeden Zustand
+  von Hand setzen. Was NICHT auf die Wand gehoert: Namen zu Stimmen und
+  Sternen, die Interesse-Listen, jede Mail- oder Umsatzzahl. Und keine
+  Zahl unter 15 Rueckmeldungen - "3 Gaeste wuerden investieren" liest sich
+  im Saal wie ein Urteil.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#122648; --smoke:#22407a; --ivory:#f8f7f4; --muted:#aeb9d2; --faint:#93a4c6;
+    --coral:#ff6b6c; --sand:#d8d3c3; --line:rgba(248,247,244,.24);
+    --disp:"Cinzel","Trajan Pro 3","Trajan Pro",Georgia,serif;
+    --sans:"Montserrat","Avenir Next",Futura,"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--ink);color:var(--ivory);font-family:var(--sans);font-weight:300;overflow:hidden;cursor:none}
+  body{background:radial-gradient(120% 80% at 50% -10%,var(--smoke),var(--ink) 60%)}
+  .buehne{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6vh 8vw;animation:rein .8s ease}
+  .buehne.on{display:flex}
+  @keyframes rein{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .label{font-size:1.5vh;letter-spacing:.42em;text-transform:uppercase;color:var(--faint)}
+  .marke{font-family:var(--disp);font-weight:600;font-size:9vh;letter-spacing:.14em;text-transform:uppercase;line-height:1}
+  .sub{font-size:2vh;letter-spacing:.36em;text-transform:uppercase;color:var(--muted);margin-top:2vh}
+  .gross{font-family:var(--disp);font-weight:600;font-size:16vh;line-height:1;letter-spacing:.02em;
+    background:linear-gradient(180deg,#ff8d8e 6%,#ff6b6c 55%,#e3565c 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .mittel{font-family:var(--disp);font-weight:600;font-size:6vh;line-height:1.2;letter-spacing:.04em;max-width:80vw}
+  .satz{font-size:3.4vh;color:var(--muted);line-height:1.5;max-width:70vw;margin-top:3vh}
+  .zahl{font-family:var(--disp);font-weight:600;font-size:7vh;line-height:1}
+  .zahl small{font-family:var(--sans);font-weight:400;font-size:1.6vh;letter-spacing:.32em;text-transform:uppercase;color:var(--faint);display:block;margin-top:1.2vh}
+  .zeile{display:flex;gap:10vw;margin-top:5vh}
+  .uhr{position:absolute;right:3vw;bottom:2.6vh;font-size:1.6vh;letter-spacing:.3em;color:var(--faint)}
+  .wort{position:absolute;left:3vw;bottom:2.6vh;font-family:var(--disp);font-size:1.8vh;letter-spacing:.24em;text-transform:uppercase;color:var(--faint)}
+  /* Votum */
+  .balken{width:70vw;margin-top:5vh;display:flex;flex-direction:column;gap:2.4vh}
+  .balken div{display:grid;grid-template-columns:22vw 1fr 10vw;align-items:center;gap:2vw;font-size:2.6vh;letter-spacing:.14em;text-transform:uppercase}
+  .balken .track{height:2.4vh;background:rgba(248,247,244,.08);border:1px solid var(--line);overflow:hidden}
+  .balken .track i{display:block;height:100%;background:linear-gradient(90deg,#e3565c,#ff8d8e);width:0;transition:width 1.6s cubic-bezier(.2,.8,.2,1)}
+  .balken b{font-family:var(--disp);font-weight:600;font-size:4vh;text-align:right}
+  .sterne{margin-top:5vh;font-family:var(--disp);font-weight:600;font-size:8vh;color:var(--sand)}
+  .sterne small{font-family:var(--sans);font-weight:400;font-size:1.8vh;letter-spacing:.3em;text-transform:uppercase;color:var(--faint);display:block;margin-top:1vh}
+  /* Auktion */
+  .karte{font-size:3vh;letter-spacing:.3em;text-transform:uppercase;color:var(--sand);margin-top:2vh}
+  .sieger{margin-top:5vh;padding-top:4vh;border-top:1px solid var(--line);width:60vw}
+  .sieger .label{color:var(--sand)}
+  .sieger .name{font-family:var(--disp);font-weight:600;font-size:6vh;margin-top:1.5vh}
+  .sieger .rest{font-size:2.6vh;color:var(--muted);margin-top:1vh}
+  /* Kreis */
+  canvas#enso{width:52vh;height:52vh}
+  #aus{background:#000}
+</style>
+</head>
+<body>
+
+<section class="buehne on" id="ruhe">
+  <span class="label">THE CIRCLE No1</span>
+  <div class="marke" style="margin-top:2vh">The Circle</div>
+  <div class="sub">connecting generations</div>
+  <div class="satz" id="ruheSatz"></div>
+  <div class="zeile">
+    <div class="zahl"><span id="ruheRaum">–</span><small>im Raum</small></div>
+    <div class="zahl"><span id="ruheVerb">–</span><small>Verbindungen</small></div>
+  </div>
+</section>
+
+<section class="buehne" id="av8">
+  <span class="label">AV8 · Feedback aus dem Raum</span>
+  <div class="mittel" style="margin-top:2vh">Würdest du investieren?</div>
+  <div id="av8zu">
+    <div class="gross" style="margin-top:6vh" id="av8Anzahl">0</div>
+    <div class="sub" id="av8AnzahlText">Rückmeldungen sind da</div>
+  </div>
+  <div id="av8auf" style="display:none">
+    <div class="balken">
+      <div><span>Sofort</span><div class="track"><i id="b-ja"></i></div><b id="c-ja">0</b></div>
+      <div><span>Vielleicht</span><div class="track"><i id="b-vielleicht"></i></div><b id="c-vielleicht">0</b></div>
+      <div><span>Heute nicht</span><div class="track"><i id="b-nein"></i></div><b id="c-nein">0</b></div>
+    </div>
+    <div class="sterne" id="av8Sterne">–<small id="av8SterneText">Sterne</small></div>
+  </div>
+</section>
+
+<section class="buehne" id="auktion">
+  <span class="label" id="aukLabel">Live Painting · Max Leinfelder</span>
+  <div class="gross" style="margin-top:4vh" id="aukBetrag">–</div>
+  <div class="karte" id="aukKarte"></div>
+  <div class="satz" id="aukSatz"></div>
+  <div class="sieger" id="aukSieger" style="display:none">
+    <span class="label">Schätzspiel · am nächsten dran</span>
+    <div class="name" id="siegName"></div>
+    <div class="rest" id="siegRest"></div>
+  </div>
+</section>
+
+<section class="buehne" id="kreis">
+  <span class="label">Der Kreis</span>
+  <canvas id="enso" width="800" height="800" style="margin-top:3vh"></canvas>
+  <div class="gross" style="font-size:12vh;margin-top:2vh" id="kreisZahl">0</div>
+  <div class="sub">Kreise geschlossen</div>
+  <div class="zeile" style="margin-top:4vh">
+    <div class="zahl"><span id="kreisRaum">–</span><small>im Raum</small></div>
+    <div class="zahl"><span id="kreisVerb">–</span><small>Verbindungen</small></div>
+    <div class="zahl"><span id="kreisStriche">–</span><small>Striche</small></div>
+  </div>
+</section>
+
+<section class="buehne" id="aus"></section>
+
+<div class="wort">The Circle · connecting generations</div>
+<div class="uhr" id="uhr"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const IVORY = "#f5f3ef";
+let D = null, Z = null, SIG = null, OFFSET = 0, enthuelltBisher = false, ensoGemalt = -1;
+const fmt = n => (n || 0).toLocaleString("de-DE");
+
+/* --- Tusche, wie in der App --- */
+function setupCanvas(cv){
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  let w = cv.clientWidth, h = cv.clientHeight;
+  if(!w || !h){ w = (parseInt(cv.getAttribute("width")) || 40)/2; h = (parseInt(cv.getAttribute("height")) || 40)/2; }
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  const ctx = cv.getContext("2d"); ctx.scale(dpr,dpr); return [ctx,w,h];
+}
+function brushArc(ctx, cx, cy, r, a0, a1, w, color, alpha){
+  const len = Math.abs(a1-a0)*r, steps = Math.max(24, Math.round(len*1.7));
+  for(let pass=0; pass<3; pass++) for(let i=0;i<=steps;i++){
+    const t = i/steps; if(Math.random() < 0.07) continue;
+    const a = a0 + (a1-a0)*t;
+    const taper = Math.sin(Math.min(t*3.2,1) * Math.PI/2) * Math.sin(Math.min((1-t)*2.2,1) * Math.PI/2);
+    const rr = r + (Math.random()-.5)*w*.85, size = w*.5*taper*(.45+Math.random()*.6);
+    if(size<=0) continue;
+    ctx.globalAlpha = alpha*(.16+Math.random()*.2); ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(cx+rr*Math.cos(a), cy+rr*Math.sin(a), size, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+function drawEnso(cv, frac){
+  const [ctx,w,h] = setupCanvas(cv); ctx.clearRect(0,0,w,h);
+  const cx=w/2, cy=h/2, r=w/2*.72, lw=w*.13, start=-Math.PI*.62;
+  brushArc(ctx,cx,cy,r,start,start+Math.PI*1.94*(frac==null?1:frac),lw*1.15,IVORY,1.15);
+}
+
+/* --- Zeit: Serveruhr, nicht die des Beamer-Rechners --- */
+const jetzt = () => new Date(Date.now() + OFFSET);
+const hhmm = d => String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+function inFenster(g){ if(!g) return false; const h = hhmm(jetzt()); return h >= g.from && h < g.to; }
+
+/* --- Welcher Zustand? --- */
+function zustand(){
+  const w = (D && D.wand) || { modus:"auto" };
+  if(w.modus && w.modus !== "auto") return w.modus;
+  if(D && D.auktion && D.auktion.zu) return "auktion";
+  const g = (Z && Z.gates) || {};
+  if(inFenster(g.auktion)) return "auktion";
+  if(inFenster(g.av8) && D && ((D.votes.ja + D.votes.vielleicht + D.votes.nein) > 0 || w.enthuellt)) return "av8";
+  return "ruhe";
+}
+function zeigen(){
+  const z = zustand();
+  document.querySelectorAll(".buehne").forEach(s => s.classList.toggle("on", s.id === z));
+  if(!D) return;
+  const k = D.kreis || {};
+  /* Ruhe */
+  $("#ruheRaum").textContent = fmt(k.da); $("#ruheVerb").textContent = fmt(k.verbunden);
+  const satz = (D.wand && D.wand.satz) || (SIG ? (SIG.art === "wechsel" ? "Tischwechsel · " + SIG.text : SIG.text) : "");
+  $("#ruheSatz").textContent = satz;
+  /* AV8 */
+  const v = D.votes || {ja:0,vielleicht:0,nein:0}, ges = v.ja + v.vielleicht + v.nein;
+  const auf = !!(D.wand && D.wand.enthuellt) && ges >= 15;
+  $("#av8Anzahl").textContent = fmt(ges);
+  $("#av8AnzahlText").textContent = ges < 15 ? "Wir sammeln noch" : (ges === 1 ? "Rückmeldung ist da" : "Rückmeldungen sind da");
+  $("#av8zu").style.display = auf ? "none" : ""; $("#av8auf").style.display = auf ? "" : "none";
+  if(auf){
+    ["ja","vielleicht","nein"].forEach(x => { $("#b-"+x).style.width = ges ? (v[x]/ges*100).toFixed(1) + "%" : "0%"; $("#c-"+x).textContent = fmt(v[x]); });
+    let su = 0, n = 0; for(let i=1;i<=5;i++){ const c = (D.sterne||{})[i]||0; su += i*c; n += c; }
+    $("#av8Sterne").firstChild.textContent = n ? (su/n).toFixed(1).replace(".", ",") + " ★" : "–";
+    $("#av8SterneText").textContent = n ? n + " Bewertungen" : "Sterne";
+  }
+  /* Auktion */
+  const a = D.auktion;
+  if(a && a.zu){
+    $("#aukLabel").textContent = "Zuschlag · Der Erlös wird gespendet";
+    $("#aukBetrag").textContent = fmt(a.erloes) + " €";
+    $("#aukKarte").textContent = a.karte ? "Karte № " + a.karte : "";
+    $("#aukSatz").textContent = "";
+    const s = a.sieger && a.sieger[0];
+    $("#aukSieger").style.display = s ? "" : "none";
+    if(s){ $("#siegName").textContent = s.vorname + (s.karte ? " · Karte № " + s.karte : ""); $("#siegRest").textContent = "Tipp " + fmt(s.wert) + " € · " + fmt(s.abstand) + " € daneben"; }
+  } else {
+    $("#aukLabel").textContent = "Live Painting · Max Leinfelder";
+    $("#aukSieger").style.display = "none";
+    if(D.bid){ $("#aukBetrag").textContent = fmt(D.bid.amount) + " €"; $("#aukKarte").textContent = D.bid.paddle ? "Höchstgebot · Karte № " + D.bid.paddle : "Höchstgebot"; $("#aukSatz").textContent = ""; }
+    else {
+      const g = Z && Z.gates && Z.gates.auktion;
+      const vor = g && hhmm(jetzt()) < g.from;
+      $("#aukBetrag").textContent = vor ? g.from : "–";
+      $("#aukKarte").textContent = vor ? "Die Versteigerung beginnt" : "Noch kein Gebot";
+      $("#aukSatz").textContent = vor ? "Bieterkarte in der App heben – oder die Hand." : "Der Erlös wird vollständig gespendet.";
+    }
+  }
+  /* Kreis */
+  const r = D.ringe || {};
+  $("#kreisZahl").textContent = fmt(r.geschlossen); $("#kreisRaum").textContent = fmt(k.da); $("#kreisVerb").textContent = fmt(k.verbunden); $("#kreisStriche").textContent = fmt(r.striche);
+  if(z === "kreis" && ensoGemalt !== r.geschlossen){
+    ensoGemalt = r.geschlossen;
+    /* Der Enso malt sich einmal zu Ende - ein Schwung, kein Ticker. */
+    const t0 = performance.now();
+    (function step(t){ const p = Math.min((t-t0)/2200, 1); drawEnso($("#enso"), 1-Math.pow(1-p,2.2)); if(p<1) requestAnimationFrame(step); })(t0);
+  }
+}
+setInterval(()=>{ $("#uhr").textContent = hhmm(jetzt()); zeigen(); }, 1000);
+
+/* --- Stream --- */
+let versuch = 0;
+function connect(){
+  const es = new EventSource("/api/live/stream");
+  es.onopen = ()=>{ versuch = 0; };
+  es.onmessage = e => { try{ D = JSON.parse(e.data); }catch(err){ return; } if(D.jetztMs) OFFSET = D.jetztMs - Date.now(); zeigen(); };
+  es.addEventListener("zeiten", e => { try{ Z = JSON.parse(e.data); if(Z.jetztMs) OFFSET = Z.jetztMs - Date.now(); }catch(err){} zeigen(); });
+  es.addEventListener("signal", e => { try{ SIG = JSON.parse(e.data); }catch(err){} zeigen(); });
+  es.onerror = ()=>{ if(es.readyState === 2){ es.close(); setTimeout(connect, Math.min(30000, 2000*Math.pow(2, versuch++))); } };
+}
+connect();
+document.addEventListener("dblclick", ()=>{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(()=>{}); });
+</script>
+</body>
+</html>

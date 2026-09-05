@@ -1973,6 +1973,8 @@ function renderRing(){
 function collect(id, msg){
   if(S.moments[id]) return;
   S.moments[id] = Date.now(); persist();
+  /* Auch auf den Server - fuer "41 Kreise geschlossen" auf der Wand. */
+  if(typeof APP !== "undefined" && APP.token) appPost("/api/app/moment", { id }).catch(()=>{});
   const n = momentCount();
   if(reduceMotion || n >= MOMENTS.length){
     renderRing();
@@ -2372,6 +2374,10 @@ function zeitenUebernehmen(z){
   uhrAbgleichen(z.jetztMs);
   if(Array.isArray(z.appfrei)) CONFIG.appfrei = z.appfrei.filter(f => !f.aus);
   if(z.gates && typeof z.gates === "object") CONFIG.gates = z.gates;
+  /* Der Ablauf kommt vom Server: Verschiebt jemand im Monitor "alles ab
+     jetzt +15", zeigt die App nicht mehr "Jetzt: Impuls", waehrend vorne
+     noch die Vorspeise laeuft. */
+  if(Array.isArray(z.timeline) && z.timeline.length) CONFIG.timeline = z.timeline;
   /* Handschalter aus dem Monitor: gilt sofort und ohne Uhrzeit. */
   JETZT_APPFREI = z.jetzt || null;
   renderTimeline();
@@ -2408,8 +2414,13 @@ function renderLiveState(){
     if(i.investor) teile.push(i.investor + "× Investorengespräch");
     $("#interesseLive").textContent = teile.join(" · ");
   }
-  $("#bidRow").style.display = "flex";
-  if(d.bid){
+  $("#bidRow").style.display = (d.auktion && d.auktion.zu) ? "none" : "flex";
+  if(d.auktion && d.auktion.zu){
+    $("#bidBoard").style.display = "block";
+    $("#bidLead").textContent = d.auktion.erloes.toLocaleString("de-DE") + " €";
+    $("#bidMeta").textContent = "Zuschlag" + (d.auktion.karte ? " · Karte № " + d.auktion.karte : "") +
+      (d.auktion.sieger && d.auktion.sieger[0] ? " · Schätzspiel: " + d.auktion.sieger[0].vorname + " (" + d.auktion.sieger[0].wert.toLocaleString("de-DE") + " €)" : "");
+  } else if(d.bid){
     $("#bidBoard").style.display = "block";
     $("#bidLead").textContent = d.bid.amount.toLocaleString("de-DE") + " €";
     $("#bidMeta").textContent = "Höchstgebot · Karte № " + (d.bid.paddle || "–");
@@ -2848,7 +2859,7 @@ function renderTisch(){
   $("#tischName").textContent = eig.tischName || "";
   const hin = $("#tischHinweis");
   hin.textContent = !hatPlan ? "Die Tischordnung kommt kurz vor dem Abend – dann steht hier dein Platz." :
-    (!t.gang ? "Vor dem ersten Gang: dein Platz für die Vorspeise." : (t.nachbarn.length ? "Diese " + t.nachbarn.length + " sitzen mit dir am Tisch – die Anordnung ist nicht die Sitzordnung. Antippen für Name und Unternehmen." : "Dein Tisch – die anderen kommen gleich dazu."));
+    (!t.gang ? "Vor dem ersten Gang: dein Platz für die Vorspeise." : (t.nachbarn.length ? (t.nachbarn.length === 1 ? t.nachbarn[0].name.split(" ")[0] + " sitzt mit dir am Tisch." : "Diese " + t.nachbarn.length + " sitzen mit dir am Tisch – die Anordnung ist nicht die Sitzordnung.") + " Antippen für Name und Unternehmen." : "Dein Tisch – die anderen kommen gleich dazu."));
   /* Der Tisch als Kreis, ich unten. Die Reihenfolge ist alphabetisch,
      nicht die echte Sitzordnung - die kennt niemand vorher. */
   const rund = $("#tischRund"); rund.innerHTML = "";
@@ -2923,7 +2934,7 @@ function signalZeigen(s){
     knopf.style.display = "none";
   }
   el.classList.add("show");
-  if(neu) buzz([30, 40, 30]);
+  if(neu){ buzz([30, 40, 30]); if(APP.token) appPost("/api/app/gesehen", { signalT: s.t }).catch(()=>{}); }
 }
 $("#signalWeg").addEventListener("click", ()=>{
   if(APP.signal){ APP.signalWeg = APP.signal.t; try{ localStorage.setItem("circle.sig", String(APP.signal.t)); }catch(e){} }

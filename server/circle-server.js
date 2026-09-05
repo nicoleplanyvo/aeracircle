@@ -232,7 +232,35 @@ const ZEITEN_STANDARD = {
     auktion: { from: "22:45", to: "23:00" }
   },
   /* null = kein Handschalter. Sonst { was, hinweis, seit } */
-  jetzt: null
+  jetzt: null,
+  /* Der Ablauf. Steht auch in der App als Notvorrat; was hier steht, gilt.
+   * Nur so laesst sich am Abend "alles ab jetzt +15 Minuten" schieben. */
+  timeline: [
+    { id:"empfang",  time:"18:00", title:"Empfang & Check-in",           ort:"Wechselbereich",
+      desc:"Ankommen in der Playa Cologne. Erste Gespräche, erste Drinks." },
+    { id:"opening",  time:"18:30", title:"Begrüßung · Amiaz Habtu",      ort:"Dinnerbereich",
+      desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
+    { id:"av8",      time:"18:55", title:"AV8 stellt sich vor",          ort:"Dinnerbereich",
+      desc:"Kurz vorgestellt von der Moderation. Ihr Stand ist den ganzen Abend geöffnet – geh vorbei und probier." },
+    { id:"gang1",    time:"19:00", title:"Erster Gang · Vorspeise",      ort:"Dinnerbereich",
+      desc:"Das Sharing-Menü beginnt. Alles kommt in die Mitte." },
+    { id:"vortrag1", time:"19:30", title:"Impuls · Ien Bäumler (I)",     ort:"Dinnerbereich",
+      desc:"Ein relevantes Thema, ein starker Gedanke – Mehrwert für jeden im Raum." },
+    { id:"wechsel1", time:"19:45", title:"Austausch & Gespräche",        ort:"Wechselbereich · bis 20:15",
+      desc:"Zeit für den Kreis. Hier lernst du die Menschen kennen, wegen denen du hier bist.", moment:"impuls", momentLabel:"Impuls mitgenommen" },
+    { id:"gang2",    time:"20:25", title:"Zweiter Gang · Hauptspeise",   ort:"Dinnerbereich",
+      desc:"Weiter geht’s – geteilt wird auch hier." },
+    { id:"vortrag2", time:"21:15", title:"Impuls · Ien Bäumler (II)",    ort:"Dinnerbereich",
+      desc:"Der zweite Teil – dort, wo der erste aufgehört hat." },
+    { id:"painting", time:"21:30", title:"Live Painting · Max Leinfelder", ort:"Wechselbereich · bis 22:00",
+      desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm.", moment:"kunst", momentLabel:"Kunst erlebt" },
+    { id:"gang3",    time:"22:15", title:"Dritter Gang · Dessert",       ort:"Dinnerbereich",
+      desc:"Süßer Abschluss, bevor die Nacht beginnt." },
+    { id:"auktion",  time:"22:45", title:"Auktion · Live Painting",      ort:"Dinnerbereich",
+      desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet." },
+    { id:"dj",       time:"22:55", title:"Ausklang · Drinks & DJ",       ort:"",
+      desc:"Der Abend endet, wie er begonnen hat: mit Atmosphäre." }
+  ]
 };
 
 let state = {
@@ -281,6 +309,9 @@ if (!state.zeiten.gates || typeof state.zeiten.gates !== "object") {
   state.zeiten.gates = JSON.parse(JSON.stringify(ZEITEN_STANDARD.gates));
 }
 if (!("jetzt" in state.zeiten)) state.zeiten.jetzt = null;
+if (!Array.isArray(state.zeiten.timeline) || !state.zeiten.timeline.length) {
+  state.zeiten.timeline = JSON.parse(JSON.stringify(ZEITEN_STANDARD.timeline));
+}
 /* Gaeste aus der Zeit vor den Runden gehoeren zur ersten. */
 for (const inv of Object.values(state.invites)) if (!inv.runde) inv.runde = "no1";
 
@@ -347,6 +378,7 @@ function kreisZahlen() {
   for (const [k, v] of Object.entries(state.verbindungen || {})) if (v.status === "verbunden" && k.startsWith(RUNDE + "|")) verbunden++;
   return { im, registriert: reg, installiert: inst, da, push, verbunden, gang: tische().gang, runde: RUNDE,
            letzterPush: state.letzterPush || null, koeln: berlinJetzt().hhmm, jetztMs: Date.now(),
+           signalGesehen: state.signal && state.signal.gesehen ? Object.keys(state.signal.gesehen).length : 0,
            appfrei: appfreiJetzt() ? ((appfreiJetzt().was) || "Handschalter") : "",
            pushMoeglich: pushMoeglich(), signal: state.signal || null, gaenge: tische().gaenge, tische: tische().liste.length };
 }
@@ -368,8 +400,24 @@ function snapshot() {
      * Anwesenheit. Die App laedt Gaestebuch und Kreis nur nach, wenn sich
      * rev geaendert hat - nicht bei jedem Applaus. */
     rev: state.rev || 0,
-    jetztMs: Date.now()
+    jetztMs: Date.now(),
+    /* Fuer die Wand im Raum und die Buehnen-Karte im Monitor. */
+    wand: state.wand || { modus: "auto", enthuellt: false },
+    auktion: state.auktion || null,
+    tipps: Object.values(state.invites).filter(i => i.tipp).length,
+    ringe: ringeZahlen()
   });
+}
+/* Momente je Gast auf dem Server: "41 Kreise geschlossen" laesst sich
+ * sonst nicht ansagen - die Striche lagen nur im Speicher der Handys. */
+function ringeZahlen() {
+  let geschlossen = 0, summe = 0, n = 0;
+  for (const i of Object.values(state.invites)) {
+    if (!imKreis(i) || !i.momente) continue;
+    const k = Object.keys(i.momente).length; n++; summe += k;
+    if (k >= MOMENTS_TOTAL) geschlossen++;
+  }
+  return { geschlossen, mitStrich: n, striche: summe };
 }
 function revHoch() { state.rev = (state.rev || 0) + 1; }
 
@@ -2554,6 +2602,38 @@ const server = http.createServer((req, res) => {
                             anfragen: anfragen.sort(nachName), angefragt: angefragt.sort(nachName) });
   }
 
+  /* Ein Moment im Kreis. Bleibt auch auf dem Server, damit die Wand am
+   * Ende "41 Kreise geschlossen" zeigen kann. */
+  if (req.method === "POST" && url === "/api/app/moment") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
+      const id = clean(body.id, 20);
+      if (!id) return json(res, 400, { error: "id" });
+      if (!inv.momente) inv.momente = {};
+      if (!inv.momente[id]) { inv.momente[id] = Date.now(); dirty = true; broadcast(); }
+      return json(res, 200, { ok: true, anzahl: Object.keys(inv.momente).length });
+    });
+  }
+
+  /* Quittung: die App hat ein Signal angezeigt. Im Monitor steht dann
+   * "118 Push gesendet - 71 Apps haben es angezeigt" - die Frage, die man
+   * sich in dem Moment wirklich stellt. */
+  if (req.method === "POST" && url === "/api/app/gesehen") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
+      const t = parseInt(body.signalT, 10);
+      if (state.signal && state.signal.t === t) {
+        if (!state.signal.gesehen) state.signal.gesehen = {};
+        if (!state.signal.gesehen[gid(inv)]) { state.signal.gesehen[gid(inv)] = 1; dirty = true; }
+      }
+      return json(res, 200, { ok: true });
+    });
+  }
+
   /* "Ich bin da." Der erste Moment, in dem der Gast die App benutzt. */
   if (req.method === "POST" && url === "/api/app/da") {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
@@ -3246,6 +3326,32 @@ const server = http.createServer((req, res) => {
           neu.gates = g;
         }
 
+        if (Array.isArray(body.timeline)) {
+          neu.timeline = body.timeline.map((p, i) => {
+            if (!UHR.test(String(p.time))) fehler.push("timeline[" + i + "].time: " + p.time);
+            return { id: clean(p.id, 30) || ("p" + i), time: String(p.time), title: cleanText(p.title, 80),
+                     ort: cleanText(p.ort, 60), desc: cleanText(p.desc, 240),
+                     moment: clean(p.moment, 20) || undefined, momentLabel: cleanText(p.momentLabel, 40) || undefined };
+          });
+        }
+        /* "Alles ab jetzt +15": Ablauf, app-freie Fenster und Live-Fenster
+         * gemeinsam schieben - nur, was noch vor uns liegt. Das ist der
+         * eine Knopf, den man am Abend am sichersten braucht. */
+        if (Number.isInteger(body.verschieben) && body.verschieben !== 0) {
+          const min = Math.max(-120, Math.min(120, body.verschieben));
+          const ab = body.ab && UHR.test(String(body.ab)) ? String(body.ab) : berlinJetzt().hhmm;
+          const schieb = hhmm => {
+            if (!UHR.test(hhmm) || hhmm < ab) return hhmm;
+            const [h, m] = hhmm.split(":").map(Number);
+            const ges = Math.max(0, Math.min(23 * 60 + 59, h * 60 + m + min));
+            return String(Math.floor(ges / 60)).padStart(2, "0") + ":" + String(ges % 60).padStart(2, "0");
+          };
+          for (const p of neu.timeline || []) p.time = schieb(p.time);
+          for (const f of neu.appfrei || []) { f.from = schieb(f.from); f.to = schieb(f.to); }
+          for (const k of Object.keys(neu.gates || {})) { neu.gates[k].from = schieb(neu.gates[k].from); neu.gates[k].to = schieb(neu.gates[k].to); }
+          logEvent("Ablauf verschoben", wer, (min > 0 ? "+" : "") + min + " Min ab " + ab);
+        }
+
         /* Handschalter. "jetzt": true schaltet an, false/null wieder aus. */
         if ("jetzt" in body) {
           if (!body.jetzt) neu.jetzt = null;
@@ -3301,8 +3407,11 @@ const server = http.createServer((req, res) => {
           plaetze.forEach(n => { if (n) tischNrn.add(n); });
           gefunden.push({ name: inv.name, plaetze });
         }
+        /* Wer im Kreis ist, aber in der CSV nicht vorkommt, faellt sonst
+         * niemandem auf - er sieht "–" und bekommt eine Push ins Leere. */
+        const ohnePlatz = Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === RUNDE && !neu[gid(i)]).map(i => i.name).sort();
         if (q.get("senden") !== "1") {
-          return json(res, 200, { ok: true, probelauf: true, gefunden: gefunden.length, unbekannt, tische: [...tischNrn].sort((a, b) => a - b) });
+          return json(res, 200, { ok: true, probelauf: true, gefunden: gefunden.length, unbekannt, ohnePlatz, tische: [...tischNrn].sort((a, b) => a - b) });
         }
         const t = tische();
         t.sitz = neu;
@@ -3315,6 +3424,33 @@ const server = http.createServer((req, res) => {
         return json(res, 200, { ok: true, gefunden: gefunden.length, unbekannt, tische: t.liste });
       });
       return;
+    }
+
+    /* Ein einzelner Platz - zehn Sekunden statt einer neuen CSV.
+     * {email|name|gid, gang, tisch} */
+    if (req.method === "POST" && url === "/api/admin/sitz") {
+      return readBody(req, res, body => {
+        const t = tische();
+        const suche = String(body.email || body.name || "").trim().toLowerCase();
+        const inv = findByGid(body.gid) || Object.values(state.invites).find(i =>
+          (i.email && i.email.toLowerCase() === suche) || (i.name || "").trim().toLowerCase() === suche);
+        if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+        const gang = parseInt(body.gang, 10), nr = parseInt(body.tisch, 10) || 0;
+        if (!(gang >= 1 && gang <= t.gaenge.length)) return json(res, 400, { error: "gang 1–" + t.gaenge.length });
+        const s = t.sitz[gid(inv)] || (t.sitz[gid(inv)] = t.gaenge.map(() => 0));
+        s[gang - 1] = nr;
+        if (nr && !t.liste.find(x => x.nr === nr)) { t.liste.push({ nr, name: "" }); t.liste.sort((a, b) => a.nr - b.nr); }
+        dirty = true;
+        logEvent("Platz gesetzt", wer, inv.name + " · Gang " + gang + " · Tisch " + nr);
+        return json(res, 200, { ok: true, name: inv.name, sitz: s });
+      });
+    }
+    /* Wer hat noch keinen Platz (laufende Runde)? */
+    if (req.method === "GET" && url === "/api/admin/ohneplatz") {
+      const t = tische();
+      const liste = Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === RUNDE && !(t.sitz[gid(i)] || []).some(Boolean))
+        .map(i => ({ name: i.name, email: i.email || "", id: gid(i) })).sort((a, b) => a.name.localeCompare(b.name));
+      return json(res, 200, { ok: true, anzahl: liste.length, gaeste: liste });
     }
 
     /* Gaenge und Tischnamen. {gaenge:[...], liste:[{nr,name}]} */
@@ -3402,6 +3538,73 @@ const server = http.createServer((req, res) => {
         }
         return json(res, 400, { error: "art: wechsel | naechstes | raum | frei" });
       });
+    }
+
+    /* Die Wand im Raum: was der Beamer zeigt. modus auto folgt dem Abend
+     * (Signal, Fenster); enthuellt ist der Vorhang fuer das AV8-Votum -
+     * erst "87 Rueckmeldungen", dann auf Knopfdruck die Balken. */
+    if (req.method === "POST" && url === "/api/admin/wand") {
+      return readBody(req, res, body => {
+        if (!state.wand) state.wand = { modus: "auto", enthuellt: false };
+        const modi = ["auto", "ruhe", "av8", "auktion", "kreis", "aus"];
+        if (body.modus !== undefined) state.wand.modus = modi.includes(body.modus) ? body.modus : "auto";
+        if (body.enthuellt !== undefined) state.wand.enthuellt = !!body.enthuellt;
+        if (body.satz !== undefined) state.wand.satz = cleanText(body.satz, 120);
+        dirty = true; broadcast();
+        return json(res, 200, { ok: true, wand: state.wand });
+      });
+    }
+
+    /* Ein Gebot aus dem Saal - der Auktionator ruft es rein. Ohne den
+     * 5.000er-Deckel, mit Karte oder Name. */
+    if (req.method === "POST" && url === "/api/admin/gebot") {
+      return readBody(req, res, body => {
+        if (state.auktion && state.auktion.zu) return json(res, 409, { error: "Auktion ist beendet" });
+        const amount = parseInt(body.amount, 10) || 0;
+        if (amount <= 0 || amount > 2_000_000) return json(res, 400, { error: "Betrag" });
+        state.bid = { amount, paddle: clean(body.paddle, 6), name: clean(body.name, 30), t: Date.now(), quelle: "saal" };
+        state.bids.unshift(state.bid); state.bids = state.bids.slice(0, 20);
+        dirty = true; broadcast();
+        logEvent("Saal-Gebot", wer, amount + " € · Karte " + (state.bid.paddle || "–"));
+        return json(res, 200, { ok: true, bid: state.bid });
+      });
+    }
+    /* Letztes Gebot zuruecknehmen (Scherzgebot, Vertipper). */
+    if (req.method === "POST" && url === "/api/admin/gebot-zurueck") {
+      state.bids.shift(); state.bid = state.bids[0] || null;
+      dirty = true; broadcast();
+      logEvent("Gebot zurückgenommen", wer, "");
+      return json(res, 200, { ok: true, bid: state.bid });
+    }
+    /* Der Hammer. Friert das Hoechstgebot ein, loest das Schaetzspiel auf
+     * und schickt dem Gewinner eine Push. {erloes} optional, sonst das
+     * Hoechstgebot. */
+    if (req.method === "POST" && url === "/api/admin/zuschlag") {
+      return readBody(req, res, async body => {
+        const erloes = parseInt(body.erloes, 10) || (state.bid && state.bid.amount) || 0;
+        const tipps = Object.values(state.invites).filter(i => imKreis(i) && i.tipp)
+          .map(i => ({ id: gid(i), name: i.name, wert: i.tipp.wert, abstand: Math.abs(i.tipp.wert - erloes), karte: String(i.ticketNr || "").replace(/\D/g, ""), inv: i }))
+          .sort((a, b) => a.abstand - b.abstand);
+        state.auktion = { zu: Date.now(), erloes, wer, karte: state.bid ? state.bid.paddle : "",
+          sieger: tipps.slice(0, 3).map(x => ({ name: x.name, vorname: x.name.split(" ")[0], wert: x.wert, abstand: x.abstand, karte: x.karte })), tipps: tipps.length };
+        dirty = true; broadcast();
+        logEvent("Zuschlag", wer, erloes + " €");
+        if (tipps[0]) pushAnEinen(tipps[0].inv, { titel: "Dein Tipp war am nächsten", text: erloes.toLocaleString("de-DE") + " € – du lagst " + tipps[0].abstand.toLocaleString("de-DE") + " € daneben. Komm nach vorn.", url: "/?t=" + tipps[0].inv.token + "#live", tag: "tipp" });
+        return json(res, 200, { ok: true, auktion: state.auktion });
+      });
+    }
+    /* Zuschlag zuruecknehmen - falls zu frueh gedrueckt. */
+    if (req.method === "POST" && url === "/api/admin/zuschlag-zurueck") {
+      state.auktion = null; dirty = true; broadcast();
+      return json(res, 200, { ok: true });
+    }
+    /* Live-Zahlen fuer die Buehnen-Karte - mit Namen, deshalb hinter dem
+     * Schluessel; die Gaeste bekommen im Stream nur Betrag und Karte. */
+    if (req.method === "GET" && url === "/api/admin/live") {
+      return json(res, 200, { ok: true, votes: state.votes, sterne: state.sterne, interesse: state.interesse,
+        bid: state.bid, bids: state.bids.slice(0, 8), auktion: state.auktion || null, wand: state.wand || { modus: "auto", enthuellt: false },
+        tipps: Object.values(state.invites).filter(i => i.tipp).length, ringe: ringeZahlen(), kreis: kreisZahlen(),
+        signalGesehen: state.signal && state.signal.gesehen ? Object.keys(state.signal.gesehen).length : 0 });
     }
 
     /* AV8-Blatt: wer hat was gedrueckt. Das ist das, was die Gruender am
@@ -3769,6 +3972,11 @@ const server = http.createServer((req, res) => {
 
   if (req.method === "GET" && (url === "/einladung" || url === "/landing.html")) {
     return serveFile(res, "landing.html", "text/html; charset=utf-8");
+  }
+  /* Die Wand fuer den Beamer im Raum. Oeffentlich wie der Stream - sie
+   * zeigt nur, was ohnehin an alle Handys geht. */
+  if (req.method === "GET" && (url === "/wand" || url === "/wand.html")) {
+    return serveFile(res, "wand.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
   }
   if (req.method === "GET" && (url === "/monitor" || url === "/monitor.html")) {
     return serveFile(res, "monitor.html", "text/html; charset=utf-8");

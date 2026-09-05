@@ -504,6 +504,11 @@
       <span id="serverzeit" style="display:block;margin-top:6px"></span>
     </p>
     <div class="exportzeile">
+      <button class="export gross" id="plus15" type="button">Alles ab jetzt +15 Min</button>
+      <button class="export" id="minus15" type="button">−15 Min</button>
+      <span class="fussnote" style="margin:0">Schiebt Ablauf, app-freie Fenster und Live-Fenster gemeinsam – nur, was noch vor uns liegt.</span>
+    </div>
+    <div class="exportzeile">
       <button class="export" id="allesFrei" type="button">Notfall: alles frei</button>
       <span class="fussnote" style="margin:0">Nimmt Signal und Handschalter zurück und schaltet alle Fenster aus – ein Griff.</span>
     </div>
@@ -555,11 +560,64 @@
     <p class="fnote">CSV mit Kopfzeile <code>email,gang1,gang2,gang3</code> (oder <code>name</code> statt <code>email</code>). Erst Probelauf, dann Übernehmen. Tischnamen darunter, eine je Zeile: <code>1;Dom</code>.</p>
     <textarea id="planCsv" class="plancsv" rows="5" placeholder="email,gang1,gang2,gang3&#10;anna@beispiel.de,1,3,2"></textarea>
     <textarea id="planNamen" class="plancsv" rows="2" placeholder="1;Dom&#10;2;Rhein"></textarea>
+    <p class="fnote" id="ohnePlatz" style="color:var(--coral)"></p>
+    <div class="mailtools">
+      <input id="sitzWer" type="text" placeholder="Name oder E-Mail" style="max-width:220px" autocomplete="off">
+      <input id="sitzGang" type="number" min="1" max="5" placeholder="Gang" style="max-width:80px">
+      <input id="sitzTisch" type="number" min="0" placeholder="Tisch" style="max-width:80px">
+      <button class="export" id="sitzSetzen" type="button">Platz setzen</button>
+    </div>
     <div class="exportzeile">
       <button class="export" id="planProbe" type="button">Probelauf</button>
       <button class="export" id="planSenden" type="button">Übernehmen</button>
       <span class="fussnote" style="margin:0" id="planNote"></span>
     </div>
+  </div>
+
+  <!-- 6e · Die Buehne. Was der Moderator ansagen kann, und die Knoepfe
+       fuer Wand, Auktion und Schaetzspiel. Haengt am Live-Stream, nicht am
+       60-Sekunden-Takt. -->
+  <div class="panel" id="buehnepanel">
+    <span class="label">Live · für die Ansage und den Beamer</span>
+    <h2>Die Bühne</h2>
+    <p class="fnote">Die Wand für den Beamer: <a id="wandLink" href="/wand" target="_blank" rel="noopener" style="color:var(--ivory)">/wand</a> – im Vollbild öffnen. Sie folgt dem Abend von selbst; hier kannst du eingreifen.</p>
+    <div class="kpis" style="margin-top:14px">
+      <div class="kpi"><b id="bRaum">–</b><span>Im Raum</span></div>
+      <div class="kpi"><b id="bVotum">–</b><span>Würden investieren</span></div>
+      <div class="kpi"><b id="bSterne">–</b><span>Sterne · Anzahl</span></div>
+      <div class="kpi"><b id="bInteresse">–</b><span>Intro · Investor</span></div>
+      <div class="kpi"><b id="bGebot">–</b><span>Höchstgebot · Karte</span></div>
+      <div class="kpi"><b id="bRinge">–</b><span>Kreise geschlossen</span></div>
+    </div>
+    <p class="fnote" id="bVotumDetail"></p>
+
+    <span class="label" style="display:block;margin-top:18px">Wand</span>
+    <div class="exportzeile" id="wandModi">
+      <button class="export" data-modus="auto" type="button">Automatik</button>
+      <button class="export" data-modus="ruhe" type="button">Ruhe</button>
+      <button class="export" data-modus="av8" type="button">AV8</button>
+      <button class="export" data-modus="auktion" type="button">Auktion</button>
+      <button class="export" data-modus="kreis" type="button">Der Kreis</button>
+      <button class="export" data-modus="aus" type="button">Schwarz</button>
+    </div>
+    <div class="exportzeile">
+      <button class="export gross" id="vorhang" type="button">Vorhang: Ergebnis zeigen</button>
+      <span class="fussnote" style="margin:0">Solange der Vorhang zu ist, zeigt die Wand nur „x Rückmeldungen" – die Balken kommen auf Knopfdruck.</span>
+    </div>
+
+    <span class="label" style="display:block;margin-top:22px">Auktion</span>
+    <div class="mailtools">
+      <input id="gebotBetrag" type="number" inputmode="numeric" placeholder="Betrag €" style="max-width:130px">
+      <input id="gebotKarte" type="text" placeholder="Karte / Name" style="max-width:160px" maxlength="30">
+      <button class="export" id="gebotSenden" type="button">Saal-Gebot eintragen</button>
+      <button class="export" id="gebotZurueck" type="button">Letztes Gebot zurück</button>
+    </div>
+    <div class="exportzeile">
+      <button class="export gross" id="zuschlag" type="button">Zuschlag · Auflösen</button>
+      <button class="export" id="zuschlagZurueck" type="button" style="display:none">Zuschlag zurücknehmen</button>
+      <span class="fussnote" style="margin:0" id="auktionNote"></span>
+    </div>
+    <div id="bieterListe" class="fnote"></div>
   </div>
 
   <!-- 7 · Der Einzelfall. Ganz unten, weil man hierher springt, wenn oben
@@ -710,6 +768,8 @@ async function laden(){
     await whatsappHolen();
     await hooksHolen();
     await zeitenHolen();
+    await buehneHolen();
+    await ohnePlatzHolen();
     taktStarten();
   }catch(e){
     zustand(0, "");
@@ -1363,6 +1423,74 @@ $("#planSenden").addEventListener("click", () => planSchicken(true));
 try{
   const esM = new EventSource("/api/live/stream");
   esM.addEventListener("signal", () => { setTimeout(laden, 300); });
+}catch(e){}
+
+/* ---------- Die Buehne ---------- */
+let buehne = null;
+async function buehneHolen(){
+  if(!KEY) return;
+  try{
+    const r = await fetch("/api/admin/live?key=" + encodeURIComponent(KEY), { cache:"no-store" });
+    if(!r.ok) return;
+    buehne = await r.json(); buehneZeichnen(buehne);
+  }catch(e){}
+}
+function buehneZeichnen(d){
+  const v = d.votes || {}, ges = (v.ja||0)+(v.vielleicht||0)+(v.nein||0);
+  txt($("#bRaum"), d.kreis ? d.kreis.da : "–");
+  txt($("#bVotum"), ges ? Math.round((v.ja||0)/ges*100) + " %" : "–");
+  txt($("#bVotumDetail"), ges ? "Sofort " + (v.ja||0) + " · Vielleicht " + (v.vielleicht||0) + " · Heute nicht " + (v.nein||0) + " · " + ges + " Stimmen" + (d.tipps ? " · " + d.tipps + " Tipps im Schätzspiel" : "") + (d.signalGesehen ? " · Signal gesehen: " + d.signalGesehen + " Apps" : "") : "Noch keine Stimmen.");
+  let su = 0, n = 0; for(let i = 1; i <= 5; i++){ const k = (d.sterne||{})[i]||0; su += i*k; n += k; }
+  txt($("#bSterne"), n ? (su/n).toFixed(1).replace(".", ",") + " · " + n : "–");
+  txt($("#bInteresse"), ((d.interesse||{}).intro||0) + " · " + ((d.interesse||{}).investor||0));
+  txt($("#bGebot"), d.bid ? d.bid.amount.toLocaleString("de-DE") + " € · " + (d.bid.paddle || "–") : "–");
+  txt($("#bRinge"), d.ringe ? d.ringe.geschlossen : "–");
+  $$("#wandModi button").forEach(b => b.classList.toggle("gross", d.wand && d.wand.modus === b.dataset.modus));
+  txt($("#vorhang"), d.wand && d.wand.enthuellt ? "Vorhang: wieder zu" : "Vorhang: Ergebnis zeigen");
+  const a = d.auktion;
+  txt($("#auktionNote"), a && a.zu ? "Zuschlag " + a.erloes.toLocaleString("de-DE") + " €" + (a.sieger && a.sieger[0] ? " · Schätzspiel: " + a.sieger.map(x => x.name + " (" + x.wert.toLocaleString("de-DE") + " €, ±" + x.abstand + ")").join(" · ") : " · keine Tipps") : "");
+  $("#zuschlagZurueck").style.display = a && a.zu ? "" : "none";
+  $("#zuschlag").disabled = !!(a && a.zu);
+  const bl = $("#bieterListe"); bl.textContent = (d.bids || []).length ? "Gebote: " + d.bids.map(b => b.amount.toLocaleString("de-DE") + " € (" + (b.paddle ? "Karte " + b.paddle : "") + (b.name ? " " + b.name : "") + (b.quelle === "saal" ? ", Saal" : "") + ")").join(" · ") : "";
+}
+async function adminPost(pfad, rumpf){
+  if(!KEY) return null;
+  try{ const r = await fetch(pfad + "?key=" + encodeURIComponent(KEY), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf || {}) });
+    const d = await r.json(); if(!r.ok) alert(d.error || "Fehlgeschlagen"); return d; }
+  catch(e){ alert("Server nicht erreichbar."); return null; }
+}
+$$("#wandModi button").forEach(b => b.addEventListener("click", async () => { await adminPost("/api/admin/wand", { modus: b.dataset.modus }); buehneHolen(); }));
+$("#vorhang").addEventListener("click", async () => { await adminPost("/api/admin/wand", { enthuellt: !(buehne && buehne.wand && buehne.wand.enthuellt) }); buehneHolen(); });
+$("#gebotSenden").addEventListener("click", async () => {
+  const amount = parseInt($("#gebotBetrag").value, 10); if(!amount) return;
+  const k = $("#gebotKarte").value.trim(); const paddle = /^\d+$/.test(k) ? k : ""; const name = paddle ? "" : k;
+  const d = await adminPost("/api/admin/gebot", { amount, paddle, name }); if(d && d.ok){ $("#gebotBetrag").value = ""; $("#gebotKarte").value = ""; } buehneHolen();
+});
+$("#gebotZurueck").addEventListener("click", async () => { if(confirm("Letztes Gebot zurücknehmen?")) { await adminPost("/api/admin/gebot-zurueck"); buehneHolen(); } });
+$("#zuschlag").addEventListener("click", async () => {
+  const b = buehne && buehne.bid ? buehne.bid.amount : 0;
+  const e = prompt("Zuschlag – Erlös in Euro:", b || "");
+  if(e === null) return;
+  await adminPost("/api/admin/zuschlag", { erloes: parseInt(e, 10) || b }); buehneHolen();
+});
+$("#zuschlagZurueck").addEventListener("click", async () => { if(confirm("Zuschlag zurücknehmen? Die Auktion ist dann wieder offen.")) { await adminPost("/api/admin/zuschlag-zurueck"); buehneHolen(); } });
+$("#sitzSetzen").addEventListener("click", async () => {
+  const wer = $("#sitzWer").value.trim(), gang = parseInt($("#sitzGang").value, 10), tisch = parseInt($("#sitzTisch").value, 10) || 0;
+  if(!wer || !gang) return;
+  const d = await adminPost("/api/admin/sitz", { name: wer, email: wer, gang, tisch });
+  if(d && d.ok){ txt($("#planNote"), d.name + " · Gang " + gang + " · Tisch " + tisch); $("#sitzWer").value = ""; ohnePlatzHolen(); }
+});
+async function ohnePlatzHolen(){
+  if(!KEY) return;
+  try{ const r = await fetch("/api/admin/ohneplatz?key=" + encodeURIComponent(KEY), { cache:"no-store" }); const d = await r.json();
+    txt($("#ohnePlatz"), d.anzahl ? "Ohne Platz (" + d.anzahl + "): " + d.gaeste.map(g => g.name).join(", ") : ""); }catch(e){}
+}
+$("#plus15").addEventListener("click", () => { if(confirm("Alles ab jetzt um 15 Minuten nach hinten schieben?")) zeitenSchreiben({ verschieben: 15 }, "+15 Min"); });
+$("#minus15").addEventListener("click", () => { if(confirm("Alles ab jetzt um 15 Minuten nach vorn ziehen?")) zeitenSchreiben({ verschieben: -15 }, "−15 Min"); });
+/* Die Buehne haengt am Stream: jedes Live-Paket zeichnet neu, gedrosselt. */
+try{
+  const esB = new EventSource("/api/live/stream"); let bt = 0;
+  esB.onmessage = () => { clearTimeout(bt); bt = setTimeout(buehneHolen, 800); };
 }catch(e){}
 
 async function zeitenHolen(){
