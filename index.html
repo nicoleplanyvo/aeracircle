@@ -581,6 +581,182 @@
     text-transform:uppercase;color:var(--faint);padding:10px;
   }
 
+  /* ---------- Kreis: Teilnehmerliste, Profil, Mein Kreis ----------
+     Die Liste ist der Grund, warum die Gaeste die App oeffnen. Sie muss
+     mit einem Daumen bedienbar sein und in einem dunklen Raum lesbar. */
+  .avatar{
+    flex:none;border-radius:50%;overflow:hidden;background:var(--panel-hi);
+    border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;
+    font-family:var(--sans);font-weight:500;color:var(--muted);letter-spacing:.06em;
+    background-size:cover;background-position:center;
+  }
+  .avatar.klein{width:46px;height:46px;font-size:13px}
+  .avatar.gross{width:92px;height:92px;font-size:22px;margin:0 auto 14px}
+  .avatar.riesig{width:132px;height:132px;font-size:30px;margin:0 auto 16px;border-width:2px}
+  .avatar.ich{border-color:var(--coral)}
+  .avatar.leer{border-style:dashed}
+  .suche{display:flex;gap:10px;align-items:center;padding:4px 24px 10px}
+  .suche input{
+    flex:1;min-width:0;background:none;border:1px solid var(--line-soft);color:var(--ivory);
+    font-family:var(--sans);font-size:14px;padding:11px 14px;border-radius:999px;
+  }
+  .suche input:focus{outline:none;border-color:var(--line)}
+  .suche input::placeholder{color:var(--faint)}
+  .mzahl{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
+  .gliste{padding:0 24px}
+  .panel .gliste{padding:0;margin-top:10px}
+  .grow{
+    display:flex;gap:14px;align-items:center;padding:11px 0;
+    border-top:1px solid var(--line-soft);cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .grow:first-child{border-top:0}
+  .grow .gtext{flex:1;min-width:0}
+  .grow .gtext b{display:block;font-family:var(--sans);font-weight:500;font-size:14.5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grow .gtext span{display:block;font-size:11.5px;color:var(--muted);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .chip.st{
+    flex:none;font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
+    padding:5px 10px;border:1px solid var(--line-soft);color:var(--faint);border-radius:999px;
+  }
+  .chip.st.verbunden{border-color:var(--ivory);color:var(--ivory)}
+  .chip.st.anfrage{border-color:var(--coral);color:var(--coral)}
+  .chip.st.angefragt,.chip.st.spaeter{color:var(--muted)}
+  .grow .zwei{display:flex;gap:6px;flex:none}
+  .grow .zwei .btn{padding:8px 12px;font-size:8.5px}
+
+  /* Kurzprofil als Blatt von unten */
+  #sheetHinter{position:fixed;inset:0;z-index:118;background:rgba(6,12,26,.72);
+    display:none;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  #gastSheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:119;
+    background:linear-gradient(180deg,#18335f,#122648);
+    border-top:1px solid var(--line);border-radius:22px 22px 0 0;
+    padding:10px 24px calc(28px + env(safe-area-inset-bottom));
+    transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.8,.2,1);
+    max-height:88vh;overflow:auto;
+  }
+  #gastSheet.show{transform:translateY(0)}
+  #sheetHinter.show{display:block}
+  #gastSheet .griff{width:38px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 18px}
+  .sheetkopf{text-align:center}
+  .sheetkopf h3{font-family:var(--disp);font-weight:600;font-size:22px;letter-spacing:.02em}
+  .sheetkopf .meta{color:var(--muted);font-size:13px;margin-top:6px}
+  .sheetkopf .chip.st{display:inline-block;margin-top:12px}
+  #gastSheet .ueber{font-size:14px;line-height:1.7;color:var(--ivory);text-align:center;
+    margin:18px 0 0;font-style:italic;opacity:.9}
+  #gastSheet .ueber:empty{display:none}
+  .kontakt{margin-top:18px}
+  .kontakt a{
+    display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line-soft);
+    color:var(--ivory);text-decoration:none;font-size:14px;
+  }
+  .kontakt a span{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);width:64px;flex:none}
+  .aktionen{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+  .aktionen .btn{width:100%;padding:14px}
+  .btn.leise{border-color:transparent;color:var(--faint)}
+  #gastSheet .fnote{margin-top:14px;text-align:center}
+  .fnote{font-size:11px;color:var(--faint);line-height:1.6;letter-spacing:.02em}
+
+  /* ---------- Tisch ---------- */
+  .tischbuehne{padding:6px 24px 14px;text-align:center}
+  .tischnr{font-family:var(--disp);font-weight:600;font-size:64px;line-height:1;
+    background:linear-gradient(120deg,var(--coral),var(--ivory));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tischname{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--sand);margin-top:6px;min-height:14px}
+  .tischrund{position:relative;width:min(78vw,300px);height:min(78vw,300px);margin:24px auto 10px}
+  .tischrund::before{
+    content:"";position:absolute;inset:18%;border-radius:50%;
+    border:1px solid var(--line);background:radial-gradient(circle at 50% 40%,rgba(248,247,244,.08),rgba(248,247,244,.02) 70%);
+  }
+  .sitz{position:absolute;width:72px;margin:-24px 0 0 -36px;
+    display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;
+    -webkit-tap-highlight-color:transparent}
+  .sitz .avatar{width:48px;height:48px;font-size:13px}
+  .sitz i{font-style:normal;font-size:10px;letter-spacing:.04em;color:var(--ivory);white-space:nowrap;
+    max-width:72px;overflow:hidden;text-overflow:ellipsis;font-family:var(--sans);font-weight:500}
+  .sitz.ich i{color:var(--coral)}
+  .gaenge{display:flex;flex-direction:column;margin-top:10px}
+  .gaenge div{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-top:1px solid var(--line-soft)}
+  .gaenge div:first-child{border-top:0}
+  .gaenge div.jetzt b{color:var(--coral)}
+  .gaenge span{font-size:13px;color:var(--muted)}
+  .gaenge b{font-family:var(--disp);font-weight:600;font-size:18px}
+  .gaenge b small{font-family:var(--sans);font-weight:400;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-left:8px}
+  .gangwahl{display:flex;gap:6px;margin:12px 0 6px;flex-wrap:wrap}
+  .gangwahl button{background:none;border:1px solid var(--line-soft);color:var(--muted);border-radius:999px;
+    font-family:var(--sans);font-size:9px;letter-spacing:.18em;text-transform:uppercase;padding:7px 12px;cursor:pointer}
+  .gangwahl button.an{border-color:var(--ivory);color:var(--ivory)}
+  .plantisch{padding:12px 0;border-top:1px solid var(--line-soft)}
+  .plantisch:first-child{border-top:0}
+  .plantisch b{font-family:var(--disp);font-weight:600;font-size:16px}
+  .plantisch b small{font-family:var(--sans);font-weight:400;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--sand);margin-left:8px}
+  .plantisch p{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.6}
+  .plantisch p em{font-style:normal;color:var(--coral)}
+
+  /* ---------- Signal-Banner ---------- */
+  #signalBanner{
+    position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:105;
+    display:none;gap:12px;align-items:center;
+    background:var(--ivory);color:var(--ink);padding:12px 12px 12px 18px;
+    box-shadow:0 12px 40px rgba(0,0,0,.45);
+    animation:signalRein .5s cubic-bezier(.2,.8,.2,1);
+  }
+  #signalBanner.show{display:flex}
+  #signalBanner > div{flex:1;min-width:0}
+  #signalBanner .label{color:#5b6474;display:block;margin-bottom:3px}
+  #signalBanner b{display:block;font-family:var(--sans);font-weight:500;font-size:14px;line-height:1.35}
+  #signalBanner .btn{border-color:var(--ink);color:var(--ink);padding:9px 14px;font-size:8.5px;flex:none}
+  #signalBanner .weg{background:none;border:0;color:#5b6474;font-size:22px;line-height:1;padding:4px 6px;cursor:pointer;flex:none}
+  @keyframes signalRein{from{transform:translateY(-24px);opacity:0}to{transform:none;opacity:1}}
+
+  /* ---------- Ich bin da ---------- */
+  .dabtn{margin:18px 24px 0;display:none}
+  .dabtn.show{display:block}
+
+  /* ---------- Registrierung ---------- */
+  #registrierung{
+    position:fixed;inset:0;z-index:108;overflow:auto;
+    background:linear-gradient(180deg,var(--smoke-hi),var(--ink) 60%);
+    padding:calc(22px + env(safe-area-inset-top)) 26px calc(30px + env(safe-area-inset-bottom));
+  }
+  #registrierung.hidden{display:none}
+  .rg-kopf{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px}
+  .rg-kopf img{height:22px;width:auto}
+  .rg-schritte{display:flex;gap:6px}
+  .rg-schritte i{width:18px;height:2px;background:var(--line-soft)}
+  .rg-schritte i.an{background:var(--coral)}
+  .rg-step{display:none;animation:fadein .4s ease}
+  .rg-step.on{display:block}
+  .rg-step h1{font-family:var(--disp);font-weight:600;font-size:27px;line-height:1.25;margin:10px 0 12px;letter-spacing:.01em}
+  .rg-step .lede{margin-bottom:22px}
+  .rg-step .btn--full{margin-top:14px}
+  .rg-feld{margin-bottom:14px}
+  .rg-feld label{display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+  .rg-feld label span{opacity:.6;text-transform:none;letter-spacing:0}
+  .rg-feld input,.rg-fest{
+    width:100%;background:none;border:0;border-bottom:1px solid var(--line-soft);color:var(--ivory);
+    font-family:var(--sans);font-size:16px;padding:9px 0;
+  }
+  .rg-feld input:focus{outline:none;border-bottom-color:var(--ivory)}
+  .rg-fest{color:var(--ivory);font-weight:500}
+  .rg-bild{display:block;text-align:center;cursor:pointer;margin:10px 0 6px}
+  .rg-bild .btn{display:inline-block}
+  .rg-wahl{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .rg-karte{
+    display:block;border:1px solid var(--line-soft);padding:16px 18px 16px 48px;position:relative;cursor:pointer;
+  }
+  .rg-karte input{position:absolute;left:18px;top:19px;accent-color:var(--coral);width:16px;height:16px}
+  .rg-karte b{display:block;font-family:var(--sans);font-weight:500;font-size:14.5px;margin-bottom:5px}
+  .rg-karte span{font-size:12.5px;color:var(--muted);line-height:1.6}
+  .rg-karte:has(input:checked){border-color:var(--ivory)}
+  .rg-anleitung{margin:8px 0 14px}
+  .rg-anleitung div{display:flex;gap:14px;align-items:center;padding:12px 0;border-top:1px solid var(--line-soft);font-size:14px}
+  .rg-anleitung div:first-child{border-top:0}
+  .rg-anleitung b{font-family:var(--disp);font-weight:600;color:var(--coral);width:18px}
+  .rg-anleitung em{font-style:normal;font-weight:500}
+  .ios-teilen{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 6px;margin:0 4px;font-size:13px}
+
   /* ---------- Toast ---------- */
   #toast{
     position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px);
@@ -786,6 +962,8 @@
           <span class="dot"></span>
           <span id="statusText">–</span>
         </div>
+        <button type="button" class="btn btn--solid btn--full dabtn" id="daBtn">Ich bin da</button>
+        <button type="button" class="btn btn--full dabtn" id="pushBtn">Tischwechsel aufs Handy – Benachrichtigungen erlauben</button>
         <div class="count-grid rv" id="countGrid" style="--d:260ms">
           <div class="cell"><b class="grad" id="cdD">–</b><span>Tage</span></div>
           <div class="cell"><b class="grad" id="cdH">–</b><span>Std</span></div>
@@ -816,7 +994,7 @@
 
       <div class="stats rv" id="stats">
         <div><b class="grad" data-count="3">0</b><span>Generationen</span></div>
-        <div><b class="grad" data-count="6">0</b><span>Momente</span></div>
+        <div><b class="grad" data-count="5">0</b><span>Momente</span></div>
         <div><b class="grad" data-count="3">0</b><span>Gänge</span></div>
         <div><b class="grad" data-count="1">0</b><span>Werk</span></div>
       </div>
@@ -882,6 +1060,7 @@
         <span class="label rv">Der Abend</span>
         <h2 class="display rv" style="--d:60ms"><span class="grad">Pro</span><span class="out">gramm</span></h2>
         <p class="lede">Der Rahmen ist besonders. Der Kern ist Verbindung.</p>
+        <button type="button" class="btn rv" data-zeige="menu" style="margin-top:14px">Zum Menü</button>
       </div>
       <div class="timeline" id="timeline"></div>
       <hr class="hairline">
@@ -901,6 +1080,7 @@
         <span class="label">Sharing-Menü</span>
         <h2>Weil die besten Gespräche mit Genuss verbunden sind</h2>
         <p style="margin-top:10px;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--paper-muted)">Drei Gänge · für den Tisch zum Teilen</p>
+        <button type="button" class="btn" data-zeige="programm" style="margin-top:16px;border-color:var(--paper-ink);color:var(--paper-ink)">Zurück zum Ablauf</button>
       </div>
       <div class="course rv">
         <span class="roman" aria-hidden="true">I</span>
@@ -1054,51 +1234,40 @@
       </div>
     </section>
 
-    <!-- ============ CONNECT ============ -->
-    <section data-view="connect">
+    <!-- ============ KREIS: die Gäste untereinander ============
+         Das Herzstueck aus dem Call vom 19.08. Ersetzt das analoge Gaestebuch
+         und beantwortet die Frage, die dort regelmaessig kommt: "Wie erreiche
+         ich die Person danach wieder?" -->
+    <section data-view="kreis">
       <div class="sect">
-        <span class="label rv">Mehr als eine Visitenkarte</span>
-        <h2 class="display rv" style="--d:60ms"><span class="grad">Con</span><span class="out">nect</span></h2>
+        <span class="label rv">Die Menschen im Raum</span>
+        <h2 class="display rv" style="--d:60ms"><span class="grad">Kr</span><span class="out">eis</span></h2>
+        <p class="lede rv" style="--d:120ms" id="kreisLede">Alle Gäste des Abends. Antippen, verbinden – und nach dem Abend wiederfinden.</p>
+        <button type="button" class="btn rv" id="profilBtn" style="margin-top:14px">Mein Profil bearbeiten</button>
       </div>
 
-      <div class="idcard rv">
-        <span class="label">Deine Karte im Kreis</span>
-        <h3 id="cardName">–</h3>
-        <p id="cardMeta">–</p>
-        <p id="cardContact" style="display:none;font-size:11px;color:var(--faint);letter-spacing:.05em;margin-top:6px"></p>
-        <div class="row">
-          <button class="btn" id="shareBtn">Teilen</button>
-          <button class="btn" id="editBtn">Bearbeiten</button>
-        </div>
+      <!-- Anfragen an mich: ganz oben, weil jemand darauf wartet. -->
+      <div class="panel rv" id="anfragenPanel" style="display:none">
+        <span class="label">Möchten sich mit dir verbinden</span>
+        <div class="gliste" id="anfragenListe"></div>
       </div>
 
-      <div class="impulse rv" id="impulseCard" role="button" tabindex="0" aria-label="Neue Impulsfrage ziehen">
-        <span class="q" aria-hidden="true">?</span>
-        <span class="label">Impuls</span>
-        <div id="impulseText">Tippe – und zieh eine Frage, die Generationen verbindet.</div>
-        <div class="foot">
-          <span class="label">für deinen Tischnachbarn</span>
-          <span class="count" id="impulseCount">–</span>
-        </div>
+      <div class="suche rv">
+        <input id="gastSuche" type="search" placeholder="Name oder Unternehmen …" autocomplete="off" aria-label="Gäste durchsuchen">
+        <span class="mzahl" id="gastZahl"></span>
       </div>
+      <div class="gliste rv" id="gaesteListe"></div>
+      <p class="fnote rv" id="gaesteHinweis" style="padding:0 24px"></p>
 
-      <div class="panel rv" id="bingoPanel">
-        <span class="label">Circle-Bingo</span>
-        <h3>Finde im Raum &hellip;</h3>
-        <p>Tippe an, was du gefunden hast. Eine volle Reihe schließt den Kreis ein Stück mehr.</p>
-        <div class="bingo" id="bingoGrid" role="group" aria-label="Circle-Bingo"></div>
-      </div>
-
-      <div class="panel rv">
+      <div class="panel rv" id="kreisPanel">
         <span class="label">Mein Kreis</span>
-        <h3>Wen hast du getroffen?</h3>
-        <p>Halte deine Begegnungen fest – sie gehören dir, nur auf deinem Gerät.</p>
-        <div class="contact-form">
-          <input id="cName" type="text" maxlength="40" placeholder="Name" aria-label="Name">
-          <input id="cFirm" type="text" maxlength="40" placeholder="Firma / Notiz" aria-label="Firma oder Notiz">
-          <button class="btn" id="cAdd">+</button>
+        <h3 id="kreisTitel">Noch niemand – bis jetzt.</h3>
+        <p id="kreisText">Wen du heute Abend triffst, steht hier. Kontakt speichern oder direkt schreiben – aus der App heraus.</p>
+        <div class="gliste" id="kreisListe"></div>
+        <div id="spaeterBlock" style="display:none">
+          <span class="label" style="display:block;margin-top:18px">Später sprechen</span>
+          <div class="gliste" id="spaeterListe"></div>
         </div>
-        <div class="contact-list" id="contactList"></div>
       </div>
 
       <div class="panel rv notes">
@@ -1112,16 +1281,73 @@
       </div>
     </section>
 
+    <!-- ============ TISCH ============
+         Der Punkt aus der Runde, der allen gefallen hat: der Tisch wird
+         gezeichnet, mit Profilkreisen ringsum. Wer links und rechts sitzt,
+         ist kein Raetsel mehr, sondern ein Gespraechsanfang. -->
+    <section data-view="tisch">
+      <div class="sect">
+        <span class="label rv" id="tischGangLabel">Dein Platz</span>
+        <h2 class="display rv" style="--d:60ms"><span class="grad">Ti</span><span class="out">sch</span></h2>
+      </div>
+
+      <div class="tischbuehne rv" id="tischBuehne">
+        <div class="tischnr" id="tischNr">–</div>
+        <div class="tischname" id="tischName"></div>
+        <div class="tischrund" id="tischRund" aria-label="Wer mit dir am Tisch sitzt"></div>
+        <p class="lede" id="tischHinweis" style="text-align:center;font-size:13px;padding:0 24px">Die Tischordnung kommt kurz vor dem Abend.</p>
+      </div>
+
+      <div class="panel rv" id="meineTischePanel" style="display:none">
+        <span class="label">Deine Tische heute Abend</span>
+        <div class="gaenge" id="meineTische"></div>
+      </div>
+
+      <div class="panel rv" id="planPanel" style="display:none">
+        <span class="label">Der ganze Plan</span>
+        <h3 id="planTitel">Alle Tische</h3>
+        <div class="gangwahl" id="gangWahl"></div>
+        <div id="planListe"></div>
+      </div>
+    </section>
+
   </main>
 
   <nav aria-label="Hauptnavigation">
     <button data-nav="programm">Abend</button>
-    <button data-nav="menu">Menü</button>
+    <button data-nav="kreis">Kreis</button>
     <button data-nav="home" class="navspiral active" aria-label="Circle – Start"><canvas class="spiralcv" width="68" height="68" aria-hidden="true"></canvas></button>
+    <button data-nav="tisch">Tisch</button>
     <button data-nav="live">Live</button>
-    <button data-nav="connect">Connect</button>
   </nav>
 
+</div>
+
+<!-- Signal aus dem Monitor: Als Naechstes / Tischwechsel. Liegt ueber allem,
+     bleibt, bis es zurueckgenommen wird oder der Gast es wegwischt. -->
+<div id="signalBanner" role="status" aria-live="polite">
+  <div>
+    <span class="label" id="signalLabel">Als Nächstes</span>
+    <b id="signalText"></b>
+  </div>
+  <button type="button" class="btn" id="signalKnopf">Zum Tisch</button>
+  <button type="button" class="weg" id="signalWeg" aria-label="Ausblenden">×</button>
+</div>
+
+<!-- Kurzprofil eines Gastes -->
+<div id="sheetHinter"></div>
+<div id="gastSheet" role="dialog" aria-modal="true" aria-label="Profil">
+  <div class="griff" aria-hidden="true"></div>
+  <div class="sheetkopf">
+    <div class="avatar gross" id="shFoto"></div>
+    <h3 id="shName">–</h3>
+    <p class="meta" id="shMeta"></p>
+    <span class="chip st" id="shStatus" style="display:none"></span>
+  </div>
+  <p class="ueber" id="shUeber"></p>
+  <div class="kontakt" id="shKontakt"></div>
+  <div class="aktionen" id="shAktionen"></div>
+  <p class="fnote" id="shNote"></p>
 </div>
 
 <!-- Einladung: der Weg in den Kreis -->
@@ -1243,6 +1469,88 @@
     </div>
     <button class="btn btn--solid btn--full" type="submit">In den Kreis eintreten</button>
   </form>
+</div>
+
+<!-- Registrierung: das Erste, was der Gast mit seinem Link sieht.
+     Profil vervollstaendigen, Bild, Freigabe - in DIESER Reihenfolge und in
+     einem Rutsch, damit die Einwilligung vor dem ersten Kontakt steht und
+     nicht mittendrin. Ohne Abschluss keine Liste. -->
+<div id="registrierung" class="hidden" role="dialog" aria-modal="true" aria-label="Registrierung">
+  <div class="rg-kopf">
+    <img class="brandlogo-z" alt="">
+    <div class="rg-schritte" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  </div>
+
+  <div class="rg-step" data-rg="zu">
+    <span class="label">THE CIRCLE No1</span>
+    <h1>Dein Platz ist noch nicht bestätigt.</h1>
+    <p class="lede">Die App ist für die Gäste des Abends. Sag über deine Einladung zu – dann bist du hier drin.</p>
+    <a class="btn btn--solid btn--full" id="rgZuLink" href="#">Zur Einladung</a>
+  </div>
+
+  <div class="rg-step on" data-rg="profil">
+    <span class="label">Schritt 1 von 3</span>
+    <h1>Das bist du im Kreis.</h1>
+    <p class="lede">Name und Unternehmen kommen aus deiner Zusage. Prüf kurz, ergänze, was fehlt – so sehen dich die anderen.</p>
+    <div class="rg-feld"><label>Name</label><div class="rg-fest" id="rgName">–</div></div>
+    <div class="rg-feld"><label for="rgFirma">Unternehmen</label><input id="rgFirma" type="text" maxlength="80" autocomplete="organization"></div>
+    <div class="rg-feld"><label for="rgRolle">Rolle</label><input id="rgRolle" type="text" maxlength="80" autocomplete="organization-title" placeholder="z. B. Geschäftsführerin"></div>
+    <div class="rg-feld"><label for="rgUeber">Ein Satz über dich <span>(optional)</span></label><input id="rgUeber" type="text" maxlength="200" placeholder="Was dich gerade umtreibt – oder wonach du heute suchst"></div>
+    <div class="rg-feld"><label for="rgLinkedin">LinkedIn <span>(optional)</span></label><input id="rgLinkedin" type="text" maxlength="120" inputmode="url" placeholder="linkedin.com/in/…"></div>
+    <button class="btn btn--solid btn--full" type="button" data-rgweiter="bild">Weiter</button>
+  </div>
+
+  <div class="rg-step" data-rg="bild">
+    <span class="label">Schritt 2 von 3</span>
+    <h1>Ein Bild von dir.</h1>
+    <p class="lede">Macht die Liste greifbar – und dich am Tisch wiedererkennbar. Bleibt in der App, geht nirgendwo sonst hin.</p>
+    <label class="rg-bild" for="rgDatei">
+      <div class="avatar riesig" id="rgVorschau"></div>
+      <span class="btn" id="rgBildKnopf">Bild wählen</span>
+      <input id="rgDatei" type="file" accept="image/*" hidden>
+    </label>
+    <p class="fnote" id="rgBildNote"></p>
+    <button class="btn btn--solid btn--full" type="button" data-rgweiter="freigabe" id="rgBildWeiter">Weiter</button>
+    <button class="btn btn--full leise" type="button" data-rgweiter="freigabe" id="rgOhneBild">Ohne Bild weiter</button>
+  </div>
+
+  <div class="rg-step" data-rg="freigabe">
+    <span class="label">Schritt 3 von 3</span>
+    <h1>Deine Kontaktdaten.</h1>
+    <p class="lede">Verbinden geht immer nur beidseitig: Anfrage, Zustimmung, dann sind die Karten getauscht. Du entscheidest, was dabei auf deiner steht.</p>
+    <div class="rg-wahl" role="radiogroup" aria-label="Freigabe">
+      <label class="rg-karte">
+        <input type="radio" name="rgSichtbar" value="1">
+        <b>Kontaktdaten sichtbar</b>
+        <span>Wer sich mit dir verbindet, sieht E-Mail und Telefon und kann dich danach erreichen.</span>
+      </label>
+      <label class="rg-karte">
+        <input type="radio" name="rgSichtbar" value="0" checked>
+        <b>Nur kontaktierbar</b>
+        <span>Name, Unternehmen und Bild – deine Kontaktdaten bleiben bei dir. Verbinden geht trotzdem.</span>
+      </label>
+    </div>
+    <p class="fnote" id="rgKontaktVorschau"></p>
+    <button class="btn btn--solid btn--full" type="button" id="rgFertig">In den Kreis eintreten</button>
+    <p class="fnote" id="rgFehler" style="color:var(--coral)"></p>
+  </div>
+
+  <div class="rg-step" data-rg="app">
+    <span class="label">Fast geschafft</span>
+    <h1>Leg die App auf deinen Startbildschirm.</h1>
+    <p class="lede" id="rgAppText">Dann liegt THE CIRCLE am Abend als Symbol neben deinen anderen Apps – ohne Browserleiste, ohne Suchen nach dem Link.</p>
+    <div class="rg-anleitung" id="rgIos" style="display:none">
+      <div><b>1</b> Tippe unten auf <span class="ios-teilen" aria-label="Teilen">⎋</span> <em>Teilen</em></div>
+      <div><b>2</b> Wähle <em>Zum Home-Bildschirm</em></div>
+      <div><b>3</b> Öffne THE CIRCLE von dort</div>
+    </div>
+    <button class="btn btn--solid btn--full" type="button" id="rgInstall" style="display:none">App installieren</button>
+    <div id="rgPushBlock" style="display:none">
+      <p class="lede">Und damit du den Tischwechsel nicht verpasst, während das Handy in der Tasche liegt:</p>
+      <button class="btn btn--solid btn--full" type="button" id="rgPush">Benachrichtigungen erlauben</button>
+    </div>
+    <button class="btn btn--full leise" type="button" id="rgSchliessen">Weiter zur App</button>
+  </div>
 </div>
 
 <!-- Kreis geschlossen -->
@@ -1370,22 +1678,9 @@ const MOMENTS = [
   { id:"verbindung", label:"Verbindung" }
 ];
 
-const IMPULSE = [
-  "Welcher Rat hat dich am meisten geprägt – und von wem kam er?",
-  "Was kann meine Generation von deiner lernen?",
-  "Welches Risiko hat sich für dich am meisten gelohnt?",
-  "Was hättest du mit 25 gern gewusst?",
-  "Worauf bist du stolz, das in keinem Lebenslauf steht?",
-  "Welche Gewohnheit hat dein Leben am stärksten verändert?",
-  "Wen würdest du gern einen Tag lang begleiten – und warum?",
-  "Was war dein größter Irrtum über Erfolg?",
-  "Welche Tür ist zugegangen, damit eine bessere aufgehen konnte?",
-  "Was würdest du heute anfangen, wenn Scheitern unmöglich wäre?",
-  "Welcher Mensch hat an dich geglaubt, bevor du es selbst getan hast?",
-  "Was bedeutet für dich Zukunft gestalten – ganz konkret?",
-  "Welches Buch, welcher Film oder welcher Song hat deine Sicht verändert?",
-  "Was gibst du weiter, das man dir einmal gegeben hat?"
-];
+/* Impulskarten und Circle-Bingo sind raus: im Call vom 19.08. als
+   "hier verzichtbar" eingestuft - ein Publikum, das sich schon kennt,
+   braucht keine Gespraechsanlaesse aus der App. */
 
 /* ================= STATE ================= */
 const store = {
@@ -1560,8 +1855,10 @@ function show(view){
   window.scrollTo({top:0, behavior: reduceMotion ? "auto" : "smooth"});
   if(view==="menu") requestAnimationFrame(drawBrushlines);
   if(view==="home") requestAnimationFrame(()=>{ drawSkyline(); renderRing(); });
+  if(view==="tisch" && typeof renderTisch === "function") requestAnimationFrame(renderTisch);
 }
 $$("nav button").forEach(b => b.addEventListener("click", ()=>show(b.dataset.nav)));
+$$("[data-zeige]").forEach(b => b.addEventListener("click", ()=>show(b.dataset.zeige)));
 
 /* ================= RING / MOMENTE ================= */
 function momentCount(){ return MOMENTS.filter(m => S.moments[m.id]).length }
@@ -1853,15 +2150,9 @@ $("#paddleBtn").addEventListener("click", ()=>{
   toast("№ "+paddleNumber(S.name||"Gast")+" – viel Erfolg beim Bieten.");
 });
 
-/* ================= CONNECT ================= */
+/* ================= KARTE ================= */
 function renderCard(){
-  $("#cardName").textContent = S.name || "Gast";
-  $("#cardMeta").textContent = S.company || "THE CIRCLE · Gast des Abends";
   $("#guestName").textContent = S.name || "Gast";
-  /* Kontaktdaten aus der Einladung – automatisch auf der Karte */
-  const contact = [S.mail, S.phone].filter(Boolean).join(" · ");
-  $("#cardContact").textContent = contact;
-  $("#cardContact").style.display = contact ? "block" : "none";
 }
 /* Ernährung aus der Einladung – automatisch am Menü notiert */
 function renderMenuPref(){
@@ -1873,108 +2164,6 @@ function renderMenuPref(){
     el.style.display = "block";
   } else { el.style.display = "none"; }
 }
-$("#shareBtn").addEventListener("click", async ()=>{
-  const contact = [S.mail, S.phone].filter(Boolean).join(" · ");
-  const text = S.name + (S.company ? " · " + S.company : "") + (contact ? " · " + contact : "") + " — wir haben uns bei THE CIRCLE in Köln getroffen. connecting generations.";
-  try{
-    if(navigator.share){ await navigator.share({ title:"THE CIRCLE", text }); }
-    else { await navigator.clipboard.writeText(text); toast("Karte kopiert – füge sie in eine Nachricht ein."); }
-    collect("verbindung", "Neue Verbindung – ein Strich mehr im Kreis.");
-  }catch(e){ /* Teilen abgebrochen */ }
-});
-$("#editBtn").addEventListener("click", ()=>{
-  $("#onboarding").classList.remove("hidden");
-  $("#obName").value = S.name; $("#obCompany").value = S.company;
-});
-
-/* Impuls-Karten */
-let lastImpulse = -1;
-function drawImpulse(){
-  let i;
-  do{ i = Math.floor(Math.random()*IMPULSE.length) } while(i === lastImpulse && IMPULSE.length > 1);
-  lastImpulse = i;
-  const el = $("#impulseText");
-  el.style.opacity = 0;
-  setTimeout(()=>{
-    el.textContent = "„" + IMPULSE[i] + "“";
-    el.style.opacity = 1;
-    S.impulseSeen++; persist();
-    $("#impulseCount").textContent = "№ " + S.impulseSeen;
-  }, reduceMotion ? 0 : 220);
-  buzz(15);
-}
-$("#impulseCard").addEventListener("click", drawImpulse);
-$("#impulseCard").addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); drawImpulse(); } });
-
-/* ================= CIRCLE-BINGO ================= */
-const BINGO = [
-  "Andere Generation","In Köln geboren","Gleiches Hobby",
-  "Gründer:in","Stand schon auf der Bühne","Hat einen Rat für dich",
-  "Hat dich überrascht","Gemeinsamer Bekannter","Dein freier Moment"
-];
-const BINGO_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-function bingoLineCount(){
-  return BINGO_LINES.filter(l => l.every(i => S.bingo[i])).length;
-}
-function renderBingo(){
-  const grid = $("#bingoGrid");
-  grid.innerHTML = "";
-  BINGO.forEach((txt,i)=>{
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = txt;
-    b.setAttribute("aria-pressed", !!S.bingo[i]);
-    if(S.bingo[i]) b.classList.add("hit");
-    b.addEventListener("click", ()=>{
-      const before = bingoLineCount();
-      if(S.bingo[i]) delete S.bingo[i]; else S.bingo[i] = true;
-      persist();
-      renderBingo();
-      buzz(12);
-      const after = bingoLineCount();
-      if(after > before && after > (S.bingoLines||0)){
-        S.bingoLines = after; persist();
-        buzz([40,60,40]);
-        toast("Bingo – der Kreis wirkt.");
-        collect("verbindung", "Bingo! Neue Verbindungen – ein Strich mehr im Kreis.");
-      }
-    });
-    grid.appendChild(b);
-  });
-}
-renderBingo();
-
-/* ================= MEIN KREIS (Kontakte) ================= */
-function renderContacts(){
-  const list = $("#contactList");
-  list.innerHTML = "";
-  S.contacts.forEach((c,idx)=>{
-    const row = document.createElement("div");
-    row.className = "contact";
-    const ci = document.createElement("span"); ci.className = "ci";
-    ci.textContent = c.n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();
-    const cb = document.createElement("div"); cb.className = "cb";
-    const b = document.createElement("b"); b.textContent = c.n;
-    cb.appendChild(b);
-    if(c.f){ const s = document.createElement("span"); s.textContent = c.f; cb.appendChild(s); }
-    const x = document.createElement("button"); x.className = "cx"; x.textContent = "×";
-    x.setAttribute("aria-label", c.n + " entfernen");
-    x.addEventListener("click", ()=>{ S.contacts.splice(idx,1); persist(); renderContacts(); });
-    row.append(ci, cb, x);
-    list.appendChild(row);
-  });
-}
-$("#cAdd").addEventListener("click", ()=>{
-  const n = $("#cName").value.trim(), f = $("#cFirm").value.trim();
-  if(!n){ $("#cName").focus(); return; }
-  S.contacts.push({n, f}); persist();
-  $("#cName").value = ""; $("#cFirm").value = "";
-  renderContacts();
-  buzz(15);
-  if(S.contacts.length === 1) collect("verbindung", "Erste Begegnung notiert – ein Strich mehr im Kreis.");
-  else toast("Im Kreis festgehalten.");
-});
-renderContacts();
 
 /* ================= ERKENNTNIS-NOTIZ ================= */
 {
@@ -2026,8 +2215,7 @@ $("#recapBtn").addEventListener("click", async ()=>{
   const parts = [
     "THE CIRCLE · 16.09.2026 · Playa Cologne",
     "Mein Abend: " + momentCount() + "/" + MOMENTS.length + " Momente im Kreis",
-    S.contacts.length ? S.contacts.length + (S.contacts.length===1?" neue Verbindung":" neue Verbindungen") : null,
-    S.bingoLines ? "Circle-Bingo: " + S.bingoLines + (S.bingoLines===1?" Reihe":" Reihen") : null,
+    (APP.kreis && APP.kreis.verbunden.length) ? APP.kreis.verbunden.length + (APP.kreis.verbunden.length===1?" neue Verbindung":" neue Verbindungen") : null,
     S.notes ? "Meine Erkenntnis: „" + S.notes.slice(0,120) + "“" : null,
     "connecting generations."
   ].filter(Boolean);
@@ -2063,6 +2251,13 @@ const LIVE = { on:false, d:null, pending:0, timer:null, post:null };
     es.addEventListener("zeiten", e => {
       try{ zeitenUebernehmen(JSON.parse(e.data)); }catch(err){}
     });
+    es.addEventListener("signal", e => {
+      try{ signalZeigen(JSON.parse(e.data)); }catch(err){}
+    });
+    /* Wer sich mit mir verbindet, soll es sofort sehen: nach jedem
+       Live-Paket die Listen nachladen, aber gedrosselt. */
+    let kreisT = 0;
+    es.addEventListener("message", ()=>{ if(!APP.token) return; clearTimeout(kreisT); kreisT = setTimeout(()=>{ ladeKreis(); ladeGaeste(); }, 1500); });
   }
   /* Rueckfallweg, falls der Stream nicht zustande kommt (Proxy, alter
      Browser): einmal abfragen. Sonst haetten ausgerechnet die Gaeste mit
@@ -2309,7 +2504,7 @@ if(DEMO){
 
 /* ================= SWIPE-NAVIGATION ================= */
 {
-  const ORDER = ["programm","menu","home","live","connect"];
+  const ORDER = ["programm","kreis","home","tisch","live"];
   let sx=0, sy=0, swiping=false;
   addEventListener("touchstart", e=>{
     if(e.target.closest("input,textarea,button,a,.bingo")) { swiping=false; return; }
@@ -2325,6 +2520,391 @@ if(DEMO){
     const next = cur + (dx < 0 ? 1 : -1);
     if(next >= 0 && next < ORDER.length){ show(ORDER[next]); buzz(8); }
   }, {passive:true});
+}
+
+/* ================= WELLE 2: KREIS · TISCH · REGISTRIERUNG =================
+   Das Herzstueck aus dem Call vom 19.08. Alles haengt am persoenlichen
+   Token; ohne ihn (Demo) bleibt die Liste leer und sagt, warum. */
+const APP = { token:"", ich:null, gaeste:[], kreis:null, tisch:null, plan:null,
+              vapid:"", signal:null, signalWeg:0, gangGezeigt:0, install:null };
+
+const initialen = n => ((n||"").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()) || "·";
+function avatarEl(g, klasse){
+  const d = document.createElement("div");
+  d.className = "avatar " + (klasse || "klein");
+  if(g.foto) d.style.backgroundImage = "url(" + g.foto + ")";
+  else { d.textContent = initialen(g.name); if(!g.registriert) d.classList.add("leer"); }
+  if(g.ich) d.classList.add("ich");
+  return d;
+}
+async function appGet(p){
+  const r = await fetch(p + (p.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(APP.token), { cache:"no-store" });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok) throw Object.assign(new Error(d.error || String(r.status)), { status:r.status, daten:d });
+  return d;
+}
+async function appPost(p, body){
+  const r = await fetch(p, { method:"POST", headers:{ "Content-Type":"application/json" },
+                             body: JSON.stringify(Object.assign({ t: APP.token }, body)) });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error || String(r.status));
+  return d;
+}
+const STATUS_TEXT = { keine:"", angefragt:"Angefragt", anfrage:"Möchte sich verbinden", verbunden:"Verbunden", spaeter:"Später" };
+
+/* ---- Teilnehmerliste ---- */
+function gastRow(g, opts){
+  const row = document.createElement("div");
+  row.className = "grow";
+  row.appendChild(avatarEl(g));
+  const t = document.createElement("div"); t.className = "gtext";
+  const b = document.createElement("b"); b.textContent = g.name;
+  const s = document.createElement("span"); s.textContent = [g.firma, g.rolle].filter(Boolean).join(" · ") || (g.registriert ? "" : "noch nicht in der App");
+  t.appendChild(b); t.appendChild(s); row.appendChild(t);
+  if(opts && opts.anfrage){
+    /* Anfrage an mich: die zwei Antworten direkt in der Zeile, kein Umweg. */
+    const z = document.createElement("div"); z.className = "zwei";
+    const ja = document.createElement("button"); ja.className = "btn btn--solid"; ja.textContent = "Verbinden";
+    ja.addEventListener("click", e => { e.stopPropagation(); verbindenAktion(g.id, "annehmen"); });
+    const sp = document.createElement("button"); sp.className = "btn"; sp.textContent = "Später";
+    sp.addEventListener("click", e => { e.stopPropagation(); verbindenAktion(g.id, "spaeter"); });
+    z.appendChild(ja); z.appendChild(sp); row.appendChild(z);
+  } else if(g.verbindung && g.verbindung !== "keine"){
+    const c = document.createElement("span"); c.className = "chip st " + g.verbindung; c.textContent = STATUS_TEXT[g.verbindung]; row.appendChild(c);
+  } else if(g.da){
+    const c = document.createElement("span"); c.className = "chip st"; c.textContent = "im Haus"; row.appendChild(c);
+  }
+  row.addEventListener("click", ()=>gastOeffnen(g.id));
+  return row;
+}
+function renderGaeste(){
+  const wrap = $("#gaesteListe"); wrap.innerHTML = "";
+  const q = ($("#gastSuche").value || "").trim().toLowerCase();
+  const liste = APP.gaeste.filter(g => !q || (g.name + " " + g.firma + " " + g.rolle).toLowerCase().includes(q));
+  liste.forEach(g => wrap.appendChild(gastRow(g)));
+  $("#gastZahl").textContent = APP.gaeste.length ? (q ? liste.length + " von " : "") + APP.gaeste.length + " Gäste" : "";
+  const hin = $("#gaesteHinweis");
+  if(!APP.token) hin.textContent = "Mit deinem persönlichen Link siehst du hier alle Gäste des Abends.";
+  else if(!APP.gaeste.length) hin.textContent = "Noch ist niemand da – die Liste füllt sich mit den Zusagen.";
+  else hin.textContent = "";
+}
+$("#gastSuche").addEventListener("input", renderGaeste);
+
+/* ---- Mein Kreis ---- */
+function renderKreis(){
+  const k = APP.kreis; if(!k) return;
+  const ap = $("#anfragenPanel"), al = $("#anfragenListe"); al.innerHTML = "";
+  ap.style.display = k.anfragen.length ? "block" : "none";
+  k.anfragen.forEach(g => al.appendChild(gastRow(g, { anfrage:true })));
+  const kl = $("#kreisListe"); kl.innerHTML = "";
+  k.verbunden.forEach(g => kl.appendChild(gastRow(g)));
+  const n = k.verbunden.length;
+  $("#kreisTitel").textContent = n ? (n === 1 ? "Eine Verbindung." : n + " Verbindungen.") : "Noch niemand – bis jetzt.";
+  $("#kreisText").textContent = n ? "Antippen für Kontakt und Karte. Nach dem Abend bleibt das hier." : "Wen du heute Abend triffst, steht hier. Kontakt speichern oder direkt schreiben – aus der App heraus.";
+  const sb = $("#spaeterBlock"), sl = $("#spaeterListe"); sl.innerHTML = "";
+  sb.style.display = k.spaeter.length ? "block" : "none";
+  k.spaeter.forEach(g => sl.appendChild(gastRow(g)));
+  if(n && !S.moments.verbindung) collect("verbindung", "Verbunden – ein Strich mehr im Kreis.");
+}
+async function ladeGaeste(){ try{ const d = await appGet("/api/app/gaeste"); APP.gaeste = d.gaeste; }catch(e){} renderGaeste(); }
+async function ladeKreis(){ try{ APP.kreis = await appGet("/api/app/kreis"); renderKreis(); }catch(e){} }
+async function ladeAlles(){ if(!APP.token) { renderGaeste(); return; } await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]); }
+
+/* ---- Kurzprofil ---- */
+let sheetGast = null;
+function sheetZu(){ $("#gastSheet").classList.remove("show"); $("#sheetHinter").classList.remove("show"); sheetGast = null; }
+$("#sheetHinter").addEventListener("click", sheetZu);
+function btn(text, klasse, fn){ const b = document.createElement("button"); b.type = "button"; b.className = "btn " + (klasse||""); b.textContent = text; b.addEventListener("click", fn); return b; }
+function renderSheet(g){
+  sheetGast = g;
+  const f = $("#shFoto"); f.className = "avatar gross" + (g.foto ? "" : (g.registriert ? "" : " leer")); f.style.backgroundImage = g.foto ? "url(" + g.foto + ")" : ""; f.textContent = g.foto ? "" : initialen(g.name);
+  $("#shName").textContent = g.name;
+  $("#shMeta").textContent = [g.firma, g.rolle].filter(Boolean).join(" · ");
+  const st = $("#shStatus"); st.style.display = g.verbindung !== "keine" ? "inline-block" : "none"; st.className = "chip st " + g.verbindung; st.textContent = STATUS_TEXT[g.verbindung];
+  $("#shUeber").textContent = g.ueber ? "„" + g.ueber + "“" : "";
+  const k = $("#shKontakt"); k.innerHTML = "";
+  const zeile = (lab, txt, href) => { const a = document.createElement("a"); a.href = href; const s = document.createElement("span"); s.textContent = lab; a.appendChild(s); a.appendChild(document.createTextNode(txt)); k.appendChild(a); };
+  if(g.email) zeile("Mail", g.email, "mailto:" + g.email);
+  if(g.telefon) zeile("Telefon", g.telefon, "tel:" + g.telefon.replace(/[^+\d]/g, ""));
+  if(g.linkedin){ const a = document.createElement("a"); a.href = "https://" + g.linkedin; a.target = "_blank"; a.rel = "noopener"; const s = document.createElement("span"); s.textContent = "LinkedIn"; a.appendChild(s); a.appendChild(document.createTextNode(g.linkedin.replace(/^www\./, ""))); k.appendChild(a); }
+  const ak = $("#shAktionen"); ak.innerHTML = "";
+  const note = $("#shNote"); note.textContent = "";
+  const v = g.verbindung;
+  if(v === "keine"){
+    ak.appendChild(btn("Verbinden", "btn--solid", ()=>verbindenAktion(g.id, "anfragen")));
+    ak.appendChild(btn("Lass uns später sprechen", "", ()=>verbindenAktion(g.id, "spaeter")));
+    note.textContent = "Verbinden ist beidseitig: " + g.name.split(" ")[0] + " bekommt deine Anfrage und entscheidet.";
+  } else if(v === "angefragt"){
+    note.textContent = "Deine Anfrage ist raus. Sobald " + g.name.split(" ")[0] + " zustimmt, seht ihr euch hier.";
+    ak.appendChild(btn("Anfrage zurückziehen", "leise", ()=>verbindenAktion(g.id, "trennen")));
+  } else if(v === "anfrage"){
+    ak.appendChild(btn("Verbinden", "btn--solid", ()=>verbindenAktion(g.id, "annehmen")));
+    ak.appendChild(btn("Lass uns später sprechen", "", ()=>verbindenAktion(g.id, "spaeter")));
+    ak.appendChild(btn("Nicht jetzt", "leise", ()=>verbindenAktion(g.id, "ablehnen")));
+    note.textContent = g.name.split(" ")[0] + " möchte sich mit dir verbinden.";
+  } else if(v === "verbunden"){
+    if(g.email || g.telefon) ak.appendChild(btn("Kontakt speichern", "btn--solid", ()=>kontaktSpeichern(g)));
+    else note.textContent = g.name.split(" ")[0] + " hat die Kontaktdaten nicht freigegeben – ihr seid verbunden, den Rest klärt ihr persönlich.";
+    ak.appendChild(btn("Verbindung lösen", "leise", ()=>verbindenAktion(g.id, "trennen")));
+  } else if(v === "spaeter"){
+    ak.appendChild(btn("Jetzt verbinden", "btn--solid", ()=>verbindenAktion(g.id, "anfragen")));
+    note.textContent = "Ihr wolltet später sprechen. Das hier ist später.";
+  }
+  $("#gastSheet").classList.add("show"); $("#sheetHinter").classList.add("show");
+}
+async function gastOeffnen(id){
+  if(!APP.token) return;
+  try{ const d = await appGet("/api/app/gast?wen=" + encodeURIComponent(id)); renderSheet(d.gast); }
+  catch(e){ toast("Profil gerade nicht erreichbar."); }
+}
+async function verbindenAktion(id, aktion){
+  try{
+    const d = await appPost("/api/app/verbinden", { wen:id, aktion });
+    buzz(20);
+    if(d.verbindung === "verbunden") toast("Verbunden mit " + d.gast.name.split(" ")[0] + ".");
+    else if(aktion === "anfragen") toast("Anfrage an " + d.gast.name.split(" ")[0] + " – wartet auf Antwort.");
+    else if(aktion === "spaeter") toast("Notiert: später sprechen.");
+    if(sheetGast && sheetGast.id === id) renderSheet(d.gast);
+    ladeGaeste(); ladeKreis();
+  }catch(e){ toast(e.message || "Ging gerade nicht."); }
+}
+/* vCard ueber das System-Teilen-Menue: ein Download-Link ist in der
+   installierten App auf iOS unzuverlaessig, das Teilen-Menue nicht. */
+async function kontaktSpeichern(g){
+  const nm = g.name.trim().split(" "); const nach = nm.length > 1 ? nm.pop() : ""; const vor = nm.join(" ");
+  const vc = ["BEGIN:VCARD","VERSION:3.0","N:" + nach + ";" + vor + ";;;","FN:" + g.name,
+    g.firma ? "ORG:" + g.firma : "", g.rolle ? "TITLE:" + g.rolle : "",
+    g.email ? "EMAIL;TYPE=INTERNET:" + g.email : "", g.telefon ? "TEL;TYPE=CELL:" + g.telefon : "",
+    g.linkedin ? "URL:https://" + g.linkedin : "", "NOTE:THE CIRCLE No1 · 16.09.2026 · Playa Cologne","END:VCARD"].filter(Boolean).join("\r\n");
+  const file = new File([vc], g.name.replace(/[^\wäöüÄÖÜß -]/g, "") + ".vcf", { type:"text/vcard" });
+  try{
+    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:g.name }); return; }
+  }catch(e){ if(e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---- Tisch ---- */
+async function ladeTisch(gang){
+  if(!APP.token) return;
+  try{ APP.tisch = await appGet("/api/app/tisch" + (gang ? "?gang=" + gang : "")); renderTisch(); }catch(e){}
+}
+function renderTisch(){
+  const t = APP.tisch; if(!t) return;
+  const hatPlan = t.meine.some(m => m.tisch);
+  $("#tischGangLabel").textContent = t.gang ? t.gaenge[t.angezeigt - 1] + " · Gang " + t.angezeigt : "Dein Platz";
+  $("#tischNr").textContent = t.tisch ? "Tisch " + t.tisch : "–";
+  const eig = t.meine[t.angezeigt - 1] || {};
+  $("#tischName").textContent = eig.tischName || "";
+  const hin = $("#tischHinweis");
+  hin.textContent = !hatPlan ? "Die Tischordnung kommt kurz vor dem Abend – dann steht hier dein Platz." :
+    (!t.gang ? "Vor dem ersten Gang: dein Platz für die Vorspeise." : (t.nachbarn.length ? "Mit dir am Tisch. Antippen für das Kurzprofil." : "Dein Tisch – die anderen kommen gleich dazu."));
+  /* Der Tisch als Kreis, ich unten. Die Reihenfolge ist alphabetisch,
+     nicht die echte Sitzordnung - die kennt niemand vorher. */
+  const rund = $("#tischRund"); rund.innerHTML = "";
+  const leute = [{ id:"", name:APP.ich ? APP.ich.name : "Du", foto:APP.ich ? APP.ich.foto : "", ich:true, registriert:true }].concat(t.nachbarn);
+  const n = leute.length, R = rund.clientWidth / 2 - 30 || 110;
+  leute.forEach((g, i) => {
+    const a = Math.PI / 2 + (i / n) * Math.PI * 2;      // ich bei 90 Grad = unten
+    const s = document.createElement("div"); s.className = "sitz" + (g.ich ? " ich" : "");
+    s.style.left = (50 + Math.cos(a) * R / rund.clientWidth * 100) + "%";
+    s.style.top  = (50 + Math.sin(a) * R / rund.clientHeight * 100) + "%";
+    s.appendChild(avatarEl(g));
+    const i2 = document.createElement("i"); i2.textContent = g.ich ? "Du" : g.name.split(" ")[0]; s.appendChild(i2);
+    if(!g.ich) s.addEventListener("click", ()=>gastOeffnen(g.id));
+    rund.appendChild(s);
+  });
+  rund.style.display = t.tisch ? "block" : "none";
+  const mp = $("#meineTischePanel"); mp.style.display = hatPlan ? "block" : "none";
+  const mt = $("#meineTische"); mt.innerHTML = "";
+  t.meine.forEach(m => {
+    const d = document.createElement("div"); if(m.gang === t.gang) d.className = "jetzt";
+    const s = document.createElement("span"); s.textContent = m.gang + ". Gang · " + m.name;
+    const b = document.createElement("b"); b.textContent = m.tisch ? "Tisch " + m.tisch : "–";
+    if(m.tischName){ const sm = document.createElement("small"); sm.textContent = m.tischName; b.appendChild(sm); }
+    d.appendChild(s); d.appendChild(b); d.addEventListener("click", ()=>ladeTisch(m.gang)); mt.appendChild(d);
+  });
+  $("#planPanel").style.display = hatPlan ? "block" : "none";
+  if(hatPlan) ladePlan(t.angezeigt);
+}
+async function ladePlan(gang){
+  try{ APP.plan = await appGet("/api/app/tischplan?gang=" + gang); }catch(e){ return; }
+  const p = APP.plan, gw = $("#gangWahl"); gw.innerHTML = "";
+  p.gaenge.forEach((g, i) => { const b = document.createElement("button"); b.type = "button"; b.textContent = g; if(i + 1 === p.angezeigt) b.className = "an"; b.addEventListener("click", ()=>ladePlan(i + 1)); gw.appendChild(b); });
+  const pl = $("#planListe"); pl.innerHTML = "";
+  p.tische.forEach(t => {
+    const d = document.createElement("div"); d.className = "plantisch";
+    const b = document.createElement("b"); b.textContent = "Tisch " + t.nr; if(t.name){ const s = document.createElement("small"); s.textContent = t.name; b.appendChild(s); }
+    const q = document.createElement("p");
+    t.gaeste.forEach((g, i) => { if(i) q.appendChild(document.createTextNode(" · ")); const e = document.createElement(g.ich ? "em" : "span"); e.textContent = g.ich ? "Du" : g.name; q.appendChild(e); });
+    if(!t.gaeste.length) q.textContent = "–";
+    d.appendChild(b); d.appendChild(q); pl.appendChild(d);
+  });
+}
+
+/* ---- Signale aus dem Monitor ---- */
+function signalZeigen(s){
+  APP.signal = s;
+  const el = $("#signalBanner");
+  if(!s || s.t === APP.signalWeg){ el.classList.remove("show"); return; }
+  const knopf = $("#signalKnopf");
+  if(s.art === "wechsel"){
+    $("#signalLabel").textContent = "Tischwechsel · " + s.text;
+    const text = ()=>{ const m = APP.tisch && APP.tisch.meine[s.gang - 1];
+      $("#signalText").textContent = m && m.tisch ? "Dein Tisch: " + m.tisch + (m.tischName ? " · " + m.tischName : "") : "Dein nächster Gang beginnt."; };
+    text();
+    knopf.style.display = ""; knopf.onclick = ()=>{ show("tisch"); ladeTisch(s.gang); };
+    /* Der Plan kann juenger sein als die App: erst nachladen, dann den
+       Text noch einmal setzen - sonst steht "Gang beginnt" statt der Nummer. */
+    ladeTisch(s.gang).then(text);
+  } else {
+    $("#signalLabel").textContent = "Als Nächstes";
+    $("#signalText").textContent = s.text || "";
+    knopf.style.display = "none";
+  }
+  el.classList.add("show");
+  buzz([30, 40, 30]);
+}
+$("#signalWeg").addEventListener("click", ()=>{ if(APP.signal) APP.signalWeg = APP.signal.t; $("#signalBanner").classList.remove("show"); });
+
+/* ---- Ich bin da ---- */
+async function ichBinDa(){
+  if(!APP.token){ collect("ankommen", "Angekommen – der erste Strich im Kreis."); return; }
+  try{ await appPost("/api/app/da", {}); if(APP.ich) APP.ich.da = Date.now(); renderDaKnopf(); collect("ankommen", "Angekommen – der erste Strich im Kreis."); }
+  catch(e){ toast("Ging gerade nicht – gleich nochmal."); }
+}
+function renderDaKnopf(){
+  const b = $("#daBtn"); if(!b) return;
+  const heute = new Date().toISOString().slice(0, 10) === CONFIG.eventDate;
+  const zeig = (heute || DEMO) && !(APP.ich && APP.ich.da) && !S.moments.ankommen;
+  b.classList.toggle("show", zeig);
+}
+$("#daBtn").addEventListener("click", ichBinDa);
+
+/* ---- Push ---- */
+const istStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const istIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+function b64ToBytes(s){ const p = "=".repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+async function pushErlauben(){
+  if(!("PushManager" in window) || !APP.vapid || !APP.token) return false;
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: b64ToBytes(APP.vapid) });
+    await appPost("/api/app/push", { subscription: sub.toJSON() });
+    if(APP.ich) APP.ich.push = true;
+    toast("Du bekommst den Tischwechsel aufs Handy."); renderPushKnopf();
+    return true;
+  }catch(e){ toast("Benachrichtigungen nicht erlaubt."); return false; }
+}
+function renderPushKnopf(){
+  const b = $("#pushBtn"); if(!b) return;
+  const zeig = !!APP.token && !!APP.vapid && "PushManager" in window && istStandalone() && !(APP.ich && APP.ich.push) && Notification.permission !== "denied";
+  b.classList.toggle("show", zeig);
+}
+$("#pushBtn").addEventListener("click", pushErlauben);
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); APP.install = e; const b = $("#rgInstall"); if(b) b.style.display = ""; });
+
+/* ---- Registrierung ---- */
+let rgBild = null;   // { foto, mini } als Data-URLs
+function rgSchritt(name){
+  $$("#registrierung .rg-step").forEach(s => s.classList.toggle("on", s.dataset.rg === name));
+  const idx = ["profil", "bild", "freigabe", "app"].indexOf(name);
+  $$("#registrierung .rg-schritte i").forEach((i, k) => i.classList.toggle("an", k <= idx));
+  $("#registrierung").scrollTo(0, 0);
+}
+$$("[data-rgweiter]").forEach(b => b.addEventListener("click", ()=>rgSchritt(b.dataset.rgweiter)));
+function registrierungStarten(ich){
+  $("#rgName").textContent = ich.name;
+  $("#rgFirma").value = ich.firma || ""; $("#rgRolle").value = ich.rolle || "";
+  $("#rgUeber").value = ich.ueber || ""; $("#rgLinkedin").value = ich.linkedin || "";
+  $("#rgKontaktVorschau").textContent = "Auf deiner Karte stünden: " + [ich.email, ich.telefon].filter(Boolean).join(" · ");
+  if(ich.foto){ const v = $("#rgVorschau"); v.style.backgroundImage = "url(" + ich.foto + ")"; v.textContent = ""; }
+  else $("#rgVorschau").textContent = initialen(ich.name);
+  $$("input[name=rgSichtbar]").forEach(r => { r.checked = r.value === (ich.sichtbar ? "1" : "0"); });
+  rgSchritt("profil");
+  $("#registrierung").classList.remove("hidden");
+}
+/* Bild: im Browser auf zwei Groessen rechnen, quadratisch beschnitten,
+   Ausrichtung aus EXIF angewandt, EXIF selbst dabei verworfen. Der Server
+   bekommt nie das Original - 100 iPhone-Fotos waeren sonst zweistellige
+   Megabyte je Listenaufruf im Veranstaltungs-WLAN. */
+async function bildVerkleinern(file){
+  let bmp;
+  try{ bmp = await createImageBitmap(file, { imageOrientation:"from-image" }); }
+  catch(e){
+    bmp = await new Promise((ok, nein) => { const im = new Image(); im.onload = ()=>ok(im); im.onerror = nein; im.src = URL.createObjectURL(file); });
+  }
+  const quelle = Math.min(bmp.width, bmp.height);
+  const sx = (bmp.width - quelle) / 2, sy = (bmp.height - quelle) / 2;
+  const mach = (gr, q) => { const c = document.createElement("canvas"); c.width = c.height = gr; c.getContext("2d").drawImage(bmp, sx, sy, quelle, quelle, 0, 0, gr, gr); return c.toDataURL("image/jpeg", q); };
+  return { foto: mach(512, .82), mini: mach(96, .8) };
+}
+$("#rgDatei").addEventListener("change", async e => {
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  $("#rgBildNote").textContent = "Einen Moment …";
+  try{
+    rgBild = await bildVerkleinern(f);
+    const v = $("#rgVorschau"); v.style.backgroundImage = "url(" + rgBild.foto + ")"; v.textContent = "";
+    $("#rgBildNote").textContent = ""; $("#rgBildKnopf").textContent = "Anderes Bild";
+  }catch(err){ rgBild = null; $("#rgBildNote").textContent = "Das Bild ließ sich nicht lesen – probier ein anderes."; }
+});
+$("#rgFertig").addEventListener("click", async ()=>{
+  const b = $("#rgFertig"); b.disabled = true; $("#rgFehler").textContent = "";
+  const sichtbar = ($$("input[name=rgSichtbar]").find(r => r.checked) || {}).value === "1";
+  const body = { firma: $("#rgFirma").value.trim(), rolle: $("#rgRolle").value.trim(),
+                 ueber: $("#rgUeber").value.trim(), linkedin: $("#rgLinkedin").value.trim(), sichtbar };
+  if(rgBild){ body.foto = rgBild.foto; body.mini = rgBild.mini; }
+  try{
+    const d = await appPost("/api/app/profil", body);
+    Object.assign(APP.ich, body, { foto: d.foto, registriert: d.registriert, sichtbar: d.sichtbar });
+    S.company = [body.firma, body.rolle].filter(Boolean).join(" · "); persist(); renderCard();
+    collect("ankommen", "Angekommen – der erste Strich im Kreis.");
+    /* Schritt 4: Startbildschirm. Auf iOS gibt es keinen Prompt, nur den
+       Weg ueber Teilen; auf Android das Banner des Browsers. Wer schon in
+       der installierten App ist, sieht direkt die Push-Frage. */
+    if(istStandalone()){
+      $("#rgAppText").textContent = "Die App liegt schon auf deinem Startbildschirm.";
+      $("#rgIos").style.display = "none";
+    } else if(istIos()){ $("#rgIos").style.display = ""; }
+    $("#rgInstall").style.display = APP.install ? "" : "none";
+    $("#rgPushBlock").style.display = (istStandalone() && "PushManager" in window && APP.vapid && !APP.ich.push) ? "" : "none";
+    rgSchritt("app");
+    ladeAlles();
+  }catch(e){ $("#rgFehler").textContent = e.message || "Speichern ging nicht – gleich nochmal."; }
+  b.disabled = false;
+});
+$("#rgInstall").addEventListener("click", async ()=>{ if(!APP.install) return; APP.install.prompt(); try{ await APP.install.userChoice; }catch(e){} APP.install = null; $("#rgInstall").style.display = "none"; });
+$("#rgPush").addEventListener("click", async ()=>{ if(await pushErlauben()) $("#rgPushBlock").style.display = "none"; });
+$("#rgSchliessen").addEventListener("click", ()=>{ $("#registrierung").classList.add("hidden"); renderPushKnopf(); renderDaKnopf(); show("kreis"); });
+$("#profilBtn").addEventListener("click", ()=>{ if(APP.ich) registrierungStarten(APP.ich); });
+
+/* ---- Einstieg mit dem persoenlichen Link ---- */
+async function appStarten(t){
+  APP.token = t;
+  let d;
+  try{ d = await appGet("/api/app/ich"); }
+  catch(e){
+    if(e.status === 403){
+      /* Noch nicht zugesagt: die Zusage ist der Weg in die App. Token
+         wieder weg, sonst fragt der Live-Stream mit ihm die Liste ab. */
+      APP.token = "";
+      $("#onboarding").classList.add("hidden");
+      $("#rgName").textContent = ""; rgSchritt("zu"); $("#registrierung").classList.remove("hidden");
+      $("#rgZuLink").href = "/einladung?t=" + encodeURIComponent(t);
+      return;
+    }
+    /* Server nicht erreichbar: die App laeuft lokal weiter, wie bisher. */
+    return;
+  }
+  APP.ich = d.ich; APP.vapid = d.vapid || "";
+  S.token = t; S.name = d.ich.name; S.company = [d.ich.firma, d.ich.rolle].filter(Boolean).join(" · ");
+  S.mail = d.ich.email; S.phone = d.ich.telefon; S.diet = d.ich.diet; S.allergy = d.ich.allergy;
+  if(d.ich.da && !S.moments.ankommen) S.moments.ankommen = d.ich.da;
+  persist();
+  $("#onboarding").classList.add("hidden");
+  renderCard(); renderMenuPref(); renderRing(); renderDaKnopf(); renderPushKnopf();
+  if(d.signal) signalZeigen(d.signal);
+  if(!d.ich.registriert) registrierungStarten(d.ich);
+  else { toast("Willkommen zurück, " + d.ich.vorname + "."); ladeAlles(); }
 }
 
 /* ================= ONBOARDING ================= */
@@ -2357,26 +2937,7 @@ if(S.name) $("#onboarding").classList.add("hidden");
             stern:0, interesse:{},
         contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0 };
     }
-    fetch("/api/invite?t=" + encodeURIComponent(t) + "&app=1")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if(!d || !d.ok || !d.gast || !d.gast.name) return;
-        const g = d.gast;
-        S.token = t;
-        S.name = g.name;
-        /* Die Zusage fragt Unternehmen und Position getrennt ab; auf der
-         * Karte stehen sie zusammen - sonst verlöre der Gast seine Rolle. */
-        S.company = [g.firma, g.rolle].filter(Boolean).join(" · ");
-        S.mail = g.email || "";
-        S.phone = g.phone || "";
-        S.diet = g.diet || "";
-        S.allergy = g.allergy || "";
-        persist();
-        $("#onboarding").classList.add("hidden");
-        renderCard(); renderMenuPref();
-        toast("Willkommen im Kreis, " + S.name.split(" ")[0] + ".");
-      })
-      .catch(()=>{ /* ohne Server bleibt das Formular */ });
+    appStarten(t);
   }
 }
 

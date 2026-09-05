@@ -20,7 +20,7 @@
  *    das Votum steht - das darf nie aus der Konserve kommen. Lieber ein
  *    leeres Feld als eine Zahl von vorhin.
  */
-const VERSION = "circle-2026-09-04a";
+const VERSION = "circle-2026-09-05a";
 const SCHALE  = "schale-" + VERSION;      // die Seite
 const STATIK  = "statik-" + VERSION;      // Bilder, Schriften
 
@@ -90,4 +90,33 @@ self.addEventListener("fetch", e => {
       })
     );
   }
+});
+
+/* ---- Push ----
+ * Der Tischwechsel als Nachricht, waehrend das Handy in der Tasche liegt.
+ * Der Server schickt {titel, text, url}; url zeigt auf die App mit dem
+ * persoenlichen Token, damit ein Tippen direkt beim eigenen Tisch landet.
+ * Kommt kein lesbarer Inhalt, gibt es trotzdem eine Nachricht - eine
+ * stille Push zaehlt der Browser gegen die App. */
+self.addEventListener("push", e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { text: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.titel || "THE CIRCLE", {
+    body: d.text || "",
+    icon: "/assets/icon-192.png",
+    badge: "/assets/icon-192.png",
+    tag: d.tag || "circle",
+    renotify: true,
+    data: { url: d.url || "/" }
+  }));
+});
+
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const ziel = new URL((e.notification.data && e.notification.data.url) || "/", self.location.origin).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(liste => {
+    /* Ist die App schon offen, dorthin - nicht ein zweites Fenster. */
+    for (const c of liste) if ("focus" in c) { c.navigate(ziel); return c.focus(); }
+    return self.clients.openWindow(ziel);
+  }));
 });

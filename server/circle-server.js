@@ -704,10 +704,13 @@ function kurzprofil(ich, inv) {
   const e = listenEintrag(ich, inv);
   e.foto = fotoUrl(inv, false);
   e.ueber = (inv.profil && inv.profil.ueber) || "";
-  e.linkedin = (inv.profil && inv.profil.linkedin) || "";
+  /* LinkedIn zaehlt als Kontaktdatum, nicht als Profiltext: "Nur
+   * kontaktierbar" verspricht, dass die Kontaktdaten beim Gast bleiben -
+   * und ein Profil-Link ist ein Weg, ihn zu erreichen. */
   if (ich && kontaktSichtbar(ich, inv)) {
     e.email = inv.email || "";
     e.telefon = (inv.daten && inv.daten.phone) || "";
+    e.linkedin = (inv.profil && inv.profil.linkedin) || "";
   }
   return e;
 }
