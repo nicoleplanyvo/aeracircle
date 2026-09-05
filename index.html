@@ -33,7 +33,7 @@
     --panel-lo:rgba(248,247,244,.02);
     --ivory:#f8f7f4;
     --muted:#aeb9d2;
-    --faint:#7386ab;
+    --faint:#93a4c6;            /* 5,4:1 auf Navy - die alte #7386ab lag bei 4,1 */
     --line:rgba(248,247,244,.24);
     --line-soft:rgba(248,247,244,.10);
     --paper-hi:#d8d3c3;      /* Sand (Menü) – offizielles CI */
@@ -203,7 +203,7 @@
   /* ---------- Buttons ---------- */
   .btn{
     -webkit-appearance:none;appearance:none;cursor:pointer;
-    font-family:var(--sans);font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;
+    font-family:var(--sans);font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;
     background:transparent;color:var(--ivory);font-weight:400;
     border:1px solid var(--line);
     padding:14px 24px;border-radius:999px;transition:background .2s,color .2s,border-color .2s;
@@ -385,10 +385,13 @@
     display:grid;grid-template-columns:1fr 1fr auto 1fr 1fr;align-items:center;
     padding:6px 8px calc(8px + env(safe-area-inset-bottom));
   }
+  nav button.punkt::after{content:attr(data-n);position:absolute;top:8px;right:-4px;min-width:16px;height:16px;padding:0 4px;
+    border-radius:8px;background:var(--coral);color:var(--ink);font-size:9px;font-weight:600;letter-spacing:0;
+    display:flex;align-items:center;justify-content:center}
   nav button{
     -webkit-appearance:none;appearance:none;background:none;border:0;cursor:pointer;
     color:var(--faint);padding:14px 2px 10px;position:relative;
-    font-family:var(--sans);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;font-weight:400;
+    font-family:var(--sans);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:400;
     transition:color .2s;-webkit-tap-highlight-color:transparent;
   }
   nav button:focus-visible{outline:2px solid var(--ivory);outline-offset:2px}
@@ -575,9 +578,9 @@
   #appfrei p{color:var(--muted);max-width:20em;font-size:13.5px;line-height:1.75;margin-bottom:30px}
   #appfrei .rule{width:44px;height:1px;background:var(--coral);margin-bottom:26px}
   #appfrei .weiter{
-    margin-top:22px;background:none;border:0;cursor:pointer;
-    font-family:var(--sans);font-size:10px;letter-spacing:.2em;
-    text-transform:uppercase;color:var(--faint);padding:10px;
+    margin-top:22px;background:none;border:1px solid var(--line);border-radius:999px;cursor:pointer;
+    font-family:var(--sans);font-size:11.5px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--ivory);padding:14px 26px;
   }
 
   /* ---------- Kreis: Teilnehmerliste, Profil, Mein Kreis ----------
@@ -613,17 +616,24 @@
   .grow .gtext{flex:1;min-width:0}
   .grow .gtext b{display:block;font-family:var(--sans);font-weight:500;font-size:14.5px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .grow .gtext span{display:block;font-size:11.5px;color:var(--muted);
+  .grow .gtext span{display:block;font-size:12px;color:var(--muted);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .grow .gtext em{display:block;font-style:italic;font-size:12px;color:var(--sand);margin-top:3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .filter{display:flex;gap:6px;padding:0 24px 10px;overflow-x:auto;scrollbar-width:none}
+  .filter::-webkit-scrollbar{display:none}
+  .filter button{flex:none;background:none;border:1px solid var(--line-soft);color:var(--muted);border-radius:999px;
+    font-family:var(--sans);font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:8px 13px;cursor:pointer}
+  .filter button.an{border-color:var(--ivory);color:var(--ivory)}
   .chip.st{
-    flex:none;font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
-    padding:5px 10px;border:1px solid var(--line-soft);color:var(--faint);border-radius:999px;
+    flex:none;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    padding:6px 11px;border:1px solid var(--line-soft);color:var(--muted);border-radius:999px;
   }
   .chip.st.verbunden{border-color:var(--ivory);color:var(--ivory)}
   .chip.st.anfrage{border-color:var(--coral);color:var(--coral)}
   .chip.st.angefragt,.chip.st.spaeter{color:var(--muted)}
   .grow .zwei{display:flex;gap:6px;flex:none}
-  .grow .zwei .btn{padding:8px 12px;font-size:8.5px}
+  .grow .zwei .btn{padding:12px 16px;font-size:10px;min-height:44px}
 
   /* Kurzprofil als Blatt von unten */
   #sheetHinter{position:fixed;inset:0;z-index:118;background:rgba(6,12,26,.72);
@@ -639,6 +649,8 @@
   #gastSheet.show{transform:translateY(0)}
   #sheetHinter.show{display:block}
   #gastSheet .griff{width:38px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 18px}
+  .sheetzu{position:absolute;top:10px;right:12px;width:44px;height:44px;background:none;border:0;color:var(--ivory);
+    font-size:26px;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent}
   .sheetkopf{text-align:center}
   .sheetkopf h3{font-family:var(--disp);font-weight:600;font-size:22px;letter-spacing:.02em}
   .sheetkopf .meta{color:var(--muted);font-size:13px;margin-top:6px}
@@ -660,7 +672,7 @@
   .shNotiz::placeholder{color:var(--faint)}
   .btn.leise{border-color:transparent;color:var(--faint)}
   #gastSheet .fnote{margin-top:14px;text-align:center}
-  .fnote{font-size:11px;color:var(--faint);line-height:1.6;letter-spacing:.02em}
+  .fnote{font-size:12.5px;color:var(--faint);line-height:1.6;letter-spacing:.02em}
 
   /* ---------- Tisch ---------- */
   .tischbuehne{padding:6px 24px 14px;text-align:center}
@@ -670,13 +682,17 @@
   .tischrund{position:relative;width:min(78vw,300px);height:min(78vw,300px);margin:24px auto 10px}
   .tischrund::before{
     content:"";position:absolute;inset:18%;border-radius:50%;
-    border:1px solid var(--line);background:radial-gradient(circle at 50% 40%,rgba(248,247,244,.08),rgba(248,247,244,.02) 70%);
+    border:1px solid rgba(216,211,195,.32);background:radial-gradient(circle at 50% 38%,rgba(216,211,195,.16),rgba(216,211,195,.04) 72%);
   }
+  .tischmitte{position:absolute;inset:18%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+  .tischmitte b{font-family:var(--disp);font-weight:600;font-size:40px;line-height:1;
+    background:linear-gradient(120deg,var(--coral),var(--ivory));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tischmitte span{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--sand);margin-top:6px}
   .sitz{position:absolute;width:72px;margin:-24px 0 0 -36px;
     display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;
     -webkit-tap-highlight-color:transparent}
   .sitz .avatar{width:48px;height:48px;font-size:13px}
-  .sitz i{font-style:normal;font-size:10px;letter-spacing:.04em;color:var(--ivory);white-space:nowrap;
+  .sitz i{font-style:normal;font-size:11px;letter-spacing:.02em;color:var(--ivory);white-space:normal;text-align:center;line-height:1.2;
     max-width:72px;overflow:hidden;text-overflow:ellipsis;font-family:var(--sans);font-weight:500}
   .sitz.ich i{color:var(--coral)}
   .gaenge{display:flex;flex-direction:column;margin-top:10px}
@@ -699,18 +715,18 @@
 
   /* ---------- Signal-Banner ---------- */
   #signalBanner{
-    position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:105;
+    position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:121;
     display:none;gap:12px;align-items:center;
-    background:var(--ivory);color:var(--ink);padding:12px 12px 12px 18px;
-    box-shadow:0 12px 40px rgba(0,0,0,.45);
+    background:var(--sand);color:var(--bordeaux-deep);padding:12px 12px 12px 18px;
+    box-shadow:0 12px 40px rgba(0,0,0,.45);max-width:406px;margin:0 auto;
     animation:signalRein .5s cubic-bezier(.2,.8,.2,1);
   }
   #signalBanner.show{display:flex}
   #signalBanner > div{flex:1;min-width:0}
-  #signalBanner .label{color:#5b6474;display:block;margin-bottom:3px}
+  #signalBanner .label{color:var(--paper-muted);display:block;margin-bottom:3px}
   #signalBanner b{display:block;font-family:var(--sans);font-weight:500;font-size:14px;line-height:1.35}
-  #signalBanner .btn{border-color:var(--ink);color:var(--ink);padding:9px 14px;font-size:8.5px;flex:none}
-  #signalBanner .weg{background:none;border:0;color:#5b6474;font-size:22px;line-height:1;padding:4px 6px;cursor:pointer;flex:none}
+  #signalBanner .btn{border-color:var(--bordeaux-deep);color:var(--bordeaux-deep);padding:10px 14px;font-size:9.5px;flex:none}
+  #signalBanner .weg{background:none;border:0;color:var(--paper-muted);font-size:22px;line-height:1;padding:12px 12px;cursor:pointer;flex:none}
   @keyframes signalRein{from{transform:translateY(-24px);opacity:0}to{transform:none;opacity:1}}
 
   /* ---------- Ich bin da / Lebensader ---------- */
@@ -764,7 +780,7 @@
   .rg-anleitung div:first-child{border-top:0}
   .rg-anleitung b{font-family:var(--disp);font-weight:600;color:var(--coral);width:18px}
   .rg-anleitung em{font-style:normal;font-weight:500}
-  .ios-teilen{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 6px;margin:0 4px;font-size:13px}
+  .ios-teilen{display:inline-block;vertical-align:middle;margin:0 4px;color:var(--ivory)}
 
   #ladeschirm{position:fixed;inset:0;z-index:109;display:none;flex-direction:column;align-items:center;justify-content:center;
     gap:22px;padding:40px;text-align:center;background:linear-gradient(180deg,var(--smoke-hi),var(--ink) 60%)}
@@ -989,7 +1005,8 @@
           <h3 id="ahTitel">Leg THE CIRCLE auf deinen Startbildschirm.</h3>
           <p id="ahText"></p>
           <div class="rg-anleitung" id="ahIos" style="display:none">
-            <div><b>1</b> Tippe unten auf <span class="ios-teilen" aria-label="Teilen">⎋</span> <em>Teilen</em></div>
+            <div id="ahIosSafari" style="display:none"><b>0</b> Tippe oben rechts auf <em>⋯</em> und wähle <em>In Safari öffnen</em></div>
+            <div><b>1</b> Tippe unten auf <svg class="ios-teilen" viewBox="0 0 24 24" width="20" height="20" aria-label="Teilen"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M12 3v13M7 8l5-5 5 5M5 12v8h14v-8"/></svg> <em>Teilen</em></div>
             <div><b>2</b> Wähle <em>Zum Home-Bildschirm</em></div>
             <div><b>3</b> Öffne THE CIRCLE von dort</div>
           </div>
@@ -1282,6 +1299,13 @@
         <input id="gastSuche" type="search" placeholder="Name oder Unternehmen …" autocomplete="off" aria-label="Gäste durchsuchen">
         <span class="mzahl" id="gastZahl"></span>
       </div>
+      <div class="filter rv" id="gastFilter">
+        <button type="button" data-f="alle" class="an">Alle</button>
+        <button type="button" data-f="tisch">An meinem Tisch</button>
+        <button type="button" data-f="da">Im Haus</button>
+        <button type="button" data-f="offen">Noch nicht verbunden</button>
+        <button type="button" data-f="sucht">Sucht etwas</button>
+      </div>
       <div class="gliste rv" id="gaesteListe"></div>
       <p class="fnote rv" id="gaesteHinweis" style="padding:0 24px"></p>
 
@@ -1293,6 +1317,10 @@
         <div id="spaeterBlock" style="display:none">
           <span class="label" style="display:block;margin-top:18px">Später sprechen</span>
           <div class="gliste" id="spaeterListe"></div>
+        </div>
+        <div id="offenBlock" style="display:none">
+          <span class="label" style="display:block;margin-top:18px">Angefragt – warten auf Antwort</span>
+          <div class="gliste" id="offenListe"></div>
         </div>
       </div>
 
@@ -1318,8 +1346,8 @@
       </div>
 
       <div class="tischbuehne rv" id="tischBuehne">
-        <div class="tischnr" id="tischNr">–</div>
-        <div class="tischname" id="tischName"></div>
+        <div class="tischnr" id="tischNr" style="display:none">–</div>
+        <div class="tischname" id="tischName" style="display:none"></div>
         <div class="tischrund" id="tischRund" aria-label="Wer mit dir am Tisch sitzt"></div>
         <p class="lede" id="tischHinweis" style="text-align:center;font-size:13px;padding:0 24px">Die Tischordnung kommt kurz vor dem Abend.</p>
       </div>
@@ -1364,6 +1392,7 @@
 <div id="sheetHinter"></div>
 <div id="gastSheet" role="dialog" aria-modal="true" aria-label="Profil">
   <div class="griff" aria-hidden="true"></div>
+  <button type="button" class="sheetzu" id="sheetZu" aria-label="Schließen">×</button>
   <div class="sheetkopf">
     <div class="avatar gross" id="shFoto"></div>
     <h3 id="shName">–</h3>
@@ -1504,7 +1533,7 @@
 <div id="registrierung" class="hidden" role="dialog" aria-modal="true" aria-label="Registrierung">
   <div class="rg-kopf">
     <img class="brandlogo-z" alt="">
-    <div class="rg-schritte" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="rg-schritte" aria-hidden="true"><i></i><i></i></div>
   </div>
 
   <div class="rg-step" data-rg="zu">
@@ -1515,49 +1544,45 @@
   </div>
 
   <div class="rg-step on" data-rg="profil">
-    <span class="label">Schritt 1 von 3</span>
+    <span class="label">Schritt 1 von 2</span>
     <h1>Das bist du im Kreis.</h1>
-    <p class="lede">Name und Unternehmen kommen aus deiner Zusage. Prüf kurz, ergänze, was fehlt – so sehen dich die anderen.</p>
-    <div class="rg-feld"><label>Name</label><div class="rg-fest" id="rgName">–</div></div>
-    <div class="rg-feld"><label for="rgFirma">Unternehmen</label><input id="rgFirma" type="text" maxlength="80" autocomplete="organization"></div>
-    <div class="rg-feld"><label for="rgRolle">Rolle</label><input id="rgRolle" type="text" maxlength="80" autocomplete="organization-title" placeholder="z. B. Geschäftsführerin"></div>
-    <div class="rg-feld"><label for="rgUeber">Ein Satz über dich <span>(optional)</span></label><input id="rgUeber" type="text" maxlength="200" placeholder="Was dich gerade umtreibt – oder wonach du heute suchst"></div>
-    <div class="rg-feld"><label for="rgLinkedin">LinkedIn <span>(optional)</span></label><input id="rgLinkedin" type="text" maxlength="120" inputmode="url" placeholder="linkedin.com/in/…"></div>
-    <button class="btn btn--solid btn--full" type="button" data-rgweiter="bild">Weiter</button>
-  </div>
-
-  <div class="rg-step" data-rg="bild">
-    <span class="label">Schritt 2 von 3</span>
-    <h1>Ein Bild von dir.</h1>
-    <p class="lede">Macht die Liste greifbar – und dich am Tisch wiedererkennbar. Bleibt in der App, geht nirgendwo sonst hin.</p>
+    <p class="lede">Name und Unternehmen kommen aus deiner Zusage. Ein Bild macht dich am Tisch wiedererkennbar – alle Gäste dieses Abends sehen es in der Liste und im Tischplan.</p>
     <label class="rg-bild" for="rgDatei">
       <div class="avatar riesig" id="rgVorschau"></div>
       <span class="btn" id="rgBildKnopf">Bild wählen</span>
       <input id="rgDatei" type="file" accept="image/*" hidden>
     </label>
-    <p class="fnote" id="rgBildNote"></p>
+    <p class="fnote" id="rgBildNote" style="text-align:center"></p>
+    <div class="rg-feld"><label>Name</label><div class="rg-fest" id="rgName">–</div></div>
+    <div class="rg-feld"><label for="rgFirma">Unternehmen</label><input id="rgFirma" type="text" maxlength="80" autocomplete="organization"></div>
+    <div class="rg-feld"><label for="rgRolle">Rolle</label><input id="rgRolle" type="text" maxlength="80" autocomplete="organization-title" placeholder="z. B. Geschäftsführerin"></div>
+    <div class="rg-feld"><label for="rgUeber">Ein Satz über dich <span>(optional)</span></label><input id="rgUeber" type="text" maxlength="200" placeholder="Was dich gerade umtreibt"></div>
+    <div class="rg-feld"><label for="rgSucht">Wonach du heute suchst <span>(optional, steht in der Liste)</span></label><input id="rgSucht" type="text" maxlength="60" placeholder="z. B. Mitgründer, Investoren, gute Gespräche"></div>
+    <div class="rg-feld"><label for="rgLinkedin">LinkedIn <span>(optional)</span></label><input id="rgLinkedin" type="text" maxlength="120" inputmode="url" placeholder="linkedin.com/in/…"></div>
     <button class="btn btn--solid btn--full" type="button" data-rgweiter="freigabe" id="rgBildWeiter">Weiter</button>
-    <button class="btn btn--full leise" type="button" data-rgweiter="freigabe" id="rgOhneBild">Ohne Bild weiter</button>
+    <button class="btn btn--full leise" type="button" id="rgBildWeg" style="display:none">Bild entfernen</button>
   </div>
 
   <div class="rg-step" data-rg="freigabe">
-    <span class="label">Schritt 3 von 3</span>
+    <span class="label">Schritt 2 von 2</span>
     <h1>Deine Kontaktdaten.</h1>
     <p class="lede">Verbinden geht immer nur beidseitig: Anfrage, Zustimmung, dann sind die Karten getauscht. Du entscheidest, was dabei auf deiner steht.</p>
     <div class="rg-wahl" role="radiogroup" aria-label="Freigabe">
       <label class="rg-karte">
-        <input type="radio" name="rgSichtbar" value="1">
-        <b>Kontaktdaten sichtbar</b>
-        <span>Wer sich mit dir verbindet, sieht E-Mail und Telefon und kann dich danach erreichen.</span>
+        <input type="radio" name="rgSichtbar" value="1" checked>
+        <b>Meine Mail und Handynummer weitergeben</b>
+        <span>Nur an die, mit denen du dich verbindest – damit ihr euch nach dem Abend wiederfindet.</span>
       </label>
       <label class="rg-karte">
-        <input type="radio" name="rgSichtbar" value="0" checked>
-        <b>Nur kontaktierbar</b>
-        <span>Name, Unternehmen und Bild – deine Kontaktdaten bleiben bei dir. Verbinden geht trotzdem.</span>
+        <input type="radio" name="rgSichtbar" value="0">
+        <b>Erst einmal nur Name und Unternehmen zeigen</b>
+        <span>Verbinden geht trotzdem. Deine Mail und Nummer bleiben bei dir – du kannst das später ändern.</span>
       </label>
     </div>
     <p class="fnote" id="rgKontaktVorschau"></p>
+    <p class="fnote">Mit dem Eintritt gelten die <a href="/datenschutz" target="_blank" rel="noopener" style="color:var(--ivory)">Datenschutzhinweise</a>. Profil und Bild kannst du jederzeit löschen.</p>
     <button class="btn btn--solid btn--full" type="button" id="rgFertig">In den Kreis eintreten</button>
+    <button class="btn btn--full leise" type="button" id="rgLoeschen" style="display:none">Profil und Bild löschen</button>
     <p class="fnote" id="rgFehler" style="color:var(--coral)"></p>
   </div>
 
@@ -1566,7 +1591,8 @@
     <h1>Leg die App auf deinen Startbildschirm.</h1>
     <p class="lede" id="rgAppText">Dann liegt THE CIRCLE am Abend als Symbol neben deinen anderen Apps – ohne Browserleiste, ohne Suchen nach dem Link.</p>
     <div class="rg-anleitung" id="rgIos" style="display:none">
-      <div><b>1</b> Tippe unten auf <span class="ios-teilen" aria-label="Teilen">⎋</span> <em>Teilen</em></div>
+      <div id="rgIosSafari" style="display:none"><b>0</b> Tippe oben rechts auf <em>⋯</em> und wähle <em>In Safari öffnen</em></div>
+      <div><b>1</b> Tippe unten auf <svg class="ios-teilen" viewBox="0 0 24 24" width="20" height="20" aria-label="Teilen"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M12 3v13M7 8l5-5 5 5M5 12v8h14v-8"/></svg> <em>Teilen</em></div>
       <div><b>2</b> Wähle <em>Zum Home-Bildschirm</em></div>
       <div><b>3</b> Öffne THE CIRCLE von dort</div>
     </div>
@@ -1601,7 +1627,7 @@
   <h2 id="appfreiTitel">Leg das Handy kurz weg.</h2>
   <div class="rule" aria-hidden="true"></div>
   <p id="appfreiText"></p>
-  <button class="weiter" id="appfreiWeiter" type="button">Trotzdem öffnen</button>
+  <button class="weiter" id="appfreiWeiter" type="button">Weiter zur App – meinen Tisch ansehen</button>
 </div>
 
 <div id="toast" role="status" aria-live="polite"></div>
@@ -2098,7 +2124,10 @@ function renderAppfrei(){
   const el = $("#appfrei");
   if(!el) return;
   const f = appfreiFenster();
-  if(!f || appfreiWeg[f.id]){ el.classList.remove("show"); return; }
+  /* Nicht ueber die Registrierung legen: Wer um 19:35 zum ersten Mal seinen
+     Link oeffnet, soll sein Profil anlegen koennen. */
+  const reg = $("#registrierung"); const inReg = reg && !reg.classList.contains("hidden");
+  if(!f || appfreiWeg[f.id] || inReg){ el.classList.remove("show"); return; }
   $("#appfreiWas").textContent = f.was;
   $("#appfreiText").textContent = f.hinweis;
   el.classList.add("show");
@@ -2145,7 +2174,7 @@ $$("#stars .star").forEach(b=>{
     if(wert === vorher) return;
     S.stern = wert; persist(); renderSterne(); buzz(10);
     collect("av8", "Danke – dein Eindruck ist beim Team.");
-    if(LIVE.on) LIVE.post("/api/live/stern", { stern: wert, prev: vorher }).catch(()=>toast("Netz gerade weg – die Sterne kamen nicht an."));
+    if(LIVE.on) LIVE.post("/api/live/stern", { stern: wert, prev: vorher, t: APP.token || undefined }).catch(()=>toast("Netz gerade weg – die Sterne kamen nicht an."));
   });
 });
 
@@ -2165,7 +2194,7 @@ $$(".ibtn").forEach(b=>{
     S.interesse[art] = an;
     persist(); renderInteresse(); buzz(10);
     if(an) collect("av8", "Notiert – wir geben es nach dem Abend weiter.");
-    if(LIVE.on) LIVE.post("/api/live/interesse", { art, an }).catch(()=>toast("Netz gerade weg – nochmal tippen."));
+    if(LIVE.on) LIVE.post("/api/live/interesse", { art, an, t: APP.token || undefined }).catch(()=>toast("Netz gerade weg – nochmal tippen."));
   });
 });
 
@@ -2253,6 +2282,7 @@ $("#tippBtn").addEventListener("click", ()=>{
   S.tipp = v; persist();
   $("#tippInput").value = "";
   renderTipp(); buzz(15);
+  if(LIVE.on) LIVE.post("/api/live/tipp", { wert: v, t: APP.token || undefined }).catch(()=>toast("Netz gerade weg – Tipp nochmal setzen."));
   toast("Tipp gesetzt: " + v.toLocaleString("de-DE") + " € – Auflösung live.");
 });
 renderTipp();
@@ -2633,7 +2663,11 @@ function gastRow(g, opts){
   const t = document.createElement("div"); t.className = "gtext";
   const b = document.createElement("b"); b.textContent = g.name;
   const s = document.createElement("span"); s.textContent = [g.firma, g.rolle].filter(Boolean).join(" · ") || (g.registriert ? "" : "noch nicht in der App");
-  t.appendChild(b); t.appendChild(s); row.appendChild(t);
+  t.appendChild(b); t.appendChild(s);
+  /* Der Satz, der ein Gespraech anstoesst - direkt in der Liste. */
+  const su = g.sucht || g.ueber;
+  if(su){ const e = document.createElement("em"); e.textContent = (g.sucht ? "sucht " : "") + su; t.appendChild(e); }
+  row.appendChild(t);
   if(opts && opts.anfrage){
     /* Anfrage an mich: die zwei Antworten direkt in der Zeile, kein Umweg. */
     const z = document.createElement("div"); z.className = "zwei";
@@ -2650,10 +2684,15 @@ function gastRow(g, opts){
   row.addEventListener("click", ()=>gastOeffnen(g.id));
   return row;
 }
+let gastFilter = "alle";
+$$("#gastFilter button").forEach(b => b.addEventListener("click", ()=>{ gastFilter = b.dataset.f; $$("#gastFilter button").forEach(x => x.classList.toggle("an", x === b)); renderGaeste(); }));
 function renderGaeste(){
   const wrap = $("#gaesteListe"); wrap.innerHTML = "";
   const q = ($("#gastSuche").value || "").trim().toLowerCase();
-  const liste = APP.gaeste.filter(g => !q || (g.name + " " + g.firma + " " + g.rolle).toLowerCase().includes(q));
+  const meinTischNr = APP.ich ? (APP.tisch && APP.tisch.tisch) || APP.ich.tisch : 0;
+  const liste = APP.gaeste.filter(g => !q || (g.name + " " + g.firma + " " + g.rolle + " " + (g.ueber||"") + " " + (g.sucht||"")).toLowerCase().includes(q))
+    .filter(g => gastFilter === "alle" || (gastFilter === "da" && g.da) || (gastFilter === "tisch" && meinTischNr && g.tisch === meinTischNr)
+              || (gastFilter === "offen" && g.verbindung === "keine") || (gastFilter === "sucht" && g.sucht));
   liste.forEach(g => wrap.appendChild(gastRow(g)));
   $("#gastZahl").textContent = APP.gaeste.length ? (q ? liste.length + " von " : "") + APP.gaeste.length + " Gäste" : "";
   const hin = $("#gaesteHinweis");
@@ -2678,6 +2717,14 @@ function renderKreis(){
   const sb = $("#spaeterBlock"), sl = $("#spaeterListe"); sl.innerHTML = "";
   sb.style.display = k.spaeter.length ? "block" : "none";
   k.spaeter.forEach(g => sl.appendChild(gastRow(g)));
+  /* Meine eigenen offenen Anfragen: der Faden darf nicht spurlos
+     verschwinden. (Eine Ablehnung sieht man hier bewusst nicht.) */
+  const ob = $("#offenBlock"), ol = $("#offenListe"); ol.innerHTML = "";
+  ob.style.display = k.angefragt.length ? "block" : "none";
+  k.angefragt.forEach(g => ol.appendChild(gastRow(g)));
+  /* Zaehler am Reiter: Anfragen an mich. */
+  const nb = document.querySelector('nav button[data-nav="kreis"]');
+  if(nb){ nb.classList.toggle("punkt", k.anfragen.length > 0); nb.dataset.n = k.anfragen.length; }
   if(n && !S.moments.verbindung) collect("verbindung", "Verbunden – ein Strich mehr im Kreis.");
 }
 /* Letzter Stand im Speicher: Bricht das WLAN ein, steht im Gaestebuch die
@@ -2701,6 +2748,12 @@ async function ladeAlles(){ if(!APP.token) { renderGaeste(); return; } await Pro
 let sheetGast = null;
 function sheetZu(){ $("#gastSheet").classList.remove("show"); $("#sheetHinter").classList.remove("show"); sheetGast = null; }
 $("#sheetHinter").addEventListener("click", sheetZu);
+$("#sheetZu").addEventListener("click", sheetZu);
+document.addEventListener("keydown", e => { if(e.key === "Escape" && sheetGast) sheetZu(); });
+/* Wischen nach unten auf dem Griff schliesst - so, wie das Blatt aussieht. */
+{ let y0 = 0; const sh = $("#gastSheet");
+  sh.addEventListener("touchstart", e => { y0 = e.touches[0].clientY; }, { passive:true });
+  sh.addEventListener("touchend", e => { if(sh.scrollTop <= 0 && e.changedTouches[0].clientY - y0 > 70) sheetZu(); }, { passive:true }); }
 function btn(text, klasse, fn){ const b = document.createElement("button"); b.type = "button"; b.className = "btn " + (klasse||""); b.textContent = text; b.addEventListener("click", fn); return b; }
 function renderSheet(g){
   sheetGast = g;
@@ -2730,8 +2783,8 @@ function renderSheet(g){
     ak.appendChild(btn("Nicht jetzt", "leise", ()=>verbindenAktion(g.id, "ablehnen")));
     note.textContent = g.name.split(" ")[0] + " möchte sich mit dir verbinden.";
   } else if(v === "verbunden"){
-    if(g.email || g.telefon) ak.appendChild(btn("Kontakt speichern", "btn--solid", ()=>kontaktSpeichern(g)));
-    else note.textContent = g.name.split(" ")[0] + " hat die Kontaktdaten nicht freigegeben – ihr seid verbunden, den Rest klärt ihr persönlich.";
+    ak.appendChild(btn("Kontakt speichern", "btn--solid", ()=>kontaktSpeichern(g)));
+    if(!(g.email || g.telefon)) note.textContent = g.name.split(" ")[0] + " hat die Kontaktdaten nicht freigegeben – die Karte enthält Name, Unternehmen und deine Notiz.";
     /* Notiz nur fuer mich: "wollte ihr das Deck schicken". Der andere
        sieht sie nie - das ist der Unterschied zum Chat. */
     const ta = document.createElement("textarea"); ta.className = "shNotiz"; ta.maxLength = 300;
@@ -2771,12 +2824,13 @@ async function kontaktSpeichern(g){
   const vc = ["BEGIN:VCARD","VERSION:3.0","N:" + nach + ";" + vor + ";;;","FN:" + g.name,
     g.firma ? "ORG:" + g.firma : "", g.rolle ? "TITLE:" + g.rolle : "",
     g.email ? "EMAIL;TYPE=INTERNET:" + g.email : "", g.telefon ? "TEL;TYPE=CELL:" + g.telefon : "",
-    g.linkedin ? "URL:https://" + g.linkedin : "", "NOTE:THE CIRCLE No1 · 16.09.2026 · Playa Cologne","END:VCARD"].filter(Boolean).join("\r\n");
+    g.linkedin ? "URL:https://" + g.linkedin : "", "NOTE:THE CIRCLE No1 · 16.09.2026 · Playa Cologne" + (g.notiz ? " – " + g.notiz.replace(/[\r\n]+/g, " ") : ""),"END:VCARD"].filter(Boolean).join("\r\n");
   const file = new File([vc], g.name.replace(/[^\wäöüÄÖÜß -]/g, "") + ".vcf", { type:"text/vcard" });
   try{
     if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:g.name }); return; }
   }catch(e){ if(e && e.name === "AbortError") return; }
   const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+  toast("Karte erzeugt – falls nichts passiert: " + [g.email, g.telefon].filter(Boolean).join(" · "));
 }
 
 /* ---- Tisch ---- */
@@ -2794,10 +2848,16 @@ function renderTisch(){
   $("#tischName").textContent = eig.tischName || "";
   const hin = $("#tischHinweis");
   hin.textContent = !hatPlan ? "Die Tischordnung kommt kurz vor dem Abend – dann steht hier dein Platz." :
-    (!t.gang ? "Vor dem ersten Gang: dein Platz für die Vorspeise." : (t.nachbarn.length ? "Mit dir am Tisch. Antippen für das Kurzprofil." : "Dein Tisch – die anderen kommen gleich dazu."));
+    (!t.gang ? "Vor dem ersten Gang: dein Platz für die Vorspeise." : (t.nachbarn.length ? "Diese " + t.nachbarn.length + " sitzen mit dir am Tisch – die Anordnung ist nicht die Sitzordnung. Antippen für Name und Unternehmen." : "Dein Tisch – die anderen kommen gleich dazu."));
   /* Der Tisch als Kreis, ich unten. Die Reihenfolge ist alphabetisch,
      nicht die echte Sitzordnung - die kennt niemand vorher. */
   const rund = $("#tischRund"); rund.innerHTML = "";
+  /* Nummer und Name in die Mitte des Tischs - so liest sich der Kreis als
+     Tisch mit Namensschild, nicht als zweite Gaesteliste. */
+  { const m = document.createElement("div"); m.className = "tischmitte";
+    const b = document.createElement("b"); b.textContent = t.tisch ? "Tisch " + t.tisch : "–";
+    const sp = document.createElement("span"); sp.textContent = eig.tischName || "";
+    m.appendChild(b); m.appendChild(sp); rund.appendChild(m); }
   const leute = [{ id:"", name:APP.ich ? APP.ich.name : "Du", foto:APP.ich ? APP.ich.foto : "", ich:true, registriert:true }].concat(t.nachbarn);
   const B = rund.clientWidth || 260, n = leute.length, R = Math.max(B / 2 - 30, 60);
   leute.forEach((g, i) => {
@@ -2806,7 +2866,7 @@ function renderTisch(){
     s.style.left = (50 + Math.cos(a) * R / B * 100) + "%";
     s.style.top  = (50 + Math.sin(a) * R / B * 100) + "%";
     s.appendChild(avatarEl(g));
-    const i2 = document.createElement("i"); i2.textContent = g.ich ? "Du" : g.name.split(" ")[0]; s.appendChild(i2);
+    const i2 = document.createElement("i"); i2.textContent = g.ich ? "Du" : g.name; s.appendChild(i2);
     if(!g.ich) s.addEventListener("click", ()=>gastOeffnen(g.id));
     rund.appendChild(s);
   });
@@ -2887,6 +2947,11 @@ $("#daBtn").addEventListener("click", ichBinDa);
 /* ---- Push ---- */
 const istStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const istIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+/* Der Link aus der Mail oeffnet sich in Apples Mail-Browser (oder in
+   LinkedIn, WhatsApp ...): Dort gibt es kein "Zum Home-Bildschirm". Erst
+   in Safari geht es weiter - das muss der Gast erfahren, sonst scheitert
+   die Installation still. */
+const istIosOhneSafari = () => istIos() && !/Safari\//.test(navigator.userAgent);
 function b64ToBytes(s){ const p = "=".repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
 async function pushErlauben(){
   if(!("PushManager" in window) || !APP.vapid || !APP.token) return false;
@@ -2913,7 +2978,7 @@ function renderAppHinweis(){
     $("#ahLabel").textContent = "Damit die App bleibt";
     $("#ahTitel").textContent = "Leg THE CIRCLE auf deinen Startbildschirm.";
     $("#ahText").textContent = "Nur so erreichen dich Tischwechsel, deine Fotos vom Abend und die nächste Runde. Im Browser ist die App nur ein Tab.";
-    if(istIos()) $("#ahIos").style.display = "";
+    if(istIos()){ $("#ahIos").style.display = ""; $("#ahIosSafari").style.display = istIosOhneSafari() ? "" : "none"; }
     else if(APP.install) $("#ahInstall").style.display = "";
     else $("#ahText").textContent += " Im Menü deines Browsers: „App installieren“ oder „Zum Startbildschirm“.";
   } else if(pushOffen){
@@ -2933,10 +2998,15 @@ window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); APP.in
 matchMedia("(display-mode: standalone)").addEventListener("change", renderAppHinweis);
 
 /* ---- Registrierung ---- */
-let rgBild = null;   // { foto, mini } als Data-URLs
+let rgBild = null, rgBildLoeschen = false;   // { foto, mini } als Data-URLs
+$("#rgBildWeg").addEventListener("click", ()=>{
+  rgBild = null; rgBildLoeschen = true;
+  const v = $("#rgVorschau"); v.style.backgroundImage = ""; v.textContent = initialen(APP.ich ? APP.ich.name : "");
+  $("#rgBildWeg").style.display = "none"; $("#rgBildKnopf").textContent = "Bild wählen";
+});
 function rgSchritt(name){
   $$("#registrierung .rg-step").forEach(s => s.classList.toggle("on", s.dataset.rg === name));
-  const idx = ["profil", "bild", "freigabe", "app"].indexOf(name);
+  const idx = ["profil", "freigabe"].indexOf(name);
   $$("#registrierung .rg-schritte i").forEach((i, k) => i.classList.toggle("an", k <= idx));
   $("#registrierung").scrollTo(0, 0);
 }
@@ -2945,10 +3015,16 @@ function registrierungStarten(ich){
   $("#rgName").textContent = ich.name;
   $("#rgFirma").value = ich.firma || ""; $("#rgRolle").value = ich.rolle || "";
   $("#rgUeber").value = ich.ueber || ""; $("#rgLinkedin").value = ich.linkedin || "";
-  $("#rgKontaktVorschau").textContent = "Auf deiner Karte stünden: " + [ich.email, ich.telefon].filter(Boolean).join(" · ");
+  $("#rgKontaktVorschau").textContent = "Auf deiner Karte steht: " + ([ich.email, ich.telefon].filter(Boolean).join(" · ") || "– (keine Kontaktdaten hinterlegt)");
   if(ich.foto){ const v = $("#rgVorschau"); v.style.backgroundImage = "url(" + ich.foto + ")"; v.textContent = ""; }
   else $("#rgVorschau").textContent = initialen(ich.name);
-  $$("input[name=rgSichtbar]").forEach(r => { r.checked = r.value === (ich.sichtbar ? "1" : "0"); });
+  /* Neu = Vorgabe "weitergeben" (das Gaestebuch lebt davon); wer schon
+     registriert ist, sieht seine eigene Wahl. */
+  const wahl = ich.registriert ? (ich.sichtbar ? "1" : "0") : "1";
+  $$("input[name=rgSichtbar]").forEach(r => { r.checked = r.value === wahl; });
+  $("#rgSucht").value = ich.sucht || "";
+  $("#rgBildWeg").style.display = ich.foto ? "" : "none";
+  $("#rgLoeschen").style.display = ich.registriert ? "" : "none";
   rgSchritt("profil");
   $("#registrierung").classList.remove("hidden");
 }
@@ -2971,8 +3047,9 @@ $("#rgDatei").addEventListener("change", async e => {
   const f = e.target.files && e.target.files[0]; if(!f) return;
   $("#rgBildNote").textContent = "Einen Moment …";
   try{
-    rgBild = await bildVerkleinern(f);
+    rgBild = await bildVerkleinern(f); rgBildLoeschen = false;
     const v = $("#rgVorschau"); v.style.backgroundImage = "url(" + rgBild.foto + ")"; v.textContent = "";
+    $("#rgBildWeg").style.display = "";
     $("#rgBildNote").textContent = ""; $("#rgBildKnopf").textContent = "Anderes Bild";
   }catch(err){ rgBild = null; $("#rgBildNote").textContent = "Das Bild ließ sich nicht lesen – probier ein anderes."; }
 });
@@ -2980,8 +3057,9 @@ $("#rgFertig").addEventListener("click", async ()=>{
   const b = $("#rgFertig"); b.disabled = true; $("#rgFehler").textContent = "";
   const sichtbar = ($$("input[name=rgSichtbar]").find(r => r.checked) || {}).value === "1";
   const body = { firma: $("#rgFirma").value.trim(), rolle: $("#rgRolle").value.trim(),
-                 ueber: $("#rgUeber").value.trim(), linkedin: $("#rgLinkedin").value.trim(), sichtbar };
+                 ueber: $("#rgUeber").value.trim(), sucht: $("#rgSucht").value.trim(), linkedin: $("#rgLinkedin").value.trim(), sichtbar };
   if(rgBild){ body.foto = rgBild.foto; body.mini = rgBild.mini; }
+  else if(rgBildLoeschen){ body.foto = ""; }
   try{
     const d = await appPost("/api/app/profil", body);
     Object.assign(APP.ich, body, { foto: d.foto, registriert: d.registriert, sichtbar: d.sichtbar });
@@ -2992,13 +3070,18 @@ $("#rgFertig").addEventListener("click", async ()=>{
     if(istStandalone()){
       $("#rgAppText").textContent = "Die App liegt schon auf deinem Startbildschirm.";
       $("#rgIos").style.display = "none";
-    } else if(istIos()){ $("#rgIos").style.display = ""; }
+    } else if(istIos()){ $("#rgIos").style.display = ""; $("#rgIosSafari").style.display = istIosOhneSafari() ? "" : "none"; }
     $("#rgInstall").style.display = APP.install ? "" : "none";
     $("#rgPushBlock").style.display = (istStandalone() && "PushManager" in window && APP.vapid && !APP.ich.push) ? "" : "none";
     rgSchritt("app");
     ladeAlles();
   }catch(e){ $("#rgFehler").textContent = (e.name === "AbortError") ? "Das Netz ist gerade langsam – bitte nochmal." : (e.message || "Speichern ging nicht – gleich nochmal."); }
   finally{ b.disabled = false; }
+});
+$("#rgLoeschen").addEventListener("click", async ()=>{
+  if(!confirm("Profil, Bild, Verbindungen und Notizen löschen? Deine Zusage bleibt.")) return;
+  try{ await appPost("/api/app/loeschen", {}); try{ localStorage.removeItem("circle.v1"); }catch(e){} location.replace("/?t=" + encodeURIComponent(APP.token)); }
+  catch(e){ toast("Ging gerade nicht."); }
 });
 $("#rgInstall").addEventListener("click", async ()=>{ if(!APP.install) return; APP.install.prompt(); try{ await APP.install.userChoice; }catch(e){} APP.install = null; $("#rgInstall").style.display = "none"; });
 $("#rgPush").addEventListener("click", async ()=>{ if(await pushErlauben()) $("#rgPushBlock").style.display = "none"; });

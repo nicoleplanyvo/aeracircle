@@ -746,6 +746,11 @@ function listenEintrag(ich, inv) {
     foto: fotoUrl(inv, true),
     registriert: !!p.registriert,
     da: !!inv.da,
+    /* Der Satz, der ein Gespraech anstoesst, gehoert in die Liste - nicht
+     * nur ins Kurzprofil, das man erst antippen muss. */
+    ueber: p.ueber || "",
+    sucht: p.sucht || "",
+    tisch: meinTisch(inv),
     verbindung: ich ? verbindungAusSicht(gid(ich), gid(inv), rundeVon(ich)) : "keine"
   };
 }
@@ -898,6 +903,17 @@ async function pushJeGast(bauen, opts) {
   return { gesendet, tot, fehler, erreichbar: pushbar() };
 }
 const tischName = nr => ((tische().liste.find(x => x.nr === nr) || {}).name || "");
+/* Eine Push an EINEN Gast. Fuer Anfragen und Zustimmungen: Der andere hat
+ * sein Handy in der Tasche, und eine Anfrage, die um 23 Uhr gelesen wird,
+ * kommt nach dem Gespraech. Im app-freien Fenster geht nichts raus. */
+async function pushAnEinen(inv, nachricht) {
+  if (!pushMoeglich() || !inv || !inv.push || appfreiJetzt()) return false;
+  try {
+    const a = await webpush.senden({ subscription: inv.push, payload: JSON.stringify(nachricht), vapid: VAPID, ttl: 3600, urgency: "normal" });
+    if (a.status === 404 || a.status === 410) { inv.push = null; dirty = true; return false; }
+    return a.status >= 200 && a.status < 300;
+  } catch (e) { return false; }
+}
 
 /* Signale (Als Naechstes, Tischwechsel) als eigenes SSE-Ereignis, wie die
  * Zeiten: selten, aber wenn, dann sofort an alle. */
@@ -1321,6 +1337,48 @@ const WELLEN = {
  * Headline (Cinzel per Google Fonts, Georgia-Fallback wie in den Mails),
  * Koralle, Logo. Drei Zustaende: "frage" (Bestaetigungs-Knopf), "fertig",
  * "ungueltig". Der Token stammt aus findInvite und ist damit [A-Za-z0-9_-]. */
+/* Datenschutzhinweise und Impressum. Die App verarbeitet Namen,
+ * Kontaktdaten, Ernaehrung/Unvertraeglichkeiten (Gesundheitsdaten), Fotos
+ * und wer sich mit wem verbindet - ohne diese Seite waere jede Einwilligung
+ * in der Registrierung ohne Informationsgrundlage. Der Verantwortliche
+ * kommt aus der Umgebung; solange er fehlt, steht das sichtbar auf der
+ * Seite, damit es niemand uebersieht. */
+const VERANTWORTLICH = process.env.VERANTWORTLICH || "";       // Zeilen mit |
+const DATENSCHUTZ_KONTAKT = process.env.DATENSCHUTZ_KONTAKT || "hello@the-circle-cologne.de";
+function rechtsSeite(art) {
+  const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const wer = VERANTWORTLICH
+    ? VERANTWORTLICH.split("|").map(esc).join("<br>")
+    : "<b style=\"color:#ff6b6c\">Verantwortlicher noch einzutragen</b> (Umgebungsvariable VERANTWORTLICH: Firma|Stra&szlig;e|PLZ Ort|Vertreten durch)";
+  const kopf = '<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>THE CIRCLE &middot; ' + (art === "impressum" ? "Impressum" : "Datenschutz") + '</title>' +
+    '<style>body{background:#122648;color:#f8f7f4;font-family:Montserrat,"Avenir Next",Helvetica,Arial,sans-serif;font-weight:300;margin:0;padding:32px 22px 60px;line-height:1.7;font-size:15px}' +
+    'main{max-width:640px;margin:0 auto}h1{font-family:Cinzel,"Trajan Pro 3",Georgia,serif;font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:24px;margin:0 0 6px}' +
+    'h2{font-family:Cinzel,Georgia,serif;font-weight:600;font-size:15px;letter-spacing:.08em;text-transform:uppercase;margin:32px 0 8px;color:#d8d3c3}' +
+    'p,li{color:#aeb9d2}b{color:#f8f7f4;font-weight:500}a{color:#f8f7f4}small{display:block;margin-top:40px;color:#93a4c6;font-size:12px}</style></head><body><main>';
+  const fuss = '<small>THE CIRCLE No1 &middot; connecting generations &middot; <a href="/impressum">Impressum</a> &middot; <a href="/datenschutz">Datenschutz</a></small></main></body></html>';
+  if (art === "impressum") {
+    return kopf + '<h1>Impressum</h1><p>Angaben gem&auml;&szlig; &sect; 5 DDG</p><h2>Verantwortlich</h2><p>' + wer + '</p>' +
+      '<h2>Kontakt</h2><p><a href="mailto:' + esc(DATENSCHUTZ_KONTAKT) + '">' + esc(DATENSCHUTZ_KONTAKT) + '</a></p>' +
+      '<h2>Veranstalter</h2><p>Ihre Markenwerkstatt &middot; AERA &middot; Public Cologne</p>' + fuss;
+  }
+  return kopf + '<h1>Datenschutz</h1><p>Informationen nach Art. 13 DSGVO f&uuml;r die Einladung, die Zusage und die App zu THE CIRCLE No1.</p>' +
+    '<h2>Verantwortlicher</h2><p>' + wer + '<br>Kontakt f&uuml;r Datenschutzfragen: <a href="mailto:' + esc(DATENSCHUTZ_KONTAKT) + '">' + esc(DATENSCHUTZ_KONTAKT) + '</a></p>' +
+    '<h2>Welche Daten, wof&uuml;r, auf welcher Grundlage</h2><ul>' +
+    '<li><b>Einladung und Zusage</b> &ndash; Name, Anrede, Unternehmen, Rolle, E-Mail, Telefon, Zusage/Absage, Kreisnummer. Zweck: Durchf&uuml;hrung des Abends. Grundlage: Art. 6 Abs. 1 b DSGVO (Vertrag/Teilnahme).</li>' +
+    '<li><b>Ern&auml;hrung und Unvertr&auml;glichkeiten</b> &ndash; freiwillige Angabe in der Zusage. Zweck: Men&uuml; und K&uuml;che. Grundlage: Einwilligung, Art. 6 Abs. 1 a und Art. 9 Abs. 2 a DSGVO. Wird nur an das Catering weitergegeben und nach dem Abend gel&ouml;scht.</li>' +
+    '<li><b>Zahlung</b> (nur Bezahlg&auml;ste) &ndash; Abwicklung &uuml;ber Stripe; wir speichern Betrag, Zeitpunkt und Zahlungskennung. Grundlage: Art. 6 Abs. 1 b und c DSGVO (steuerliche Aufbewahrung).</li>' +
+    '<li><b>Profil in der App</b> &ndash; Unternehmen, Rolle, ein Satz &uuml;ber dich, wonach du suchst, LinkedIn, <b>Profilbild</b>. Das Bild sehen alle G&auml;ste dieses Abends in der Teilnehmerliste und im Tischplan; es liegt auf unserem Server unter einer nicht erratbaren Adresse. Grundlage: Einwilligung, Art. 6 Abs. 1 a DSGVO. Widerruf jederzeit &uuml;ber &bdquo;Profil und Bild l&ouml;schen&ldquo; in der App.</li>' +
+    '<li><b>Kontaktfreigabe</b> &ndash; E-Mail, Telefon und LinkedIn werden nur dann an einen anderen Gast weitergegeben, wenn ihr euch beidseitig verbunden habt <b>und</b> du die Weitergabe in der App erlaubt hast. Beides kannst du jederzeit &auml;ndern.</li>' +
+    '<li><b>Verbindungen und Notizen</b> &ndash; wer sich mit wem verbunden hat, sehen nur die beiden Beteiligten; der Veranstalter sieht nur die Anzahl. Notizen sieht nur, wer sie schreibt.</li>' +
+    '<li><b>Anwesenheit, Tisch, Live-Funktionen</b> &ndash; &bdquo;Ich bin da&ldquo;, Tischzuordnung, R&uuml;ckmeldungen zu AV8 (Votum, Sterne, Interesse), Gebote und Sch&auml;tzspiel. Interesse und Gebote werden mit deinem Namen an die jeweils Betroffenen (Gr&uuml;nder, Auktionator) weitergegeben. Grundlage: Art. 6 Abs. 1 b bzw. a DSGVO.</li>' +
+    '<li><b>Benachrichtigungen</b> &ndash; wenn du sie erlaubst, speichern wir die Push-Adresse deines Ger&auml;ts (Apple/Google). Inhalte werden verschl&uuml;sselt &uuml;bertragen. Abschalten jederzeit in den Ger&auml;teeinstellungen.</li>' +
+    '<li><b>Technik</b> &ndash; Server-Protokolle (IP-Adresse, Zeitpunkt) f&uuml;r Betrieb und Sicherheit, Art. 6 Abs. 1 f DSGVO; lokale Speicherung deines Zugangs auf deinem Ger&auml;t.</li></ul>' +
+    '<h2>Empf&auml;nger</h2><p>Stripe (Zahlung), Lettermint (E-Mail-Versand), Apple/Google (Push), Catering (nur Ern&auml;hrungsangaben), unser Hosting-Anbieter. Keine Weitergabe an Dritte zu Werbezwecken.</p>' +
+    '<h2>Speicherdauer</h2><p>Profil, Bild, Verbindungen, Notizen, Ern&auml;hrungsangaben und Push-Adressen l&ouml;schen wir sp&auml;testens 30 Tage nach dem Abend, sofern du die App nicht weiter nutzt. Zahlungsdaten bewahren wir gem&auml;&szlig; steuerlicher Pflichten auf.</p>' +
+    '<h2>Deine Rechte</h2><p>Auskunft, Berichtigung, L&ouml;schung, Einschr&auml;nkung, Daten&uuml;bertragbarkeit, Widerspruch und Widerruf erteilter Einwilligungen &ndash; per E-Mail an die oben genannte Adresse oder direkt in der App. Beschwerderecht bei einer Datenschutzaufsichtsbeh&ouml;rde.</p>' + fuss;
+}
+
 function abmeldeSeite(art, token) {
   const inhalt = art === "frage"
     ? '<h1>Abmelden?</h1>' +
@@ -2111,6 +2169,10 @@ const server = http.createServer((req, res) => {
       const prev = gueltig(body.prev) ? body.prev : null;
       if (prev && state.sterne[prev] > 0) state.sterne[prev]--;
       if (stern) state.sterne[stern] = (state.sterne[stern] || 0) + 1;
+      /* Mit Token auch am Gast: AV8 soll nachher wissen, wer die fuenf
+       * Sterne gegeben hat - nicht nur, dass es 31 waren. */
+      const inv = findInvite(body.t);
+      if (inv) { if (!inv.av8) inv.av8 = {}; inv.av8.stern = stern || 0; inv.av8.t = Date.now(); }
       dirty = true; broadcast();
       json(res, 200, { ok: true });
     });
@@ -2125,8 +2187,28 @@ const server = http.createServer((req, res) => {
       if (!art) return json(res, 400, { error: "unbekannte Art" });
       if (body.an) state.interesse[art] = (state.interesse[art] || 0) + 1;
       else if (state.interesse[art] > 0) state.interesse[art]--;
+      /* Das Versprechen "wir sagen den Gruendern Bescheid" ist nur haltbar,
+       * wenn der Server weiss, WER sich gemeldet hat. Ohne Token (Demo)
+       * bleibt es beim Zaehler. */
+      const inv = findInvite(body.t);
+      if (inv) { if (!inv.av8) inv.av8 = {}; inv.av8[art] = body.an ? Date.now() : 0; }
       dirty = true; broadcast();
-      json(res, 200, { ok: true });
+      json(res, 200, { ok: true, gemerkt: !!inv });
+    });
+  }
+
+  /* Schaetzspiel: der Tipp zum Erloes, je Gast, damit nach dem Zuschlag
+   * jemand aufloesen kann. Bisher lag er nur im Speicher des Handys. */
+  if (req.method === "POST" && url === "/api/live/tipp") {
+    if (!rateLimit(req, res, "live", LIMIT_LIVE[0], LIMIT_LIVE[1])) return;
+    return readBody(req, res, body => {
+      const wert = parseInt(body.wert, 10);
+      if (!Number.isInteger(wert) || wert < 1 || wert > 5_000_000) return json(res, 400, { error: "Tipp 1–5.000.000" });
+      const inv = findInvite(body.t);
+      if (!inv) return json(res, 200, { ok: true, gemerkt: false });
+      inv.tipp = { wert, t: Date.now() };
+      dirty = true;
+      json(res, 200, { ok: true, gemerkt: true });
     });
   }
 
@@ -2270,7 +2352,7 @@ const server = http.createServer((req, res) => {
       diet: (inv.daten && inv.daten.diet) || "", allergy: (inv.daten && inv.daten.allergy) || "",
       ticketNr: inv.ticketNr || "", typ: inv.typ, partner: inv.partner || "",
       foto: fotoUrl(inv, false), sichtbar: !!p.sichtbar, registriert: p.registriert || 0,
-      ueber: p.ueber || "", linkedin: p.linkedin || "",
+      ueber: p.ueber || "", sucht: p.sucht || "", linkedin: p.linkedin || "",
       da: inv.da || 0, push: !!inv.push, runde: rundeVon(inv),
       installiert: !!(inv.app && inv.app.standalone),
       tisch: meinTisch(inv), gang: tische().gang
@@ -2290,6 +2372,7 @@ const server = http.createServer((req, res) => {
       if (body.firma    !== undefined) inv.firma = cleanText(body.firma, 80);
       if (body.rolle    !== undefined) inv.rolle = cleanText(body.rolle, 80);
       if (body.ueber    !== undefined) p.ueber = cleanText(body.ueber, 200);
+      if (body.sucht    !== undefined) p.sucht = cleanText(body.sucht, 60);
       if (body.linkedin !== undefined) p.linkedin = cleanText(body.linkedin, 120).replace(/^https?:\/\//, "");
       if (body.telefon  !== undefined) { if (!inv.daten) inv.daten = {}; inv.daten.phone = cleanText(body.telefon, 30); }
       if (body.sichtbar !== undefined) p.sichtbar = !!body.sichtbar;
@@ -2320,6 +2403,27 @@ const server = http.createServer((req, res) => {
       if (!p.registriert) { p.registriert = Date.now(); logEvent("App registriert", inv.name, inv.pool); }
       dirty = true; revHoch(); broadcast();
       return json(res, 200, { ok: true, foto: fotoUrl(inv, false), sichtbar: p.sichtbar, registriert: p.registriert });
+    });
+  }
+
+  /* Profil loeschen: Bild, Profiltexte, Verbindungen samt Notizen, Push,
+   * Telefon. Die Zusage und die Zahlung bleiben - die brauchen wir fuer
+   * den Abend und die Buchhaltung. Danach steht der Gast in der Liste wie
+   * einer, der die App nie geoeffnet hat. */
+  if (req.method === "POST" && url === "/api/app/loeschen") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
+      const p = profil(inv);
+      if (p.foto) for (const sfx of ["", "-m"]) { try { fs.unlinkSync(path.join(FOTO_DIR, p.foto + sfx + ".jpg")); } catch (e) {} }
+      inv.profil = null; inv.push = null; inv.av8 = null; inv.tipp = null;
+      if (inv.daten) inv.daten.phone = "";
+      const g = gid(inv);
+      for (const k of Object.keys(state.verbindungen || {})) if (k.split("|").includes(g)) delete state.verbindungen[k];
+      dirty = true; revHoch(); broadcast();
+      logEvent("Profil gelöscht", "", "");
+      return json(res, 200, { ok: true });
     });
   }
 
@@ -2379,15 +2483,18 @@ const server = http.createServer((req, res) => {
           /* Der andere hatte schon gefragt: das ist die Zustimmung. */
           v.status = "verbunden"; v.antwort = Date.now();
           logEvent("verbunden", "", "");
+          pushAnEinen(andere, { titel: "Ihr seid verbunden", text: ich.name + " hat zugestimmt – der Kontakt liegt in deinem Gästebuch.", url: "/?t=" + andere.token + "#kreis", tag: "kreis" });
         } else if (!v || v.status === "spaeter" || (v.status === "abgelehnt" && v.von !== a)) {
           if (!anfrageErlaubt(a)) return json(res, 429, { error: "Genug für den Moment – sprich erst mit den Leuten." });
           state.verbindungen[k] = v = { von: a, status: "offen", t: Date.now(), antwort: 0 };
+          pushAnEinen(andere, { titel: "Jemand möchte sich verbinden", text: ich.name + (ich.firma ? " · " + ich.firma : "") + " – antworten im Gästebuch.", url: "/?t=" + andere.token + "#kreis", tag: "kreis" });
         }
         /* offen von mir oder abgelehnt von mir: bleibt, wie es ist */
       } else if (aktion === "annehmen") {
         if (!v || v.status !== "offen" || v.von !== b) return json(res, 409, { error: "keine offene Anfrage" });
         v.status = "verbunden"; v.antwort = Date.now();
         logEvent("verbunden", "", "");
+        pushAnEinen(andere, { titel: "Ihr seid verbunden", text: ich.name + " hat zugestimmt – der Kontakt liegt in deinem Gästebuch.", url: "/?t=" + andere.token + "#kreis", tag: "kreis" });
       } else if (aktion === "ablehnen") {
         if (!v || v.status !== "offen" || v.von !== b) return json(res, 409, { error: "keine offene Anfrage" });
         v.status = "abgelehnt"; v.antwort = Date.now();
@@ -2845,6 +2952,11 @@ const server = http.createServer((req, res) => {
    * (One-Click aus dem Mailprogramm) schickt ohnehin POST; der
    * List-Unsubscribe-Header jeder Mail zeigt hierher. Die Zusage bleibt
    * bestehen; abgemeldet heisst nur: keine weiteren Wellen. */
+  if (req.method === "GET" && (url === "/datenschutz" || url === "/impressum")) {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff" });
+    return res.end(rechtsSeite(url.slice(1)));
+  }
+
   if ((req.method === "GET" || req.method === "POST") && url === "/abmelden") {
     const inv = findInvite(q.get("t"));
     const antworten = art => {
@@ -3290,6 +3402,32 @@ const server = http.createServer((req, res) => {
         }
         return json(res, 400, { error: "art: wechsel | naechstes | raum | frei" });
       });
+    }
+
+    /* AV8-Blatt: wer hat was gedrueckt. Das ist das, was die Gruender am
+     * Morgen danach bekommen - und der Grund, warum das Versprechen in der
+     * App haltbar ist. */
+    if (req.method === "GET" && url === "/api/admin/av8") {
+      const liste = Object.values(state.invites).filter(i => imKreis(i) && i.av8 && (i.av8.stern || i.av8.intro || i.av8.investor))
+        .map(i => ({ name: i.name, firma: i.firma || "", rolle: i.rolle || "", email: i.email || "",
+                     stern: i.av8.stern || 0, intro: !!i.av8.intro, investor: !!i.av8.investor }))
+        .sort((a, b) => (b.investor - a.investor) || (b.intro - a.intro) || (b.stern - a.stern) || a.name.localeCompare(b.name));
+      if (q.get("csv") === "1") {
+        const z = ["name;firma;rolle;email;sterne;intro;investor"].concat(liste.map(x =>
+          [x.name, x.firma, x.rolle, x.email, x.stern, x.intro ? "ja" : "", x.investor ? "ja" : ""].map(v => String(v).replace(/;/g, ",")).join(";")));
+        res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="av8-rueckmeldungen.csv"' });
+        return res.end("\uFEFF" + z.join("\r\n"));
+      }
+      return json(res, 200, { ok: true, liste, votes: state.votes, sterne: state.sterne, interesse: state.interesse });
+    }
+
+    /* Schaetzspiel aufloesen: die drei, die dem Zuschlag am naechsten lagen. */
+    if (req.method === "GET" && url === "/api/admin/tipps") {
+      const ziel = parseInt(q.get("erloes"), 10) || (state.bid && state.bid.amount) || 0;
+      const liste = Object.values(state.invites).filter(i => imKreis(i) && i.tipp)
+        .map(i => ({ name: i.name, wert: i.tipp.wert, abstand: Math.abs(i.tipp.wert - ziel), karte: String(i.ticketNr || "").replace(/\D/g, "") }))
+        .sort((a, b) => a.abstand - b.abstand);
+      return json(res, 200, { ok: true, ziel, anzahl: liste.length, beste: liste.slice(0, 3), alle: liste });
     }
 
     /* Probe-Push an einen Gast (den, der gerade testet). */
