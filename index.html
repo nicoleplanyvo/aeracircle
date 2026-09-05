@@ -249,12 +249,12 @@
   .stars{display:flex;gap:6px;justify-content:center;margin:16px 0 6px}
   .star{background:none;border:0;padding:6px 4px;font-size:30px;line-height:1;cursor:pointer;
     color:rgba(245,243,239,.22);transition:color .18s ease,transform .12s ease}
-  .star.an{color:var(--koralle)}
+  .star.an{color:var(--coral)}
   .star:active{transform:scale(.88)}
   .star:focus-visible{outline:2px solid var(--ivory);outline-offset:3px;border-radius:6px}
   .interesse{display:flex;flex-direction:column;gap:9px;margin-top:14px}
   .ibtn{text-align:left;line-height:1.4}
-  .ibtn.an{background:var(--koralle);border-color:var(--koralle);color:#122648}
+  .ibtn.an{background:var(--coral);border-color:var(--coral);color:var(--ink)}
   .dishes{list-style:none;margin:10px 0 0;padding:0}
   .dishes li{font-size:13.5px;line-height:1.55;padding:3px 0;color:var(--paper-ink)}
   .dishes li em{font-style:normal;font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
@@ -766,6 +766,12 @@
   .rg-anleitung em{font-style:normal;font-weight:500}
   .ios-teilen{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:0 6px;margin:0 4px;font-size:13px}
 
+  #ladeschirm{position:fixed;inset:0;z-index:109;display:none;flex-direction:column;align-items:center;justify-content:center;
+    gap:22px;padding:40px;text-align:center;background:linear-gradient(180deg,var(--smoke-hi),var(--ink) 60%)}
+  #ladeschirm.show{display:flex}
+  #ladeschirm img{height:26px;width:auto;opacity:.9}
+  #ladeschirm p{color:var(--muted);font-size:14px}
+
   /* ---------- Toast ---------- */
   #toast{
     position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px);
@@ -1034,13 +1040,6 @@
       <hr class="hairline">
 
       <div class="panel rv">
-        <span class="label">Check-in</span>
-        <h3>Angekommen?</h3>
-        <p style="margin-bottom:18px">Melde dich im Kreis an und setz deinen ersten Strich.</p>
-        <button class="btn btn--full" data-moment="ankommen">Ich bin da</button>
-      </div>
-
-      <div class="panel rv">
         <span class="label" style="display:block;margin-bottom:14px">Gut zu wissen</span>
         <div class="facts">
           <div class="row"><span class="k">Einlass</span><span class="v">18:00 Uhr · bis 23:00 Uhr</span></div>
@@ -1153,7 +1152,7 @@
       <div class="sect">
         <span class="label rv">Mitmachen</span>
         <h2 class="display grad rv" style="--d:60ms">Live</h2>
-        <p class="lede" id="liveGuests" style="display:none;margin-top:10px">Gerade im Kreis: <b>–</b> Geräte</p>
+        <p class="lede" id="liveGuests" style="display:none;margin-top:10px">Im Raum: <b>–</b> Gäste</p>
       </div>
 
       <!-- AV8. Kein Pitch mit Applaus, sondern ein Stimmungsbild: die
@@ -1184,7 +1183,7 @@
       <div class="panel rv gated" data-gate="av8">
         <div class="gate" aria-hidden="true">
           <b>Noch geschlossen</b>
-          <span>Öffnet um 19:45 im Wechselbereich</span>
+          <span>Öffnet mit dem ersten Gang</span>
         </div>
         <span class="label">Dein Eindruck</span>
         <h3>Wie gefällt dir das Produkt?</h3>
@@ -1203,7 +1202,7 @@
       <div class="panel rv gated" data-gate="av8">
         <div class="gate" aria-hidden="true">
           <b>Noch geschlossen</b>
-          <span>Öffnet um 19:45 im Wechselbereich</span>
+          <span>Öffnet mit dem ersten Gang</span>
         </div>
         <span class="label">Interesse markieren</span>
         <h3>Willst du weiterreden?</h3>
@@ -1580,6 +1579,14 @@
   </div>
 </div>
 
+<!-- Ladeschirm mit persoenlichem Link: nie das Namensformular zeigen, und
+     bei Netzfehler einen Weg zurueck statt einer Sackgasse. -->
+<div id="ladeschirm" role="status" aria-live="polite">
+  <img class="brandlogo-z" alt="">
+  <p id="ladeText">Einen Moment – wir holen deinen Platz.</p>
+  <button type="button" class="btn" id="ladeNochmal" style="display:none">Nochmal versuchen</button>
+</div>
+
 <!-- Kreis geschlossen -->
 <div id="complete" role="dialog" aria-modal="true" aria-label="Kreis geschlossen">
   <canvas id="ensoDone" width="360" height="360" aria-hidden="true"></canvas>
@@ -1712,7 +1719,10 @@ const MOMENTS = [
 /* ================= STATE ================= */
 const store = {
   load(){ try{ return JSON.parse(localStorage.getItem("circle.v1")) || {} }catch(e){ return {} } },
-  save(s){ localStorage.setItem("circle.v1", JSON.stringify(s)) }
+  /* Voller Speicher oder privates Fenster: setItem wirft, und ohne den
+     try flog die Ausnahme mitten aus appStarten - der Gast blieb im
+     Namensformular haengen. */
+  save(s){ try{ localStorage.setItem("circle.v1", JSON.stringify(s)); }catch(e){} }
 };
 let S = Object.assign({ name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
   stern:0, interesse:{},
@@ -1961,9 +1971,15 @@ $$("[data-moment]").forEach(btn=>{
 $("#completeClose").addEventListener("click", ()=>$("#complete").classList.remove("show"));
 
 /* ================= TIMELINE ================= */
+/* Feste Zone Koeln (Sommerzeit +02:00): ein Handy mit falscher Zone haette
+   sonst Impuls und Auktion um Stunden verschoben gesehen. */
 function eventTime(hhmm){
-  return new Date(CONFIG.eventDate + "T" + hhmm + ":00");
+  return new Date(CONFIG.eventDate + "T" + hhmm + ":00+02:00");
 }
+/* Serverzeit minus Geraetezeit. Der Server schickt jetztMs mit den Zeiten
+   und in jedem Live-Paket; die App rechnet ab dann mit SEINER Uhr. */
+let ZEIT_OFFSET = 0;
+function uhrAbgleichen(ms){ if(ms && Math.abs(ms - Date.now()) < 86400000) ZEIT_OFFSET = ms - Date.now(); }
 function renderTimeline(){
   const wrap = $("#timeline");
   wrap.innerHTML = "";
@@ -2104,7 +2120,7 @@ const DEMO_STOPS = [
 ];
 let demoStop = 2;
 function nowLive(){
-  return DEMO ? eventTime(DEMO_STOPS[demoStop].t) : new Date();
+  return DEMO ? eventTime(DEMO_STOPS[demoStop].t) : new Date(Date.now() + ZEIT_OFFSET);
 }
 
 /* ================= AV8-RÜCKMELDUNG =================
@@ -2129,7 +2145,7 @@ $$("#stars .star").forEach(b=>{
     if(wert === vorher) return;
     S.stern = wert; persist(); renderSterne(); buzz(10);
     collect("av8", "Danke – dein Eindruck ist beim Team.");
-    if(LIVE.on) LIVE.post("/api/live/stern", { stern: wert, prev: vorher }).catch(()=>{});
+    if(LIVE.on) LIVE.post("/api/live/stern", { stern: wert, prev: vorher }).catch(()=>toast("Netz gerade weg – die Sterne kamen nicht an."));
   });
 });
 
@@ -2149,12 +2165,16 @@ $$(".ibtn").forEach(b=>{
     S.interesse[art] = an;
     persist(); renderInteresse(); buzz(10);
     if(an) collect("av8", "Notiert – wir geben es nach dem Abend weiter.");
-    if(LIVE.on) LIVE.post("/api/live/interesse", { art, an }).catch(()=>{});
+    if(LIVE.on) LIVE.post("/api/live/interesse", { art, an }).catch(()=>toast("Netz gerade weg – nochmal tippen."));
   });
 });
 
 /* ================= BIETERKARTE ================= */
+/* Die Bieterkarte ist die Kreisnummer aus der Zusage - eindeutig je Gast.
+   Der alte Hash aus dem Namen kannte nur 88 Nummern fuer 130 Gaeste:
+   "Karte 47" - und zwei Haende gehen hoch. Ohne Zusage (Demo) wie bisher. */
 function paddleNumber(name){
+  if(APP.ich && APP.ich.ticketNr){ const n = String(APP.ich.ticketNr).replace(/\D/g, ""); if(n) return n; }
   let h = 0;
   for(const c of name) h = (h*31 + c.charCodeAt(0)) >>> 0;
   return 11 + (h % 88);
@@ -2214,7 +2234,7 @@ $$("[data-vote]").forEach(b=>{
     S.vote = (S.vote === b.dataset.vote) ? null : b.dataset.vote;
     persist(); renderVote(); buzz(15);
     if(S.vote) toast({ja:"Notiert: Du würdest investieren.",vielleicht:"Notiert: Vielleicht.",nein:"Notiert: Heute nicht."}[S.vote]);
-    if(LIVE.on) LIVE.post("/api/live/vote", {vote:S.vote, prev}).catch(()=>{});
+    if(LIVE.on) LIVE.post("/api/live/vote", {vote:S.vote, prev}).catch(()=>toast("Netz gerade weg – deine Stimme kam nicht an."));
   });
 });
 renderVote();
@@ -2261,17 +2281,34 @@ const LIVE = { on:false, d:null, pending:0, timer:null, post:null };
   LIVE.post = (p, body) => fetch(api(p), {
     method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
   });
-  const ctl = new AbortController();
-  const t = setTimeout(()=>ctl.abort(), 3000);
-  fetch(api("/api/live/health"), {signal:ctl.signal})
-    .then(r => { clearTimeout(t); if(r.ok) connect(); })
-    .catch(()=>{ /* kein Server – alles bleibt lokal */ });
+  /* Kein Health-Tor mehr: Der Stream ist sein eigener Test. Bricht er ab
+     (WLAN weg, Neustart, Proxy-Fehler), verbindet die App selbst neu, mit
+     wachsendem Abstand und Streuung - 130 Geraete duerfen nicht im
+     Gleichtakt wiederkommen. */
+  let versuch = 0, es = null;
   function connect(){
-    const es = new EventSource(api("/api/live/stream"));
+    if(es) { try{ es.close(); }catch(e){} }
+    es = new EventSource(api("/api/live/stream"));
+    es.onopen = () => { versuch = 0; LIVE.on = true; };
+    es.onerror = () => {
+      LIVE.on = false;
+      if(es.readyState === 2){
+        const wart = Math.min(30000, 2000 * Math.pow(2, versuch++)) + Math.random() * 3000;
+        setTimeout(connect, wart);
+      }
+    };
+    let letzteRev = -1;
     es.onmessage = e => {
       LIVE.on = true;
       try{ LIVE.d = JSON.parse(e.data); }catch(err){ return; }
+      uhrAbgleichen(LIVE.d.jetztMs);
       renderLiveState();
+      /* Gaestebuch und Kreis nur nachladen, wenn sich dort etwas getan
+         hat - und dann gestreut, nicht alle 130 in derselben Sekunde. */
+      if(APP.token && typeof LIVE.d.rev === "number" && LIVE.d.rev !== letzteRev){
+        const erster = letzteRev === -1; letzteRev = LIVE.d.rev;
+        if(!erster) setTimeout(()=>{ ladeKreis(); ladeGaeste(); }, 1000 + Math.random() * 5000);
+      }
     };
     /* Zeiten kommen als eigenes Ereignis: einmal beim Verbinden und danach
        nur, wenn jemand sie im Monitor aendert. */
@@ -2281,11 +2318,11 @@ const LIVE = { on:false, d:null, pending:0, timer:null, post:null };
     es.addEventListener("signal", e => {
       try{ signalZeigen(JSON.parse(e.data)); }catch(err){}
     });
-    /* Wer sich mit mir verbindet, soll es sofort sehen: nach jedem
-       Live-Paket die Listen nachladen, aber gedrosselt. */
-    let kreisT = 0;
-    es.addEventListener("message", ()=>{ if(!APP.token) return; clearTimeout(kreisT); kreisT = setTimeout(()=>{ ladeKreis(); ladeGaeste(); }, 1500); });
   }
+  connect();
+  /* Nach dem Aufwecken (Handy aus der Tasche) nachladen, was verpasst wurde. */
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && APP.token){ ladeKreis(); ladeGaeste(); } });
+  window.addEventListener("online", ()=>{ if(APP.token) ladeAlles(); });
   /* Rueckfallweg, falls der Stream nicht zustande kommt (Proxy, alter
      Browser): einmal abfragen. Sonst haetten ausgerechnet die Gaeste mit
      der schlechtesten Verbindung die veralteten Zeiten aus der Datei. */
@@ -2302,6 +2339,7 @@ const LIVE = { on:false, d:null, pending:0, timer:null, post:null };
    gar keine. */
 function zeitenUebernehmen(z){
   if(!z || typeof z !== "object") return;
+  uhrAbgleichen(z.jetztMs);
   if(Array.isArray(z.appfrei)) CONFIG.appfrei = z.appfrei.filter(f => !f.aus);
   if(z.gates && typeof z.gates === "object") CONFIG.gates = z.gates;
   /* Handschalter aus dem Monitor: gilt sofort und ohne Uhrzeit. */
@@ -2313,7 +2351,9 @@ function renderLiveState(){
   const d = LIVE.d; if(!d) return;
   const g = $("#liveGuests");
   g.style.display = "block";
-  g.querySelector("b").textContent = d.guests;
+  /* Menschen im Raum (Check-in), nicht offene Verbindungen: die zaehlt
+     Tabs und Zuschauer von zu Hause mit. */
+  g.querySelector("b").textContent = d.kreis && typeof d.kreis.da === "number" ? d.kreis.da : d.guests;
   const total = d.votes.ja + d.votes.vielleicht + d.votes.nein;
   $("#voteLive").style.display = "block";
   ["ja","vielleicht","nein"].forEach(k=>{
@@ -2370,10 +2410,10 @@ $$("#bidRow [data-inc]").forEach(b=>{
     const amount = current + parseInt(b.dataset.inc, 10);
     const paddle = String(paddleNumber(S.name || "Gast"));
     try{
-      const r = await LIVE.post("/api/live/bid", {amount, paddle, name:S.name});
+      const r = await LIVE.post("/api/live/bid", {amount, paddle, name:S.name, t: APP.token || undefined});
       if(r.status === 409) toast("Überboten – im Raum liegt schon mehr.");
       else { buzz(25); toast("Dein Gebot: " + amount.toLocaleString("de-DE") + " € · Karte № " + paddle); }
-    }catch(e){ /* offline */ }
+    }catch(e){ toast("Gebot kam nicht durch – nochmal tippen."); buzz([30,60,30]); }
   });
 });
 
@@ -2564,15 +2604,21 @@ function avatarEl(g, klasse){
   if(g.ich) d.classList.add("ich");
   return d;
 }
+/* Acht Sekunden, dann Schluss: Ein Fetch, der im ueberlasteten WLAN eine
+   Minute haengt, laesst sonst Knoepfe tot und Listen leer, ohne ein Wort. */
+function mitFrist(url, opt, ms){
+  const c = new AbortController(); const id = setTimeout(()=>c.abort(), ms || 8000);
+  return fetch(url, Object.assign({}, opt, { signal:c.signal })).finally(()=>clearTimeout(id));
+}
 async function appGet(p){
-  const r = await fetch(p + (p.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(APP.token), { cache:"no-store" });
+  const r = await mitFrist(p + (p.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(APP.token), { cache:"no-store" });
   const d = await r.json().catch(()=>({}));
   if(!r.ok) throw Object.assign(new Error(d.error || String(r.status)), { status:r.status, daten:d });
   return d;
 }
 async function appPost(p, body){
-  const r = await fetch(p, { method:"POST", headers:{ "Content-Type":"application/json" },
-                             body: JSON.stringify(Object.assign({ t: APP.token }, body)) });
+  const r = await mitFrist(p, { method:"POST", headers:{ "Content-Type":"application/json" },
+                             body: JSON.stringify(Object.assign({ t: APP.token }, body)) }, 12000);
   const d = await r.json().catch(()=>({}));
   if(!r.ok) throw new Error(d.error || String(r.status));
   return d;
@@ -2612,6 +2658,7 @@ function renderGaeste(){
   $("#gastZahl").textContent = APP.gaeste.length ? (q ? liste.length + " von " : "") + APP.gaeste.length + " Gäste" : "";
   const hin = $("#gaesteHinweis");
   if(!APP.token) hin.textContent = "Mit deinem persönlichen Link siehst du hier alle Gäste des Abends.";
+  else if(APP.stand) hin.textContent = "Stand " + new Date(APP.stand).toLocaleTimeString("de-DE", { hour:"2-digit", minute:"2-digit" }) + " Uhr – gerade keine Verbindung.";
   else if(!APP.gaeste.length) hin.textContent = "Noch ist niemand da – die Liste füllt sich mit den Zusagen.";
   else hin.textContent = "";
 }
@@ -2633,8 +2680,21 @@ function renderKreis(){
   k.spaeter.forEach(g => sl.appendChild(gastRow(g)));
   if(n && !S.moments.verbindung) collect("verbindung", "Verbunden – ein Strich mehr im Kreis.");
 }
-async function ladeGaeste(){ try{ const d = await appGet("/api/app/gaeste"); APP.gaeste = d.gaeste; }catch(e){} renderGaeste(); }
-async function ladeKreis(){ try{ APP.kreis = await appGet("/api/app/kreis"); renderKreis(); }catch(e){} }
+/* Letzter Stand im Speicher: Bricht das WLAN ein, steht im Gaestebuch die
+   Liste von vorhin mit Uhrzeit - nicht "Noch ist niemand da" ueber 130
+   anwesenden Gaesten. */
+const cacheSet = (k, v) => { try{ localStorage.setItem("circle.c." + k, JSON.stringify({ t: Date.now(), v })); }catch(e){} };
+const cacheGet = k => { try{ return JSON.parse(localStorage.getItem("circle.c." + k)); }catch(e){ return null; } };
+APP.stand = 0;
+async function ladeGaeste(){
+  try{ const d = await appGet("/api/app/gaeste"); APP.gaeste = d.gaeste; cacheSet("gaeste", d.gaeste); APP.stand = 0; }
+  catch(e){ const c = cacheGet("gaeste"); if(c && !APP.gaeste.length){ APP.gaeste = c.v; APP.stand = c.t; } if(e.status === 429) toast("Netz überlastet – gleich nochmal."); }
+  renderGaeste();
+}
+async function ladeKreis(){
+  try{ APP.kreis = await appGet("/api/app/kreis"); cacheSet("kreis", APP.kreis); renderKreis(); }
+  catch(e){ const c = cacheGet("kreis"); if(c && !APP.kreis){ APP.kreis = c.v; renderKreis(); } }
+}
 async function ladeAlles(){ if(!APP.token) { renderGaeste(); return; } await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]); }
 
 /* ---- Kurzprofil ---- */
@@ -2690,7 +2750,9 @@ async function gastOeffnen(id){
   try{ const d = await appGet("/api/app/gast?wen=" + encodeURIComponent(id)); renderSheet(d.gast); }
   catch(e){ toast("Profil gerade nicht erreichbar."); }
 }
+const laufend = new Set();
 async function verbindenAktion(id, aktion){
+  const k = id + aktion; if(laufend.has(k)) return; laufend.add(k);
   try{
     const d = await appPost("/api/app/verbinden", { wen:id, aktion });
     buzz(20);
@@ -2699,7 +2761,8 @@ async function verbindenAktion(id, aktion){
     else if(aktion === "spaeter") toast("Notiert: später sprechen.");
     if(sheetGast && sheetGast.id === id) renderSheet(d.gast);
     ladeGaeste(); ladeKreis();
-  }catch(e){ toast(e.message || "Ging gerade nicht."); }
+  }catch(e){ if(e.message !== "keine offene Anfrage") toast(e.message || "Ging gerade nicht."); }
+  finally{ laufend.delete(k); }
 }
 /* vCard ueber das System-Teilen-Menue: ein Download-Link ist in der
    installierten App auf iOS unzuverlaessig, das Teilen-Menue nicht. */
@@ -2719,7 +2782,8 @@ async function kontaktSpeichern(g){
 /* ---- Tisch ---- */
 async function ladeTisch(gang){
   if(!APP.token) return;
-  try{ APP.tisch = await appGet("/api/app/tisch" + (gang ? "?gang=" + gang : "")); renderTisch(); }catch(e){}
+  try{ APP.tisch = await appGet("/api/app/tisch" + (gang ? "?gang=" + gang : "")); cacheSet("tisch", APP.tisch); renderTisch(); }
+  catch(e){ const c = cacheGet("tisch"); if(c && !APP.tisch){ APP.tisch = c.v; renderTisch(); } }
 }
 function renderTisch(){
   const t = APP.tisch; if(!t) return;
@@ -2735,12 +2799,12 @@ function renderTisch(){
      nicht die echte Sitzordnung - die kennt niemand vorher. */
   const rund = $("#tischRund"); rund.innerHTML = "";
   const leute = [{ id:"", name:APP.ich ? APP.ich.name : "Du", foto:APP.ich ? APP.ich.foto : "", ich:true, registriert:true }].concat(t.nachbarn);
-  const n = leute.length, R = rund.clientWidth / 2 - 30 || 110;
+  const B = rund.clientWidth || 260, n = leute.length, R = Math.max(B / 2 - 30, 60);
   leute.forEach((g, i) => {
     const a = Math.PI / 2 + (i / n) * Math.PI * 2;      // ich bei 90 Grad = unten
     const s = document.createElement("div"); s.className = "sitz" + (g.ich ? " ich" : "");
-    s.style.left = (50 + Math.cos(a) * R / rund.clientWidth * 100) + "%";
-    s.style.top  = (50 + Math.sin(a) * R / rund.clientHeight * 100) + "%";
+    s.style.left = (50 + Math.cos(a) * R / B * 100) + "%";
+    s.style.top  = (50 + Math.sin(a) * R / B * 100) + "%";
     s.appendChild(avatarEl(g));
     const i2 = document.createElement("i"); i2.textContent = g.ich ? "Du" : g.name.split(" ")[0]; s.appendChild(i2);
     if(!g.ich) s.addEventListener("click", ()=>gastOeffnen(g.id));
@@ -2775,10 +2839,14 @@ async function ladePlan(gang){
 }
 
 /* ---- Signale aus dem Monitor ---- */
+try{ APP.signalWeg = Number(localStorage.getItem("circle.sig") || 0); }catch(e){}
 function signalZeigen(s){
   APP.signal = s;
   const el = $("#signalBanner");
-  if(!s || s.t === APP.signalWeg){ el.classList.remove("show"); return; }
+  if(!s || s.t === APP.signalWeg || (Date.now() + ZEIT_OFFSET - s.t) > 15 * 60000){ el.classList.remove("show"); return; }
+  /* Beim Reconnect kommt dasselbe Signal noch einmal - dann kein zweites
+     Vibrieren und kein zweites Nachladen. */
+  const neu = s.t !== APP.zuletztGezeigt; APP.zuletztGezeigt = s.t;
   const knopf = $("#signalKnopf");
   if(s.art === "wechsel"){
     $("#signalLabel").textContent = "Tischwechsel · " + s.text;
@@ -2788,16 +2856,19 @@ function signalZeigen(s){
     knopf.style.display = ""; knopf.onclick = ()=>{ show("tisch"); ladeTisch(s.gang); };
     /* Der Plan kann juenger sein als die App: erst nachladen, dann den
        Text noch einmal setzen - sonst steht "Gang beginnt" statt der Nummer. */
-    ladeTisch(s.gang).then(text);
+    if(neu) setTimeout(()=>ladeTisch(s.gang).then(text), Math.random() * 6000);
   } else {
     $("#signalLabel").textContent = "Als Nächstes";
     $("#signalText").textContent = s.text || "";
     knopf.style.display = "none";
   }
   el.classList.add("show");
-  buzz([30, 40, 30]);
+  if(neu) buzz([30, 40, 30]);
 }
-$("#signalWeg").addEventListener("click", ()=>{ if(APP.signal) APP.signalWeg = APP.signal.t; $("#signalBanner").classList.remove("show"); });
+$("#signalWeg").addEventListener("click", ()=>{
+  if(APP.signal){ APP.signalWeg = APP.signal.t; try{ localStorage.setItem("circle.sig", String(APP.signal.t)); }catch(e){} }
+  $("#signalBanner").classList.remove("show");
+});
 
 /* ---- Ich bin da ---- */
 async function ichBinDa(){
@@ -2915,7 +2986,6 @@ $("#rgFertig").addEventListener("click", async ()=>{
     const d = await appPost("/api/app/profil", body);
     Object.assign(APP.ich, body, { foto: d.foto, registriert: d.registriert, sichtbar: d.sichtbar });
     S.company = [body.firma, body.rolle].filter(Boolean).join(" · "); persist(); renderCard();
-    collect("ankommen", "Angekommen – der erste Strich im Kreis.");
     /* Schritt 4: Startbildschirm. Auf iOS gibt es keinen Prompt, nur den
        Weg ueber Teilen; auf Android das Banner des Browsers. Wer schon in
        der installierten App ist, sieht direkt die Push-Frage. */
@@ -2927,8 +2997,8 @@ $("#rgFertig").addEventListener("click", async ()=>{
     $("#rgPushBlock").style.display = (istStandalone() && "PushManager" in window && APP.vapid && !APP.ich.push) ? "" : "none";
     rgSchritt("app");
     ladeAlles();
-  }catch(e){ $("#rgFehler").textContent = e.message || "Speichern ging nicht – gleich nochmal."; }
-  b.disabled = false;
+  }catch(e){ $("#rgFehler").textContent = (e.name === "AbortError") ? "Das Netz ist gerade langsam – bitte nochmal." : (e.message || "Speichern ging nicht – gleich nochmal."); }
+  finally{ b.disabled = false; }
 });
 $("#rgInstall").addEventListener("click", async ()=>{ if(!APP.install) return; APP.install.prompt(); try{ await APP.install.userChoice; }catch(e){} APP.install = null; $("#rgInstall").style.display = "none"; });
 $("#rgPush").addEventListener("click", async ()=>{ if(await pushErlauben()) $("#rgPushBlock").style.display = "none"; });
@@ -2936,10 +3006,17 @@ $("#rgSchliessen").addEventListener("click", ()=>{ $("#registrierung").classList
 $("#profilBtn").addEventListener("click", ()=>{ if(APP.ich) registrierungStarten(APP.ich); });
 
 /* ---- Einstieg mit dem persoenlichen Link ---- */
+function ladeschirm(an, fehler){
+  const el = $("#ladeschirm"); if(!el) return;
+  el.classList.toggle("show", !!an);
+  $("#ladeText").textContent = fehler ? "Das Netz war kurz weg." : "Einen Moment – wir holen deinen Platz.";
+  $("#ladeNochmal").style.display = fehler ? "" : "none";
+}
+$("#ladeNochmal").addEventListener("click", ()=>{ ladeschirm(true); appStarten(APP.token || S.token); });
 async function appStarten(t){
   APP.token = t;
   let d;
-  try{ d = await appGet("/api/app/ich?modus=" + (istStandalone() ? "standalone" : "browser")); }
+  try{ d = await appGet("/api/app/ich?modus=" + (istStandalone() ? "standalone" : "browser")); ladeschirm(false); }
   catch(e){
     if(e.status === 403){
       /* Noch nicht zugesagt: die Zusage ist der Weg in die App. Token
@@ -2950,7 +3027,9 @@ async function appStarten(t){
       $("#rgZuLink").href = "/einladung?t=" + encodeURIComponent(t);
       return;
     }
-    /* Server nicht erreichbar: die App laeuft lokal weiter, wie bisher. */
+    if(e.status === 404){ ladeschirm(false); $("#onboarding").classList.remove("hidden"); return; }
+    /* Server nicht erreichbar oder ueberlastet: nicht still aufgeben. */
+    ladeschirm(true, true);
     return;
   }
   APP.ich = d.ich; APP.vapid = d.vapid || "";
@@ -2984,18 +3063,28 @@ if(S.name) $("#onboarding").classList.add("hidden");
 {
   const q = new URLSearchParams(location.search);
   const t = q.get("t");
-  if(t && !q.get("name")){
-    /* Öffnet ein anderer Token als der zuletzt gespeicherte (z. B. geteiltes
-       Gerät, weitergeleiteter Link), gehört der lokale Fortschritt einem anderen
-       Gast – dann komplett zurücksetzen, sonst zeigt die Karte fremde Kontakt-
-       und Gesundheitsdaten. Felder immer setzen, nie aus altem S erben. */
-    if(S.token && S.token !== t){
+  /* Vom Startbildschirm kommt die App ohne ?t= - dann gilt der Token aus
+     dem Speicher. Sonst waere genau das Symbol, zu dem wir jeden Gast
+     draengen, eine leere Huelle. */
+  const tok = t || (!q.get("name") && S.token) || "";
+  if(tok && !q.get("name")){
+    if(t && S.token && S.token !== t){
+      /* Anderer Token als zuletzt (geteiltes Geraet, weitergeleiteter Link):
+         der lokale Fortschritt gehoert einem anderen - komplett zuruecksetzen. */
       try{ localStorage.removeItem("circle.v1"); }catch(e){}
       S = { name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
             stern:0, interesse:{},
         contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0 };
     }
-    appStarten(t);
+    /* Manifest je Gast: start_url traegt den Token, damit die installierte
+       App mit ihm startet. Und der Token in die Adresse, damit die vom
+       Service Worker gespeicherte Schale dieselbe ist. */
+    const ml = document.querySelector("link[rel=manifest]"); if(ml) ml.href = "/manifest.webmanifest?t=" + encodeURIComponent(tok);
+    if(!t) history.replaceState(null, "", "/?t=" + encodeURIComponent(tok));
+    /* Mit Token darf das Namensformular nie erscheinen. */
+    $("#onboarding").classList.add("hidden");
+    ladeschirm(true);
+    appStarten(tok);
   }
 }
 

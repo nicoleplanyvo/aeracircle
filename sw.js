@@ -20,7 +20,7 @@
  *    das Votum steht - das darf nie aus der Konserve kommen. Lieber ein
  *    leeres Feld als eine Zahl von vorhin.
  */
-const VERSION = "circle-2026-09-05a";
+const VERSION = "circle-2026-09-05b";
 const SCHALE  = "schale-" + VERSION;      // die Seite
 const STATIK  = "statik-" + VERSION;      // Bilder, Schriften
 
@@ -58,14 +58,19 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;   // Fremde Adressen: durchreichen
   if (url.pathname.startsWith("/api/")) return;      // Regel 3
+  /* Profilbilder NICHT auf dem Geraet horten: Die Portraits aller Gaeste
+     laegen sonst dauerhaft auf jedem Handy, auch nach dem Abend. */
+  if (url.pathname.startsWith("/foto/")) return;
 
   /* Regel 1: die Seite selbst */
   if (req.mode === "navigate") {
     e.respondWith(
-      fetch(req)
+      fetch(req, { cache: "no-store" })
         .then(a => {
-          const kopie = a.clone();
-          caches.open(SCHALE).then(c => c.put("/", kopie));
+          /* Nur eine gesunde Antwort wird zur Offline-Schale. Ein 502 vom
+             Proxy, einmal gespeichert, waere sonst bei jedem Netzausfall
+             "die App". */
+          if (a && a.ok) { const kopie = a.clone(); caches.open(SCHALE).then(c => c.put("/", kopie)); }
           return a;
         })
         .catch(() => caches.match("/").then(a => a || caches.match(req)))

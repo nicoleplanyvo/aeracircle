@@ -501,7 +501,12 @@
     <p class="fnote">
       Der Handschalter legt sofort ein Blatt über die App – ohne Uhrzeit, bis du
       ihn wieder löst. Für die Momente, die in keiner Liste stehen.
+      <span id="serverzeit" style="display:block;margin-top:6px"></span>
     </p>
+    <div class="exportzeile">
+      <button class="export" id="allesFrei" type="button">Notfall: alles frei</button>
+      <span class="fussnote" style="margin:0">Nimmt Signal und Handschalter zurück und schaltet alle Fenster aus – ein Griff.</span>
+    </div>
 
     <table class="ztab"><tbody id="zliste"></tbody></table>
     <div class="exportzeile">
@@ -533,9 +538,15 @@
       </div>
       <button class="export" id="signalfrei" type="button" style="display:none">Zurücknehmen</button>
     </div>
+    <div class="exportzeile" id="schnellsaetze">
+      <button type="button" class="export" data-satz="Wir starten in 10 Minuten.">In 10 Minuten</button>
+      <button type="button" class="export" data-satz="Bitte zurück an die Tische.">Zurück an die Tische</button>
+      <button type="button" class="export" data-satz="Gleich beginnt die Auktion.">Gleich Auktion</button>
+    </div>
     <div class="mailtools">
-      <input id="naechstesText" type="text" placeholder="Als Nächstes: z. B. „Ien Bäumler, Teil 1 – Augen nach vorn.“" autocomplete="off" maxlength="120">
-      <button type="button" class="export" id="naechstesKnopf">Als Nächstes senden</button>
+      <input id="naechstesText" type="text" placeholder="Ein Satz an alle: z. B. „Ien Bäumler, Teil 1 – Augen nach vorn.“" autocomplete="off" maxlength="120">
+      <button type="button" class="export" id="naechstesKnopf">Nur in die App</button>
+      <button type="button" class="export" id="raumKnopf">In die App + Push</button>
     </div>
     <div class="exportzeile" id="wechselKnoepfe"></div>
     <p class="fnote">Tischwechsel geht an alle offenen Apps und als Push mit der eigenen Tischnummer. Im app-freien Fenster hält der Server die Push zurück.</p>
@@ -624,6 +635,7 @@ let welleFunnel = null;    // welche Welle zeigt der Funnel?
 
 const txt = (el, s) => { el.textContent = s; return el; };
 const $   = s => document.querySelector(s);
+const $$  = s => Array.from(document.querySelectorAll(s));
 
 /* ---------- Demo: Count-up und Balken ---------- */
 const ease = p => 1 - Math.pow(1 - p, 3);
@@ -660,6 +672,9 @@ addEventListener("load", ()=>{
 async function laden(){
   if(laeuft) return;
   laeuft = true;
+  /* VOR dem Abruf: Scheitert der allererste Aufruf (WLAN weg), gaebe es
+     sonst nie ein Intervall - der Monitor waere bis F5 tot. */
+  taktStarten();
   try{
     const r = await fetch("/api/admin/pools" + (KEY ? "?key=" + encodeURIComponent(KEY) : ""),
                           { cache: "no-store" });
@@ -1246,7 +1261,9 @@ function zeitenZeichnen(z){
     aus.textContent = f.aus ? "Aus" : "An";
     /* Ausschalten statt loeschen: Eine geloeschte Zeit muss man neu
        eintippen, eine ausgeschaltete steht wieder da, wenn man sie braucht. */
-    aus.addEventListener("click", () => { f.aus = !f.aus; zeitenZeichnen(z); });
+    /* Sofort senden: Ein "Aus", das erst mit "Speichern" wirkt, wird vom
+       naechsten 60-Sekunden-Takt ueberschrieben - und der Knopf luegt. */
+    aus.addEventListener("click", () => { f.aus = !f.aus; zeitenZeichnen(z); zeitenSchreiben({ appfrei: z.appfrei }, f.aus ? "Ausgeschaltet" : "Eingeschaltet"); });
     td3.appendChild(aus);
     tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
     tb.appendChild(tr);
@@ -1259,35 +1276,69 @@ function appZeichnen(a){
   appStand = a;
   txt($("#aIm"), a.im); txt($("#aReg"), a.registriert); txt($("#aInst"), a.installiert);
   txt($("#aPush"), a.push); txt($("#aDa"), a.da); txt($("#aVerb"), a.verbunden);
-  txt($("#aPushNote"), a.pushMoeglich ? "" : "Push ist noch nicht scharf: VAPID_PUBLIC / VAPID_PRIVATE fehlen in der Umgebung.");
+  if(!a.pushMoeglich) txt($("#aPushNote"), "Push ist noch nicht scharf: VAPID_PUBLIC / VAPID_PRIVATE fehlen in der Umgebung.");
   const s = a.signal;
   txt($("#signalstatus"), s ? (s.art === "wechsel" ? "Tischwechsel läuft: " + s.text : "Als Nächstes: " + s.text) : "Kein Signal");
-  txt($("#signalseit"), s && s.t ? "seit " + new Date(s.t).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"}) : "");
+  txt($("#signalseit"), s && s.t ? "seit " + new Date(s.t).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"}) + (s.wer ? " · von " + s.wer : "") : "");
   $("#signalbox").classList.toggle("an", !!s);
   $("#signalfrei").style.display = s ? "" : "none";
+  /* "Rueckgaengig" nur in der ersten Minute nach einem Tischwechsel. */
+  $("#signalfrei").textContent = (s && s.art === "wechsel" && Date.now() - s.t < 60000) ? "Rückgängig" : "Zurücknehmen";
+  txt($("#serverzeit"), a.koeln ? "Serveruhr (Köln): " + a.koeln + (a.appfrei ? " · app-frei: " + a.appfrei : "") : "");
+  /* Das Ergebnis der letzten Push - bleibt stehen, bis die naechste kommt. */
+  const lp = a.letzterPush;
+  if(lp){
+    const wann = new Date(lp.t).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"});
+    txt($("#aPushNote"), (lp.laeuft ? "Push läuft … " : "Letzte Push " + wann + " · ") + (lp.art === "wechsel" ? lp.gang + ". Gang" : lp.art) +
+      " · " + (lp.gesendet || 0) + " gesendet von " + (lp.erreichbar || 0) + " erreichbaren" +
+      (lp.grund ? " – " + lp.grund : "") + (lp.tot ? " · " + lp.tot + " tote Abos entfernt" : "") + (lp.fehler ? " · " + lp.fehler + " Fehler" : ""));
+  } else if(a.pushMoeglich) txt($("#aPushNote"), "");
   const w = $("#wechselKnoepfe"); w.innerHTML = "";
   (a.gaenge || []).forEach((g, i) => {
     const b = document.createElement("button"); b.type = "button"; b.className = "export" + (a.gang === i + 1 ? " gross" : "");
     b.textContent = "Tischwechsel · " + (i + 1) + ". Gang " + g + (a.gang === i + 1 ? " (läuft)" : "");
     b.addEventListener("click", () => {
       if(!confirm("Tischwechsel zum " + (i + 1) + ". Gang (" + g + ") an alle Gäste schicken?")) return;
-      signalSchicken({ art:"wechsel", gang: i + 1 });
+      /* Handschalter oder Fenster aktiv: Der Server haelt die Push zurueck.
+         Das muss man wissen, BEVOR man drueckt. */
+      let trotz = false;
+      if(a.appfrei){ trotz = confirm("Die App ist gerade stumm gestellt (" + a.appfrei + "). Push trotzdem senden?"); if(!trotz) return; }
+      signalSchicken({ art:"wechsel", gang: i + 1, trotzAppfrei: trotz }, b);
     });
     w.appendChild(b);
   });
 }
-async function signalSchicken(rumpf){
+async function signalSchicken(rumpf, knopf){
   if(!KEY) return;
+  if(knopf){ knopf.disabled = true; knopf.dataset.text = knopf.textContent; knopf.textContent = "wird gesendet …"; }
   try{
-    const r = await fetch("/api/admin/signal?key=" + encodeURIComponent(KEY), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf) });
+    const c = new AbortController(); const tid = setTimeout(()=>c.abort(), 10000);
+    const r = await fetch("/api/admin/signal?key=" + encodeURIComponent(KEY), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf), signal: c.signal });
+    clearTimeout(tid);
     const d = await r.json();
     if(!r.ok){ alert(d.error || "Fehlgeschlagen"); return; }
-    if(d.push) txt($("#aPushNote"), "Push: " + d.push.gesendet + " zugestellt" + (d.push.grund ? " – " + d.push.grund : "") + (d.push.tot ? ", " + d.push.tot + " tote Abos entfernt" : ""));
     laden();
+    /* Die Push laeuft im Hintergrund weiter - in 8 s das Ergebnis holen. */
+    setTimeout(laden, 8000);
   }catch(e){ alert("Server nicht erreichbar."); }
+  finally{ if(knopf){ knopf.disabled = false; knopf.textContent = knopf.dataset.text; } }
 }
-$("#naechstesKnopf").addEventListener("click", () => { const t = $("#naechstesText").value.trim(); if(!t) return; signalSchicken({ art:"naechstes", text:t }); });
-$("#signalfrei").addEventListener("click", () => signalSchicken({ art:"frei" }));
+$("#allesFrei").addEventListener("click", async () => {
+  if(!confirm("Alles frei: Signal weg, Handschalter aus, alle Fenster aus?")) return;
+  await signalSchicken({ art:"frei" });
+  const z = zeitenStand ? JSON.parse(JSON.stringify(zeitenStand.appfrei || [])) : [];
+  z.forEach(f => f.aus = true);
+  await zeitenSchreiben({ jetzt: false, appfrei: z }, "Alles frei");
+});
+$("#naechstesKnopf").addEventListener("click", () => { const t = $("#naechstesText").value.trim(); if(!t) return; signalSchicken({ art:"naechstes", text:t }, $("#naechstesKnopf")); });
+$("#raumKnopf").addEventListener("click", () => {
+  const t = $("#naechstesText").value.trim(); if(!t) return;
+  let trotz = false;
+  if(appStand && appStand.appfrei){ trotz = confirm("Die App ist gerade stumm gestellt (" + appStand.appfrei + "). Push trotzdem senden?"); if(!trotz) return; }
+  signalSchicken({ art:"raum", text:t, trotzAppfrei: trotz }, $("#raumKnopf"));
+});
+$$("#schnellsaetze button").forEach(b => b.addEventListener("click", () => { $("#naechstesText").value = b.dataset.satz; }));
+$("#signalfrei").addEventListener("click", () => signalSchicken({ art:"frei", rueckgaengig: $("#signalfrei").textContent === "Rückgängig" }));
 async function planSchicken(senden){
   if(!KEY) return;
   const csv = $("#planCsv").value.trim(); if(!csv){ txt($("#planNote"), "Keine CSV."); return; }
@@ -1306,6 +1357,13 @@ async function planSchicken(senden){
 }
 $("#planProbe").addEventListener("click", () => planSchicken(false));
 $("#planSenden").addEventListener("click", () => planSchicken(true));
+
+/* Der Monitor hoert am Stream mit: Ein Signal, das Mathis drueckt, steht
+   bei Desi in einer Sekunde - nicht erst nach 60. */
+try{
+  const esM = new EventSource("/api/live/stream");
+  esM.addEventListener("signal", () => { setTimeout(laden, 300); });
+}catch(e){}
 
 async function zeitenHolen(){
   try{

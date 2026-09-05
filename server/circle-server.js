@@ -306,6 +306,14 @@ const clients = new Set();
  * Ohne das kann ein Skript mit wenigen Requests den Applaus aufblasen oder
  * Stimmen loeschen. Kein Ersatz fuer echte Auth, aber fuer einen Abend genug. */
 const RL = new Map();
+/* Die Limits fuer /api/app und /api/live sind auf den SAAL bemessen, nicht
+ * auf einen Menschen: Im Veranstaltungs-WLAN teilen sich 130 Gaeste eine
+ * Adresse. Ein Limit je IP, das fuer einen Gast grosszuegig ist, sperrt
+ * dort nach dem ersten Applaus den ganzen Raum aus - und die App zeigt dann
+ * leere Listen ohne Fehler. Was ein einzelner Gast nicht darf (Liste
+ * abgrasen), regelt anfrageErlaubt() je Token. */
+const LIMIT_APP  = [6000, 60_000];
+const LIMIT_LIVE = [1500, 10_000];
 function rateLimit(req, res, schluessel, max, fensterMs) {
   const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() ||
     (req.socket && req.socket.remoteAddress) || "?";
@@ -338,6 +346,8 @@ function kreisZahlen() {
   }
   for (const [k, v] of Object.entries(state.verbindungen || {})) if (v.status === "verbunden" && k.startsWith(RUNDE + "|")) verbunden++;
   return { im, registriert: reg, installiert: inst, da, push, verbunden, gang: tische().gang, runde: RUNDE,
+           letzterPush: state.letzterPush || null, koeln: berlinJetzt().hhmm, jetztMs: Date.now(),
+           appfrei: appfreiJetzt() ? ((appfreiJetzt().was) || "Handschalter") : "",
            pushMoeglich: pushMoeglich(), signal: state.signal || null, gaenge: tische().gaenge, tische: tische().liste.length };
 }
 function snapshot() {
@@ -353,9 +363,15 @@ function snapshot() {
     /* Der Abend in Zahlen fuer den Monitor: wer ist in der App, wer ist
      * im Haus, wen erreicht eine Push. Wenn der Tischwechsel nur die
      * Haelfte erreicht, soll das VORHER auf dem Schirm stehen. */
-    kreis: kreisZahlen()
+    kreis: kreisZahlen(),
+    /* rev steigt bei jeder Aenderung an Verbindungen, Profilen und
+     * Anwesenheit. Die App laedt Gaestebuch und Kreis nur nach, wenn sich
+     * rev geaendert hat - nicht bei jedem Applaus. */
+    rev: state.rev || 0,
+    jetztMs: Date.now()
   });
 }
+function revHoch() { state.rev = (state.rev || 0) + 1; }
 
 /* Die Zeiten gehen als EIGENES Ereignis raus, nicht im snapshot: Der
  * snapshot fliegt bei jedem Applaus und jeder Stimme durch die Leitung, die
@@ -363,20 +379,30 @@ function snapshot() {
  * mitzuschicken hiesse, das WLAN ausgerechnet dort zu belasten, wo 130
  * Geraete an derselben Zelle haengen. */
 function zeitenZeile() {
-  return "event: zeiten\ndata: " + JSON.stringify(state.zeiten) + "\n\n";
+  return "event: zeiten\ndata: " + JSON.stringify(Object.assign({}, state.zeiten,
+    { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt() })) + "\n\n";
 }
-function zeitenSenden() {
-  const line = zeitenZeile();
-  for (const res of clients) res.write(line);
+/* Ein einziger halbtoter Socket darf nicht die Schleife sprengen - sonst
+ * bekommt die halbe Menge hinter ihm den Tischwechsel nie. */
+function anAlle(line) {
+  for (const res of clients) {
+    try {
+      if (res.writableEnded || res.destroyed) { clients.delete(res); continue; }
+      res.write(line);
+    } catch (e) { clients.delete(res); }
+  }
 }
+function zeitenSenden() { anAlle(zeitenZeile()); }
+/* Herzschlag alle 20 s: Ohne Datenverkehr kappt ein Proxy die Leitung nach
+ * seinem Timeout, und der Browser merkt es erst beim naechsten Ereignis. */
+setInterval(() => anAlle(": hb\n\n"), 20_000);
 
 let pushTimer = null;
 function broadcast() {           // gebündelt, max. ~7 Updates/s
   if (pushTimer) return;
   pushTimer = setTimeout(() => {
     pushTimer = null;
-    const line = "data: " + snapshot() + "\n\n";
-    for (const res of clients) res.write(line);
+    anAlle("data: " + snapshot() + "\n\n");
   }, 140);
 }
 
@@ -778,12 +804,19 @@ function tischnachbarn(ich, gangNr) {
  * dieselbe Antwort fuer Push: Eine Nachricht, die im Impuls rausgeht, holt
  * niemand zurueck. Deshalb die Fenster hier noch einmal auswerten. */
 const EVENT_DATE = "2026-09-16";
+/* Uhrzeit in Koeln, egal in welcher Zone der Server laeuft. Ein Server auf
+ * UTC haette den Push-Stopp zwei Stunden zu spaet greifen lassen - mitten
+ * in Iens Impuls. */
+function berlinJetzt() {
+  const teile = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(new Date());
+  const t = {}; for (const x of teile) t[x.type] = x.value;
+  return { hhmm: (t.hour === "24" ? "00" : t.hour) + ":" + t.minute, datum: t.year + "-" + t.month + "-" + t.day };
+}
 function appfreiJetzt() {
   const z = state.zeiten || {};
   if (z.jetzt) return z.jetzt;
-  const jetzt = new Date();
-  const hhmm = String(jetzt.getHours()).padStart(2, "0") + ":" + String(jetzt.getMinutes()).padStart(2, "0");
-  const heute = jetzt.getFullYear() + "-" + String(jetzt.getMonth() + 1).padStart(2, "0") + "-" + String(jetzt.getDate()).padStart(2, "0");
+  const { hhmm, datum: heute } = berlinJetzt();
   if (heute !== EVENT_DATE) return null;
   return (z.appfrei || []).find(f => !f.aus && hhmm >= f.from && hhmm < f.to) || null;
 }
@@ -868,8 +901,13 @@ const tischName = nr => ((tische().liste.find(x => x.nr === nr) || {}).name || "
 
 /* Signale (Als Naechstes, Tischwechsel) als eigenes SSE-Ereignis, wie die
  * Zeiten: selten, aber wenn, dann sofort an alle. */
-function signalZeile() { return "event: signal\ndata: " + JSON.stringify(state.signal || null) + "\n\n"; }
-function signalSenden() { const line = signalZeile(); for (const res of clients) res.write(line); }
+/* Ein Signal verfaellt nach 15 Minuten: Wer nach dem Neustart um 20:30
+ * neu verbindet, soll nicht den Tischwechsel von 19:20 samt Vibration
+ * noch einmal bekommen. */
+const SIGNAL_LEBT = 15 * 60_000;
+function signalAktuell() { return state.signal && (Date.now() - state.signal.t) < SIGNAL_LEBT ? state.signal : null; }
+function signalZeile() { return "event: signal\ndata: " + JSON.stringify(signalAktuell()) + "\n\n"; }
+function signalSenden() { anAlle(signalZeile()); }
 
 /* Ein Gast darf anfragen, aber nicht die Liste abgrasen. Das ist kein
  * Angriff, sondern der Reflex "ich sammle mal alle" - und er macht das
@@ -1990,7 +2028,8 @@ const server = http.createServer((req, res) => {
    * Ohne ihn haetten genau die Gaeste mit der schlechtesten Verbindung die
    * veralteten Zeiten aus der App-Datei. */
   if (req.method === "GET" && url === "/api/live/zeiten") {
-    return json(res, 200, { ok: true, zeiten: state.zeiten });
+    return json(res, 200, { ok: true, zeiten: Object.assign({}, state.zeiten,
+      { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt() }) });
   }
 
   /* Health verraet keine Geheimnisse, aber ob der Monitor-Schutz greift –
@@ -2009,6 +2048,8 @@ const server = http.createServer((req, res) => {
        * jede Stripe-Meldung ab und der Gast bleibt auf "zugesagt" stehen. */
       stripeModus: STRIPE_KEY ? (STRIPE_KEY.startsWith("sk_live") ? "live" : "test") : "",
       stripeWebhook: !!STRIPE_WEBHOOK_SECRET,
+      /* Damit um 17:00 pruefbar ist, ob die Uhr stimmt. */
+      jetztMs: Date.now(), koeln: berlinJetzt().hhmm,
       /* Nur ob gesetzt, nie die Werte - sonst liesse sich von aussen nicht
        * pruefen, ob die Mail-Variablen im Panel angekommen sind. */
       mail: !!LETTERMINT_TOKEN,
@@ -2038,7 +2079,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "POST" && url === "/api/live/applause") {
-    if (!rateLimit(req, res, "live", 60, 10_000)) return;
+    if (!rateLimit(req, res, "live", LIMIT_LIVE[0], LIMIT_LIVE[1])) return;
     return readBody(req, res, body => {
       const n = Math.min(Math.max(parseInt(body.n, 10) || 0, 0), 30);
       state.applause += n;
@@ -2048,7 +2089,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "POST" && url === "/api/live/vote") {
-    if (!rateLimit(req, res, "live", 60, 10_000)) return;
+    if (!rateLimit(req, res, "live", LIMIT_LIVE[0], LIMIT_LIVE[1])) return;
     return readBody(req, res, body => {
       const vote = VOTES.includes(body.vote) ? body.vote : null;
       const prev = VOTES.includes(body.prev) ? body.prev : null;
@@ -2063,7 +2104,7 @@ const server = http.createServer((req, res) => {
    * vorherige Wahl mit, damit ein Umentscheiden nicht doppelt zaehlt -
    * der Server fuehrt bewusst keine Liste, wer was gewaehlt hat. */
   if (req.method === "POST" && url === "/api/live/stern") {
-    if (!rateLimit(req, res, "live", 60, 10_000)) return;
+    if (!rateLimit(req, res, "live", LIMIT_LIVE[0], LIMIT_LIVE[1])) return;
     return readBody(req, res, body => {
       const gueltig = n => Number.isInteger(n) && n >= 1 && n <= 5;
       const stern = gueltig(body.stern) ? body.stern : null;
@@ -2078,7 +2119,7 @@ const server = http.createServer((req, res) => {
   /* "Ich biete ein Intro" / "Ich moechte als Investor:in sprechen".
    * Ein Schalter, kein Zaehler: der Gast kann ihn wieder ausmachen. */
   if (req.method === "POST" && url === "/api/live/interesse") {
-    if (!rateLimit(req, res, "live", 60, 10_000)) return;
+    if (!rateLimit(req, res, "live", LIMIT_LIVE[0], LIMIT_LIVE[1])) return;
     return readBody(req, res, body => {
       const art = (body.art === "intro" || body.art === "investor") ? body.art : null;
       if (!art) return json(res, 400, { error: "unbekannte Art" });
@@ -2090,20 +2131,27 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === "POST" && url === "/api/live/bid") {
-    if (!rateLimit(req, res, "live", 60, 10_000)) return;
+    if (!rateLimit(req, res, "live", LIMIT_LIVE[0], LIMIT_LIVE[1])) return;
     return readBody(req, res, body => {
       const amount = parseInt(body.amount, 10) || 0;
       const current = state.bid ? state.bid.amount : 0;
       // Sprung nach oben deckeln: ein einzelnes Gebot darf current nicht um mehr
       // als 5.000 € ueberbieten. Sonst nagelt ein Fake-Maxgebot die Auktion an
       // die 2-Mio-Decke und jedes echte Gebot gilt danach als "zu niedrig".
-      if (amount <= current || amount > current + 500_000 || amount > 2_000_000) {
+      if (amount <= current || amount > current + 5_000 || amount > 2_000_000) {
         return json(res, 409, { error: "ungültiges Gebot", bid: state.bid });
       }
+      /* Nach dem Zuschlag ist Schluss - egal, was noch aus der App kommt. */
+      if (state.auktion && state.auktion.zu) return json(res, 409, { error: "Die Auktion ist beendet.", bid: state.bid });
+      /* Mit Token: Bieterkarte und Name kommen vom Gast selbst - die
+       * Kreisnummer ist eindeutig, ein Hash aus dem Namen war es nicht
+       * (88 Nummern fuer 130 Gaeste). Ohne Token (Demo, Station) wie
+       * bisher aus dem Rumpf. */
+      const bieter = findInvite(body.t);
       state.bid = {
         amount,
-        paddle: clean(body.paddle, 4),
-        name: clean(body.name, 30),
+        paddle: bieter ? String(bieter.ticketNr || "").replace(/\D/g, "") : clean(body.paddle, 4),
+        name: bieter ? (bieter.name || "").split(" ")[0] : clean(body.name, 30),
         t: Date.now()
       };
       state.bids.unshift(state.bid);
@@ -2202,7 +2250,7 @@ const server = http.createServer((req, res) => {
 
   /* Ich selbst: Register-Daten plus Profil. Erster Aufruf der App. */
   if (req.method === "GET" && url === "/api/app/ich") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const inv = findInvite(q.get("t"));
     if (!inv) return json(res, 404, { error: "unbekannt" });
     if (!imKreis(inv)) return json(res, 403, { error: "nicht zugesagt", status: inv.status });
@@ -2226,7 +2274,7 @@ const server = http.createServer((req, res) => {
       da: inv.da || 0, push: !!inv.push, runde: rundeVon(inv),
       installiert: !!(inv.app && inv.app.standalone),
       tisch: meinTisch(inv), gang: tische().gang
-    }, vapid: VAPID.publicKey, signal: state.signal || null });
+    }, vapid: VAPID.publicKey, signal: signalAktuell(), jetztMs: Date.now() });
   }
 
   /* Registrierung abschliessen: Profil vervollstaendigen, Bild, Freigabe.
@@ -2250,6 +2298,9 @@ const server = http.createServer((req, res) => {
        * Kurzprofil, klein fuer die Liste. Kein Bild ist ein gueltiger
        * Zustand - keine Blockade. */
       if (body.foto === "") {
+        /* Loeschen heisst loeschen - nicht nur das Feld leeren. Sonst bleibt
+         * das Bild unter seiner Adresse abrufbar. */
+        if (p.foto) for (const sfx of ["", "-m"]) { try { fs.unlinkSync(path.join(FOTO_DIR, p.foto + sfx + ".jpg")); } catch (e) {} }
         p.foto = "";
       } else if (body.foto) {
         const gross = jpegAusDataUrl(body.foto, 400_000);
@@ -2267,7 +2318,7 @@ const server = http.createServer((req, res) => {
         p.foto = id;
       }
       if (!p.registriert) { p.registriert = Date.now(); logEvent("App registriert", inv.name, inv.pool); }
-      dirty = true; broadcast();
+      dirty = true; revHoch(); broadcast();
       return json(res, 200, { ok: true, foto: fotoUrl(inv, false), sichtbar: p.sichtbar, registriert: p.registriert });
     });
   }
@@ -2279,7 +2330,7 @@ const server = http.createServer((req, res) => {
     return fs.readFile(path.join(FOTO_DIR, name), (err, buf) => {
       if (err) { res.writeHead(404); return res.end(); }
       res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": buf.length,
-                           "Cache-Control": "public, max-age=86400" });
+                           "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff" });
       res.end(req.method === "HEAD" ? undefined : buf);
     });
   }
@@ -2288,7 +2339,7 @@ const server = http.createServer((req, res) => {
    * geoeffnet hat - sonst ist die Liste am Anfang leer und niemand kommt
    * wieder. Registrierte mit Bild zuerst: das belohnt das Hochladen. */
   if (req.method === "GET" && url === "/api/app/gaeste") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
     const liste = Object.values(state.invites).filter(inv => imKreis(inv) && inv !== ich && gleicheRunde(inv, ich))
@@ -2299,7 +2350,7 @@ const server = http.createServer((req, res) => {
 
   /* Kurzprofil eines anderen. */
   if (req.method === "GET" && url === "/api/app/gast") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
     const inv = findByGid(q.get("wen"));
@@ -2310,7 +2361,7 @@ const server = http.createServer((req, res) => {
   /* Verbinden. Zustaende: offen -> verbunden | abgelehnt | spaeter.
    * Idempotent je Paar. */
   if (req.method === "POST" && url === "/api/app/verbinden") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     return readBody(req, res, body => {
       const ich = findInvite(body.t);
       if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
@@ -2327,7 +2378,7 @@ const server = http.createServer((req, res) => {
         else if (v && v.status === "offen" && v.von === b) {
           /* Der andere hatte schon gefragt: das ist die Zustimmung. */
           v.status = "verbunden"; v.antwort = Date.now();
-          logEvent("verbunden", ich.name + " · " + andere.name, "");
+          logEvent("verbunden", "", "");
         } else if (!v || v.status === "spaeter" || (v.status === "abgelehnt" && v.von !== a)) {
           if (!anfrageErlaubt(a)) return json(res, 429, { error: "Genug für den Moment – sprich erst mit den Leuten." });
           state.verbindungen[k] = v = { von: a, status: "offen", t: Date.now(), antwort: 0 };
@@ -2336,7 +2387,7 @@ const server = http.createServer((req, res) => {
       } else if (aktion === "annehmen") {
         if (!v || v.status !== "offen" || v.von !== b) return json(res, 409, { error: "keine offene Anfrage" });
         v.status = "verbunden"; v.antwort = Date.now();
-        logEvent("verbunden", ich.name + " · " + andere.name, "");
+        logEvent("verbunden", "", "");
       } else if (aktion === "ablehnen") {
         if (!v || v.status !== "offen" || v.von !== b) return json(res, 409, { error: "keine offene Anfrage" });
         v.status = "abgelehnt"; v.antwort = Date.now();
@@ -2350,7 +2401,7 @@ const server = http.createServer((req, res) => {
         v = null;
       } else return json(res, 400, { error: "unbekannte Aktion" });
 
-      dirty = true;
+      dirty = true; revHoch();
       /* Beide Seiten sollen es sofort sehen - der andere wartet vielleicht
        * gerade auf die Antwort. */
       broadcast();
@@ -2361,7 +2412,7 @@ const server = http.createServer((req, res) => {
   /* Notiz zu einer Verbindung - "wollte ihr das Deck schicken". Gehoert
    * nur dem, der sie schreibt; der andere sieht sie nie. */
   if (req.method === "POST" && url === "/api/app/notiz") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     return readBody(req, res, body => {
       const ich = findInvite(body.t);
       if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
@@ -2378,7 +2429,7 @@ const server = http.createServer((req, res) => {
 
   /* Mein Kreis: alle Begegnungen des Abends an einem Ort. */
   if (req.method === "GET" && url === "/api/app/kreis") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
     const a = gid(ich);
@@ -2398,11 +2449,11 @@ const server = http.createServer((req, res) => {
 
   /* "Ich bin da." Der erste Moment, in dem der Gast die App benutzt. */
   if (req.method === "POST" && url === "/api/app/da") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     return readBody(req, res, body => {
       const inv = findInvite(body.t);
       if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
-      if (!inv.da) { inv.da = Date.now(); logEvent("da", inv.name, inv.pool); dirty = true; broadcast(); }
+      if (!inv.da) { inv.da = Date.now(); logEvent("da", inv.name, inv.pool); dirty = true; revHoch(); broadcast(); }
       return json(res, 200, { ok: true, da: inv.da });
     });
   }
@@ -2411,7 +2462,7 @@ const server = http.createServer((req, res) => {
    * Nachbarn - mit Bild, damit "wer sitzt links und rechts" kein Raetsel ist,
    * sondern ein Gespraechsanfang. */
   if (req.method === "GET" && url === "/api/app/tisch") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
     const t = tische();
@@ -2429,7 +2480,7 @@ const server = http.createServer((req, res) => {
 
   /* Der ganze Plan - damit nicht 100 Gaeste vor dem Bildschirm stehen. */
   if (req.method === "GET" && url === "/api/app/tischplan") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
     const t = tische();
@@ -2447,7 +2498,7 @@ const server = http.createServer((req, res) => {
 
   /* Push-Abonnement des Gastes. Kommt erst aus der installierten App (iOS). */
   if (req.method === "POST" && url === "/api/app/push") {
-    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     return readBody(req, res, body => {
       const inv = findInvite(body.t);
       if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
@@ -3179,31 +3230,65 @@ const server = http.createServer((req, res) => {
         if (art === "wechsel") {
           const gang = parseInt(body.gang, 10) || 0;
           if (gang < 1 || gang > t.gaenge.length) return json(res, 400, { error: "gang 1–" + t.gaenge.length });
+          /* Zweimal gedrueckt = zweimal 130 Pushes. Innerhalb von 30 s
+           * gilt der zweite Druck als der erste. */
+          if (state.letzterPush && state.letzterPush.laeuft && Date.now() - state.letzterPush.t < 30_000) {
+            return json(res, 409, { error: "Der Tischwechsel läuft gerade schon – einen Moment." });
+          }
+          const vorher = t.gang;
           t.gang = gang;
-          state.signal = { art: "wechsel", gang, text: t.gaenge[gang - 1], t: Date.now() };
+          state.signal = { art: "wechsel", gang, text: t.gaenge[gang - 1], t: Date.now(), wer, vorherGang: vorher };
           dirty = true; signalSenden();
           logEvent("Tischwechsel", wer, t.gaenge[gang - 1]);
-          /* Persoenlich je Gast: "Dein naechster Gang findet an Tisch 7 statt." */
-          const ergebnis = await pushJeGast(inv => {
+          /* SOFORT antworten. Die Pushes laufen im Hintergrund; ihr Ergebnis
+           * steht in state.letzterPush und damit im Monitor - der Knopf darf
+           * nicht minutenlang haengen, sonst drueckt jemand nochmal. */
+          state.letzterPush = { art: "wechsel", gang, t: Date.now(), wer, laeuft: true, gesendet: 0, tot: 0, fehler: 0,
+                                erreichbar: pushbar(), grund: "" };
+          const gangName = t.gaenge[gang - 1];
+          pushJeGast(inv => {
             const nr = meinTisch(inv, gang);
-            return { titel: t.gaenge[gang - 1] + " – Tischwechsel",
-                     text: nr ? "Dein nächster Gang findet an Tisch " + nr + (tischName(nr) ? " (" + tischName(nr) + ")" : "") + " statt."
+            /* Der Tischwechsel nennt die Menschen, nicht nur die Nummer:
+             * Man geht nicht zu "Tisch 7", man geht zu Anna und Jonas. */
+            const nachbarn = nr ? tischnachbarn(inv, gang).map(n => n.name.split(" ")[0]) : [];
+            const wer3 = nachbarn.slice(0, 3).join(", ") + (nachbarn.length > 3 ? " und " + (nachbarn.length - 3) + " weitere" : "");
+            return { titel: gangName + " – Tischwechsel",
+                     text: nr ? "Dein nächster Gang: Tisch " + nr + (tischName(nr) ? " · " + tischName(nr) : "") + (wer3 ? " – mit " + wer3 + "." : ".")
                               : "Der nächste Gang beginnt – schau in der App nach deinem Tisch.",
                      url: "/?t=" + inv.token + "#tisch" };
-          });
-          return json(res, 200, { ok: true, signal: state.signal, push: ergebnis });
+          }, { trotzAppfrei: !!body.trotzAppfrei }).then(e => {
+            Object.assign(state.letzterPush, e, { laeuft: false }); dirty = true;
+            logEvent("Push Tischwechsel", wer, (e.gesendet || 0) + " gesendet" + (e.grund ? " – " + e.grund : "") + (e.tot ? ", " + e.tot + " tote Abos" : ""));
+          }).catch(err => { Object.assign(state.letzterPush, { laeuft: false, fehler: 1, grund: String(err && err.message || err) }); });
+          return json(res, 200, { ok: true, signal: state.signal, push: state.letzterPush });
         }
-        if (art === "naechstes") {
-          state.signal = { art: "naechstes", text: cleanText(body.text, 120) || "Gleich geht es weiter.", t: Date.now() };
+        if (art === "naechstes" || art === "raum") {
+          /* "raum": ein Satz an alle, auch als Push - fuer das, was in keiner
+           * Liste steht. "naechstes": nur in die offenen Apps. */
+          const text = cleanText(body.text, 120) || "Gleich geht es weiter.";
+          state.signal = { art: "naechstes", text, t: Date.now(), wer };
           dirty = true; signalSenden();
-          logEvent("Als Nächstes", wer, state.signal.text);
-          return json(res, 200, { ok: true, signal: state.signal });
+          logEvent(art === "raum" ? "An den Raum" : "Als Nächstes", wer, text);
+          if (art === "raum") {
+            state.letzterPush = { art: "raum", t: Date.now(), wer, laeuft: true, gesendet: 0, tot: 0, fehler: 0, erreichbar: pushbar(), grund: "" };
+            pushAnAlle({ titel: "THE CIRCLE", text, url: "/" }, { trotzAppfrei: !!body.trotzAppfrei })
+              .then(e => { Object.assign(state.letzterPush, e, { laeuft: false }); dirty = true; })
+              .catch(() => { state.letzterPush.laeuft = false; });
+          }
+          return json(res, 200, { ok: true, signal: state.signal, push: state.letzterPush || null });
         }
         if (art === "frei") {
+          /* "Rueckgaengig" nach einem falschen Gang: der Gang geht mit
+           * zurueck, sonst rechnen Tischansichten und der naechste Push
+           * weiter mit dem falschen. */
+          if (state.signal && state.signal.art === "wechsel" && body.rueckgaengig && typeof state.signal.vorherGang === "number") {
+            t.gang = state.signal.vorherGang;
+            logEvent("Tischwechsel zurückgenommen", wer, "");
+          }
           state.signal = null; dirty = true; signalSenden();
-          return json(res, 200, { ok: true, signal: null });
+          return json(res, 200, { ok: true, signal: null, gang: t.gang });
         }
-        return json(res, 400, { error: "art: wechsel | naechstes | frei" });
+        return json(res, 400, { error: "art: wechsel | naechstes | raum | frei" });
       });
     }
 
@@ -3554,13 +3639,23 @@ const server = http.createServer((req, res) => {
     return serveFile(res, "station.html", "text/html; charset=utf-8");
   }
   if (req.method === "GET" && (url === "/" || url === "/index.html")) {
-    return serveFile(res, "index.html", "text/html; charset=utf-8");
+    return serveFile(res, "index.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
   }
 
   /* --- Die App auf dem Startbildschirm --- */
 
+  /* Das Manifest bekommt den Token des Gastes in die start_url: Sonst
+   * startet die App vom Startbildschirm unter "/" - ohne Token, ohne
+   * Gaestebuch, ohne Tisch, ohne Push. Genau das Symbol, zu dem wir jeden
+   * Gast zweimal draengen, waere dann eine leere Huelle. */
   if (req.method === "GET" && url === "/manifest.webmanifest") {
-    return serveFile(res, "manifest.webmanifest", "application/manifest+json; charset=utf-8");
+    let m;
+    try { m = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.webmanifest"), "utf8")); }
+    catch (e) { res.writeHead(500); return res.end("Manifest fehlt"); }
+    const inv = findInvite(q.get("t"));
+    if (inv) { m.start_url = "/?t=" + encodeURIComponent(inv.token); m.id = "/?t=" + encodeURIComponent(inv.token); }
+    res.writeHead(200, { "Content-Type": "application/manifest+json; charset=utf-8", "Cache-Control": "no-cache" });
+    return res.end(JSON.stringify(m));
   }
 
   /* Der Service Worker MUSS unter / liegen, sonst gilt er nur fuer einen
