@@ -150,6 +150,18 @@
   }
   .mailtools input::placeholder{color:var(--faint)}
   .mailtools input:focus{border-color:var(--blau)}
+  .mailtools select{background:rgba(248,247,244,.06);border:1px solid var(--line-soft);color:var(--ivory);
+    font-family:var(--sans);font-size:13px;padding:9px 12px;outline:none}
+  .mailtools select option{background:#122648;color:var(--ivory)}
+  .galraster{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px}
+  .galraster img{width:64px;height:64px;object-fit:cover;border:1px solid var(--line-soft);background:#16274a;cursor:pointer}
+  .galraster img.zu{border-color:#8fd3a8}
+  .sendung{padding:8px 0;border-top:1px solid var(--line-soft);font-size:12px;color:var(--muted)}
+  .sendung b{color:var(--ivory);font-weight:500}
+  .newszeile{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line-soft);font-size:12px;color:var(--muted)}
+  .newszeile b{color:var(--ivory);font-weight:500;flex:1}
+  .fbzeile{padding:6px 0;border-top:1px solid var(--line-soft);font-size:12px;color:var(--muted)}
+  .fbzeile b{color:var(--ivory);font-weight:500}
   .mailtools .mzahl{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
   .mailtable{overflow-x:auto}
   .mailtable table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:720px}
@@ -512,6 +524,17 @@
       <button class="export" id="allesFrei" type="button">Notfall: alles frei</button>
       <span class="fussnote" style="margin:0">Nimmt Signal und Handschalter zurück und schaltet alle Fenster aus – ein Griff.</span>
     </div>
+    <!-- Die Phase der App: vor · abend · danach. Automatisch nach Datum;
+         von Hand, wenn am Morgen des 17. die Startseite nicht mehr
+         "heute Abend" sagen soll - oder zum Testen des "Danach". -->
+    <div class="exportzeile" id="phaseZeile">
+      <span class="fussnote" style="margin:0">Phase der App:</span>
+      <button class="export" data-phase="" type="button">Automatik</button>
+      <button class="export" data-phase="vor" type="button">Vor dem Abend</button>
+      <button class="export" data-phase="abend" type="button">Der Abend</button>
+      <button class="export" data-phase="danach" type="button">Danach</button>
+      <span class="fussnote" style="margin:0" id="phaseNote"></span>
+    </div>
 
     <table class="ztab"><tbody id="zliste"></tbody></table>
     <div class="exportzeile">
@@ -618,6 +641,105 @@
       <span class="fussnote" style="margin:0" id="auktionNote"></span>
     </div>
     <div id="bieterListe" class="fnote"></div>
+  </div>
+
+  <!-- 6f · Nach dem Abend. Der eine Sendekanal (Push und Mail), die News,
+       die Galerie mit Zuordnung, das Feedback. Alles, was die App nach
+       dem 16.09. am Leben haelt. -->
+  <div class="panel" id="nachpanel">
+    <span class="label">Welle 4 · was die App nach dem 16.09. am Leben hält</span>
+    <h2>Nach dem Abend</h2>
+
+    <span class="label" style="display:block;margin-top:18px">Nachricht an die Runde</span>
+    <p class="fnote">Push an alle, die sie erlaubt haben, Mail an die anderen – oder beides. Erst die Probe an eine Adresse, dann an alle. Ein Anlass geht nur einmal raus; ein zweites Mal fragt der Server nach.</p>
+    <div class="mailtools">
+      <select id="sdArt">
+        <option value="galerie">Galerie ist offen</option>
+        <option value="news">News</option>
+        <option value="feedback">Feedback-Frage</option>
+        <option value="savethedate">Save the Date · No2</option>
+        <option value="nachricht">Freie Nachricht</option>
+      </select>
+      <select id="sdKanal">
+        <option value="beide">Push + Mail</option>
+        <option value="push">Nur Push</option>
+        <option value="mail">Nur Mail</option>
+        <option value="luecke">Push, Mail nur an die ohne Push</option>
+      </select>
+      <input id="sdUrl" type="text" placeholder="Ziel in der App, z. B. /#galerie" value="/" style="max-width:200px" maxlength="120">
+    </div>
+    <div class="mailtools">
+      <input id="sdTitel" type="text" placeholder="Titel (Betreff der Mail, Überschrift der Push)" maxlength="120">
+      <input id="sdCta" type="text" placeholder="Knopftext in der Mail" value="In der App ansehen" style="max-width:220px" maxlength="40">
+    </div>
+    <textarea id="sdText" class="plancsv" rows="4" placeholder="Der Text. Push zeigt die ersten 160 Zeichen, die Mail alles." maxlength="1200"></textarea>
+    <div class="mailtools">
+      <input id="sdProbe" type="text" placeholder="Probe an diese E-Mail" style="max-width:260px" autocomplete="off">
+      <button class="export" id="sdProbeKnopf" type="button">Probe senden</button>
+      <button class="export gross" id="sdAlle" type="button">An alle senden</button>
+      <span class="fussnote" style="margin:0" id="sdNote"></span>
+    </div>
+    <div id="sendungen" style="margin-top:10px"></div>
+
+    <span class="label" style="display:block;margin-top:26px">News</span>
+    <p class="fnote">Steht in der App unter „News“ – nach dem Abend an der Stelle von „Live“. Entwurf bleibt unsichtbar, bis du veröffentlichst.</p>
+    <div class="mailtools">
+      <input id="nwTitel" type="text" placeholder="Titel" maxlength="120">
+      <input id="nwLink" type="text" placeholder="Link (optional, https://…)" maxlength="300" style="max-width:260px">
+      <input id="nwLinkText" type="text" placeholder="Linktext" maxlength="60" style="max-width:160px">
+      <select id="nwSichtbar"><option value="alle">Für alle Runden</option><option value="runde">Nur diese Runde</option></select>
+    </div>
+    <textarea id="nwText" class="plancsv" rows="4" placeholder="Der Beitrag …" maxlength="2000"></textarea>
+    <div class="exportzeile">
+      <button class="export" id="nwEntwurf" type="button">Als Entwurf speichern</button>
+      <button class="export gross" id="nwVeroeff" type="button">Veröffentlichen</button>
+      <button class="export" id="nwNeu" type="button" style="display:none">Neuer Beitrag</button>
+      <span class="fussnote" style="margin:0" id="nwNote"></span>
+    </div>
+    <div id="newsListe" style="margin-top:10px"></div>
+
+    <span class="label" style="display:block;margin-top:26px">Galerie</span>
+    <div class="kpis" style="margin-top:10px">
+      <div class="kpi"><b id="gAnzahl">–</b><span>Bilder</span></div>
+      <div class="kpi"><b id="gZu">–</b><span>Gästen zugeordnet</span></div>
+      <div class="kpi"><b id="gOhne">–</b><span>Ohne Zuordnung</span></div>
+      <div class="kpi"><b id="gOffen">–</b><span>Für Gäste</span></div>
+    </div>
+    <div class="exportzeile">
+      <a class="export" id="uploadLink" href="/upload" target="_blank" rel="noopener">Fotos hochladen ↗</a>
+      <button class="export gross" id="galOffen" type="button">Galerie öffnen</button>
+      <span class="fussnote" style="margin:0">Hochladen geht jederzeit; die Gäste sehen erst etwas, wenn die Galerie offen ist. Danach die Nachricht „Galerie ist offen“ senden.</span>
+    </div>
+    <p class="fnote" style="margin-top:14px">Zuordnung nachträglich: eine Zeile je Bild, <code>dateiname.jpg;anna@beispiel.de,paul@beispiel.de</code>. Erst Probelauf.</p>
+    <textarea id="galZuordnung" class="plancsv" rows="3" placeholder="IMG_4711.jpg;anna@beispiel.de,paul@beispiel.de"></textarea>
+    <div class="exportzeile">
+      <button class="export" id="galZuProbe" type="button">Probelauf</button>
+      <button class="export" id="galZuSenden" type="button">Übernehmen</button>
+      <span class="fussnote" style="margin:0" id="galNote"></span>
+    </div>
+    <div class="galraster" id="galRaster"></div>
+
+    <span class="label" style="display:block;margin-top:26px">Feedback</span>
+    <div class="kpis" style="margin-top:10px">
+      <div class="kpi"><b id="fbAnzahl">–</b><span>Antworten</span></div>
+      <div class="kpi"><b id="fbHoch">–</b><span>Gut – wieder</span></div>
+      <div class="kpi"><b id="fbRunter">–</b><span>Eher nicht</span></div>
+      <div class="kpi"><b id="fbSaetze">–</b><span>Erkenntnisse</span></div>
+    </div>
+    <div class="exportzeile">
+      <a class="export" id="fbCsv" href="/api/admin/feedback?csv=1" download>Feedback als CSV</a>
+    </div>
+    <div id="fbListe" style="margin-top:10px"></div>
+
+    <span class="label" style="display:block;margin-top:26px">THE CIRCLE No2</span>
+    <p class="fnote">Sobald Datum oder Ort feststehen, steht die Karte in der App auf der Startseite – vor jeder Mail.</p>
+    <div class="mailtools">
+      <input id="no2Datum" type="date" style="max-width:180px">
+      <input id="no2Ort" type="text" placeholder="Ort" maxlength="60" style="max-width:220px">
+      <input id="no2Text" type="text" placeholder="Ein Satz dazu" maxlength="160">
+      <button class="export" id="no2Speichern" type="button">Speichern</button>
+      <button class="export" id="no2Weg" type="button">Karte entfernen</button>
+    </div>
   </div>
 
   <!-- 7 · Der Einzelfall. Ganz unten, weil man hierher springt, wenn oben
@@ -1345,6 +1467,9 @@ function appZeichnen(a){
   /* "Rueckgaengig" nur in der ersten Minute nach einem Tischwechsel. */
   $("#signalfrei").textContent = (s && s.art === "wechsel" && Date.now() - s.t < 60000) ? "Rückgängig" : "Zurücknehmen";
   txt($("#serverzeit"), a.koeln ? "Serveruhr (Köln): " + a.koeln + (a.appfrei ? " · app-frei: " + a.appfrei : "") : "");
+  /* Phase: welcher Knopf gilt, und was die App gerade zeigt. */
+  $$("#phaseZeile button").forEach(b => b.classList.toggle("gross", (a.phaseHand || "") === b.dataset.phase));
+  txt($("#phaseNote"), a.phase ? "Die App zeigt: " + ({ vor:"vor dem Abend", abend:"der Abend", danach:"danach" }[a.phase] || a.phase) + (a.phaseHand ? " (von Hand)" : " (automatisch)") : "");
   /* Das Ergebnis der letzten Push - bleibt stehen, bis die naechste kommt. */
   const lp = a.letzterPush;
   if(lp){
@@ -1492,6 +1617,149 @@ try{
   const esB = new EventSource("/api/live/stream"); let bt = 0;
   esB.onmessage = () => { clearTimeout(bt); bt = setTimeout(buehneHolen, 800); };
 }catch(e){}
+
+/* ---------- Phase ---------- */
+$$("#phaseZeile button").forEach(b => b.addEventListener("click", async () => {
+  const p = b.dataset.phase;
+  if(p === "danach" && !confirm("Die App auf „danach“ stellen? Startseite, Leiste und Karten drehen sich sofort in allen offenen Apps.")) return;
+  const d = await adminPost("/api/admin/phase", { phase: p }); if(d && d.ok) laden();
+}));
+
+/* ---------- Nach dem Abend ---------- */
+async function adminGet(pfad){
+  if(!KEY) return null;
+  try{ const r = await fetch(pfad + (pfad.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(KEY), { cache:"no-store" }); if(!r.ok) return null; return await r.json(); }
+  catch(e){ return null; }
+}
+$("#uploadLink").href = "/upload" + (KEY ? "?key=" + encodeURIComponent(KEY) : "");
+$("#fbCsv").href = "/api/admin/feedback?csv=1" + (KEY ? "&key=" + encodeURIComponent(KEY) : "");
+let galStand = null, newsStand = [], newsId = "";
+async function nachHolen(){
+  if(!KEY) return;
+  const [s, n, g, f] = await Promise.all([adminGet("/api/admin/sendungen"), adminGet("/api/admin/news"), adminGet("/api/admin/galerie"), adminGet("/api/admin/feedback")]);
+  if(s) sendungenZeichnen(s.sendungen || []);
+  if(n){ newsStand = n.news || []; newsZeichnen(); }
+  if(g) galerieZeichnen(g);
+  if(f) feedbackZeichnen(f);
+}
+function wann(t){ return new Date(t).toLocaleString("de-DE", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }); }
+function sendungenZeichnen(liste){
+  const w = $("#sendungen"); w.innerHTML = "";
+  liste.slice(0, 8).forEach(s => {
+    const d = document.createElement("div"); d.className = "sendung";
+    d.innerHTML = "<b></b> · <span></span>";
+    d.querySelector("b").textContent = (s.probe ? "Probe · " : "") + s.art + " · " + s.titel;
+    d.querySelector("span").textContent = wann(s.t) + " · " + s.kanal + " · " + s.empfaenger + " Empfänger · Push " + s.push.gesendet + (s.push.ohne ? " (" + s.push.ohne + " ohne Abo)" : "") + (s.push.fehler ? " · " + s.push.fehler + " Push-Fehler" : "") + " · Mail " + s.mail.gesendet + (s.mail.ohne ? " (" + s.mail.ohne + " ohne Adresse)" : "") + (s.mail.fehler ? " · " + s.mail.fehler + " Mail-Fehler" : "") + (s.laeuft ? " · läuft …" : "") + (s.wer ? " · von " + s.wer : "");
+    w.appendChild(d);
+  });
+}
+const SD_VORLAGEN = {
+  galerie:     { titel:"Deine Fotos vom Abend sind da", text:"Die Galerie von THE CIRCLE No1 ist offen – die Bilder des Abends, und deine eigenen ganz oben. Zum Ansehen, Teilen und Speichern.", url:"/#galerie", cta:"Zur Galerie" },
+  news:        { titel:"Neues aus dem Kreis", text:"", url:"/#news", cta:"In der App lesen" },
+  feedback:    { titel:"Eine Frage zum Abend", text:"Wie war THE CIRCLE für dich? Ein Daumen, ein Satz – zwei Minuten. Es prägt die nächste Runde.", url:"/", cta:"Antworten" },
+  savethedate: { titel:"THE CIRCLE No2 – Save the Date", text:"Der Kreis öffnet sich wieder. Datum und Ort stehen in der App – du bist als Gast der ersten Runde zuerst eingeladen.", url:"/", cta:"In der App ansehen" },
+  nachricht:   { titel:"", text:"", url:"/", cta:"In der App ansehen" }
+};
+$("#sdArt").addEventListener("change", () => {
+  const v = SD_VORLAGEN[$("#sdArt").value]; if(!v) return;
+  $("#sdTitel").value = v.titel; $("#sdText").value = v.text; $("#sdUrl").value = v.url; $("#sdCta").value = v.cta;
+});
+$("#sdArt").dispatchEvent(new Event("change"));
+async function senden(probe, trotzdem){
+  const rumpf = { art: $("#sdArt").value, kanal: $("#sdKanal").value, titel: $("#sdTitel").value.trim(), text: $("#sdText").value.trim(), url: $("#sdUrl").value.trim() || "/", ctaText: $("#sdCta").value.trim() };
+  if(!rumpf.titel || !rumpf.text){ txt($("#sdNote"), "Titel und Text fehlen."); return; }
+  if(probe) rumpf.probe = probe; if(trotzdem) rumpf.trotzdem = true;
+  txt($("#sdNote"), "wird gesendet …");
+  try{
+    const r = await fetch("/api/admin/senden?key=" + encodeURIComponent(KEY), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf) });
+    const d = await r.json();
+    if(r.status === 409){ if(confirm(d.error + "\n\nTrotzdem noch einmal an alle senden?")) return senden(probe, true); txt($("#sdNote"), "Nicht gesendet."); return; }
+    if(!r.ok){ txt($("#sdNote"), d.error || "Fehlgeschlagen"); return; }
+    txt($("#sdNote"), (probe ? "Probe raus an " + probe : "Raus an " + d.sendung.empfaenger + " Gäste") + " – Protokoll unten.");
+    setTimeout(nachHolen, 1500); setTimeout(nachHolen, 8000);
+  }catch(e){ txt($("#sdNote"), "Server nicht erreichbar."); }
+}
+$("#sdProbeKnopf").addEventListener("click", () => { const p = $("#sdProbe").value.trim(); if(!p){ txt($("#sdNote"), "Erst eine Probe-Adresse eintragen."); return; } senden(p); });
+$("#sdAlle").addEventListener("click", () => {
+  const n = appStand ? appStand.im : "alle";
+  if(!confirm("„" + $("#sdTitel").value.trim() + "“ jetzt an " + n + " Gäste der Runde senden (" + $("#sdKanal").selectedOptions[0].textContent + ")?")) return;
+  senden("");
+});
+
+/* News */
+function newsZeichnen(){
+  const w = $("#newsListe"); w.innerHTML = "";
+  newsStand.forEach(n => {
+    const z = document.createElement("div"); z.className = "newszeile";
+    const b = document.createElement("b"); b.textContent = (n.veroeffentlicht ? "● " : "○ ") + (n.titel || "(ohne Titel)") + " · " + wann(n.t) + (n.sichtbar !== "alle" ? " · nur " + n.sichtbar : "");
+    z.appendChild(b);
+    const e = document.createElement("button"); e.className = "export"; e.type = "button"; e.textContent = "Bearbeiten";
+    e.addEventListener("click", () => { newsId = n.id; $("#nwTitel").value = n.titel || ""; $("#nwText").value = n.text || ""; $("#nwLink").value = n.link || ""; $("#nwLinkText").value = n.linkText || ""; $("#nwSichtbar").value = n.sichtbar === "alle" ? "alle" : "runde"; $("#nwNeu").style.display = ""; txt($("#nwNote"), "Bearbeite: " + n.titel); });
+    const v = document.createElement("button"); v.className = "export"; v.type = "button"; v.textContent = n.veroeffentlicht ? "Zurückziehen" : "Veröffentlichen";
+    v.addEventListener("click", async () => { await adminPost("/api/admin/news", { id: n.id, veroeffentlicht: !n.veroeffentlicht }); nachHolen(); });
+    const l = document.createElement("button"); l.className = "export"; l.type = "button"; l.textContent = "Löschen";
+    l.addEventListener("click", async () => { if(confirm("„" + n.titel + "“ löschen?")){ await adminPost("/api/admin/news", { id: n.id, loeschen: true }); nachHolen(); } });
+    z.appendChild(e); z.appendChild(v); z.appendChild(l); w.appendChild(z);
+  });
+}
+async function newsSpeichern(veroeffentlicht){
+  const rumpf = { id: newsId || undefined, titel: $("#nwTitel").value.trim(), text: $("#nwText").value.trim(), link: $("#nwLink").value.trim(), linkText: $("#nwLinkText").value.trim(), sichtbar: $("#nwSichtbar").value === "alle" ? "alle" : (appStand && appStand.runde) || "no1" };
+  if(!rumpf.titel || !rumpf.text){ txt($("#nwNote"), "Titel und Text fehlen."); return; }
+  if(veroeffentlicht !== undefined) rumpf.veroeffentlicht = veroeffentlicht;
+  const d = await adminPost("/api/admin/news", rumpf);
+  if(d && d.ok){ txt($("#nwNote"), veroeffentlicht ? "Veröffentlicht – steht jetzt in der App." : "Als Entwurf gespeichert."); newsId = ""; $("#nwTitel").value = ""; $("#nwText").value = ""; $("#nwLink").value = ""; $("#nwLinkText").value = ""; $("#nwNeu").style.display = "none"; nachHolen(); }
+}
+$("#nwEntwurf").addEventListener("click", () => newsSpeichern(undefined));
+$("#nwVeroeff").addEventListener("click", () => newsSpeichern(true));
+$("#nwNeu").addEventListener("click", () => { newsId = ""; $("#nwTitel").value = ""; $("#nwText").value = ""; $("#nwLink").value = ""; $("#nwLinkText").value = ""; $("#nwNeu").style.display = "none"; txt($("#nwNote"), ""); });
+
+/* Galerie */
+function galerieZeichnen(g){
+  galStand = g;
+  txt($("#gAnzahl"), g.anzahl); txt($("#gZu"), g.zugeordnet); txt($("#gOhne"), g.ohne); txt($("#gOffen"), g.offen ? "offen" : "zu");
+  txt($("#galOffen"), g.offen ? "Galerie schließen" : "Galerie öffnen");
+  const r = $("#galRaster"); r.innerHTML = "";
+  (g.liste || []).slice().reverse().forEach(f => {
+    const i = document.createElement("img"); i.src = f.m; i.alt = ""; i.title = (f.datei || f.id) + (f.wer ? " · " + f.wer + " Gast/Gäste" : " · nicht zugeordnet"); i.loading = "lazy";
+    if(f.wer) i.classList.add("zu");
+    i.addEventListener("click", async () => { if(confirm((f.datei || f.id) + " aus der Galerie löschen?")){ await adminPost("/api/admin/galerie", { loeschen: f.id }); nachHolen(); } });
+    r.appendChild(i);
+  });
+}
+$("#galOffen").addEventListener("click", async () => {
+  const offen = !(galStand && galStand.offen);
+  if(offen && !confirm("Galerie für die Gäste öffnen? " + (galStand ? galStand.anzahl : 0) + " Bilder werden sichtbar.")) return;
+  await adminPost("/api/admin/galerie", { offen }); nachHolen();
+});
+async function zuordnung(senden){
+  const roh = $("#galZuordnung").value.trim(); if(!roh){ txt($("#galNote"), "Liste ist leer."); return; }
+  try{
+    const r = await fetch("/api/admin/galerie/zuordnung?key=" + encodeURIComponent(KEY) + (senden ? "&senden=1" : ""), { method:"POST", headers:{"Content-Type":"text/plain"}, body: roh });
+    const d = await r.json();
+    if(!r.ok){ txt($("#galNote"), d.error || "Fehlgeschlagen"); return; }
+    txt($("#galNote"), (d.probelauf ? "Probelauf: " : "Übernommen: ") + d.zugeordnet + " Zuordnungen" + (d.unbekannt.length ? " · unbekannte Adressen: " + d.unbekannt.join(", ") : "") + (d.keineDatei.length ? " · keine Datei: " + d.keineDatei.join(", ") : ""));
+    if(!d.probelauf) nachHolen();
+  }catch(e){ txt($("#galNote"), "Server nicht erreichbar."); }
+}
+$("#galZuProbe").addEventListener("click", () => zuordnung(false));
+$("#galZuSenden").addEventListener("click", () => { if(confirm("Zuordnung übernehmen?")) zuordnung(true); });
+
+/* Feedback */
+function feedbackZeichnen(f){
+  txt($("#fbAnzahl"), f.anzahl + " / " + f.im); txt($("#fbHoch"), f.hoch); txt($("#fbRunter"), f.runter); txt($("#fbSaetze"), (f.erkenntnisse || []).length);
+  const w = $("#fbListe"); w.innerHTML = "";
+  (f.liste || []).slice(0, 40).forEach(x => { const d = document.createElement("div"); d.className = "fbzeile"; const b = document.createElement("b"); b.textContent = (x.daumen > 0 ? "👍 " : "👎 ") + x.name; d.appendChild(b); if(x.satz) d.appendChild(document.createTextNode(" – " + x.satz)); w.appendChild(d); });
+  (f.erkenntnisse || []).slice(0, 40).forEach(x => { const d = document.createElement("div"); d.className = "fbzeile"; const b = document.createElement("b"); b.textContent = "✎ " + x.name; d.appendChild(b); d.appendChild(document.createTextNode(" – „" + x.satz + "“")); w.appendChild(d); });
+}
+
+/* No2 */
+$("#no2Speichern").addEventListener("click", async () => {
+  const d = await adminPost("/api/admin/phase", { phase: appStand ? appStand.phaseHand || "" : "", no2: { datum: $("#no2Datum").value, ort: $("#no2Ort").value.trim(), text: $("#no2Text").value.trim() } });
+  if(d && d.ok) txt($("#phaseNote"), "No2-Karte gespeichert.");
+});
+$("#no2Weg").addEventListener("click", async () => { if(confirm("No2-Karte aus der App nehmen?")){ const d = await adminPost("/api/admin/phase", { phase: appStand ? appStand.phaseHand || "" : "", no2: null }); if(d && d.ok){ $("#no2Datum").value = ""; $("#no2Ort").value = ""; $("#no2Text").value = ""; } } });
+
+if(KEY){ nachHolen(); setInterval(() => { if(!document.hidden) nachHolen(); }, 120000); }
 
 async function zeitenHolen(){
   try{

@@ -379,6 +379,7 @@ function kreisZahlen() {
   return { im, registriert: reg, installiert: inst, da, push, verbunden, gang: tische().gang, runde: RUNDE,
            letzterPush: state.letzterPush || null, koeln: berlinJetzt().hhmm, jetztMs: Date.now(),
            signalGesehen: state.signal && state.signal.gesehen ? Object.keys(state.signal.gesehen).length : 0,
+           phase: phaseJetzt(), phaseHand: state.phaseHand || "",
            appfrei: appfreiJetzt() ? ((appfreiJetzt().was) || "Handschalter") : "",
            pushMoeglich: pushMoeglich(), signal: state.signal || null, gaenge: tische().gaenge, tische: tische().liste.length };
 }
@@ -428,7 +429,7 @@ function revHoch() { state.rev = (state.rev || 0) + 1; }
  * Geraete an derselben Zelle haengen. */
 function zeitenZeile() {
   return "event: zeiten\ndata: " + JSON.stringify(Object.assign({}, state.zeiten,
-    { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt() })) + "\n\n";
+    { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt(), phase: phaseJetzt() })) + "\n\n";
 }
 /* Ein einziger halbtoter Socket darf nicht die Schleife sprengen - sonst
  * bekommt die halbe Menge hinter ihm den Tischwechsel nie. */
@@ -873,6 +874,36 @@ function appfreiJetzt() {
   if (heute !== EVENT_DATE) return null;
   return (z.appfrei || []).find(f => !f.aus && hhmm >= f.from && hhmm < f.to) || null;
 }
+
+/* --- Phase: vor · abend · danach ---
+ * Am Morgen des 17.09. darf auf der Startseite kein toter Countdown stehen.
+ * Automatisch nach Datum (Koelner Zeit), von Hand aus dem Monitor
+ * uebersteuerbar. */
+function phaseJetzt() {
+  if (state.phaseHand) return state.phaseHand;
+  const { datum, hhmm } = berlinJetzt();
+  if (datum < EVENT_DATE) return "vor";
+  if (datum === EVENT_DATE) return "abend";
+  /* Bis 02:00 am Folgetag gilt noch der Abend. */
+  const folgetag = new Date(EVENT_DATE + "T12:00:00Z"); folgetag.setUTCDate(folgetag.getUTCDate() + 1);
+  const f = folgetag.toISOString().slice(0, 10);
+  if (datum === f && hhmm < "02:00") return "abend";
+  return "danach";
+}
+
+/* --- Galerie ---
+ * Dateien je Runde unter server/galerie/<runde>/<id>-m.jpg (Raster, 400 px)
+ * und -w.jpg (Ansicht, 1600 px). Die Groessen rechnet der Browser der
+ * Upload-Seite - der Server hat keine Bildbibliothek und soll keine
+ * bekommen. */
+const GALERIE_DIR = path.join(__dirname, "galerie");
+function galerie(runde) {
+  if (!state.galerie) state.galerie = {};
+  const r = runde || RUNDE;
+  if (!state.galerie[r]) state.galerie[r] = { offen: 0, fotos: {} };
+  return state.galerie[r];
+}
+const galerieUrl = (runde, id, art) => "/g/" + encodeURIComponent(runde) + "/" + id + "-" + art + ".jpg";
 
 /* Bilder kommen als Data-URL (JPEG, vom Browser bereits verkleinert und
  * gedreht). Der Server speichert nur, was wie ein JPEG aussieht, und
@@ -2135,7 +2166,7 @@ const server = http.createServer((req, res) => {
    * veralteten Zeiten aus der App-Datei. */
   if (req.method === "GET" && url === "/api/live/zeiten") {
     return json(res, 200, { ok: true, zeiten: Object.assign({}, state.zeiten,
-      { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt() }) });
+      { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt(), phase: phaseJetzt() }) });
   }
 
   /* Health verraet keine Geheimnisse, aber ob der Monitor-Schutz greift –
@@ -2403,8 +2434,11 @@ const server = http.createServer((req, res) => {
       ueber: p.ueber || "", sucht: p.sucht || "", linkedin: p.linkedin || "",
       da: inv.da || 0, push: !!inv.push, runde: rundeVon(inv),
       installiert: !!(inv.app && inv.app.standalone),
-      tisch: meinTisch(inv), gang: tische().gang
-    }, vapid: VAPID.publicKey, signal: signalAktuell(), jetztMs: Date.now() });
+      tisch: meinTisch(inv), gang: tische().gang,
+      /* Nach dem Abend: was der Gast mitnimmt. */
+      abend: inv.abend || null, momente: inv.momente || {}, feedback: inv.feedback || null,
+      galerieOffen: !!galerie(rundeVon(inv)).offen, no2: state.no2 || null
+    }, vapid: VAPID.publicKey, signal: signalAktuell(), jetztMs: Date.now(), phase: phaseJetzt() });
   }
 
   /* Registrierung abschliessen: Profil vervollstaendigen, Bild, Freigabe.
@@ -2472,6 +2506,19 @@ const server = http.createServer((req, res) => {
       dirty = true; revHoch(); broadcast();
       logEvent("Profil gelöscht", "", "");
       return json(res, 200, { ok: true });
+    });
+  }
+
+  /* Galerie-Bilder: unerratbare Kennung, lange gecacht (die Kennung ist
+   * stabil, ein Bild aendert sich nie). */
+  if ((req.method === "GET" || req.method === "HEAD") && url.startsWith("/g/")) {
+    const m = /^\/g\/([a-z0-9_-]{1,20})\/([a-f0-9]{16})-(m|w)\.jpg$/.exec(url);
+    if (!m) { res.writeHead(404); return res.end(); }
+    return fs.readFile(path.join(GALERIE_DIR, m[1], m[2] + "-" + m[3] + ".jpg"), (err, buf) => {
+      if (err) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": buf.length,
+                           "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
+      res.end(req.method === "HEAD" ? undefined : buf);
     });
   }
 
@@ -2632,6 +2679,61 @@ const server = http.createServer((req, res) => {
       }
       return json(res, 200, { ok: true });
     });
+  }
+
+  /* Der eigene Satz vom Abend ("Meine Erkenntnis"). Lag nur im Speicher
+   * des Handys - neues Geraet, weg. Jetzt auf dem Server, damit er in den
+   * Rueckblick und in die Mail kann. */
+  if (req.method === "POST" && url === "/api/app/abend") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
+      if (!inv.abend) inv.abend = {};
+      if (body.satz !== undefined) inv.abend.satz = cleanText(body.satz, 500);
+      if (body.fotoOk !== undefined) inv.abend.fotoOk = !!body.fotoOk;
+      inv.abend.t = Date.now(); dirty = true;
+      return json(res, 200, { ok: true });
+    });
+  }
+
+  /* Feedback 24-36 h danach: ein Daumen, ein Satz. Ueberschreibbar. */
+  if (req.method === "POST" && url === "/api/app/feedback") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
+      const d = body.daumen === 1 || body.daumen === -1 ? body.daumen : 0;
+      if (!d) return json(res, 400, { error: "daumen 1 oder -1" });
+      inv.feedback = { daumen: d, satz: cleanText(body.satz, 400), t: Date.now() };
+      dirty = true; logEvent("Feedback", "", d > 0 ? "Daumen hoch" : "Daumen runter");
+      return json(res, 200, { ok: true });
+    });
+  }
+
+  /* News: Beitraege fuer alle Runden oder nur die eigene. */
+  if (req.method === "GET" && url === "/api/app/news") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    const ich = findInvite(q.get("t"));
+    if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    const liste = (state.news || []).filter(n => n.veroeffentlicht && (n.sichtbar === "alle" || n.sichtbar === rundeVon(ich)))
+      .sort((a, b) => b.t - a.t).map(n => ({ id: n.id, t: n.t, titel: n.titel, text: n.text, link: n.link || "", linkText: n.linkText || "", bild: n.bild || "" }));
+    return json(res, 200, { ok: true, news: liste });
+  }
+
+  /* Galerie: gemeinsame Bilder der Runde plus die eigenen Highlights. */
+  if (req.method === "GET" && url === "/api/app/galerie") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    const ich = findInvite(q.get("t"));
+    if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    const r = rundeVon(ich), g = galerie(r);
+    if (!g.offen) return json(res, 200, { ok: true, offen: false, highlights: [], fotos: [], anzahl: 0 });
+    const alle = Object.values(g.fotos).sort((a, b) => a.t - b.t);
+    const mach = f => ({ id: f.id, m: galerieUrl(r, f.id, "m"), w: galerieUrl(r, f.id, "w"), t: f.t, breit: !!f.breit });
+    const meine = alle.filter(f => (f.wer || []).includes(gid(ich))).map(mach);
+    const seite = Math.max(0, parseInt(q.get("seite"), 10) || 0), GR = 60;
+    return json(res, 200, { ok: true, offen: true, highlights: meine, fotos: alle.slice(seite * GR, (seite + 1) * GR).map(mach),
+                            anzahl: alle.length, seiten: Math.ceil(alle.length / GR) });
   }
 
   /* "Ich bin da." Der erste Moment, in dem der Gast die App benutzt. */
@@ -3540,6 +3642,186 @@ const server = http.createServer((req, res) => {
       });
     }
 
+    /* Phase von Hand: vor | abend | danach | "" (= automatisch). */
+    if (req.method === "POST" && url === "/api/admin/phase") {
+      return readBody(req, res, body => {
+        const p = String(body.phase || "");
+        state.phaseHand = ["vor", "abend", "danach"].includes(p) ? p : "";
+        if (body.no2 && typeof body.no2 === "object") state.no2 = { datum: clean(body.no2.datum, 10), ort: cleanText(body.no2.ort, 60), text: cleanText(body.no2.text, 160) };
+        if (body.no2 === null) state.no2 = null;
+        dirty = true; zeitenSenden(); broadcast();
+        logEvent("Phase", wer, state.phaseHand || "automatisch");
+        return json(res, 200, { ok: true, phase: phaseJetzt(), phaseHand: state.phaseHand, no2: state.no2 || null });
+      });
+    }
+
+    /* News anlegen, aendern, veroeffentlichen, loeschen. */
+    if (req.method === "GET" && url === "/api/admin/news") {
+      return json(res, 200, { ok: true, news: (state.news || []).sort((a, b) => b.t - a.t) });
+    }
+    if (req.method === "POST" && url === "/api/admin/news") {
+      return readBody(req, res, body => {
+        if (!state.news) state.news = [];
+        if (body.loeschen && body.id) { state.news = state.news.filter(n => n.id !== body.id); dirty = true; return json(res, 200, { ok: true }); }
+        let n = body.id ? state.news.find(x => x.id === body.id) : null;
+        if (!n) { n = { id: crypto.randomBytes(6).toString("hex"), t: Date.now(), autor: wer }; state.news.push(n); }
+        if (body.titel !== undefined) n.titel = cleanText(body.titel, 120);
+        if (body.text !== undefined) n.text = cleanText(body.text, 2000);
+        if (body.link !== undefined) n.link = String(body.link || "").slice(0, 300).replace(/[<>"']/g, "");
+        if (body.linkText !== undefined) n.linkText = cleanText(body.linkText, 60);
+        if (body.sichtbar !== undefined) n.sichtbar = body.sichtbar === "alle" ? "alle" : (clean(body.sichtbar, 20) || RUNDE);
+        if (body.veroeffentlicht !== undefined) { n.veroeffentlicht = !!body.veroeffentlicht; if (n.veroeffentlicht && !n.seit) n.seit = Date.now(); }
+        if (!n.sichtbar) n.sichtbar = "alle";
+        dirty = true;
+        return json(res, 200, { ok: true, news: n });
+      });
+    }
+
+    /* Galerie: Upload (vom Browser verkleinert), Zuordnung, oeffnen. */
+    if (req.method === "POST" && url === "/api/admin/galerie/upload") {
+      return readBodyGross(req, res, body => {
+        const r = clean(body.runde, 20) || RUNDE, g = galerie(r);
+        const m = jpegAusDataUrl(body.mini, 120_000), w = jpegAusDataUrl(body.bild, 900_000);
+        if (!m || !w) return json(res, 400, { error: "Bild nicht lesbar (zwei JPEG-Groessen erwartet)" });
+        const id = crypto.randomBytes(8).toString("hex");
+        try {
+          fs.mkdirSync(path.join(GALERIE_DIR, r), { recursive: true });
+          fs.writeFileSync(path.join(GALERIE_DIR, r, id + "-m.jpg"), m);
+          fs.writeFileSync(path.join(GALERIE_DIR, r, id + "-w.jpg"), w);
+        } catch (e) { return json(res, 500, { error: "konnte nicht speichern" }); }
+        const datei = cleanText(body.datei, 120);
+        /* Zuordnung ueber den Dateinamen: <email>_01.jpg - lokaler Teil und
+         * Domain werden gegen die Adressen im Register gehalten. */
+        const wer = [];
+        const mm = /^([^_\s]+@[^_\s]+?)(?:_\d+)?\.(?:jpe?g|png|heic)$/i.exec(datei);
+        if (mm) { const inv = Object.values(state.invites).find(i => i.email && i.email.toLowerCase() === mm[1].toLowerCase()); if (inv) wer.push(gid(inv)); }
+        g.fotos[id] = { id, t: Date.now(), datei, wer, breit: !!body.breit };
+        dirty = true;
+        return json(res, 200, { ok: true, id, zugeordnet: wer.length, anzahl: Object.keys(g.fotos).length });
+      });
+    }
+    /* Zuordnung per Liste: "datei;email,email" je Zeile. Ohne ?senden=1 nur zaehlen. */
+    if (req.method === "POST" && url === "/api/admin/galerie/zuordnung") {
+      let roh = "", zuGross = false;
+      req.on("data", c => { roh += c; if (roh.length > 500_000) { zuGross = true; req.destroy(); } });
+      req.on("end", () => {
+        if (zuGross) return json(res, 413, { error: "zu gross" });
+        const r = clean(q.get("runde"), 20) || RUNDE, g = galerie(r);
+        const byMail = {}; for (const i of Object.values(state.invites)) if (i.email) byMail[i.email.toLowerCase()] = i;
+        const byDatei = {}; for (const f of Object.values(g.fotos)) if (f.datei) byDatei[f.datei.toLowerCase()] = f;
+        let zugeordnet = 0; const unbekannt = new Set(), keineDatei = [];
+        const plan = [];
+        for (const zeile of roh.split(/\r?\n/)) {
+          const [datei, mails] = zeile.split(";").map(x => (x || "").trim());
+          if (!datei || !mails) continue;
+          const f = byDatei[datei.toLowerCase()];
+          if (!f) { keineDatei.push(datei); continue; }
+          for (const m of mails.split(",").map(x => x.trim().toLowerCase()).filter(Boolean)) {
+            const inv = byMail[m]; if (!inv) { unbekannt.add(m); continue; }
+            plan.push([f, gid(inv)]); zugeordnet++;
+          }
+        }
+        if (q.get("senden") === "1") {
+          for (const [f, id] of plan) { if (!f.wer) f.wer = []; if (!f.wer.includes(id)) f.wer.push(id); }
+          dirty = true;
+        }
+        return json(res, 200, { ok: true, probelauf: q.get("senden") !== "1", zugeordnet, unbekannt: [...unbekannt], keineDatei });
+      });
+      return;
+    }
+    if (req.method === "POST" && url === "/api/admin/galerie") {
+      return readBody(req, res, body => {
+        const r = clean(body.runde, 20) || RUNDE, g = galerie(r);
+        if (body.offen !== undefined) g.offen = body.offen ? Date.now() : 0;
+        if (body.loeschen) { const f = g.fotos[clean(body.loeschen, 16)]; if (f) { for (const a of ["m", "w"]) { try { fs.unlinkSync(path.join(GALERIE_DIR, r, f.id + "-" + a + ".jpg")); } catch (e) {} } delete g.fotos[f.id]; } }
+        dirty = true;
+        const fotos = Object.values(g.fotos);
+        return json(res, 200, { ok: true, offen: !!g.offen, anzahl: fotos.length, zugeordnet: fotos.filter(f => (f.wer || []).length).length,
+                                ohne: fotos.filter(f => !(f.wer || []).length).length, liste: fotos.slice(-30).map(f => ({ id: f.id, datei: f.datei, wer: (f.wer || []).length, m: galerieUrl(r, f.id, "m") })) });
+      });
+    }
+    if (req.method === "GET" && url === "/api/admin/galerie") {
+      const r = clean(q.get("runde"), 20) || RUNDE, g = galerie(r), fotos = Object.values(g.fotos);
+      return json(res, 200, { ok: true, offen: !!g.offen, anzahl: fotos.length, zugeordnet: fotos.filter(f => (f.wer || []).length).length,
+                              ohne: fotos.filter(f => !(f.wer || []).length).length, liste: fotos.slice(-30).map(f => ({ id: f.id, datei: f.datei, wer: (f.wer || []).length, m: galerieUrl(r, f.id, "m") })) });
+    }
+
+    /* Feedback-Auswertung. */
+    if (req.method === "GET" && url === "/api/admin/feedback") {
+      const im = Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === RUNDE);
+      const mit = im.filter(i => i.feedback);
+      const liste = mit.map(i => ({ name: i.name, daumen: i.feedback.daumen, satz: i.feedback.satz || "", t: i.feedback.t })).sort((a, b) => b.t - a.t);
+      const saetze = im.filter(i => i.abend && i.abend.satz).map(i => ({ name: i.name, satz: i.abend.satz }));
+      if (q.get("csv") === "1") {
+        const z = ["name;daumen;satz"].concat(liste.map(x => [x.name, x.daumen > 0 ? "hoch" : "runter", x.satz].map(v => String(v).replace(/;/g, ",")).join(";")));
+        res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="feedback.csv"' });
+        return res.end("\uFEFF" + z.join("\r\n"));
+      }
+      return json(res, 200, { ok: true, im: im.length, anzahl: mit.length, hoch: mit.filter(i => i.feedback.daumen > 0).length, runter: mit.filter(i => i.feedback.daumen < 0).length, liste, erkenntnisse: saetze });
+    }
+
+    /* --- Der Sendekanal: eine Nachricht an die Runde, als Push und/oder
+     * Mail. Galerie, News, Feedback, Verbunden, Save-the-Date sind nur
+     * Anlaesse fuer dieselbe Funktion. kanal: push | mail | beide | luecke
+     * (Mail nur an die ohne Push - die iOS-Abbrecher). Laeuft im
+     * Hintergrund; das Protokoll steht in state.sendungen. */
+    if (req.method === "POST" && url === "/api/admin/senden") {
+      return readBody(req, res, async body => {
+        const art = clean(body.art, 30) || "nachricht", titel = cleanText(body.titel, 120), text = cleanText(body.text, 1200);
+        const kanal = ["push", "mail", "beide", "luecke"].includes(body.kanal) ? body.kanal : "beide";
+        const zielPfad = String(body.url || "/").replace(/[^\w\/#?=&.-]/g, "").slice(0, 120) || "/";
+        const ctaText = cleanText(body.ctaText, 40) || "In der App ansehen";
+        const runde = clean(body.runde, 20) || RUNDE;
+        if (!titel || !text) return json(res, 400, { error: "titel und text" });
+        const empf = Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === runde && !i.abgemeldet);
+        /* Probe: nur an einen Gast (per E-Mail oder gid). */
+        const probeInv = body.probe ? (findByGid(body.probe) || empf.find(i => i.email && i.email.toLowerCase() === String(body.probe).toLowerCase())) : null;
+        if (body.probe && !probeInv) return json(res, 404, { error: "Probe-Gast nicht gefunden" });
+        const liste = probeInv ? [probeInv] : empf;
+        const vorher = (state.sendungen || []).find(x => x.art === art && x.runde === runde && !x.probe);
+        if (vorher && !body.trotzdem && !probeInv) return json(res, 409, { error: "Schon gesendet: " + art + " am " + new Date(vorher.t).toLocaleString("de-DE") + " an " + vorher.empfaenger + " Gäste. Mit trotzdem=true erneut." });
+        const sendung = { id: crypto.randomBytes(5).toString("hex"), art, runde, titel, text, url: zielPfad, kanal, t: Date.now(), wer, probe: !!probeInv,
+                          empfaenger: liste.length, laeuft: true, push: { gesendet: 0, tot: 0, fehler: 0, ohne: 0 }, mail: { gesendet: 0, fehler: 0, ohne: 0 } };
+        if (!state.sendungen) state.sendungen = [];
+        state.sendungen.unshift(sendung); state.sendungen = state.sendungen.slice(0, 50); dirty = true;
+        logEvent("Sendung gestartet", wer, art + " · " + kanal + " · " + liste.length);
+        json(res, 200, { ok: true, sendung });
+        /* Ab hier im Hintergrund. */
+        for (const inv of liste) {
+          const url = "/?t=" + inv.token + (zielPfad.startsWith("/") ? zielPfad.replace(/^\/\??/, zielPfad.includes("#") ? "" : "") : "");
+          const appUrl = "/?t=" + inv.token + (zielPfad.includes("#") ? zielPfad.slice(zielPfad.indexOf("#")) : "");
+          let pushOk = false;
+          if (kanal === "push" || kanal === "beide" || kanal === "luecke") {
+            if (inv.push) {
+              try {
+                const a = await webpush.senden({ subscription: inv.push, payload: JSON.stringify({ titel, text: text.slice(0, 160), url: appUrl, tag: art }), vapid: VAPID, ttl: 86400 });
+                if (a.status === 404 || a.status === 410) { inv.push = null; sendung.push.tot++; dirty = true; }
+                else if (a.status < 300) { sendung.push.gesendet++; pushOk = true; } else sendung.push.fehler++;
+              } catch (e) { sendung.push.fehler++; }
+            } else sendung.push.ohne++;
+          }
+          const mailNoetig = kanal === "mail" || kanal === "beide" || (kanal === "luecke" && !pushOk);
+          if (mailNoetig) {
+            if (inv.email && LETTERMINT_TOKEN) {
+              await new Promise(ok => {
+                let html, txt;
+                try {
+                  html = renderMail(inv, "nachricht.html", { titel, text_html: text.replace(/\n/g, "<br>"), cta_text: ctaText, cta_url: PUBLIC_URL + appUrl });
+                  txt = inv.anrede + " " + (inv.name || "").split(" ")[0] + ",\n\n" + titel + "\n\n" + text + "\n\n" + ctaText + ": " + PUBLIC_URL + appUrl + "\n";
+                } catch (e) { sendung.mail.fehler++; return ok(); }
+                lettermintSenden({ to: inv.email, subject: titel, html, text: txt }, err => { if (err) sendung.mail.fehler++; else sendung.mail.gesendet++; setTimeout(ok, 200); });
+              });
+            } else sendung.mail.ohne++;
+          }
+        }
+        sendung.laeuft = false; dirty = true;
+        logEvent("Sendung fertig", wer, art + " · Push " + sendung.push.gesendet + " · Mail " + sendung.mail.gesendet);
+      });
+    }
+    if (req.method === "GET" && url === "/api/admin/sendungen") {
+      return json(res, 200, { ok: true, sendungen: state.sendungen || [] });
+    }
+
     /* Die Wand im Raum: was der Beamer zeigt. modus auto folgt dem Abend
      * (Signal, Fenster); enthuellt ist der Vorhang fuer das AV8-Votum -
      * erst "87 Rueckmeldungen", dann auf Knopfdruck die Balken. */
@@ -3975,6 +4257,9 @@ const server = http.createServer((req, res) => {
   }
   /* Die Wand fuer den Beamer im Raum. Oeffentlich wie der Stream - sie
    * zeigt nur, was ohnehin an alle Handys geht. */
+  if (req.method === "GET" && (url === "/upload" || url === "/upload.html")) {
+    return serveFile(res, "upload.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
+  }
   if (req.method === "GET" && (url === "/wand" || url === "/wand.html")) {
     return serveFile(res, "wand.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
   }

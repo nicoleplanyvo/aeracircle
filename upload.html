@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>THE CIRCLE · Fotos hochladen</title>
+<!--
+  Die Upload-Seite fuer die Galerie. Der Browser verkleinert jedes Bild in
+  zwei Groessen (400 px fuers Raster, 1600 px fuer die Ansicht) und schickt
+  sie als JPEG an /api/admin/galerie/upload. Der Server hat keine
+  Bildbibliothek und soll keine bekommen - ein Node ohne Abhaengigkeiten
+  war der Preis fuer einen Server, der am Abend nicht ueberrascht.
+
+  Zuordnung ueber den Dateinamen: <email>_01.jpg landet automatisch bei
+  dem Gast mit dieser Adresse. Alles andere ordnet der Monitor per Liste zu.
+-->
+<style>
+  :root{ --ink:#0d1b35; --ivory:#f8f7f4; --muted:#aeb9d2; --faint:#7a8db3; --coral:#ff6b6c; --line:rgba(248,247,244,.18); --line-soft:rgba(248,247,244,.10); }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--ink);color:var(--ivory);font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;font-size:14px;line-height:1.55;padding:28px 20px 80px;max-width:820px;margin:0 auto}
+  .label{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
+  h1{font-weight:500;font-size:22px;margin:8px 0 6px}
+  p{color:var(--muted)}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--ivory)}
+  .zeile{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0}
+  input[type=text]{background:none;border:1px solid var(--line-soft);color:var(--ivory);padding:10px 12px;border-radius:8px;font-size:14px;min-width:120px}
+  input[type=text]:focus{outline:none;border-color:var(--ivory)}
+  .knopf{background:var(--coral);color:#331014;border:0;border-radius:999px;padding:12px 22px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;cursor:pointer}
+  .knopf.leise{background:none;border:1px solid var(--line);color:var(--ivory);font-weight:400}
+  .knopf:disabled{opacity:.4;cursor:default}
+  #zone{border:1px dashed var(--line);border-radius:14px;padding:44px 20px;text-align:center;margin-top:18px;transition:border-color .15s,background .15s}
+  #zone.ueber{border-color:var(--coral);background:rgba(255,107,108,.06)}
+  #zone b{display:block;font-weight:500;font-size:16px;margin-bottom:6px}
+  #zone input{display:none}
+  .stand{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:22px}
+  .stand div{border:1px solid var(--line-soft);padding:14px 10px;text-align:center}
+  .stand b{display:block;font-size:24px;font-weight:400}
+  .stand span{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)}
+  #liste{margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+  .kachel{position:relative;aspect-ratio:1;background:#16274a;overflow:hidden;border:1px solid var(--line-soft)}
+  .kachel img{width:100%;height:100%;object-fit:cover;display:block;opacity:.45;transition:opacity .3s}
+  .kachel.ok img{opacity:1}
+  .kachel.fehler{border-color:var(--coral)}
+  .kachel span{position:absolute;left:0;right:0;bottom:0;padding:5px 6px;font-size:9.5px;background:rgba(13,27,53,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kachel.ok span::before{content:"✓ ";color:#8fd3a8}
+  .kachel.ok.zu span::before{content:"✓ Gast · "}
+  .kachel.fehler span{color:var(--coral)}
+  .fnote{font-size:12px;color:var(--faint);margin-top:14px}
+  #warn{display:none;border:1px solid var(--coral);color:var(--coral);padding:14px;border-radius:10px;margin-top:18px}
+</style>
+</head>
+<body>
+  <span class="label">THE CIRCLE · Galerie</span>
+  <h1>Fotos hochladen</h1>
+  <p>Die Bilder werden hier im Browser auf 1600 px verkleinert und dann übertragen – Originale bleiben bei dir. Heißt eine Datei <code>vorname@firma.de_01.jpg</code>, landet sie automatisch bei diesem Gast als persönliches Highlight.</p>
+
+  <div id="warn">Kein Zugang: Die Seite braucht den Link mit <code>?key=</code> aus dem Monitor.</div>
+
+  <div class="zeile">
+    <label class="label" for="runde">Runde</label>
+    <input type="text" id="runde" value="no1" maxlength="20" autocomplete="off">
+    <span class="fnote" style="margin:0">Die Galerie ist je Runde getrennt – Gäste von No1 sehen nur No1.</span>
+  </div>
+
+  <div id="zone">
+    <b>Fotos hierher ziehen</b>
+    <p>oder</p>
+    <div class="zeile" style="justify-content:center;margin-bottom:0">
+      <button class="knopf leise" type="button" id="waehlen">Dateien auswählen</button>
+      <input type="file" id="datei" accept="image/jpeg,image/png,image/heic,image/webp" multiple>
+    </div>
+  </div>
+
+  <div class="stand">
+    <div><b id="sWahl">0</b><span>Ausgewählt</span></div>
+    <div><b id="sOk">0</b><span>Hochgeladen</span></div>
+    <div><b id="sZu">0</b><span>Zugeordnet</span></div>
+    <div><b id="sFehler">0</b><span>Fehler</span></div>
+  </div>
+  <p class="fnote" id="gesamt"></p>
+
+  <div class="zeile">
+    <button class="knopf" type="button" id="start" disabled>Hochladen</button>
+    <button class="knopf leise" type="button" id="leeren">Liste leeren</button>
+    <a class="fnote" id="zurueck" href="/monitor" style="margin:0;color:var(--muted)">← Zum Monitor</a>
+  </div>
+
+  <div id="liste"></div>
+  <p class="fnote">Nach dem Hochladen: im Monitor unter „Nach dem Abend“ die restlichen Bilder den Gästen zuordnen und die Galerie öffnen. Erst dann sehen die Gäste etwas.</p>
+
+<script>
+const KEY = new URLSearchParams(location.search).get("key") || "";
+const $ = s => document.querySelector(s);
+if(!KEY){ $("#warn").style.display = "block"; }
+$("#zurueck").href = "/monitor" + (KEY ? "?key=" + encodeURIComponent(KEY) : "");
+
+let warte = [];          // {file, el}
+let laeuft = false;
+const zahl = { ok:0, zu:0, fehler:0 };
+
+function zeichneStand(){
+  $("#sWahl").textContent = warte.length;
+  $("#sOk").textContent = zahl.ok; $("#sZu").textContent = zahl.zu; $("#sFehler").textContent = zahl.fehler;
+  $("#start").disabled = laeuft || !warte.some(w => !w.fertig) || !KEY;
+}
+
+function aufnehmen(files){
+  for(const f of files){
+    if(!/^image\//.test(f.type) && !/\.(heic|jpe?g|png|webp)$/i.test(f.name)) continue;
+    const el = document.createElement("div"); el.className = "kachel";
+    const img = document.createElement("img"); img.alt = "";
+    const sp = document.createElement("span"); sp.textContent = f.name;
+    el.appendChild(img); el.appendChild(sp); $("#liste").appendChild(el);
+    const w = { file:f, el, img, sp, fertig:false };
+    warte.push(w);
+    vorschau(w);
+  }
+  zeichneStand();
+}
+async function vorschau(w){
+  try{ const bm = await bild(w.file); const c = skalieren(bm, 240); w.img.src = c.toDataURL("image/jpeg", .7); }catch(e){}
+}
+
+/* Bild laden - mit Drehung aus den EXIF-Daten, wo der Browser das kann. */
+async function bild(file){
+  if("createImageBitmap" in window){
+    try{ return await createImageBitmap(file, { imageOrientation:"from-image" }); }catch(e){}
+    try{ return await createImageBitmap(file); }catch(e){}
+  }
+  return new Promise((ok, nein) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => nein(new Error("nicht lesbar")); i.src = URL.createObjectURL(file); });
+}
+function skalieren(bm, maxSeite){
+  const bw = bm.width, bh = bm.height, f = Math.min(1, maxSeite / Math.max(bw, bh));
+  const c = document.createElement("canvas"); c.width = Math.round(bw * f); c.height = Math.round(bh * f);
+  c.getContext("2d").drawImage(bm, 0, 0, c.width, c.height);
+  return c;
+}
+/* JPEG so gross wie noetig, so klein wie moeglich - der Server nimmt
+   900 kB fuer die Ansicht und 120 kB fuers Raster. */
+function jpeg(c, grenze){
+  let q = .84, d = c.toDataURL("image/jpeg", q);
+  while(d.length * .75 > grenze && q > .4){ q -= .08; d = c.toDataURL("image/jpeg", q); }
+  return d;
+}
+
+async function hochladen(w){
+  try{
+    const bm = await bild(w.file);
+    const gross = skalieren(bm, 1600), klein = skalieren(bm, 400);
+    const body = { runde: $("#runde").value.trim() || "no1", datei: w.file.name, breit: bm.width > bm.height,
+                   bild: jpeg(gross, 880_000), mini: jpeg(klein, 115_000) };
+    const r = await fetch("/api/admin/galerie/upload?key=" + encodeURIComponent(KEY), { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok || !d.ok) throw new Error(d.error || ("Fehler " + r.status));
+    w.fertig = true; w.el.classList.add("ok"); zahl.ok++;
+    if(d.zugeordnet){ w.el.classList.add("zu"); zahl.zu++; }
+  }catch(e){
+    w.fertig = false; w.el.classList.add("fehler"); w.sp.textContent = w.file.name + " – " + (e.message || "Fehler"); zahl.fehler++;
+  }
+  zeichneStand();
+}
+
+/* Drei gleichzeitig: schneller als nacheinander, und der Server bleibt
+   fuer die Gaeste erreichbar. */
+async function alle(){
+  if(laeuft) return; laeuft = true; zeichneStand();
+  const offen = warte.filter(w => !w.fertig && !w.el.classList.contains("fehler"));
+  zahl.fehler = 0; warte.forEach(w => { if(!w.fertig){ w.el.classList.remove("fehler"); w.sp.textContent = w.file.name; } });
+  const reihe = warte.filter(w => !w.fertig);
+  let i = 0;
+  await Promise.all([0,1,2].map(async () => { while(i < reihe.length){ const w = reihe[i++]; await hochladen(w); } }));
+  laeuft = false; zeichneStand();
+  $("#gesamt").textContent = zahl.ok + " Bilder in der Galerie" + (zahl.fehler ? " · " + zahl.fehler + " fehlgeschlagen – „Hochladen“ versucht sie erneut." : ".");
+}
+
+$("#waehlen").addEventListener("click", () => $("#datei").click());
+$("#datei").addEventListener("change", e => { aufnehmen(e.target.files); e.target.value = ""; });
+$("#start").addEventListener("click", alle);
+$("#leeren").addEventListener("click", () => { if(laeuft) return; warte = []; $("#liste").innerHTML = ""; zeichneStand(); });
+const zone = $("#zone");
+["dragenter","dragover"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add("ueber"); }));
+["dragleave","drop"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove("ueber"); }));
+zone.addEventListener("drop", e => { if(e.dataTransfer && e.dataTransfer.files) aufnehmen(e.dataTransfer.files); });
+window.addEventListener("beforeunload", e => { if(laeuft){ e.preventDefault(); e.returnValue = ""; } });
+zeichneStand();
+</script>
+</body>
+</html>

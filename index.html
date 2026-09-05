@@ -739,6 +739,36 @@
   .lebensader p{font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:12px}
   .lebensader .btn--full{margin-top:8px}
 
+  /* ---------- Nach dem Abend ----------
+     Die Startseite dreht sich: kein Countdown, kein "Ich bin da", sondern
+     was der Gast mitnimmt, eine Handlung und das Neueste aus dem Kreis. */
+  .danach{display:none}
+  .danach.an{display:block}
+  body[data-phase="danach"] #skyline{display:none}
+  .abendzahlen{display:flex;gap:8px;padding:0 24px;margin-top:18px}
+  .abendzahlen div{flex:1;border:1px solid var(--line-soft);padding:14px 8px;text-align:center}
+  .abendzahlen b{display:block;font-family:var(--sans);font-weight:400;font-size:24px;line-height:1;font-variant-numeric:tabular-nums}
+  .abendzahlen span{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);display:block;margin-top:7px}
+  .daumen{display:flex;gap:8px;margin:12px 0}
+  .daumen button{flex:1;background:none;border:1px solid var(--line);color:var(--ivory);padding:14px 10px;font:inherit;font-size:13px;min-height:48px;cursor:pointer}
+  .daumen button.an{background:var(--ivory);color:var(--ink);border-color:var(--ivory)}
+  .fbText{width:100%;background:none;border:1px solid var(--line-soft);color:var(--ivory);padding:12px;font:inherit;font-size:14px;min-height:74px;resize:vertical}
+  .fbText:focus{outline:none;border-color:var(--line)}
+  .streifen{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-top:12px}
+  .streifen::-webkit-scrollbar{display:none}
+  .streifen img{flex:none;width:112px;height:112px;object-fit:cover;border:1px solid var(--line-soft);background:#16274a;cursor:pointer}
+  .galgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:0 24px}
+  .galgrid img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#16274a;cursor:pointer}
+  #lichtbox{position:fixed;inset:0;background:rgba(6,12,26,.96);z-index:130;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+  #lichtbox.show{display:flex}
+  #lichtbox img{max-width:100%;max-height:76vh;object-fit:contain}
+  #lichtbox .zwei{display:flex;gap:8px;margin-top:16px}
+  .newsitem{padding:22px 24px;border-bottom:1px solid var(--line-soft)}
+  .newsitem time{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)}
+  .newsitem h3{font-family:var(--sans);font-weight:500;font-size:18px;line-height:1.2;margin:6px 0 8px}
+  .newsitem p{color:var(--muted);font-size:13.5px;white-space:pre-line}
+  .newsitem a{color:var(--ivory);display:inline-block;margin-top:10px}
+
   /* ---------- Registrierung ---------- */
   #registrierung{
     position:fixed;inset:0;z-index:108;overflow:auto;
@@ -1022,6 +1052,50 @@
         </div>
         <p class="venue rv" style="--d:320ms">16. September 2026 · 18:00 – 23:00 Uhr · Playa Cologne</p>
         <canvas id="skyline" aria-hidden="true"></canvas>
+      </div>
+
+      <!-- Nach dem Abend (Phase "danach", vom Server): was der Gast
+           mitnimmt, EINE Handlung - erst Feedback, dann die Fotos -, das
+           Neueste aus dem Kreis und, sobald es sie gibt, No2. -->
+      <div class="danach" id="danachBlock">
+        <div class="abendzahlen rv" id="abendZahlen">
+          <div><b id="azVerb">0</b><span>Verbindungen</span></div>
+          <div><b id="azMom">0</b><span>Momente</span></div>
+          <div><b id="azFotos">0</b><span>Deine Fotos</span></div>
+        </div>
+        <div class="panel rv" id="fbKarte" style="display:none">
+          <span class="label">Eine Frage</span>
+          <h3>Wie war der Abend für dich?</h3>
+          <div class="daumen">
+            <button type="button" data-daumen="1">Gut – wieder</button>
+            <button type="button" data-daumen="-1">Eher nicht</button>
+          </div>
+          <textarea class="fbText" id="fbText" maxlength="400" placeholder="Ein Satz dazu – was bleibt, was fehlte …"></textarea>
+          <button type="button" class="btn btn--solid btn--full" id="fbSenden" style="margin-top:12px">Abschicken</button>
+          <p class="fnote" style="margin-top:10px">Geht an das Team, nicht in den Kreis.</p>
+        </div>
+        <div class="panel rv" id="fbDanke" style="display:none">
+          <span class="label">Danke</span>
+          <h3 id="fbDankeTitel">Angekommen.</h3>
+          <p>Dein Feedback ist beim Team. Es prägt die nächste Runde.</p>
+        </div>
+        <div class="piece rv" id="galKarte" style="display:none">
+          <span class="label">Deine Fotos vom Abend</span>
+          <h3 id="galKarteTitel">Die Galerie ist offen.</h3>
+          <div class="streifen" id="galStreifen"></div>
+          <button type="button" class="btn" data-zeige="galerie" style="margin-top:14px">Zur Galerie</button>
+        </div>
+        <div class="piece rv" id="newsKarte" style="display:none">
+          <span class="label">Aus dem Kreis</span>
+          <h3 id="newsKarteTitel"></h3>
+          <p id="newsKarteText"></p>
+          <button type="button" class="btn" data-zeige="news" style="margin-top:14px">Alle News</button>
+        </div>
+        <div class="panel rv" id="no2Karte" style="display:none">
+          <span class="label">THE CIRCLE No2</span>
+          <h3 id="no2Titel"></h3>
+          <p id="no2Text"></p>
+        </div>
       </div>
 
       <div class="ticker" aria-hidden="true">
@@ -1365,6 +1439,38 @@
       </div>
     </section>
 
+    <!-- ============ NEWS ============
+         Nach dem Abend an der Stelle von "Live": Fotos, Termine, No2.
+         Nur fuer die Gaeste, je Runde oder fuer alle. -->
+    <section data-view="news">
+      <div class="sect">
+        <span class="label rv">Aus dem Kreis</span>
+        <h2 class="display grad rv" style="--d:60ms">News</h2>
+        <p class="lede rv" style="--d:120ms">Was nach dem Abend kommt: Fotos, Termine, die nächste Runde. Nur für die Gäste.</p>
+      </div>
+      <div id="newsListe"></div>
+      <p class="fnote rv" id="newsHinweis" style="padding:16px 24px"></p>
+    </section>
+
+    <!-- ============ GALERIE ============
+         Nach dem Abend an der Stelle von "Tisch": die Bilder der Runde,
+         oben die eigenen. Speichern geht ueber das Teilen-Menue. -->
+    <section data-view="galerie">
+      <div class="sect">
+        <span class="label rv">Der Abend in Bildern</span>
+        <h2 class="display grad rv" style="--d:60ms">Galerie</h2>
+        <p class="lede rv" style="--d:120ms">Die Bilder des Abends – und oben deine eigenen. Antippen zum Ansehen, Teilen und Speichern.</p>
+      </div>
+      <div id="galMeine" style="display:none">
+        <span class="label" style="display:block;padding:0 24px 8px">Deine Fotos</span>
+        <div class="galgrid" id="galMeineGrid"></div>
+      </div>
+      <span class="label" style="display:block;padding:22px 24px 8px" id="galAlleLabel">Alle Bilder</span>
+      <div class="galgrid" id="galGrid"></div>
+      <div style="padding:14px 24px"><button type="button" class="btn btn--full" id="galMehr" style="display:none">Mehr Bilder</button></div>
+      <p class="fnote rv" id="galHinweis" style="padding:0 24px"></p>
+    </section>
+
   </main>
 
   <nav aria-label="Hauptnavigation">
@@ -1375,6 +1481,15 @@
     <button data-nav="live">Live</button>
   </nav>
 
+</div>
+
+<!-- Ein Bild gross, mit Teilen/Speichern ueber das Systemmenue. -->
+<div id="lichtbox" role="dialog" aria-label="Bild">
+  <img id="lbBild" alt="">
+  <div class="zwei">
+    <button type="button" class="btn btn--solid" id="lbTeilen">Teilen / Speichern</button>
+    <button type="button" class="btn" id="lbZu">Schließen</button>
+  </div>
 </div>
 
 <!-- Signal aus dem Monitor: Als Naechstes / Tischwechsel. Liegt ueber allem,
@@ -1919,6 +2034,8 @@ function show(view){
   if(view==="menu") requestAnimationFrame(drawBrushlines);
   if(view==="home") requestAnimationFrame(()=>{ drawSkyline(); renderRing(); });
   if(view==="tisch" && typeof renderTisch === "function") requestAnimationFrame(renderTisch);
+  if(view==="news") ladeNews().then(newsGesehen);
+  if(view==="galerie" && !APP.galerie) ladeGalerie(0);
 }
 $$("nav button").forEach(b => b.addEventListener("click", ()=>show(b.dataset.nav)));
 $$("[data-zeige]").forEach(b => b.addEventListener("click", ()=>show(b.dataset.zeige)));
@@ -1962,6 +2079,9 @@ function renderRing(){
   });
   if(n === MOMENTS.length && !S.completeShown){
     S.completeShown = true; persist();
+    /* Nach dem Abend (neues Geraet, Momente vom Server): kein "Weiter im
+       Abend" mehr. */
+    if(document.body.dataset.phase === "danach"){ const cc = $("#completeClose"); if(cc) cc.textContent = "Weiter"; }
     setTimeout(()=>{
       $("#complete").classList.add("show");
       drawEnso($("#ensoDone"), MOMENTS.length, MOMENTS.length, {full:true, lineFrac:.15});
@@ -2081,6 +2201,8 @@ function renderStatus(){
     st.textContent = "Der Abend ist Geschichte – die Verbindungen bleiben.";
     grid.style.display = "none";
   }
+  /* Vom Team auf "danach" gestellt: Der Countdown haette kein Recht mehr. */
+  if(document.body.dataset.phase === "danach"){ st.textContent = "Der Abend ist Geschichte – die Verbindungen bleiben."; grid.style.display = "none"; }
   renderGates();
 }
 
@@ -2250,7 +2372,9 @@ function renderMenuPref(){
   let saveT;
   ta.addEventListener("input", ()=>{
     clearTimeout(saveT);
-    saveT = setTimeout(()=>{ S.notes = ta.value.trim(); persist(); }, 400);
+    /* Auch auf den Server: neues Handy, alter Satz - und er kann in den
+       Rueckblick. Nur mit Token; ohne bleibt er im Geraet. */
+    saveT = setTimeout(()=>{ S.notes = ta.value.trim(); persist(); if(APP.token) appPost("/api/app/abend", { satz: S.notes }).catch(()=>{}); }, 600);
   });
   ta.addEventListener("blur", ()=>{ if(ta.value.trim()) toast("Notiert – nur für dich."); });
 }
@@ -2380,6 +2504,9 @@ function zeitenUebernehmen(z){
   if(Array.isArray(z.timeline) && z.timeline.length) CONFIG.timeline = z.timeline;
   /* Handschalter aus dem Monitor: gilt sofort und ohne Uhrzeit. */
   JETZT_APPFREI = z.jetzt || null;
+  /* Die Phase (vor · abend · danach) kommt mit: Schaltet das Team im
+     Monitor auf "danach", dreht sich die Startseite in allen offenen Apps. */
+  if(z.phase) phaseSetzen(z.phase);
   renderTimeline();
   renderStatus();
 }
@@ -2753,7 +2880,7 @@ async function ladeKreis(){
   try{ APP.kreis = await appGet("/api/app/kreis"); cacheSet("kreis", APP.kreis); renderKreis(); }
   catch(e){ const c = cacheGet("kreis"); if(c && !APP.kreis){ APP.kreis = c.v; renderKreis(); } }
 }
-async function ladeAlles(){ if(!APP.token) { renderGaeste(); return; } await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]); }
+async function ladeAlles(){ if(!APP.token) { renderGaeste(); return; } await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]); renderDanach(); }
 
 /* ---- Kurzprofil ---- */
 let sheetGast = null;
@@ -2950,7 +3077,7 @@ async function ichBinDa(){
 function renderDaKnopf(){
   const b = $("#daBtn"); if(!b) return;
   const heute = new Date().toISOString().slice(0, 10) === CONFIG.eventDate;
-  const zeig = (heute || DEMO) && !(APP.ich && APP.ich.da) && !S.moments.ankommen;
+  const zeig = (heute || DEMO) && !(APP.ich && APP.ich.da) && !S.moments.ankommen && APP.phase !== "danach";
   b.classList.toggle("show", zeig);
 }
 $("#daBtn").addEventListener("click", ichBinDa);
@@ -3099,6 +3226,150 @@ $("#rgPush").addEventListener("click", async ()=>{ if(await pushErlauben()) $("#
 $("#rgSchliessen").addEventListener("click", ()=>{ $("#registrierung").classList.add("hidden"); renderPushKnopf(); renderDaKnopf(); show("kreis"); });
 $("#profilBtn").addEventListener("click", ()=>{ if(APP.ich) registrierungStarten(APP.ich); });
 
+/* ================= NACH DEM ABEND (Welle 4) =================
+   Die Phase kommt vom Server (Datum in Koeln, oder von Hand aus dem
+   Monitor). "danach" dreht die App: Leiste, Startseite, Handlung. */
+APP.phase = ""; APP.news = null; APP.galerie = null;
+function phaseSetzen(p){
+  if(!p || p === APP.phase) return;
+  APP.phase = p; document.body.dataset.phase = p;
+  const danach = p === "danach";
+  /* Die Leiste dreht sich mit: Live und Tisch haben danach keinen Inhalt
+     mehr, News und Galerie schon. Gleiche Knoepfe, andere Ziele. */
+  const nt = document.querySelector('nav button[data-nav="tisch"], nav button[data-nav="galerie"]');
+  const nl = document.querySelector('nav button[data-nav="live"], nav button[data-nav="news"]');
+  if(nt){ nt.dataset.nav = danach ? "galerie" : "tisch"; nt.textContent = danach ? "Galerie" : "Tisch"; }
+  if(nl){ nl.dataset.nav = danach ? "news" : "live"; nl.textContent = danach ? "News" : "Live"; }
+  $("#danachBlock").classList.toggle("an", danach);
+  const nu = $("#nextUpCard"); if(nu) nu.style.display = danach ? "none" : "";
+  renderStatus(); renderDaKnopf();
+  if(danach){ renderDanach(); if(APP.token){ ladeNews(); ladeGalerie(0); } }
+  else { const akt = document.querySelector("section[data-view].active"); if(akt && (akt.dataset.view === "news" || akt.dataset.view === "galerie")) show("home"); }
+}
+function datumSchoen(s){ const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || "")); return m ? m[3] + "." + m[2] + "." + m[1] : String(s || ""); }
+function renderDanach(){
+  if(APP.phase !== "danach") return;
+  const ich = APP.ich || {};
+  $("#azVerb").textContent = APP.kreis ? APP.kreis.verbunden.length : 0;
+  $("#azMom").textContent = momentCount();
+  $("#azFotos").textContent = APP.galerie ? APP.galerie.highlights.length : 0;
+  /* Der Ring wird zur Erinnerung: kein "Sammle sie" mehr. */
+  const es = document.querySelector(".enso-side p");
+  if(es){ const n = momentCount(); es.textContent = n >= MOMENTS.length ? "Dein Kreis ist geschlossen – alle Momente des Abends." : "So sah dein Abend aus: " + n + " von " + MOMENTS.length + " Momenten."; }
+  /* EINE Handlung: erst die Frage, dann die Fotos. */
+  const fb = ich.feedback;
+  $("#fbKarte").style.display = fb ? "none" : "";
+  $("#fbDanke").style.display = fb ? "" : "none";
+  if(fb) $("#fbDankeTitel").textContent = fb.daumen > 0 ? "Schön, dass es gut war." : "Danke für die Ehrlichkeit.";
+  const g = APP.galerie;
+  const offen = !!(g ? g.offen : ich.galerieOffen);
+  $("#galKarte").style.display = offen ? "" : "none";
+  if(g && g.offen){
+    const st = $("#galStreifen"); st.innerHTML = "";
+    const quelle = g.highlights.length ? g.highlights : g.fotos.slice(0, 8);
+    quelle.slice(0, 12).forEach(f => st.appendChild(galBild(f)));
+    $("#galKarteTitel").textContent = g.highlights.length ? (g.highlights.length === 1 ? "Ein Bild ist für dich." : g.highlights.length + " Bilder sind für dich.") : (g.anzahl ? g.anzahl + " Bilder vom Abend." : "Die Galerie ist offen.");
+  }
+  const n = APP.news && APP.news[0];
+  $("#newsKarte").style.display = n ? "" : "none";
+  if(n){ $("#newsKarteTitel").textContent = n.titel; $("#newsKarteText").textContent = n.text.length > 160 ? n.text.slice(0, 157) + "…" : n.text; }
+  const no2 = ich.no2;
+  $("#no2Karte").style.display = no2 && (no2.datum || no2.text || no2.ort) ? "" : "none";
+  if(no2){
+    $("#no2Titel").textContent = no2.datum ? datumSchoen(no2.datum) + (no2.ort ? " · " + no2.ort : "") : (no2.ort || "Bald.");
+    $("#no2Text").textContent = no2.text || "Du bist im Kreis – die Einladung kommt zuerst hierher.";
+  }
+  watchReveals($("#danachBlock"));
+}
+
+/* ---- Feedback: ein Daumen, ein Satz ---- */
+let fbDaumen = 0;
+$$("[data-daumen]").forEach(b => b.addEventListener("click", ()=>{ fbDaumen = +b.dataset.daumen; $$("[data-daumen]").forEach(x => x.classList.toggle("an", x === b)); buzz(10); }));
+$("#fbSenden").addEventListener("click", async ()=>{
+  if(!fbDaumen){ toast("Erst einen der beiden Knöpfe wählen."); return; }
+  if(!APP.token){ toast("Dafür brauchst du deinen persönlichen Link."); return; }
+  const b = $("#fbSenden"); b.disabled = true;
+  const satz = $("#fbText").value.trim();
+  try{ await appPost("/api/app/feedback", { daumen: fbDaumen, satz }); APP.ich.feedback = { daumen: fbDaumen, satz, t: Date.now() }; renderDanach(); toast("Danke – angekommen."); buzz(20); }
+  catch(e){ toast(e.message || "Ging gerade nicht – gleich nochmal."); }
+  finally{ b.disabled = false; }
+});
+
+/* ---- News ---- */
+async function ladeNews(){
+  if(!APP.token){ renderNews(); return; }
+  try{ const d = await appGet("/api/app/news"); APP.news = d.news || []; cacheSet("news", APP.news); }
+  catch(e){ const c = cacheGet("news"); if(c && !APP.news) APP.news = c.v; }
+  renderNews(); renderDanach();
+}
+function renderNews(){
+  const w = $("#newsListe"); if(!w) return; w.innerHTML = "";
+  const liste = APP.news || [];
+  liste.forEach(n => {
+    const d = document.createElement("article"); d.className = "newsitem";
+    const t = document.createElement("time"); t.textContent = new Date(n.t).toLocaleDateString("de-DE", { day:"2-digit", month:"long", year:"numeric" });
+    const h = document.createElement("h3"); h.textContent = n.titel;
+    const p = document.createElement("p"); p.textContent = n.text;
+    d.appendChild(t); d.appendChild(h); d.appendChild(p);
+    if(n.link && /^https?:\/\//.test(n.link)){ const a = document.createElement("a"); a.href = n.link; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = (n.linkText || n.link.replace(/^https?:\/\//, "")) + " ↗"; d.appendChild(a); }
+    w.appendChild(d);
+  });
+  $("#newsHinweis").textContent = liste.length ? "" : (APP.token ? "Noch nichts Neues – die Fotos vom Abend und die nächste Runde kommen hierher." : "Mit deinem persönlichen Link siehst du hier die News aus dem Kreis.");
+  /* Zaehler am Reiter: ungelesene Beitraege. */
+  let gesehen = 0; try{ gesehen = +localStorage.getItem("circle.newsGesehen") || 0; }catch(e){}
+  const neu = liste.filter(n => n.t > gesehen).length;
+  const nb = document.querySelector('nav button[data-nav="news"]');
+  if(nb){ nb.classList.toggle("punkt", neu > 0); nb.dataset.n = neu; }
+}
+function newsGesehen(){
+  const l = APP.news || []; if(!l.length) return;
+  try{ localStorage.setItem("circle.newsGesehen", String(Math.max.apply(null, l.map(n => n.t)))); }catch(e){}
+  const nb = document.querySelector('nav button[data-nav="news"]'); if(nb) nb.classList.remove("punkt");
+}
+
+/* ---- Galerie ---- */
+let galSeite = 0;
+async function ladeGalerie(seite){
+  if(!APP.token){ renderGalerie(); return; }
+  try{
+    const d = await appGet("/api/app/galerie?seite=" + (seite || 0));
+    if(seite && APP.galerie){ APP.galerie.fotos = APP.galerie.fotos.concat(d.fotos); APP.galerie.seiten = d.seiten; }
+    else APP.galerie = d;
+    galSeite = seite || 0;
+  }catch(e){ if(!APP.galerie) APP.galerie = { offen:false, highlights:[], fotos:[], anzahl:0, seiten:0 }; }
+  renderGalerie(); renderDanach();
+}
+function galBild(f){ const i = document.createElement("img"); i.src = f.m; i.alt = ""; i.loading = "lazy"; i.decoding = "async"; i.addEventListener("click", ()=>lichtbox(f)); return i; }
+function renderGalerie(){
+  const g = APP.galerie || { offen:false, highlights:[], fotos:[], anzahl:0, seiten:0 };
+  const mg = $("#galMeineGrid"), ag = $("#galGrid"); mg.innerHTML = ""; ag.innerHTML = "";
+  $("#galMeine").style.display = g.highlights.length ? "" : "none";
+  g.highlights.forEach(f => mg.appendChild(galBild(f)));
+  g.fotos.forEach(f => ag.appendChild(galBild(f)));
+  $("#galAlleLabel").style.display = g.fotos.length ? "" : "none";
+  $("#galMehr").style.display = g.seiten > galSeite + 1 ? "" : "none";
+  $("#galHinweis").textContent = !APP.token ? "Mit deinem persönlichen Link siehst du hier die Bilder deiner Runde."
+    : !g.offen ? "Die Galerie öffnet sich ein paar Tage nach dem Abend – du bekommst eine Nachricht."
+    : !g.fotos.length ? "Noch keine Bilder." : g.anzahl + " Bilder" + (g.highlights.length ? " · " + g.highlights.length + " davon für dich" : "");
+}
+$("#galMehr").addEventListener("click", ()=>ladeGalerie(galSeite + 1));
+let lbFoto = null;
+function lichtbox(f){ lbFoto = f; $("#lbBild").src = f.w; $("#lichtbox").classList.add("show"); }
+$("#lbZu").addEventListener("click", ()=>{ $("#lichtbox").classList.remove("show"); $("#lbBild").removeAttribute("src"); lbFoto = null; });
+$("#lichtbox").addEventListener("click", e => { if(e.target === $("#lichtbox")) $("#lbZu").click(); });
+document.addEventListener("keydown", e => { if(e.key === "Escape" && lbFoto) $("#lbZu").click(); });
+/* Speichern ueber das Teilen-Menue: dort liegt "Bild sichern" auf iOS
+   und Android - ein Download-Link tut in der installierten App nichts. */
+$("#lbTeilen").addEventListener("click", async ()=>{
+  if(!lbFoto) return;
+  try{
+    const r = await fetch(lbFoto.w); const blob = await r.blob();
+    const file = new File([blob], "the-circle-" + lbFoto.id + ".jpg", { type:"image/jpeg" });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:"THE CIRCLE No1" }); return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ if(e && e.name === "AbortError") return; window.open(lbFoto.w, "_blank", "noopener"); }
+});
+
 /* ---- Einstieg mit dem persoenlichen Link ---- */
 function ladeschirm(an, fehler){
   const el = $("#ladeschirm"); if(!el) return;
@@ -3130,7 +3401,12 @@ async function appStarten(t){
   S.token = t; S.name = d.ich.name; S.company = [d.ich.firma, d.ich.rolle].filter(Boolean).join(" · ");
   S.mail = d.ich.email; S.phone = d.ich.telefon; S.diet = d.ich.diet; S.allergy = d.ich.allergy;
   if(d.ich.da && !S.moments.ankommen) S.moments.ankommen = d.ich.da;
+  /* Vom Server zurueck aufs Geraet: Momente und der eigene Satz. Neues
+     Handy nach dem Abend heisst nicht leerer Kreis. */
+  if(d.ich.momente) for(const k in d.ich.momente) if(!S.moments[k]) S.moments[k] = d.ich.momente[k];
+  if(d.ich.abend && d.ich.abend.satz && !S.notes){ S.notes = d.ich.abend.satz; $("#notesArea").value = S.notes; }
   persist();
+  phaseSetzen(d.phase || "");
   $("#onboarding").classList.add("hidden");
   renderCard(); renderMenuPref(); renderRing(); renderDaKnopf(); renderPushKnopf();
   if(d.signal) signalZeigen(d.signal);
