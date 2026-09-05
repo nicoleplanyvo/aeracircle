@@ -595,6 +595,93 @@ jederzeit nachschieben.
 
 ---
 
+## 7 · Die App am Abend – und danach
+
+Die App (`/?t=…`) ist mit dem persönlichen Link aus Welle 2 erreichbar.
+Was sie am Abend kann, steuert der Monitor; was sie danach am Leben hält,
+auch. Vier Dinge vorher, ein Ablauf für den Tag, einer für die Wochen danach.
+
+### 7.1 Vorher in Plesk (einmalig)
+
+| Variable | Wozu |
+|---|---|
+| `VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT` | Web Push. Ohne die drei ist Push aus – der Monitor sagt es unter „Die App“. Einmal erzeugen (unten), **nie wechseln**: ein neuer Schlüssel macht alle Abos der Gäste ungültig. |
+| `TZ=Europe/Berlin` | Logs und Serveruhr in Kölner Zeit. Die App-frei-Fenster rechnen ohnehin in Kölner Zeit. |
+| `VERANTWORTLICH`, `DATENSCHUTZ_KONTAKT` | Impressum und Datenschutz unter `/impressum`, `/datenschutz`. Solange sie fehlen, steht dort „noch einzutragen“. |
+| `RUNDE=no1` | In welche Runde neue Importe fallen. Gästebuch, Galerie und News sind je Runde getrennt – die Gäste von No2 sehen die von No1 nicht. |
+
+Schlüssel erzeugen, auf dem Server, im Anwendungsverzeichnis:
+
+```bash
+node -e "console.log(require('./server/webpush').schluesselErzeugen())"
+```
+
+Die beiden Werte **nur** in Plesk eintragen (nicht in eine Mail, nicht in
+einen Chat), dann Anwendung neu starten. Prüfen: Monitor → „Die App“ zeigt
+keine VAPID-Warnung mehr; Knopf „Push-Probe“ schickt eine an alle, die sie
+erlaubt haben.
+
+### 7.2 Tischplan (Jonan)
+
+CSV mit Kopfzeile, eine Zeile je Gast:
+
+```
+email,gang1,gang2,gang3
+anna@beispiel.de,1,3,2
+```
+
+Statt `email` geht auch `name` (muss dem Namen im Register entsprechen).
+Tischnamen optional darunter im Monitor, eine je Zeile: `1;Dom`. Ablauf im
+Monitor → „Die App“ → Tischordnung: **Probelauf** (zeigt unbekannte
+Adressen und Gäste ohne Platz), dann **Übernehmen**. Einzelne Plätze am
+Abend über „Platz setzen“ – ohne die ganze Datei neu zu laden.
+
+### 7.3 Am 16.09. – Checkliste für 17:00 (Mathis)
+
+- [ ] Monitor auf dem Handy offen (`/monitor?key=…`), Wand auf dem Beamer (`/wand`, Vollbild)
+- [ ] Monitor → „Der Abend“: Serveruhr (Köln) stimmt auf die Minute; Phase steht auf **Automatik**
+- [ ] Zeiten-Tabelle gegen den Ablauf von Desi geprüft (App-frei: 19:30 Impuls I, 21:15 Impuls II, 22:45 Auktion)
+- [ ] Tischplan übernommen, „Ohne Platz“ leer oder bekannt
+- [ ] „Die App“: Zahlen Registriert / Installiert / Push erreichbar gelesen – **so viele erreicht ein Tischwechsel als Push**, die anderen sehen ihn nur in der offenen App
+- [ ] Push-Probe an sich selbst (eigener Gastlink auf dem Handy, App installiert, Push erlaubt)
+- [ ] Ein Signal testen und zurücknehmen: „Nur in die App“ mit einem Satz → erscheint im eigenen Handy → „Zurücknehmen“
+- [ ] Wand: einmal durch Ruhe → AV8 (Vorhang zu) → Auktion → Kreis → Automatik
+- [ ] Wissen, wo **Notfall: alles frei** ist (nimmt Signal, Handschalter und alle Fenster zurück)
+
+Am Abend selbst: Tischwechsel je Gang über die Knöpfe unter „Die App“ (fragt
+nach; im App-freien Fenster hält der Server die Push zurück und fragt noch
+einmal). Verschiebt sich alles: **+15 Min** schiebt Ablauf, App-frei- und
+Live-Fenster gemeinsam – nur, was noch vor uns liegt.
+
+### 7.4 Danach – Fotos, News, Feedback
+
+1. **Phase.** Am Morgen des 17. steht die App von selbst auf „danach“
+   (Startseite ohne Countdown, Leiste mit Galerie und News). Wenn nicht:
+   Monitor → „Der Abend“ → Phase **Danach**.
+2. **Feedback-Frage** (24–36 h danach): Monitor → „Nach dem Abend“ →
+   Nachricht, Anlass *Feedback-Frage*, erst **Probe** an die eigene Adresse,
+   dann **An alle**. Antworten stehen darunter, CSV zum Herunterladen.
+3. **Fotos.** Fotograf liefert JPEGs; wer auf einem Bild ist, steht am
+   besten im Dateinamen (`anna@beispiel.de_01.jpg` → landet bei Anna als
+   „Deine Fotos“). Hochladen unter `/upload?key=…` (verkleinert im Browser,
+   Originale bleiben lokal). Restliche Zuordnung im Monitor per Liste
+   `datei;email,email` – Probelauf, dann Übernehmen. Dann **Galerie öffnen**,
+   dann Nachricht *Galerie ist offen* (Push + Mail).
+4. **News** jederzeit: Entwurf speichern, veröffentlichen, zurückziehen.
+   Steht in der App unter „News“ mit Zähler am Reiter. Für ein Datum von
+   No2 die Karte unter „THE CIRCLE No2“ füllen – sie steht dann auf der
+   Startseite jedes Gastes.
+
+Jeder Anlass geht **einmal** an die Runde; ein zweiter Versand fragt nach.
+Das Protokoll (Push gesendet / ohne Abo, Mail gesendet / ohne Adresse) steht
+unter dem Formular.
+
+**Sicherung nach dem Abend:** neben `live-state.json` auch die Ordner
+`server/fotos/` (Profilbilder) und `server/galerie/` (Galerie) – beide
+sind nicht im Repo.
+
+---
+
 ## Betrieb
 
 **Änderungen ausrollen:** Plesk → Git → *Jetzt aktualisieren*, danach

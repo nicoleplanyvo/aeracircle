@@ -464,13 +464,24 @@ function json(res, code, obj) {
   res.end(JSON.stringify(obj));
 }
 
+/* Zu grosser Rumpf: erst antworten, dann die Leitung kappen. Ein blosses
+   req.destroy() liess den Knopf in der App bis zum Timeout haengen - und
+   das "end"-Ereignis, in dem die 413 stehen sollte, kam nie. */
+function zuGrossAbbruch(req, res, text) {
+  if (res.headersSent) return;
+  res.writeHead(413, { "Content-Type": "application/json", "Connection": "close" });
+  res.end(JSON.stringify({ error: text || "zu gross" }), () => req.destroy());
+}
 function readBody(req, res, cb) {
-  let raw = "";
+  let raw = "", zuGross = false;
   req.on("data", c => {
     raw += c;
-    if (raw.length > 10_000) { req.destroy(); }
+    /* Antworten, nicht nur kappen: ein stumm zerstoerter Request laesst
+       den Knopf in der App bis zum Timeout haengen. */
+    if (raw.length > 10_000 && !zuGross) { zuGross = true; zuGrossAbbruch(req, res); }
   });
   req.on("end", () => {
+    if (zuGross) return;
     try { cb(JSON.parse(raw || "{}")); }
     catch (e) { json(res, 400, { error: "bad json" }); }
   });
@@ -920,9 +931,9 @@ function jpegAusDataUrl(s, maxBytes) {
 /* Wie readBody, aber fuer das Profilbild: 1,5 MB statt 10 KB. */
 function readBodyGross(req, res, cb) {
   let raw = "", zuGross = false;
-  req.on("data", c => { raw += c; if (raw.length > 1_500_000) { zuGross = true; req.destroy(); } });
+  req.on("data", c => { raw += c; if (raw.length > 1_500_000 && !zuGross) { zuGross = true; zuGrossAbbruch(req, res, "Bild zu groß"); } });
   req.on("end", () => {
-    if (zuGross) return json(res, 413, { error: "Bild zu groß" });
+    if (zuGross) return;
     try { cb(JSON.parse(raw || "{}")); }
     catch (e) { json(res, 400, { error: "bad json" }); }
   });
@@ -2148,6 +2159,13 @@ const server = http.createServer((req, res) => {
   const url = req.url.split("?")[0];
   const q = new URLSearchParams(req.url.split("?")[1] || "");
 
+  /* Fuer jede Antwort. Der persoenliche Token steht in der Adresse der App -
+     ohne Referrer-Policy wanderte er mit jedem Klick auf LinkedIn, Maps oder
+     einen News-Link zum fremden Server. */
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
@@ -3311,7 +3329,10 @@ const server = http.createServer((req, res) => {
      * Bewusst KEIN Zustell- oder Lesestatus: wir wissen nur, dass jemand
      * die Nachricht abgeschickt hat. */
     if (req.method === "POST" && url === "/api/admin/whatsapp-vermerk") {
-      const inv = state.invites[String(q.get("token") || "")];
+      /* Nur eigene Schluessel: state.invites["__proto__"] waere sonst das
+         Object-Prototyp, und inv.whatsapp = {} stuende auf jedem Objekt. */
+      const tk = String(q.get("token") || "");
+      const inv = Object.prototype.hasOwnProperty.call(state.invites, tk) ? state.invites[tk] : null;
       if (!inv) return json(res, 404, { error: "Unbekannter Gast" });
       const welle = String(q.get("welle") || "1");
       inv.whatsapp = inv.whatsapp || {};
@@ -3358,9 +3379,9 @@ const server = http.createServer((req, res) => {
      * Der Rumpf ist die CSV selbst, nicht JSON. */
     if (req.method === "POST" && url === "/api/admin/import") {
       let roh = "", zuGross = false;
-      req.on("data", c => { roh += c; if (roh.length > 500_000) { zuGross = true; req.destroy(); } });
+      req.on("data", c => { roh += c; if (roh.length > 500_000 && !zuGross) { zuGross = true; zuGrossAbbruch(req, res); } });
       req.on("end", () => {
-        if (zuGross) return json(res, 413, { error: "CSV zu groß (max. 500 KB)" });
+        if (zuGross) return;
         let ergebnis;
         try { ergebnis = importRows(parseCSV(roh)); }
         catch (e) { return json(res, 400, { error: "Import fehlgeschlagen: " + e.message }); }
@@ -3481,9 +3502,9 @@ const server = http.createServer((req, res) => {
      * Ohne ?senden=1 ein Probelauf: wer gefunden wurde, wer nicht. */
     if (req.method === "POST" && url === "/api/admin/tischplan") {
       let roh = "", zuGross = false;
-      req.on("data", c => { roh += c; if (roh.length > 200_000) { zuGross = true; req.destroy(); } });
+      req.on("data", c => { roh += c; if (roh.length > 200_000 && !zuGross) { zuGross = true; zuGrossAbbruch(req, res); } });
       req.on("end", () => {
-        if (zuGross) return json(res, 413, { error: "CSV zu groß" });
+        if (zuGross) return;
         let rows;
         try { rows = parseCSV(roh); } catch (e) { return json(res, 400, { error: "CSV unlesbar" }); }
         if (!rows.length) return json(res, 400, { error: "leer" });
@@ -3703,9 +3724,9 @@ const server = http.createServer((req, res) => {
     /* Zuordnung per Liste: "datei;email,email" je Zeile. Ohne ?senden=1 nur zaehlen. */
     if (req.method === "POST" && url === "/api/admin/galerie/zuordnung") {
       let roh = "", zuGross = false;
-      req.on("data", c => { roh += c; if (roh.length > 500_000) { zuGross = true; req.destroy(); } });
+      req.on("data", c => { roh += c; if (roh.length > 500_000 && !zuGross) { zuGross = true; zuGrossAbbruch(req, res); } });
       req.on("end", () => {
-        if (zuGross) return json(res, 413, { error: "zu gross" });
+        if (zuGross) return;
         const r = clean(q.get("runde"), 20) || RUNDE, g = galerie(r);
         const byMail = {}; for (const i of Object.values(state.invites)) if (i.email) byMail[i.email.toLowerCase()] = i;
         const byDatei = {}; for (const f of Object.values(g.fotos)) if (f.datei) byDatei[f.datei.toLowerCase()] = f;
