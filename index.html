@@ -85,7 +85,10 @@
     background:linear-gradient(180deg,#ff8d8e 6%,#ff6b6c 55%,#e3565c 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
-  .out{color:transparent;-webkit-text-stroke:1.5px rgba(248,247,244,.85)}
+  /* Frueher als Kontur (transparent mit Strich): sah unfertig aus, wie ein
+     Entwurf. Jetzt gefuellt in Elfenbein - der Kontrast zum Koralle-Anfang
+     bleibt, das Wort ist eins. */
+  .out{color:var(--ivory)}
   .lede{color:var(--muted);font-size:14px;font-weight:300}
   .hairline{border:0;border-top:1px solid var(--line-soft);margin:0 24px}
 
@@ -890,7 +893,7 @@
     text-transform:uppercase;color:var(--muted);
   }
   .ticker span::after{content:"—";margin:0 1.4em;opacity:.3;-webkit-text-stroke:0;color:var(--faint)}
-  .ticker .o{color:transparent;-webkit-text-stroke:1px rgba(245,243,239,.45)}
+  .ticker .o{color:rgba(245,243,239,.5)}
   @keyframes tick{to{transform:translateX(-50%)}}
 
   /* Countdown-Ziffern */
