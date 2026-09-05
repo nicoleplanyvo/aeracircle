@@ -654,6 +654,10 @@
   .kontakt a span{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);width:64px;flex:none}
   .aktionen{display:flex;flex-direction:column;gap:10px;margin-top:22px}
   .aktionen .btn{width:100%;padding:14px}
+  .shNotiz{width:100%;min-height:64px;background:none;border:1px solid var(--line-soft);color:var(--ivory);
+    font-family:var(--sans);font-size:13px;padding:10px 12px;resize:vertical;line-height:1.5}
+  .shNotiz:focus{outline:none;border-color:var(--line)}
+  .shNotiz::placeholder{color:var(--faint)}
   .btn.leise{border-color:transparent;color:var(--faint)}
   #gastSheet .fnote{margin-top:14px;text-align:center}
   .fnote{font-size:11px;color:var(--faint);line-height:1.6;letter-spacing:.02em}
@@ -709,9 +713,15 @@
   #signalBanner .weg{background:none;border:0;color:#5b6474;font-size:22px;line-height:1;padding:4px 6px;cursor:pointer;flex:none}
   @keyframes signalRein{from{transform:translateY(-24px);opacity:0}to{transform:none;opacity:1}}
 
-  /* ---------- Ich bin da ---------- */
+  /* ---------- Ich bin da / Lebensader ---------- */
   .dabtn{margin:18px 24px 0;display:none}
   .dabtn.show{display:block}
+  .lebensader{margin:18px 24px 0;padding:20px 20px 12px;border:1px solid var(--coral);
+    background:linear-gradient(180deg,rgba(255,107,108,.10),rgba(255,107,108,.03))}
+  .lebensader .label{color:var(--coral)}
+  .lebensader h3{font-family:var(--disp);font-weight:600;font-size:19px;line-height:1.3;margin:8px 0 8px;letter-spacing:.01em}
+  .lebensader p{font-size:13px;color:var(--muted);line-height:1.65;margin-bottom:12px}
+  .lebensader .btn--full{margin-top:8px}
 
   /* ---------- Registrierung ---------- */
   #registrierung{
@@ -962,7 +972,25 @@
           <span id="statusText">–</span>
         </div>
         <button type="button" class="btn btn--solid btn--full dabtn" id="daBtn">Ich bin da</button>
-        <button type="button" class="btn btn--full dabtn" id="pushBtn">Tischwechsel aufs Handy – Benachrichtigungen erlauben</button>
+        <!-- Die Lebensader der App. Ohne Startbildschirm ist sie ein Tab,
+             der beim naechsten Aufraeumen verschwindet; ohne Push erreicht
+             sie niemanden, wenn das Handy in der Tasche liegt - am Abend
+             nicht und danach nicht (Fotos, News, naechste Runde). Deshalb
+             kommt die Karte bei jedem Oeffnen wieder, bis beides erledigt
+             ist. "Spaeter" gilt fuer diese Sitzung, nicht fuer immer. -->
+        <div class="lebensader rv" id="appHinweis" style="display:none">
+          <span class="label" id="ahLabel">Damit die App bleibt</span>
+          <h3 id="ahTitel">Leg THE CIRCLE auf deinen Startbildschirm.</h3>
+          <p id="ahText"></p>
+          <div class="rg-anleitung" id="ahIos" style="display:none">
+            <div><b>1</b> Tippe unten auf <span class="ios-teilen" aria-label="Teilen">⎋</span> <em>Teilen</em></div>
+            <div><b>2</b> Wähle <em>Zum Home-Bildschirm</em></div>
+            <div><b>3</b> Öffne THE CIRCLE von dort</div>
+          </div>
+          <button type="button" class="btn btn--solid btn--full" id="ahInstall" style="display:none">App installieren</button>
+          <button type="button" class="btn btn--solid btn--full" id="ahPush" style="display:none">Benachrichtigungen erlauben</button>
+          <button type="button" class="btn btn--full leise" id="ahSpaeter">Später</button>
+        </div>
         <div class="count-grid rv" id="countGrid" style="--d:260ms">
           <div class="cell"><b class="grad" id="cdD">–</b><span>Tage</span></div>
           <div class="cell"><b class="grad" id="cdH">–</b><span>Std</span></div>
@@ -1239,9 +1267,9 @@
          ich die Person danach wieder?" -->
     <section data-view="kreis">
       <div class="sect">
-        <span class="label rv">Die Menschen im Raum</span>
-        <h2 class="display grad rv" style="--d:60ms">Kreis</h2>
-        <p class="lede rv" style="--d:120ms" id="kreisLede">Alle Gäste des Abends. Antippen, verbinden – und nach dem Abend wiederfinden.</p>
+        <span class="label rv">Die Gäste deiner Runde</span>
+        <h2 class="display grad rv" style="--d:60ms">Gästebuch</h2>
+        <p class="lede rv" style="--d:120ms" id="kreisLede">Alle, die heute Abend im Raum sind. Antippen, verbinden – und nach dem Abend wiederfinden. Das Gästebuch bleibt.</p>
         <button type="button" class="btn rv" id="profilBtn" style="margin-top:14px">Mein Profil bearbeiten</button>
       </div>
 
@@ -1314,7 +1342,7 @@
 
   <nav aria-label="Hauptnavigation">
     <button data-nav="programm">Abend</button>
-    <button data-nav="kreis">Kreis</button>
+    <button data-nav="kreis">Gästebuch</button>
     <button data-nav="home" class="navspiral active" aria-label="Circle – Start"><canvas class="spiralcv" width="68" height="68" aria-hidden="true"></canvas></button>
     <button data-nav="tisch">Tisch</button>
     <button data-nav="live">Live</button>
@@ -1548,7 +1576,7 @@
       <p class="lede">Und damit du den Tischwechsel nicht verpasst, während das Handy in der Tasche liegt:</p>
       <button class="btn btn--solid btn--full" type="button" id="rgPush">Benachrichtigungen erlauben</button>
     </div>
-    <button class="btn btn--full leise" type="button" id="rgSchliessen">Weiter zur App</button>
+    <button class="btn btn--full leise" type="button" id="rgSchliessen">Erst mal ohne – ich mache das später</button>
   </div>
 </div>
 
@@ -2644,6 +2672,12 @@ function renderSheet(g){
   } else if(v === "verbunden"){
     if(g.email || g.telefon) ak.appendChild(btn("Kontakt speichern", "btn--solid", ()=>kontaktSpeichern(g)));
     else note.textContent = g.name.split(" ")[0] + " hat die Kontaktdaten nicht freigegeben – ihr seid verbunden, den Rest klärt ihr persönlich.";
+    /* Notiz nur fuer mich: "wollte ihr das Deck schicken". Der andere
+       sieht sie nie - das ist der Unterschied zum Chat. */
+    const ta = document.createElement("textarea"); ta.className = "shNotiz"; ta.maxLength = 300;
+    ta.placeholder = "Notiz nur für dich – z. B. was du " + g.name.split(" ")[0] + " schicken wolltest"; ta.value = g.notiz || "";
+    let nt; ta.addEventListener("input", ()=>{ clearTimeout(nt); nt = setTimeout(()=>appPost("/api/app/notiz", { wen:g.id, text: ta.value.trim() }).catch(()=>{}), 500); });
+    ak.appendChild(ta);
     ak.appendChild(btn("Verbindung lösen", "leise", ()=>verbindenAktion(g.id, "trennen")));
   } else if(v === "spaeter"){
     ak.appendChild(btn("Jetzt verbinden", "btn--solid", ()=>verbindenAktion(g.id, "anfragen")));
@@ -2794,13 +2828,38 @@ async function pushErlauben(){
     return true;
   }catch(e){ toast("Benachrichtigungen nicht erlaubt."); return false; }
 }
-function renderPushKnopf(){
-  const b = $("#pushBtn"); if(!b) return;
-  const zeig = !!APP.token && !!APP.vapid && "PushManager" in window && istStandalone() && !(APP.ich && APP.ich.push) && Notification.permission !== "denied";
-  b.classList.toggle("show", zeig);
+function renderPushKnopf(){ renderAppHinweis(); }
+/* Die Karte kommt bei jedem Oeffnen wieder, bis Startbildschirm UND Push
+   erledigt sind. Erst dann lebt die App nach dem Abend weiter. */
+function renderAppHinweis(){
+  const el = $("#appHinweis"); if(!el) return;
+  let weg = false; try{ weg = !!sessionStorage.getItem("circle.ah"); }catch(e){}
+  if(!APP.token || weg){ el.style.display = "none"; return; }
+  const sa = istStandalone();
+  const pushOffen = sa && "PushManager" in window && !!APP.vapid && !(APP.ich && APP.ich.push) && Notification.permission !== "denied";
+  $("#ahIos").style.display = "none"; $("#ahInstall").style.display = "none"; $("#ahPush").style.display = "none";
+  if(!sa){
+    $("#ahLabel").textContent = "Damit die App bleibt";
+    $("#ahTitel").textContent = "Leg THE CIRCLE auf deinen Startbildschirm.";
+    $("#ahText").textContent = "Nur so erreichen dich Tischwechsel, deine Fotos vom Abend und die nächste Runde. Im Browser ist die App nur ein Tab.";
+    if(istIos()) $("#ahIos").style.display = "";
+    else if(APP.install) $("#ahInstall").style.display = "";
+    else $("#ahText").textContent += " Im Menü deines Browsers: „App installieren“ oder „Zum Startbildschirm“.";
+  } else if(pushOffen){
+    $("#ahLabel").textContent = "Ein Tippen noch";
+    $("#ahTitel").textContent = "Erlaube Benachrichtigungen.";
+    $("#ahText").textContent = "Der Tischwechsel kommt aufs Handy, während es in der Tasche liegt. Danach: deine Fotos vom Abend und News aus dem Kreis.";
+    $("#ahPush").style.display = "";
+  } else { el.style.display = "none"; return; }
+  el.style.display = "block";
 }
-$("#pushBtn").addEventListener("click", pushErlauben);
-window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); APP.install = e; const b = $("#rgInstall"); if(b) b.style.display = ""; });
+$("#ahPush").addEventListener("click", pushErlauben);
+$("#ahInstall").addEventListener("click", async ()=>{ if(!APP.install) return; APP.install.prompt(); try{ await APP.install.userChoice; }catch(e){} APP.install = null; renderAppHinweis(); });
+$("#ahSpaeter").addEventListener("click", ()=>{ try{ sessionStorage.setItem("circle.ah", "1"); }catch(e){} $("#appHinweis").style.display = "none"; });
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); APP.install = e; const b = $("#rgInstall"); if(b) b.style.display = ""; renderAppHinweis(); });
+/* Kommt der Gast aus dem Browser in die installierte App, soll die Karte
+   sofort zur Push-Frage wechseln, nicht erst beim naechsten Laden. */
+matchMedia("(display-mode: standalone)").addEventListener("change", renderAppHinweis);
 
 /* ---- Registrierung ---- */
 let rgBild = null;   // { foto, mini } als Data-URLs
@@ -2880,7 +2939,7 @@ $("#profilBtn").addEventListener("click", ()=>{ if(APP.ich) registrierungStarten
 async function appStarten(t){
   APP.token = t;
   let d;
-  try{ d = await appGet("/api/app/ich"); }
+  try{ d = await appGet("/api/app/ich?modus=" + (istStandalone() ? "standalone" : "browser")); }
   catch(e){
     if(e.status === 403){
       /* Noch nicht zugesagt: die Zusage ist der Weg in die App. Token

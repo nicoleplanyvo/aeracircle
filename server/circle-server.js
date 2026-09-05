@@ -281,6 +281,8 @@ if (!state.zeiten.gates || typeof state.zeiten.gates !== "object") {
   state.zeiten.gates = JSON.parse(JSON.stringify(ZEITEN_STANDARD.gates));
 }
 if (!("jetzt" in state.zeiten)) state.zeiten.jetzt = null;
+/* Gaeste aus der Zeit vor den Runden gehoeren zur ersten. */
+for (const inv of Object.values(state.invites)) if (!inv.runde) inv.runde = "no1";
 
 let dirty = false;
 setInterval(() => {
@@ -319,6 +321,25 @@ function rateLimit(req, res, schluessel, max, fensterMs) {
 
 function guestCount() { return Object.keys(state.guests).length; }
 
+/* Der Abend in Zahlen: wer ist in der App, wer installiert, wer im Haus,
+ * wen erreicht eine Push. Wenn der Tischwechsel nur die Haelfte erreicht,
+ * soll das VORHER auf dem Schirm stehen. */
+function kreisZahlen() {
+  let im = 0, reg = 0, da = 0, push = 0, verbunden = 0, inst = 0;
+  for (const i of Object.values(state.invites)) {
+    /* Nur die laufende Runde: die Zahl auf dem Schirm ist die fuer DIESEN
+     * Abend, nicht die Summe aller bisherigen. */
+    if (!imKreis(i) || rundeVon(i) !== RUNDE) continue;
+    im++;
+    if (i.app && i.app.standalone) inst++;
+    if (i.profil && i.profil.registriert) reg++;
+    if (i.da) da++;
+    if (i.push) push++;
+  }
+  for (const [k, v] of Object.entries(state.verbindungen || {})) if (v.status === "verbunden" && k.startsWith(RUNDE + "|")) verbunden++;
+  return { im, registriert: reg, installiert: inst, da, push, verbunden, gang: tische().gang, runde: RUNDE,
+           pushMoeglich: pushMoeglich(), signal: state.signal || null, gaenge: tische().gaenge, tische: tische().liste.length };
+}
 function snapshot() {
   return JSON.stringify({
     applause: state.applause,
@@ -332,18 +353,7 @@ function snapshot() {
     /* Der Abend in Zahlen fuer den Monitor: wer ist in der App, wer ist
      * im Haus, wen erreicht eine Push. Wenn der Tischwechsel nur die
      * Haelfte erreicht, soll das VORHER auf dem Schirm stehen. */
-    kreis: (() => {
-      let im = 0, reg = 0, da = 0, push = 0, verbunden = 0;
-      for (const i of Object.values(state.invites)) {
-        if (!imKreis(i)) continue;
-        im++;
-        if (i.profil && i.profil.registriert) reg++;
-        if (i.da) da++;
-        if (i.push) push++;
-      }
-      for (const v of Object.values(state.verbindungen || {})) if (v.status === "verbunden") verbunden++;
-      return { im, registriert: reg, da, push, verbunden, gang: tische().gang };
-    })()
+    kreis: kreisZahlen()
   });
 }
 
@@ -640,6 +650,17 @@ function findByGid(id) {
  * und stehen nicht drin - "ueber die App kommt nur, wer zugesagt hat". */
 const imKreis = inv => inv && (inv.status === "zugesagt" || inv.status === "bezahlt") && !inv.abgemeldet;
 
+/* --- Runden ---
+ * THE CIRCLE gibt es mehr als einmal, und der Gaestekreis wechselt fast
+ * vollstaendig. Im Gaestebuch sieht ein Gast nur die Gaeste SEINER Runde -
+ * die Verbindungen von No1 gehen niemanden aus No2 etwas an, und umgekehrt.
+ * Jeder Gast traegt seine Runde; wer zu einer spaeteren wiederkommt, bekommt
+ * dafuer einen neuen Eintrag mit neuem Link und sieht dort deren Kreis.
+ * RUNDE ist die Runde, in die neue Importe fallen. */
+const RUNDE = process.env.RUNDE || "no1";
+const rundeVon = inv => inv.runde || "no1";
+const gleicheRunde = (a, b) => rundeVon(a) === rundeVon(b);
+
 /* Profil-Anteil, der zum Gast dazukommt, wenn er die App registriert.
  * Vorher existiert er nicht - "noch nicht registriert" ist ein gueltiger,
  * sichtbarer Zustand in der Liste. */
@@ -658,10 +679,12 @@ const fotoUrl = (inv, mini) => {
  * es zwei Zeilen, wenn beide gleichzeitig anfragen, und "Mein Kreis" zeigte
  * Dubletten. Fragt B an, waehrend A schon angefragt hat, ist das keine
  * Kollision, sondern die Zustimmung. */
-function paarKey(a, b) { return [a, b].sort().join("|"); }
-function verbindung(a, b) {
+/* Der Schluessel traegt die Runde vorne: Verbindungen sind je Runde, und
+ * zwei Gaeste, die sich in No1 und No2 begegnen, haben zwei Zeilen. */
+function paarKey(a, b, runde) { return (runde || "no1") + "|" + [a, b].sort().join("|"); }
+function verbindung(a, b, runde) {
   if (!state.verbindungen) state.verbindungen = {};
-  const k = paarKey(a, b);
+  const k = paarKey(a, b, runde);
   return hasOwn(state.verbindungen, k) ? state.verbindungen[k] : null;
 }
 /* Wie ICH (ich = gid) die Verbindung zu einem anderen sehe.
@@ -669,8 +692,8 @@ function verbindung(a, b) {
  *   verbunden · spaeter
  * Eine Ablehnung sieht der Anfragende NIE - fuer ihn bleibt es "angefragt".
  * Eine Ablehnung, die ankommt, vergiftet den Abend. */
-function verbindungAusSicht(ich, andere) {
-  const v = verbindung(ich, andere);
+function verbindungAusSicht(ich, andere, runde) {
+  const v = verbindung(ich, andere, runde);
   if (!v) return "keine";
   if (v.status === "verbunden") return "verbunden";
   if (v.status === "spaeter") return "spaeter";
@@ -682,7 +705,8 @@ function verbindungAusSicht(ich, andere) {
  * den Server nur bei "verbunden" UND wenn das Gegenueber sie freigegeben
  * hat. Zwei Bedingungen, nicht eine. */
 function kontaktSichtbar(ich, anderer) {
-  return verbindungAusSicht(gid(ich), gid(anderer)) === "verbunden" && !!profil(anderer).sichtbar;
+  return gleicheRunde(ich, anderer) &&
+         verbindungAusSicht(gid(ich), gid(anderer), rundeVon(ich)) === "verbunden" && !!profil(anderer).sichtbar;
 }
 
 /* Eintrag in der Teilnehmerliste, aus Sicht des Gastes "ich". */
@@ -696,7 +720,7 @@ function listenEintrag(ich, inv) {
     foto: fotoUrl(inv, true),
     registriert: !!p.registriert,
     da: !!inv.da,
-    verbindung: ich ? verbindungAusSicht(gid(ich), gid(inv)) : "keine"
+    verbindung: ich ? verbindungAusSicht(gid(ich), gid(inv), rundeVon(ich)) : "keine"
   };
 }
 /* Kurzprofil - was beim Antippen erscheint. Kontaktdaten nur nach Regel. */
@@ -707,6 +731,10 @@ function kurzprofil(ich, inv) {
   /* LinkedIn zaehlt als Kontaktdatum, nicht als Profiltext: "Nur
    * kontaktierbar" verspricht, dass die Kontaktdaten beim Gast bleiben -
    * und ein Profil-Link ist ein Weg, ihn zu erreichen. */
+  if (ich) {
+    const v = verbindung(gid(ich), gid(inv), rundeVon(ich));
+    e.notiz = (v && v.notizen && v.notizen[gid(ich)]) || "";
+  }
   if (ich && kontaktSichtbar(ich, inv)) {
     e.email = inv.email || "";
     e.telefon = (inv.daten && inv.daten.phone) || "";
@@ -740,7 +768,7 @@ function tischnachbarn(ich, gangNr) {
   if (!nr) return [];
   const g = Math.max(0, (gangNr || t.gang) - 1);
   return Object.values(state.invites)
-    .filter(inv => imKreis(inv) && inv !== ich && t.sitz[gid(inv)] && t.sitz[gid(inv)][g] === nr)
+    .filter(inv => imKreis(inv) && inv !== ich && gleicheRunde(inv, ich) && t.sitz[gid(inv)] && t.sitz[gid(inv)][g] === nr)
     .map(inv => listenEintrag(ich, inv))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -986,7 +1014,7 @@ function importRows(rows) {
     } else {
       const token = newToken();
       inv = state.invites[token] = {
-        token, pool, typ,
+        token, pool, typ, runde: RUNDE,
         name: zeilenName, email,
         firma: iFirma >= 0 ? cleanText(r[iFirma], 80) : "",
         rolle: iRolle >= 0 ? cleanText(r[iRolle], 80) : "",
@@ -2179,6 +2207,14 @@ const server = http.createServer((req, res) => {
     if (!inv) return json(res, 404, { error: "unbekannt" });
     if (!imKreis(inv)) return json(res, 403, { error: "nicht zugesagt", status: inv.status });
     const p = profil(inv);
+    /* Womit oeffnet der Gast die App - Browser oder installiert? Das ist
+     * die Zahl, an der haengt, ob die App nach dem Abend weiterlebt.
+     * Ohne sie wuesste am 16. niemand, wen Galerie und News erreichen. */
+    const modus = q.get("modus");
+    if (modus === "standalone" || modus === "browser") {
+      if (!inv.app) inv.app = {};
+      inv.app[modus] = Date.now(); dirty = true;
+    }
     return json(res, 200, { ok: true, ich: {
       id: gid(inv), name: inv.name, vorname: (inv.name || "").split(" ")[0],
       anrede: inv.anrede || "Hallo", firma: inv.firma || "", rolle: inv.rolle || "",
@@ -2187,7 +2223,8 @@ const server = http.createServer((req, res) => {
       ticketNr: inv.ticketNr || "", typ: inv.typ, partner: inv.partner || "",
       foto: fotoUrl(inv, false), sichtbar: !!p.sichtbar, registriert: p.registriert || 0,
       ueber: p.ueber || "", linkedin: p.linkedin || "",
-      da: inv.da || 0, push: !!inv.push,
+      da: inv.da || 0, push: !!inv.push, runde: rundeVon(inv),
+      installiert: !!(inv.app && inv.app.standalone),
       tisch: meinTisch(inv), gang: tische().gang
     }, vapid: VAPID.publicKey, signal: state.signal || null });
   }
@@ -2254,7 +2291,7 @@ const server = http.createServer((req, res) => {
     if (!rateLimit(req, res, "app", 300, 60_000)) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
-    const liste = Object.values(state.invites).filter(inv => imKreis(inv) && inv !== ich)
+    const liste = Object.values(state.invites).filter(inv => imKreis(inv) && inv !== ich && gleicheRunde(inv, ich))
       .map(inv => listenEintrag(ich, inv))
       .sort((a, b) => (b.foto ? 1 : 0) - (a.foto ? 1 : 0) || (b.registriert ? 1 : 0) - (a.registriert ? 1 : 0) || a.name.localeCompare(b.name));
     return json(res, 200, { ok: true, gaeste: liste, anzahl: liste.length + 1 });
@@ -2266,7 +2303,7 @@ const server = http.createServer((req, res) => {
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
     const inv = findByGid(q.get("wen"));
-    if (!inv || !imKreis(inv)) return json(res, 404, { error: "unbekannt" });
+    if (!inv || !imKreis(inv) || !gleicheRunde(inv, ich)) return json(res, 404, { error: "unbekannt" });
     return json(res, 200, { ok: true, gast: kurzprofil(ich, inv) });
   }
 
@@ -2278,10 +2315,10 @@ const server = http.createServer((req, res) => {
       const ich = findInvite(body.t);
       if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
       const andere = findByGid(body.wen);
-      if (!andere || !imKreis(andere) || andere === ich) return json(res, 404, { error: "unbekannt" });
+      if (!andere || !imKreis(andere) || andere === ich || !gleicheRunde(andere, ich)) return json(res, 404, { error: "unbekannt" });
       const a = gid(ich), b = gid(andere);
       if (!state.verbindungen) state.verbindungen = {};
-      const k = paarKey(a, b);
+      const k = paarKey(a, b, rundeVon(ich));
       let v = hasOwn(state.verbindungen, k) ? state.verbindungen[k] : null;
       const aktion = String(body.aktion || "");
 
@@ -2317,7 +2354,25 @@ const server = http.createServer((req, res) => {
       /* Beide Seiten sollen es sofort sehen - der andere wartet vielleicht
        * gerade auf die Antwort. */
       broadcast();
-      return json(res, 200, { ok: true, verbindung: verbindungAusSicht(a, b), gast: kurzprofil(ich, andere) });
+      return json(res, 200, { ok: true, verbindung: verbindungAusSicht(a, b, rundeVon(ich)), gast: kurzprofil(ich, andere) });
+    });
+  }
+
+  /* Notiz zu einer Verbindung - "wollte ihr das Deck schicken". Gehoert
+   * nur dem, der sie schreibt; der andere sieht sie nie. */
+  if (req.method === "POST" && url === "/api/app/notiz") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    return readBody(req, res, body => {
+      const ich = findInvite(body.t);
+      if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+      const andere = findByGid(body.wen);
+      if (!andere || !gleicheRunde(andere, ich)) return json(res, 404, { error: "unbekannt" });
+      const v = verbindung(gid(ich), gid(andere), rundeVon(ich));
+      if (!v) return json(res, 409, { error: "keine Verbindung" });
+      if (!v.notizen) v.notizen = {};
+      v.notizen[gid(ich)] = cleanText(body.text, 300);
+      dirty = true;
+      return json(res, 200, { ok: true });
     });
   }
 
@@ -2329,8 +2384,8 @@ const server = http.createServer((req, res) => {
     const a = gid(ich);
     const verbunden = [], spaeter = [], anfragen = [], angefragt = [];
     for (const inv of Object.values(state.invites)) {
-      if (!imKreis(inv) || inv === ich) continue;
-      const s = verbindungAusSicht(a, gid(inv));
+      if (!imKreis(inv) || inv === ich || !gleicheRunde(inv, ich)) continue;
+      const s = verbindungAusSicht(a, gid(inv), rundeVon(ich));
       if (s === "verbunden") verbunden.push(kurzprofil(ich, inv));
       else if (s === "spaeter") spaeter.push(listenEintrag(ich, inv));
       else if (s === "anfrage") anfragen.push(listenEintrag(ich, inv));
@@ -2383,7 +2438,7 @@ const server = http.createServer((req, res) => {
     const plan = t.liste.map(tisch => ({
       nr: tisch.nr, name: tisch.name || "",
       gaeste: Object.values(state.invites)
-        .filter(inv => imKreis(inv) && t.sitz[gid(inv)] && t.sitz[gid(inv)][g] === tisch.nr)
+        .filter(inv => imKreis(inv) && gleicheRunde(inv, ich) && t.sitz[gid(inv)] && t.sitz[gid(inv)][g] === tisch.nr)
         .map(inv => ({ id: gid(inv), name: inv.name, foto: fotoUrl(inv, true), ich: inv === ich }))
         .sort((x, y) => x.name.localeCompare(y.name))
     }));
@@ -2786,6 +2841,7 @@ const server = http.createServer((req, res) => {
         gesamt: gesamtStats(),
         pools: poolStats(),
         wellen: wellenStats(),
+        app: kreisZahlen(),
         fassungen: fassungStats(),
         feed: state.feed.slice(0, 30)
       });
