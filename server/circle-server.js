@@ -248,6 +248,8 @@ let state = {
   bids: [],             // letzte Gebote, neueste zuerst
   guests: {},           // bandId -> { name, table, moments:{}, applause, vote, t }
   invites: {},          // token -> Gast der Einladungsliste (siehe importRows)
+  verbindungen: {},     // "gidA|gidB" -> { von, status, t, antwort }   (Welle 2)
+  signal: null,         // laufendes Signal aus dem Monitor: Als Naechstes / Tischwechsel
   feed: []              // Ereignis-Log für den Monitor, neueste zuerst
 };
 try {
@@ -326,7 +328,22 @@ function snapshot() {
     bid: state.bid,
     bids: state.bids.slice(0, 5),
     guests: clients.size,
-    checkedIn: guestCount()
+    checkedIn: guestCount(),
+    /* Der Abend in Zahlen fuer den Monitor: wer ist in der App, wer ist
+     * im Haus, wen erreicht eine Push. Wenn der Tischwechsel nur die
+     * Haelfte erreicht, soll das VORHER auf dem Schirm stehen. */
+    kreis: (() => {
+      let im = 0, reg = 0, da = 0, push = 0, verbunden = 0;
+      for (const i of Object.values(state.invites)) {
+        if (!imKreis(i)) continue;
+        im++;
+        if (i.profil && i.profil.registriert) reg++;
+        if (i.da) da++;
+        if (i.push) push++;
+      }
+      for (const v of Object.values(state.verbindungen || {})) if (v.status === "verbunden") verbunden++;
+      return { im, registriert: reg, da, push, verbunden, gang: tische().gang };
+    })()
   });
 }
 
@@ -593,6 +610,247 @@ function pubInvite(inv) {
 function findInvite(token) {
   const t = String(token || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40);
   return hasOwn(state.invites, t) ? state.invites[t] : null;
+}
+
+/* ================= DIE APP ZUM ABEND (Welle 2) =================
+ *
+ * Das Herzstueck aus dem Call vom 19.08.: die Gaeste untereinander.
+ * Jeder Gast oeffnet seinen persoenlichen Link, vervollstaendigt sein
+ * Profil (Bild, Freigabe), sieht die Teilnehmerliste und verbindet sich
+ * beidseitig. Spezifikation: docs/MODUL-VERNETZUNG.md auf dem Branch
+ * claude/app-design-call-ho85fk.
+ *
+ * Zwei Kennungen je Gast, bewusst getrennt:
+ *   token - geheim, steht nur im eigenen Link. Weist den Gast aus.
+ *   gid   - oeffentlich, abgeleitet aus dem Token (Hash, nicht umkehrbar).
+ *           Damit verweisen Gaeste aufeinander, in Listen, Verbindungen und
+ *           Bild-Adressen. Stuende dort der Token, koennte jeder, der eine
+ *           Bild-URL sieht, die Zusage des anderen oeffnen. */
+function gid(inv) {
+  if (!inv._gid) inv._gid = crypto.createHash("sha1").update("gid:" + inv.token).digest("hex").slice(0, 12);
+  return inv._gid;
+}
+function findByGid(id) {
+  const s = String(id || "").replace(/[^a-f0-9]/g, "").slice(0, 12);
+  if (!s) return null;
+  for (const inv of Object.values(state.invites)) if (gid(inv) === s) return inv;
+  return null;
+}
+/* In der App ist, wer zugesagt hat. Offene und Absagen sehen die Liste nicht
+ * und stehen nicht drin - "ueber die App kommt nur, wer zugesagt hat". */
+const imKreis = inv => inv && (inv.status === "zugesagt" || inv.status === "bezahlt") && !inv.abgemeldet;
+
+/* Profil-Anteil, der zum Gast dazukommt, wenn er die App registriert.
+ * Vorher existiert er nicht - "noch nicht registriert" ist ein gueltiger,
+ * sichtbarer Zustand in der Liste. */
+function profil(inv) {
+  if (!inv.profil) inv.profil = { foto: "", sichtbar: false, registriert: 0, ueber: "", linkedin: "" };
+  return inv.profil;
+}
+const FOTO_DIR = path.join(__dirname, "fotos");
+const fotoUrl = (inv, mini) => {
+  const p = inv.profil;
+  return p && p.foto ? "/foto/" + p.foto + (mini ? "-m" : "") + ".jpg" : "";
+};
+
+/* --- Verbindungen ---
+ * Ein Paar, eine Zeile: Schluessel ist das sortierte gid-Paar. Sonst gaebe
+ * es zwei Zeilen, wenn beide gleichzeitig anfragen, und "Mein Kreis" zeigte
+ * Dubletten. Fragt B an, waehrend A schon angefragt hat, ist das keine
+ * Kollision, sondern die Zustimmung. */
+function paarKey(a, b) { return [a, b].sort().join("|"); }
+function verbindung(a, b) {
+  if (!state.verbindungen) state.verbindungen = {};
+  const k = paarKey(a, b);
+  return hasOwn(state.verbindungen, k) ? state.verbindungen[k] : null;
+}
+/* Wie ICH (ich = gid) die Verbindung zu einem anderen sehe.
+ *   keine · angefragt (ich warte) · anfrage (der andere wartet auf mich)
+ *   verbunden · spaeter
+ * Eine Ablehnung sieht der Anfragende NIE - fuer ihn bleibt es "angefragt".
+ * Eine Ablehnung, die ankommt, vergiftet den Abend. */
+function verbindungAusSicht(ich, andere) {
+  const v = verbindung(ich, andere);
+  if (!v) return "keine";
+  if (v.status === "verbunden") return "verbunden";
+  if (v.status === "spaeter") return "spaeter";
+  if (v.status === "abgelehnt") return v.von === ich ? "angefragt" : "keine";
+  /* offen */
+  return v.von === ich ? "angefragt" : "anfrage";
+}
+/* Die eine Regel, die nirgends verletzt werden darf: Kontaktdaten verlassen
+ * den Server nur bei "verbunden" UND wenn das Gegenueber sie freigegeben
+ * hat. Zwei Bedingungen, nicht eine. */
+function kontaktSichtbar(ich, anderer) {
+  return verbindungAusSicht(gid(ich), gid(anderer)) === "verbunden" && !!profil(anderer).sichtbar;
+}
+
+/* Eintrag in der Teilnehmerliste, aus Sicht des Gastes "ich". */
+function listenEintrag(ich, inv) {
+  const p = inv.profil || {};
+  return {
+    id: gid(inv),
+    name: inv.name || "",
+    firma: inv.firma || "",
+    rolle: inv.rolle || "",
+    foto: fotoUrl(inv, true),
+    registriert: !!p.registriert,
+    da: !!inv.da,
+    verbindung: ich ? verbindungAusSicht(gid(ich), gid(inv)) : "keine"
+  };
+}
+/* Kurzprofil - was beim Antippen erscheint. Kontaktdaten nur nach Regel. */
+function kurzprofil(ich, inv) {
+  const e = listenEintrag(ich, inv);
+  e.foto = fotoUrl(inv, false);
+  e.ueber = (inv.profil && inv.profil.ueber) || "";
+  e.linkedin = (inv.profil && inv.profil.linkedin) || "";
+  if (ich && kontaktSichtbar(ich, inv)) {
+    e.email = inv.email || "";
+    e.telefon = (inv.daten && inv.daten.phone) || "";
+  }
+  return e;
+}
+
+/* --- Tische ---
+ * Der Plan kommt am 14.09. von Jonan; die Maske steht vorher. Ein Gast
+ * sitzt je Gang an einem Tisch (Switch zwischen den Gaengen). "gang" ist
+ * der Gang, der gerade laeuft - 0 vor dem Essen. */
+function tische() {
+  if (!state.tische) state.tische = {
+    gaenge: ["Vorspeise", "Hauptspeise", "Dessert"],
+    gang: 0,                     // 1-basiert; 0 = noch kein Gang
+    liste: [],                   // [{ nr, name }]
+    sitz: {}                     // gid -> [tischNr je Gang]
+  };
+  return state.tische;
+}
+function meinTisch(inv, gangNr) {
+  const t = tische();
+  const s = t.sitz[gid(inv)];
+  if (!s) return 0;
+  return s[Math.max(0, (gangNr || t.gang) - 1)] || 0;
+}
+function tischnachbarn(ich, gangNr) {
+  const t = tische();
+  const nr = meinTisch(ich, gangNr);
+  if (!nr) return [];
+  const g = Math.max(0, (gangNr || t.gang) - 1);
+  return Object.values(state.invites)
+    .filter(inv => imKreis(inv) && inv !== ich && t.sitz[gid(inv)] && t.sitz[gid(inv)][g] === nr)
+    .map(inv => listenEintrag(ich, inv))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/* --- App-frei, aus Sicht des Servers ---
+ * Die App entscheidet selbst, wann sie das Blatt zeigt. Der Server braucht
+ * dieselbe Antwort fuer Push: Eine Nachricht, die im Impuls rausgeht, holt
+ * niemand zurueck. Deshalb die Fenster hier noch einmal auswerten. */
+const EVENT_DATE = "2026-09-16";
+function appfreiJetzt() {
+  const z = state.zeiten || {};
+  if (z.jetzt) return z.jetzt;
+  const jetzt = new Date();
+  const hhmm = String(jetzt.getHours()).padStart(2, "0") + ":" + String(jetzt.getMinutes()).padStart(2, "0");
+  const heute = jetzt.getFullYear() + "-" + String(jetzt.getMonth() + 1).padStart(2, "0") + "-" + String(jetzt.getDate()).padStart(2, "0");
+  if (heute !== EVENT_DATE) return null;
+  return (z.appfrei || []).find(f => !f.aus && hhmm >= f.from && hhmm < f.to) || null;
+}
+
+/* Bilder kommen als Data-URL (JPEG, vom Browser bereits verkleinert und
+ * gedreht). Der Server speichert nur, was wie ein JPEG aussieht, und
+ * begrenzt die Groesse - 100 Gaeste mal Originalfotos waeren zweistellige
+ * Megabyte je Listenaufruf im Veranstaltungs-WLAN. */
+function jpegAusDataUrl(s, maxBytes) {
+  const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(s || ""));
+  if (!m) return null;
+  const buf = Buffer.from(m[1], "base64");
+  if (buf.length < 100 || buf.length > maxBytes) return null;
+  if (buf[0] !== 0xFF || buf[1] !== 0xD8) return null;      // JPEG-Magic
+  return buf;
+}
+/* Wie readBody, aber fuer das Profilbild: 1,5 MB statt 10 KB. */
+function readBodyGross(req, res, cb) {
+  let raw = "", zuGross = false;
+  req.on("data", c => { raw += c; if (raw.length > 1_500_000) { zuGross = true; req.destroy(); } });
+  req.on("end", () => {
+    if (zuGross) return json(res, 413, { error: "Bild zu groß" });
+    try { cb(JSON.parse(raw || "{}")); }
+    catch (e) { json(res, 400, { error: "bad json" }); }
+  });
+}
+/* --- Push ---
+ * Beim Dinner liegen die Handys in der Tasche, die Bildschirme sind
+ * gesperrt - ein SSE-Signal kommt nur an, wenn die App im Vordergrund ist.
+ * Der Tischwechsel geht deshalb als Push. Modul: server/webpush.js (ohne
+ * fremde Pakete). Schluessel einmal erzeugen und nie wechseln, sonst sind
+ * alle Abonnements ungueltig:  node -e "console.log(require('./server/webpush').schluesselErzeugen())" */
+const webpush = require("./webpush");
+const VAPID = {
+  publicKey: process.env.VAPID_PUBLIC || "",
+  privateKey: process.env.VAPID_PRIVATE || "",
+  subject: process.env.VAPID_SUBJECT || "mailto:hello@the-circle-cologne.de"
+};
+const pushMoeglich = () => !!(VAPID.publicKey && VAPID.privateKey);
+const pushbar = () => Object.values(state.invites).filter(i => imKreis(i) && i.push).length;
+
+/* An alle, die es erlaubt haben. Im app-freien Fenster geht NICHTS raus -
+ * serverseitig, nicht nur in der Oberflaeche: eine Push, die im Impuls
+ * ankommt, holt niemand zurueck. Tote Abonnements (404/410) werden
+ * geloescht, damit der Zaehler im Monitor stimmt. */
+async function pushAnAlle(nachricht, opts) {
+  if (!pushMoeglich()) return { gesendet: 0, grund: "kein VAPID-Schluessel" };
+  const frei = appfreiJetzt();
+  if (frei && !(opts && opts.trotzAppfrei)) return { gesendet: 0, grund: "app-frei: " + (frei.was || "Handschalter") };
+  const payload = JSON.stringify(nachricht);
+  let gesendet = 0, tot = 0, fehler = 0;
+  for (const inv of Object.values(state.invites)) {
+    if (!imKreis(inv) || !inv.push) continue;
+    try {
+      const a = await webpush.senden({ subscription: inv.push, payload, vapid: VAPID, ttl: 1800, urgency: "high" });
+      if (a.status === 404 || a.status === 410) { inv.push = null; tot++; dirty = true; }
+      else if (a.status >= 200 && a.status < 300) gesendet++;
+      else fehler++;
+    } catch (e) { fehler++; }
+  }
+  return { gesendet, tot, fehler };
+}
+
+/* Wie pushAnAlle, aber der Text wird je Gast gebaut (Tischnummer). */
+async function pushJeGast(bauen, opts) {
+  if (!pushMoeglich()) return { gesendet: 0, grund: "kein VAPID-Schlüssel" };
+  const frei = appfreiJetzt();
+  if (frei && !(opts && opts.trotzAppfrei)) return { gesendet: 0, grund: "app-frei: " + (frei.was || "Handschalter") };
+  let gesendet = 0, tot = 0, fehler = 0;
+  for (const inv of Object.values(state.invites)) {
+    if (!imKreis(inv) || !inv.push) continue;
+    try {
+      const a = await webpush.senden({ subscription: inv.push, payload: JSON.stringify(bauen(inv)), vapid: VAPID, ttl: 1800, urgency: "high" });
+      if (a.status === 404 || a.status === 410) { inv.push = null; tot++; dirty = true; }
+      else if (a.status >= 200 && a.status < 300) gesendet++;
+      else fehler++;
+    } catch (e) { fehler++; }
+  }
+  return { gesendet, tot, fehler, erreichbar: pushbar() };
+}
+const tischName = nr => ((tische().liste.find(x => x.nr === nr) || {}).name || "");
+
+/* Signale (Als Naechstes, Tischwechsel) als eigenes SSE-Ereignis, wie die
+ * Zeiten: selten, aber wenn, dann sofort an alle. */
+function signalZeile() { return "event: signal\ndata: " + JSON.stringify(state.signal || null) + "\n\n"; }
+function signalSenden() { const line = signalZeile(); for (const res of clients) res.write(line); }
+
+/* Ein Gast darf anfragen, aber nicht die Liste abgrasen. Das ist kein
+ * Angriff, sondern der Reflex "ich sammle mal alle" - und er macht das
+ * Modul wertlos. Je Gast, nicht je IP: hinter dem Veranstaltungs-WLAN
+ * teilen sich alle eine Adresse. */
+const ANFRAGEN = new Map();
+function anfrageErlaubt(id) {
+  const jetzt = Date.now();
+  let e = ANFRAGEN.get(id);
+  if (!e || e.resetAt < jetzt) { e = { n: 0, resetAt: jetzt + 3600_000 }; ANFRAGEN.set(id, e); }
+  e.n++;
+  return e.n <= 40;
 }
 
 /* --- CSV --- */
@@ -1738,8 +1996,11 @@ const server = http.createServer((req, res) => {
     res.write("retry: 3000\n\n");
     clients.add(res);
     res.write("data: " + snapshot() + "\n\n");
-    /* Die Zeiten einmal beim Verbinden - danach nur noch bei Aenderung. */
+    /* Die Zeiten einmal beim Verbinden - danach nur noch bei Aenderung.
+     * Dasselbe fuer das laufende Signal: wer die App nach dem Tischwechsel
+     * oeffnet, soll ihn trotzdem sehen. */
     res.write(zeitenZeile());
+    res.write(signalZeile());
     broadcast();                                   // Gäste-Zähler an alle
     req.on("close", () => { clients.delete(res); broadcast(); });
     return;
@@ -1901,6 +2162,247 @@ const server = http.createServer((req, res) => {
     const g = pubGuest(band);
     if (!g) return json(res, 404, { error: "unbekannt" });
     return json(res, 200, { ok: true, guest: g });
+  }
+
+  /* ================= APP-API (Welle 2) =================
+   * Alles haengt am persoenlichen Token (?t= bzw. body.t). Wer keinen hat,
+   * sieht nichts - auch keine Liste. Die Liste ist der Grund, warum die
+   * Gaeste die App oeffnen, und genau deshalb darf sie nicht offen liegen. */
+
+  /* Ich selbst: Register-Daten plus Profil. Erster Aufruf der App. */
+  if (req.method === "GET" && url === "/api/app/ich") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    const inv = findInvite(q.get("t"));
+    if (!inv) return json(res, 404, { error: "unbekannt" });
+    if (!imKreis(inv)) return json(res, 403, { error: "nicht zugesagt", status: inv.status });
+    const p = profil(inv);
+    return json(res, 200, { ok: true, ich: {
+      id: gid(inv), name: inv.name, vorname: (inv.name || "").split(" ")[0],
+      anrede: inv.anrede || "Hallo", firma: inv.firma || "", rolle: inv.rolle || "",
+      email: inv.email || "", telefon: (inv.daten && inv.daten.phone) || "",
+      diet: (inv.daten && inv.daten.diet) || "", allergy: (inv.daten && inv.daten.allergy) || "",
+      ticketNr: inv.ticketNr || "", typ: inv.typ, partner: inv.partner || "",
+      foto: fotoUrl(inv, false), sichtbar: !!p.sichtbar, registriert: p.registriert || 0,
+      ueber: p.ueber || "", linkedin: p.linkedin || "",
+      da: inv.da || 0, push: !!inv.push,
+      tisch: meinTisch(inv), gang: tische().gang
+    }, vapid: VAPID.publicKey, signal: state.signal || null });
+  }
+
+  /* Registrierung abschliessen: Profil vervollstaendigen, Bild, Freigabe.
+   * Die Freigabe wird HIER gesetzt, im selben Schritt wie das Foto - nicht
+   * im Zusage-Formular. Damit steht die Einwilligung vor dem ersten Kontakt
+   * und nicht mittendrin. */
+  if (req.method === "POST" && url === "/api/app/profil") {
+    if (!rateLimit(req, res, "profil", 30, 60_000)) return;
+    return readBodyGross(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
+      const p = profil(inv);
+      if (body.firma    !== undefined) inv.firma = cleanText(body.firma, 80);
+      if (body.rolle    !== undefined) inv.rolle = cleanText(body.rolle, 80);
+      if (body.ueber    !== undefined) p.ueber = cleanText(body.ueber, 200);
+      if (body.linkedin !== undefined) p.linkedin = cleanText(body.linkedin, 120).replace(/^https?:\/\//, "");
+      if (body.telefon  !== undefined) { if (!inv.daten) inv.daten = {}; inv.daten.phone = cleanText(body.telefon, 30); }
+      if (body.sichtbar !== undefined) p.sichtbar = !!body.sichtbar;
+
+      /* Bild: zwei Groessen, beide vom Browser gerechnet. Gross fuers
+       * Kurzprofil, klein fuer die Liste. Kein Bild ist ein gueltiger
+       * Zustand - keine Blockade. */
+      if (body.foto === "") {
+        p.foto = "";
+      } else if (body.foto) {
+        const gross = jpegAusDataUrl(body.foto, 400_000);
+        const klein = jpegAusDataUrl(body.mini, 40_000);
+        if (!gross || !klein) return json(res, 400, { error: "Bild nicht lesbar (JPEG, zwei Größen erwartet)" });
+        const id = crypto.randomBytes(8).toString("hex");
+        try {
+          fs.mkdirSync(FOTO_DIR, { recursive: true });
+          fs.writeFileSync(path.join(FOTO_DIR, id + ".jpg"), gross);
+          fs.writeFileSync(path.join(FOTO_DIR, id + "-m.jpg"), klein);
+        } catch (e) { return json(res, 500, { error: "Bild konnte nicht gespeichert werden" }); }
+        /* Altes Bild wegraeumen - sonst sammeln sich Dateien, und ein
+         * altes Bild bliebe unter seiner Adresse abrufbar. */
+        if (p.foto) for (const s of ["", "-m"]) { try { fs.unlinkSync(path.join(FOTO_DIR, p.foto + s + ".jpg")); } catch (e) {} }
+        p.foto = id;
+      }
+      if (!p.registriert) { p.registriert = Date.now(); logEvent("App registriert", inv.name, inv.pool); }
+      dirty = true; broadcast();
+      return json(res, 200, { ok: true, foto: fotoUrl(inv, false), sichtbar: p.sichtbar, registriert: p.registriert });
+    });
+  }
+
+  /* Bilder. Die Kennung ist zufaellig und verraet nichts ueber den Gast. */
+  if ((req.method === "GET" || req.method === "HEAD") && url.startsWith("/foto/")) {
+    const name = url.slice(6);
+    if (!/^[a-f0-9]{16}(-m)?\.jpg$/.test(name)) { res.writeHead(404); return res.end(); }
+    return fs.readFile(path.join(FOTO_DIR, name), (err, buf) => {
+      if (err) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": buf.length,
+                           "Cache-Control": "public, max-age=86400" });
+      res.end(req.method === "HEAD" ? undefined : buf);
+    });
+  }
+
+  /* Teilnehmerliste. JEDER Gast des Abends steht drin, auch wer die App nie
+   * geoeffnet hat - sonst ist die Liste am Anfang leer und niemand kommt
+   * wieder. Registrierte mit Bild zuerst: das belohnt das Hochladen. */
+  if (req.method === "GET" && url === "/api/app/gaeste") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    const ich = findInvite(q.get("t"));
+    if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    const liste = Object.values(state.invites).filter(inv => imKreis(inv) && inv !== ich)
+      .map(inv => listenEintrag(ich, inv))
+      .sort((a, b) => (b.foto ? 1 : 0) - (a.foto ? 1 : 0) || (b.registriert ? 1 : 0) - (a.registriert ? 1 : 0) || a.name.localeCompare(b.name));
+    return json(res, 200, { ok: true, gaeste: liste, anzahl: liste.length + 1 });
+  }
+
+  /* Kurzprofil eines anderen. */
+  if (req.method === "GET" && url === "/api/app/gast") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    const ich = findInvite(q.get("t"));
+    if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    const inv = findByGid(q.get("wen"));
+    if (!inv || !imKreis(inv)) return json(res, 404, { error: "unbekannt" });
+    return json(res, 200, { ok: true, gast: kurzprofil(ich, inv) });
+  }
+
+  /* Verbinden. Zustaende: offen -> verbunden | abgelehnt | spaeter.
+   * Idempotent je Paar. */
+  if (req.method === "POST" && url === "/api/app/verbinden") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    return readBody(req, res, body => {
+      const ich = findInvite(body.t);
+      if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+      const andere = findByGid(body.wen);
+      if (!andere || !imKreis(andere) || andere === ich) return json(res, 404, { error: "unbekannt" });
+      const a = gid(ich), b = gid(andere);
+      if (!state.verbindungen) state.verbindungen = {};
+      const k = paarKey(a, b);
+      let v = hasOwn(state.verbindungen, k) ? state.verbindungen[k] : null;
+      const aktion = String(body.aktion || "");
+
+      if (aktion === "anfragen") {
+        if (v && v.status === "verbunden") { /* schon verbunden - nichts zu tun */ }
+        else if (v && v.status === "offen" && v.von === b) {
+          /* Der andere hatte schon gefragt: das ist die Zustimmung. */
+          v.status = "verbunden"; v.antwort = Date.now();
+          logEvent("verbunden", ich.name + " · " + andere.name, "");
+        } else if (!v || v.status === "spaeter" || (v.status === "abgelehnt" && v.von !== a)) {
+          if (!anfrageErlaubt(a)) return json(res, 429, { error: "Genug für den Moment – sprich erst mit den Leuten." });
+          state.verbindungen[k] = v = { von: a, status: "offen", t: Date.now(), antwort: 0 };
+        }
+        /* offen von mir oder abgelehnt von mir: bleibt, wie es ist */
+      } else if (aktion === "annehmen") {
+        if (!v || v.status !== "offen" || v.von !== b) return json(res, 409, { error: "keine offene Anfrage" });
+        v.status = "verbunden"; v.antwort = Date.now();
+        logEvent("verbunden", ich.name + " · " + andere.name, "");
+      } else if (aktion === "ablehnen") {
+        if (!v || v.status !== "offen" || v.von !== b) return json(res, 409, { error: "keine offene Anfrage" });
+        v.status = "abgelehnt"; v.antwort = Date.now();
+      } else if (aktion === "spaeter") {
+        /* Der leise zweite Weg: nicht abgelehnt, nicht verbunden. Geht in
+         * beide Richtungen, auch ohne vorherige Anfrage. */
+        if (v && v.status === "verbunden") return json(res, 409, { error: "schon verbunden" });
+        state.verbindungen[k] = v = { von: a, status: "spaeter", t: Date.now(), antwort: 0 };
+      } else if (aktion === "trennen") {
+        if (v) delete state.verbindungen[k];
+        v = null;
+      } else return json(res, 400, { error: "unbekannte Aktion" });
+
+      dirty = true;
+      /* Beide Seiten sollen es sofort sehen - der andere wartet vielleicht
+       * gerade auf die Antwort. */
+      broadcast();
+      return json(res, 200, { ok: true, verbindung: verbindungAusSicht(a, b), gast: kurzprofil(ich, andere) });
+    });
+  }
+
+  /* Mein Kreis: alle Begegnungen des Abends an einem Ort. */
+  if (req.method === "GET" && url === "/api/app/kreis") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    const ich = findInvite(q.get("t"));
+    if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    const a = gid(ich);
+    const verbunden = [], spaeter = [], anfragen = [], angefragt = [];
+    for (const inv of Object.values(state.invites)) {
+      if (!imKreis(inv) || inv === ich) continue;
+      const s = verbindungAusSicht(a, gid(inv));
+      if (s === "verbunden") verbunden.push(kurzprofil(ich, inv));
+      else if (s === "spaeter") spaeter.push(listenEintrag(ich, inv));
+      else if (s === "anfrage") anfragen.push(listenEintrag(ich, inv));
+      else if (s === "angefragt") angefragt.push(listenEintrag(ich, inv));
+    }
+    const nachName = (x, y) => x.name.localeCompare(y.name);
+    return json(res, 200, { ok: true, verbunden: verbunden.sort(nachName), spaeter: spaeter.sort(nachName),
+                            anfragen: anfragen.sort(nachName), angefragt: angefragt.sort(nachName) });
+  }
+
+  /* "Ich bin da." Der erste Moment, in dem der Gast die App benutzt. */
+  if (req.method === "POST" && url === "/api/app/da") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
+      if (!inv.da) { inv.da = Date.now(); logEvent("da", inv.name, inv.pool); dirty = true; broadcast(); }
+      return json(res, 200, { ok: true, da: inv.da });
+    });
+  }
+
+  /* Mein Tisch: je Gang der Tisch, und fuer den laufenden Gang die
+   * Nachbarn - mit Bild, damit "wer sitzt links und rechts" kein Raetsel ist,
+   * sondern ein Gespraechsanfang. */
+  if (req.method === "GET" && url === "/api/app/tisch") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    const ich = findInvite(q.get("t"));
+    if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    const t = tische();
+    const gangNr = parseInt(q.get("gang"), 10) || t.gang || 1;
+    const s = t.sitz[gid(ich)] || [];
+    return json(res, 200, { ok: true,
+      gaenge: t.gaenge, gang: t.gang,
+      meine: t.gaenge.map((g, i) => ({ gang: i + 1, name: g, tisch: s[i] || 0,
+        tischName: (t.liste.find(x => x.nr === s[i]) || {}).name || "" })),
+      angezeigt: gangNr,
+      tisch: meinTisch(ich, gangNr),
+      nachbarn: tischnachbarn(ich, gangNr)
+    });
+  }
+
+  /* Der ganze Plan - damit nicht 100 Gaeste vor dem Bildschirm stehen. */
+  if (req.method === "GET" && url === "/api/app/tischplan") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    const ich = findInvite(q.get("t"));
+    if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    const t = tische();
+    const gangNr = parseInt(q.get("gang"), 10) || t.gang || 1;
+    const g = gangNr - 1;
+    const plan = t.liste.map(tisch => ({
+      nr: tisch.nr, name: tisch.name || "",
+      gaeste: Object.values(state.invites)
+        .filter(inv => imKreis(inv) && t.sitz[gid(inv)] && t.sitz[gid(inv)][g] === tisch.nr)
+        .map(inv => ({ id: gid(inv), name: inv.name, foto: fotoUrl(inv, true), ich: inv === ich }))
+        .sort((x, y) => x.name.localeCompare(y.name))
+    }));
+    return json(res, 200, { ok: true, gaenge: t.gaenge, gang: t.gang, angezeigt: gangNr, tische: plan });
+  }
+
+  /* Push-Abonnement des Gastes. Kommt erst aus der installierten App (iOS). */
+  if (req.method === "POST" && url === "/api/app/push") {
+    if (!rateLimit(req, res, "app", 300, 60_000)) return;
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
+      const s = body.subscription;
+      if (s === null) { inv.push = null; dirty = true; return json(res, 200, { ok: true, push: false }); }
+      if (!s || typeof s.endpoint !== "string" || !/^https:\/\//.test(s.endpoint) ||
+          !s.keys || typeof s.keys.p256dh !== "string" || typeof s.keys.auth !== "string") {
+        return json(res, 400, { error: "kein gültiges Abonnement" });
+      }
+      inv.push = { endpoint: s.endpoint.slice(0, 500), keys: { p256dh: s.keys.p256dh.slice(0, 200), auth: s.keys.auth.slice(0, 100) }, t: Date.now() };
+      dirty = true;
+      return json(res, 200, { ok: true, push: true });
+    });
   }
 
   /* --- Einladungs-API (Landing Page) --- */
@@ -2539,6 +3041,123 @@ const server = http.createServer((req, res) => {
         zeitenSenden();
         logEvent("Zeiten geändert", wer, "");
         return json(res, 200, { ok: true, zeiten: state.zeiten });
+      });
+    }
+
+    /* --- Tischordnung ---
+     * CSV mit Kopfzeile. Erkannt werden: email ODER name (zum Finden des
+     * Gastes), dann gang1, gang2, gang3 (Tischnummern). Die Maske steht
+     * damit vorher; am 14.09. kommen nur noch die Namen von Jonan hinein.
+     * Ohne ?senden=1 ein Probelauf: wer gefunden wurde, wer nicht. */
+    if (req.method === "POST" && url === "/api/admin/tischplan") {
+      let roh = "", zuGross = false;
+      req.on("data", c => { roh += c; if (roh.length > 200_000) { zuGross = true; req.destroy(); } });
+      req.on("end", () => {
+        if (zuGross) return json(res, 413, { error: "CSV zu groß" });
+        let rows;
+        try { rows = parseCSV(roh); } catch (e) { return json(res, 400, { error: "CSV unlesbar" }); }
+        if (!rows.length) return json(res, 400, { error: "leer" });
+        const header = rows[0].map(h => h.trim().toLowerCase());
+        const col = n => header.indexOf(n);
+        const iMail = col("email") >= 0 ? col("email") : col("e-mail"), iName = col("name");
+        const iGang = [col("gang1"), col("gang2"), col("gang3")];
+        if (iMail < 0 && iName < 0) return json(res, 400, { error: "Spalte 'email' oder 'name' fehlt" });
+        if (iGang[0] < 0) return json(res, 400, { error: "Spalte 'gang1' fehlt" });
+        const byMail = {}, byName = {};
+        for (const inv of Object.values(state.invites)) {
+          if (inv.email) byMail[inv.email.toLowerCase()] = inv;
+          byName[(inv.name || "").trim().toLowerCase()] = inv;
+        }
+        const neu = {}, gefunden = [], unbekannt = [], tischNrn = new Set();
+        for (const r of rows.slice(1)) {
+          const mail = iMail >= 0 ? clean(r[iMail], 120).toLowerCase() : "";
+          const name = iName >= 0 ? clean(r[iName], 80).trim().toLowerCase() : "";
+          const inv = (mail && byMail[mail]) || (name && byName[name]) || null;
+          const plaetze = iGang.map(i => i >= 0 ? (parseInt(r[i], 10) || 0) : 0);
+          if (!inv) { unbekannt.push(mail || name); continue; }
+          neu[gid(inv)] = plaetze;
+          plaetze.forEach(n => { if (n) tischNrn.add(n); });
+          gefunden.push({ name: inv.name, plaetze });
+        }
+        if (q.get("senden") !== "1") {
+          return json(res, 200, { ok: true, probelauf: true, gefunden: gefunden.length, unbekannt, tische: [...tischNrn].sort((a, b) => a - b) });
+        }
+        const t = tische();
+        t.sitz = neu;
+        /* Tische, die im Plan vorkommen, aber noch keinen Eintrag haben,
+         * anlegen - ohne Namen. Namen kommen ueber /api/admin/tische. */
+        for (const nr of tischNrn) if (!t.liste.find(x => x.nr === nr)) t.liste.push({ nr, name: "" });
+        t.liste.sort((a, b) => a.nr - b.nr);
+        dirty = true;
+        logEvent("Tischplan importiert", wer, gefunden.length + " Gäste");
+        return json(res, 200, { ok: true, gefunden: gefunden.length, unbekannt, tische: t.liste });
+      });
+      return;
+    }
+
+    /* Gaenge und Tischnamen. {gaenge:[...], liste:[{nr,name}]} */
+    if (req.method === "POST" && url === "/api/admin/tische") {
+      return readBody(req, res, body => {
+        const t = tische();
+        if (Array.isArray(body.gaenge) && body.gaenge.length) t.gaenge = body.gaenge.slice(0, 5).map(g => cleanText(g, 40));
+        if (Array.isArray(body.liste)) t.liste = body.liste
+          .map(x => ({ nr: parseInt(x.nr, 10) || 0, name: cleanText(x.name, 40) }))
+          .filter(x => x.nr > 0).sort((a, b) => a.nr - b.nr);
+        dirty = true;
+        return json(res, 200, { ok: true, tische: t });
+      });
+    }
+
+    /* --- Steuerung des Abends ---
+     * Alle Signale kommen aus dem Monitor, THE CIRCLE loest sie selbst aus.
+     *   wechsel   {gang}   -> Tischwechsel: SSE an alle + Push (Handys in der Tasche)
+     *   naechstes {text}   -> "Als Naechstes": nur SSE, wird im Raum angesagt
+     *   frei               -> Signal zuruecknehmen */
+    if (req.method === "POST" && url === "/api/admin/signal") {
+      return readBody(req, res, async body => {
+        const art = String(body.art || "");
+        const t = tische();
+        if (art === "wechsel") {
+          const gang = parseInt(body.gang, 10) || 0;
+          if (gang < 1 || gang > t.gaenge.length) return json(res, 400, { error: "gang 1–" + t.gaenge.length });
+          t.gang = gang;
+          state.signal = { art: "wechsel", gang, text: t.gaenge[gang - 1], t: Date.now() };
+          dirty = true; signalSenden();
+          logEvent("Tischwechsel", wer, t.gaenge[gang - 1]);
+          /* Persoenlich je Gast: "Dein naechster Gang findet an Tisch 7 statt." */
+          const ergebnis = await pushJeGast(inv => {
+            const nr = meinTisch(inv, gang);
+            return { titel: t.gaenge[gang - 1] + " – Tischwechsel",
+                     text: nr ? "Dein nächster Gang findet an Tisch " + nr + (tischName(nr) ? " (" + tischName(nr) + ")" : "") + " statt."
+                              : "Der nächste Gang beginnt – schau in der App nach deinem Tisch.",
+                     url: "/?t=" + inv.token + "#tisch" };
+          });
+          return json(res, 200, { ok: true, signal: state.signal, push: ergebnis });
+        }
+        if (art === "naechstes") {
+          state.signal = { art: "naechstes", text: cleanText(body.text, 120) || "Gleich geht es weiter.", t: Date.now() };
+          dirty = true; signalSenden();
+          logEvent("Als Nächstes", wer, state.signal.text);
+          return json(res, 200, { ok: true, signal: state.signal });
+        }
+        if (art === "frei") {
+          state.signal = null; dirty = true; signalSenden();
+          return json(res, 200, { ok: true, signal: null });
+        }
+        return json(res, 400, { error: "art: wechsel | naechstes | frei" });
+      });
+    }
+
+    /* Probe-Push an einen Gast (den, der gerade testet). */
+    if (req.method === "POST" && url === "/api/admin/push-probe") {
+      return readBody(req, res, async body => {
+        const inv = findByGid(body.wen) || (body.email && Object.values(state.invites).find(i => i.email && i.email.toLowerCase() === String(body.email).toLowerCase()));
+        if (!inv || !inv.push) return json(res, 404, { error: "Gast ohne Push-Abonnement" });
+        try {
+          const a = await webpush.senden({ subscription: inv.push, vapid: VAPID, ttl: 300,
+            payload: JSON.stringify({ titel: "THE CIRCLE", text: "Probe – die Push kommt an.", url: "/?t=" + inv.token }) });
+          return json(res, 200, { ok: a.status < 300, status: a.status, body: String(a.body || "").slice(0, 200) });
+        } catch (e) { return json(res, 500, { error: String(e.message || e) }); }
       });
     }
 
