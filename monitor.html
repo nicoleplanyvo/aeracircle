@@ -559,6 +559,14 @@
     </div>
     <p class="fnote" id="aPushNote"></p>
 
+    <!-- Wer fehlt noch: drei Listen mit Namen. Die Zahl oben sagt, wie
+         gross die Luecke ist; die Namen sagen, wen man anruft. -->
+    <div class="exportzeile" style="margin-top:10px">
+      <button class="export" id="lueckeAuf" type="button">Wer fehlt noch?</button>
+      <span class="fussnote" style="margin:0" id="lueckeZahl"></span>
+    </div>
+    <div id="lueckeBlock" style="display:none;margin-top:8px"></div>
+
     <div class="jetztbox" id="signalbox" style="margin-top:18px">
       <div>
         <b id="signalstatus">Kein Signal</b>
@@ -654,6 +662,7 @@
     <p class="fnote">Push an alle, die sie erlaubt haben, Mail an die anderen – oder beides. Erst die Probe an eine Adresse, dann an alle. Ein Anlass geht nur einmal raus; ein zweites Mal fragt der Server nach.</p>
     <div class="mailtools">
       <select id="sdArt">
+        <option value="erinnerung">Erinnerung · App einrichten</option>
         <option value="galerie">Galerie ist offen</option>
         <option value="news">News</option>
         <option value="feedback">Feedback-Frage</option>
@@ -667,6 +676,15 @@
         <option value="luecke">Push, Mail nur an die ohne Push</option>
       </select>
       <input id="sdUrl" type="text" placeholder="Ziel in der App, z. B. /#galerie" value="/" style="max-width:200px" maxlength="120">
+    </div>
+    <div class="mailtools">
+      <select id="sdZiel">
+        <option value="alle">An alle der Runde</option>
+        <option value="nichtRegistriert">Nur an die, die noch nicht registriert sind</option>
+        <option value="ohneApp">Nur an die ohne App auf dem Startbildschirm</option>
+        <option value="ohnePush">Nur an die ohne Push</option>
+      </select>
+      <span class="fussnote" style="margin:0" id="sdZielZahl"></span>
     </div>
     <div class="mailtools">
       <input id="sdTitel" type="text" placeholder="Titel (Betreff der Mail, Überschrift der Push)" maxlength="120">
@@ -1648,12 +1666,14 @@ function sendungenZeichnen(liste){
   liste.slice(0, 8).forEach(s => {
     const d = document.createElement("div"); d.className = "sendung";
     d.innerHTML = "<b></b> · <span></span>";
-    d.querySelector("b").textContent = (s.probe ? "Probe · " : "") + s.art + " · " + s.titel;
+    d.querySelector("b").textContent = (s.probe ? "Probe · " : "") + s.art + (s.ziel && s.ziel !== "alle" ? " · nur " + s.ziel : "") + " · " + s.titel;
     d.querySelector("span").textContent = wann(s.t) + " · " + s.kanal + " · " + s.empfaenger + " Empfänger · Push " + s.push.gesendet + (s.push.ohne ? " (" + s.push.ohne + " ohne Abo)" : "") + (s.push.fehler ? " · " + s.push.fehler + " Push-Fehler" : "") + " · Mail " + s.mail.gesendet + (s.mail.ohne ? " (" + s.mail.ohne + " ohne Adresse)" : "") + (s.mail.fehler ? " · " + s.mail.fehler + " Mail-Fehler" : "") + (s.laeuft ? " · läuft …" : "") + (s.wer ? " · von " + s.wer : "");
     w.appendChild(d);
   });
 }
+let luecke = null;   // /api/admin/app-luecke, fuer Ziel-Zahl und Namensliste
 const SD_VORLAGEN = {
+  erinnerung:  { titel:"Zwei Minuten für den Abend: deine THE CIRCLE App", text:"Am 16.09. sagt dir die App, an welchem Tisch du sitzt und wann der Tischwechsel kommt – wenn sie auf deinem Startbildschirm liegt. Öffne deinen persönlichen Link, vervollständige dein Profil und folge den zwei Schritten „Zum Startbildschirm“ und „Benachrichtigungen erlauben“. Danach: das Gästebuch mit allen, die kommen.", url:"/", cta:"App einrichten · 2 Minuten", ziel:"ohneApp" },
   galerie:     { titel:"Deine Fotos vom Abend sind da", text:"Die Galerie von THE CIRCLE No1 ist offen – die Bilder des Abends, und deine eigenen ganz oben. Zum Ansehen, Teilen und Speichern.", url:"/#galerie", cta:"Zur Galerie" },
   news:        { titel:"Neues aus dem Kreis", text:"", url:"/#news", cta:"In der App lesen" },
   feedback:    { titel:"Eine Frage zum Abend", text:"Wie war THE CIRCLE für dich? Ein Daumen, ein Satz – zwei Minuten. Es prägt die nächste Runde.", url:"/", cta:"Antworten" },
@@ -1663,10 +1683,44 @@ const SD_VORLAGEN = {
 $("#sdArt").addEventListener("change", () => {
   const v = SD_VORLAGEN[$("#sdArt").value]; if(!v) return;
   $("#sdTitel").value = v.titel; $("#sdText").value = v.text; $("#sdUrl").value = v.url; $("#sdCta").value = v.cta;
+  $("#sdZiel").value = v.ziel || "alle"; zielZahlZeigen();
 });
 $("#sdArt").dispatchEvent(new Event("change"));
+/* Wie viele traefe die Auswahl? Steht neben dem Ziel, bevor jemand drueckt. */
+function zielZahlZeigen(){
+  const z = $("#sdZiel").value;
+  if(!luecke){ txt($("#sdZielZahl"), ""); return; }
+  const n = z === "alle" ? luecke.im : (luecke[z] || []).length;
+  /* Wer keine App oder keine Push hat, ist nur per Mail zu erreichen -
+     der Kanal springt mit, damit niemand "Push" an Leute ohne Push schickt. */
+  if(z !== "alle") $("#sdKanal").value = "mail";
+  txt($("#sdZielZahl"), n + (n === 1 ? " Gast" : " Gäste") + (z !== "alle" ? " · nur per Mail erreichbar, Kanal steht auf Mail" : ""));
+}
+$("#sdZiel").addEventListener("change", zielZahlZeigen);
+async function lueckeHolen(){
+  const d = await adminGet("/api/admin/app-luecke"); if(!d) return;
+  luecke = d; zielZahlZeigen();
+  txt($("#lueckeZahl"), d.nichtRegistriert.length + " nicht registriert · " + d.ohneApp.length + " ohne App · " + d.ohnePush.length + " ohne Push");
+  const w = $("#lueckeBlock"); w.innerHTML = "";
+  const gruppe = (titel, liste, hinweis) => {
+    const l = document.createElement("span"); l.className = "label"; l.style.cssText = "display:block;margin-top:14px"; l.textContent = titel + " (" + liste.length + ")"; w.appendChild(l);
+    if(hinweis){ const p = document.createElement("p"); p.className = "fnote"; p.textContent = hinweis; w.appendChild(p); }
+    liste.forEach(g => {
+      const z = document.createElement("div"); z.className = "fbzeile";
+      const b = document.createElement("b"); b.textContent = g.name; z.appendChild(b);
+      const rest = [g.pool, g.email, g.telefon].filter(Boolean).join(" · "); if(rest) z.appendChild(document.createTextNode(" · " + rest));
+      w.appendChild(z);
+    });
+    if(!liste.length){ const p = document.createElement("p"); p.className = "fnote"; p.textContent = "niemand – alles gut."; w.appendChild(p); }
+  };
+  gruppe("Noch nicht registriert", d.nichtRegistriert, "Haben den Link noch nie geöffnet oder das Profil nicht abgeschlossen. Erinnerung per Mail, sonst anrufen.");
+  gruppe("Registriert, aber nicht auf dem Startbildschirm", d.ohneApp, "Sehen Tischwechsel nur, wenn die App gerade offen ist. Am Einlass: Mail öffnen, „In Safari öffnen“, Teilen, „Zum Home-Bildschirm“.");
+  gruppe("Installiert, aber ohne Push", d.ohnePush, "Ein Tippen in der App: die Karte „Erlaube Benachrichtigungen“.");
+}
+$("#lueckeAuf").addEventListener("click", () => { const w = $("#lueckeBlock"); const auf = w.style.display === "none"; w.style.display = auf ? "" : "none"; txt($("#lueckeAuf"), auf ? "Liste zu" : "Wer fehlt noch?"); if(auf) lueckeHolen(); });
+if(KEY){ lueckeHolen(); setInterval(() => { if(!document.hidden) lueckeHolen(); }, 120000); }
 async function senden(probe, trotzdem){
-  const rumpf = { art: $("#sdArt").value, kanal: $("#sdKanal").value, titel: $("#sdTitel").value.trim(), text: $("#sdText").value.trim(), url: $("#sdUrl").value.trim() || "/", ctaText: $("#sdCta").value.trim() };
+  const rumpf = { art: $("#sdArt").value, kanal: $("#sdKanal").value, ziel: $("#sdZiel").value, titel: $("#sdTitel").value.trim(), text: $("#sdText").value.trim(), url: $("#sdUrl").value.trim() || "/", ctaText: $("#sdCta").value.trim() };
   if(!rumpf.titel || !rumpf.text){ txt($("#sdNote"), "Titel und Text fehlen."); return; }
   if(probe) rumpf.probe = probe; if(trotzdem) rumpf.trotzdem = true;
   txt($("#sdNote"), "wird gesendet …");
@@ -1681,8 +1735,9 @@ async function senden(probe, trotzdem){
 }
 $("#sdProbeKnopf").addEventListener("click", () => { const p = $("#sdProbe").value.trim(); if(!p){ txt($("#sdNote"), "Erst eine Probe-Adresse eintragen."); return; } senden(p); });
 $("#sdAlle").addEventListener("click", () => {
-  const n = appStand ? appStand.im : "alle";
-  if(!confirm("„" + $("#sdTitel").value.trim() + "“ jetzt an " + n + " Gäste der Runde senden (" + $("#sdKanal").selectedOptions[0].textContent + ")?")) return;
+  const z = $("#sdZiel").value;
+  const n = luecke ? (z === "alle" ? luecke.im : (luecke[z] || []).length) : (appStand ? appStand.im : "alle");
+  if(!confirm("„" + $("#sdTitel").value.trim() + "“ jetzt an " + n + " Gäste senden – " + $("#sdZiel").selectedOptions[0].textContent.toLowerCase() + " (" + $("#sdKanal").selectedOptions[0].textContent + ")?")) return;
   senden("");
 });
 

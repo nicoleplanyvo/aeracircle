@@ -735,6 +735,22 @@ function findByGid(id) {
 /* In der App ist, wer zugesagt hat. Offene und Absagen sehen die Liste nicht
  * und stehen nicht drin - "ueber die App kommt nur, wer zugesagt hat". */
 const imKreis = inv => inv && (inv.status === "zugesagt" || inv.status === "bezahlt") && !inv.abgemeldet;
+/* Die drei Luecken auf dem Weg zur App, je Runde und sortiert nach Namen.
+   Eine Person steht in genau einer Liste: wer nicht registriert ist,
+   hat auch nichts installiert - er zaehlt aber nur einmal. */
+function appLuecke(runde) {
+  const r = runde || RUNDE, nichtRegistriert = [], ohneApp = [], ohnePush = [];
+  let im = 0;
+  for (const i of Object.values(state.invites)) {
+    if (!imKreis(i) || rundeVon(i) !== r) continue;
+    im++;
+    if (!(i.profil && i.profil.registriert)) nichtRegistriert.push(i);
+    else if (!(i.app && i.app.standalone)) ohneApp.push(i);
+    else if (!i.push) ohnePush.push(i);
+  }
+  const nach = (a, b) => String(a.name || "").localeCompare(String(b.name || ""), "de");
+  return { im, nichtRegistriert: nichtRegistriert.sort(nach), ohneApp: ohneApp.sort(nach), ohnePush: ohnePush.sort(nach) };
+}
 
 /* --- Runden ---
  * THE CIRCLE gibt es mehr als einmal, und der Gaestekreis wechselt fast
@@ -3767,6 +3783,16 @@ const server = http.createServer((req, res) => {
                               ohne: fotos.filter(f => !(f.wer || []).length).length, liste: fotos.slice(-30).map(f => ({ id: f.id, datei: f.datei, wer: (f.wer || []).length, m: galerieUrl(r, f.id, "m") })) });
     }
 
+    /* Wer fehlt noch: nicht registriert, registriert aber nicht installiert,
+     * installiert aber ohne Push. Mit Namen und Kontakt, damit Anne vorher
+     * anrufen und Mathis am Einlass gezielt helfen kann. */
+    if (req.method === "GET" && url === "/api/admin/app-luecke") {
+      const r = clean(q.get("runde"), 20) || RUNDE;
+      const l = appLuecke(r);
+      const zeile = i => ({ name: i.name, email: i.email || "", telefon: (i.daten && i.daten.phone) || "", pool: i.pool || "", gid: gid(i) });
+      return json(res, 200, { ok: true, runde: r, im: l.im, nichtRegistriert: l.nichtRegistriert.map(zeile), ohneApp: l.ohneApp.map(zeile), ohnePush: l.ohnePush.map(zeile) });
+    }
+
     /* Feedback-Auswertung. */
     if (req.method === "GET" && url === "/api/admin/feedback") {
       const im = Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === RUNDE);
@@ -3794,14 +3820,17 @@ const server = http.createServer((req, res) => {
         const ctaText = cleanText(body.ctaText, 40) || "In der App ansehen";
         const runde = clean(body.runde, 20) || RUNDE;
         if (!titel || !text) return json(res, 400, { error: "titel und text" });
-        const empf = Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === runde && !i.abgemeldet);
+        /* Ziel: alle der Runde, oder nur eine der drei Luecken (Erinnerung
+         * "App einrichten" an genau die, die sie brauchen). */
+        const ziel = ["alle", "nichtRegistriert", "ohneApp", "ohnePush"].includes(body.ziel) ? body.ziel : "alle";
+        const empf = ziel === "alle" ? Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === runde && !i.abgemeldet) : appLuecke(runde)[ziel];
         /* Probe: nur an einen Gast (per E-Mail oder gid). */
         const probeInv = body.probe ? (findByGid(body.probe) || empf.find(i => i.email && i.email.toLowerCase() === String(body.probe).toLowerCase())) : null;
         if (body.probe && !probeInv) return json(res, 404, { error: "Probe-Gast nicht gefunden" });
         const liste = probeInv ? [probeInv] : empf;
-        const vorher = (state.sendungen || []).find(x => x.art === art && x.runde === runde && !x.probe);
+        const vorher = (state.sendungen || []).find(x => x.art === art && x.runde === runde && (x.ziel || "alle") === ziel && !x.probe);
         if (vorher && !body.trotzdem && !probeInv) return json(res, 409, { error: "Schon gesendet: " + art + " am " + new Date(vorher.t).toLocaleString("de-DE") + " an " + vorher.empfaenger + " Gäste. Mit trotzdem=true erneut." });
-        const sendung = { id: crypto.randomBytes(5).toString("hex"), art, runde, titel, text, url: zielPfad, kanal, t: Date.now(), wer, probe: !!probeInv,
+        const sendung = { id: crypto.randomBytes(5).toString("hex"), art, runde, ziel, titel, text, url: zielPfad, kanal, t: Date.now(), wer, probe: !!probeInv,
                           empfaenger: liste.length, laeuft: true, push: { gesendet: 0, tot: 0, fehler: 0, ohne: 0 }, mail: { gesendet: 0, fehler: 0, ohne: 0 } };
         if (!state.sendungen) state.sendungen = [];
         state.sendungen.unshift(sendung); state.sendungen = state.sendungen.slice(0, 50); dirty = true;

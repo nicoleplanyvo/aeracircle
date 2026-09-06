@@ -636,6 +636,22 @@ Monitor → „Die App“ → Tischordnung: **Probelauf** (zeigt unbekannte
 Adressen und Gäste ohne Platz), dann **Übernehmen**. Einzelne Plätze am
 Abend über „Platz setzen“ – ohne die ganze Datei neu zu laden.
 
+### 7.2a Drei Tage vorher: die Lücke schließen
+
+Erzwingen lässt sich die Installation auf keinem Handy. Sehen und
+schließen lässt sie sich:
+
+1. Monitor → „Die App“ → **Wer fehlt noch?** zeigt drei Namenslisten:
+   nicht registriert, registriert aber nicht auf dem Startbildschirm,
+   installiert aber ohne Push. Mit Adresse und Telefon.
+2. Monitor → „Nach dem Abend“ → Nachricht, Anlass **Erinnerung · App
+   einrichten**. Das Ziel springt auf „nur an die ohne App“ und der Kanal
+   auf Mail (Push erreicht diese Gruppe per Definition nicht). Probe an die
+   eigene Adresse, dann an alle. Für die Nicht-Registrierten dasselbe mit
+   Ziel „noch nicht registriert“.
+3. Wer danach noch auf der Liste steht, bekommt einen Anruf von Anne oder
+   Hilfe am Einlass (siehe 7.3).
+
 ### 7.3 Am 16.09. – Checkliste für 17:00 (Mathis)
 
 - [ ] Monitor auf dem Handy offen (`/monitor?key=…`), Wand auf dem Beamer (`/wand`, Vollbild)
@@ -643,6 +659,7 @@ Abend über „Platz setzen“ – ohne die ganze Datei neu zu laden.
 - [ ] Zeiten-Tabelle gegen den Ablauf von Desi geprüft (App-frei: 19:30 Impuls I, 21:15 Impuls II, 22:45 Auktion)
 - [ ] Tischplan übernommen, „Ohne Platz“ leer oder bekannt
 - [ ] „Die App“: Zahlen Registriert / Installiert / Push erreichbar gelesen – **so viele erreicht ein Tischwechsel als Push**, die anderen sehen ihn nur in der offenen App
+- [ ] „Wer fehlt noch?“ offen auf dem Handy am Einlass: Name des Gastes suchen, Mail öffnen lassen, auf dem iPhone „In Safari öffnen“ → Teilen → „Zum Home-Bildschirm“, dann Push erlauben
 - [ ] Push-Probe an sich selbst (eigener Gastlink auf dem Handy, App installiert, Push erlaubt)
 - [ ] Ein Signal testen und zurücknehmen: „Nur in die App“ mit einem Satz → erscheint im eigenen Handy → „Zurücknehmen“
 - [ ] Wand: einmal durch Ruhe → AV8 (Vorhang zu) → Auktion → Kreis → Automatik
