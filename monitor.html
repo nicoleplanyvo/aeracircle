@@ -195,13 +195,48 @@
   .kopf-rechts{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
   /* Zwei Reiter: Einladung (Versand, Zusagen, Zahlung) und Der Abend (App,
      Zeiten, Buehne, danach). Eine Seite, ein Schluessel, zwei Arbeitsplaetze. */
-  .tabs{display:flex;gap:4px;margin:18px 0 0;border-bottom:1px solid var(--line-soft)}
+  .tabs{display:flex;gap:4px;margin:18px 0 0;border-bottom:1px solid var(--line-soft);overflow-x:auto;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{white-space:nowrap;flex:none}
+  @media (max-width:520px){ .tabs{gap:0} .tabs button{padding:12px 9px 10px;font-size:10px;letter-spacing:.14em} }
   .tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;
     font-family:var(--sans);font-size:11px;letter-spacing:.22em;text-transform:uppercase;padding:12px 16px 10px;margin-bottom:-1px}
   .tabs button:hover{color:var(--ivory)}
   .tabs button.an{color:var(--ivory);border-bottom-color:var(--coral)}
   .tabs button b{display:inline-block;min-width:18px;margin-left:8px;padding:1px 6px;border-radius:999px;background:var(--coral);color:#331014;font-size:10px;letter-spacing:0;vertical-align:1px}
   .tabweg{display:none !important}
+  /* Regie: fuer eine Hand im dunklen Saal. Grosse Knoepfe mit Zustand,
+     oben das "Jetzt". Am Laptop dieselbe Seite, nur breiter. */
+  .regie{padding:18px}
+  .rg-jetzt{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line-soft);margin-bottom:16px}
+  .rg-uhr b{font-family:var(--serif);font-weight:600;font-size:46px;line-height:1;display:block;font-variant-numeric:tabular-nums;color:var(--ivory)}
+  .rg-uhr span{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--faint)}
+  .rg-lauf b{display:block;font-weight:500;font-size:16px;line-height:1.25;margin:2px 0}
+  .rg-app{grid-column:1/-1;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+  .rg-app b{font-weight:500;color:var(--ivory)}
+  .rg-app.stumm b{color:var(--coral)}
+  .rg-label{display:block;margin:22px 0 8px}
+  .rg-reihe{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+  .rg-knopf{min-height:64px;border:1px solid var(--line);border-radius:12px;background:rgba(248,247,244,.03);color:var(--ivory);
+    font-family:var(--sans);font-size:14px;font-weight:500;padding:12px 14px;text-align:left;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;gap:4px;-webkit-tap-highlight-color:transparent}
+  .rg-knopf small{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);font-weight:400}
+  .rg-knopf:hover{border-color:var(--ivory)}
+  .rg-knopf.an{border-color:var(--coral);color:var(--coral)}
+  .rg-knopf.an small{color:var(--coral)}
+  .rg-knopf.erledigt{opacity:.45}
+  .rg-knopf:disabled{opacity:.45;cursor:default}
+  .rg-knopf.klein{min-height:48px;font-size:12px}
+  .rg-not{border-color:rgba(255,107,108,.55);color:var(--coral)}
+  .regie .jetztbox{margin-top:0}
+  .regie .jetztbox .rg-knopf{min-height:52px;flex:none}
+  .regie .mailtools{margin-top:8px}
+  .regie .mailtools input{min-height:48px}
+  .rg-details{margin-top:24px;border-top:1px solid var(--line-soft);padding-top:8px}
+  .rg-details summary{cursor:pointer;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);padding:12px 0;list-style:none}
+  .rg-details summary::before{content:"▸ ";color:var(--faint)}
+  .rg-details[open] summary::before{content:"▾ "}
+  @media (max-width:520px){ .regie{padding:14px} .rg-uhr b{font-size:38px} .rg-reihe{grid-template-columns:1fr 1fr} }
   .demo-tag.live{background:var(--blau);color:#fff}
   .demo-tag.warn{background:var(--coral);color:#fff}
   .stand{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
@@ -333,7 +368,9 @@
 
   <nav class="tabs" id="tabs" aria-label="Bereiche">
     <button type="button" data-tab="einladung" class="an">Einladung</button>
-    <button type="button" data-tab="abend">Der Abend · App<b id="tabAbendZahl" style="display:none"></b></button>
+    <button type="button" data-tab="vorbereitung">Vorbereitung</button>
+    <button type="button" data-tab="regie">Regie</button>
+    <button type="button" data-tab="danach">Danach</button>
   </nav>
   <span class="label" id="tabLabel">Einladungsmanagement · Lettermint &amp; Stripe</span>
   <h1 id="tabTitel">Einladungs&#8202;-&#8202;Monitor</h1>
@@ -508,59 +545,9 @@
     </div>
   </div>
 
-  <!-- 6c · Die Zeiten des Abends. Am 16. September steht hier jemand mit dem
-       Telefon in der Hand im Raum, während vorne der Ablauf verrutscht.
-       Deshalb: große Knöpfe, wenige Felder, und der Handschalter ganz oben -
-       den braucht man am dringendsten und hat am wenigsten Zeit dafür. -->
-  <div class="panel" id="zeitpanel">
-    <span class="label">Gilt sofort für alle geöffneten Apps</span>
-    <h2>Der Abend</h2>
-
-    <div class="jetztbox" id="jetztbox">
-      <div>
-        <b id="jetztstatus">Die App läuft normal</b>
-        <span class="fnote" id="jetztseit" style="margin:0"></span>
-      </div>
-      <button class="export gross" id="jetztknopf" type="button">Jetzt ohne App</button>
-    </div>
-    <p class="fnote">
-      Der Handschalter legt sofort ein Blatt über die App – ohne Uhrzeit, bis du
-      ihn wieder löst. Für die Momente, die in keiner Liste stehen.
-      <span id="serverzeit" style="display:block;margin-top:6px"></span>
-    </p>
-    <div class="exportzeile">
-      <button class="export gross" id="plus15" type="button">Alles ab jetzt +15 Min</button>
-      <button class="export" id="minus15" type="button">−15 Min</button>
-      <span class="fussnote" style="margin:0">Schiebt Ablauf, app-freie Fenster und Live-Fenster gemeinsam – nur, was noch vor uns liegt.</span>
-    </div>
-    <div class="exportzeile">
-      <button class="export" id="allesFrei" type="button">Notfall: alles frei</button>
-      <span class="fussnote" style="margin:0">Nimmt Signal und Handschalter zurück und schaltet alle Fenster aus – ein Griff.</span>
-    </div>
-    <!-- Die Phase der App: vor · abend · danach. Automatisch nach Datum;
-         von Hand, wenn am Morgen des 17. die Startseite nicht mehr
-         "heute Abend" sagen soll - oder zum Testen des "Danach". -->
-    <div class="exportzeile" id="phaseZeile">
-      <span class="fussnote" style="margin:0">Phase der App:</span>
-      <button class="export" data-phase="" type="button">Automatik</button>
-      <button class="export" data-phase="vor" type="button">Vor dem Abend</button>
-      <button class="export" data-phase="abend" type="button">Der Abend</button>
-      <button class="export" data-phase="danach" type="button">Danach</button>
-      <span class="fussnote" style="margin:0" id="phaseNote"></span>
-    </div>
-
-    <table class="ztab"><tbody id="zliste"></tbody></table>
-    <div class="exportzeile">
-      <button class="export" id="zspeichern" type="button">Zeiten speichern</button>
-      <span class="fussnote" style="margin:0" id="znote"></span>
-    </div>
-  </div>
-
-  <!-- 6d · Die App in Zahlen und die Steuerung. Wer am Abend drueckt, soll
-       vorher sehen, wen er erreicht: Ein Tischwechsel, der nur die Haelfte
-       erreicht, faellt sonst erst hinterher auf. -->
+  <!-- 6c · VORBEREITUNG: die App in Zahlen, wer fehlt, Demo. -->
   <div class="panel" id="apppanel">
-    <span class="label">Welle 2 · wer ist drin, wen erreichen wir</span>
+    <span class="label">Wer ist drin, wen erreichen wir</span>
     <h2>Die App</h2>
     <div class="kpis" style="margin-top:14px">
       <div class="kpi"><b id="aIm">–</b><span>Im Kreis</span></div>
@@ -591,28 +578,12 @@
       <span class="fussnote" style="margin:0" id="demoNote"></span>
     </div>
     <div id="demoGaeste" style="margin-top:8px"></div>
+  </div>
 
-    <div class="jetztbox" id="signalbox" style="margin-top:18px">
-      <div>
-        <b id="signalstatus">Kein Signal</b>
-        <span class="fnote" id="signalseit" style="margin:0"></span>
-      </div>
-      <button class="export" id="signalfrei" type="button" style="display:none">Zurücknehmen</button>
-    </div>
-    <div class="exportzeile" id="schnellsaetze">
-      <button type="button" class="export" data-satz="Wir starten in 10 Minuten.">In 10 Minuten</button>
-      <button type="button" class="export" data-satz="Bitte zurück an die Tische.">Zurück an die Tische</button>
-      <button type="button" class="export" data-satz="Gleich beginnt die Auktion.">Gleich Auktion</button>
-    </div>
-    <div class="mailtools">
-      <input id="naechstesText" type="text" placeholder="Ein Satz an alle: z. B. „Ien Bäumler, Teil 1 – Augen nach vorn.“" autocomplete="off" maxlength="120">
-      <button type="button" class="export" id="naechstesKnopf">Nur in die App</button>
-      <button type="button" class="export" id="raumKnopf">In die App + Push</button>
-    </div>
-    <div class="exportzeile" id="wechselKnoepfe"></div>
-    <p class="fnote">Tischwechsel geht an alle offenen Apps und als Push mit der eigenen Tischnummer. Im app-freien Fenster hält der Server die Push zurück.</p>
-
-    <span class="label" style="display:block;margin-top:22px">Tischordnung</span>
+  <!-- 6c2 · Tischordnung: Jonans CSV, Namen, Einzelplatz. -->
+  <div class="panel" id="tischpanel">
+    <span class="label">Vor dem Abend · von Jonan</span>
+    <h2>Tischordnung</h2>
     <p class="fnote">CSV mit Kopfzeile <code>email,gang1,gang2,gang3</code> (oder <code>name</code> statt <code>email</code>). Erst Probelauf, dann Übernehmen. Tischnamen darunter, eine je Zeile: <code>1;Dom</code>.</p>
     <textarea id="planCsv" class="plancsv" rows="5" placeholder="email,gang1,gang2,gang3&#10;anna@beispiel.de,1,3,2"></textarea>
     <textarea id="planNamen" class="plancsv" rows="2" placeholder="1;Dom&#10;2;Rhein"></textarea>
@@ -630,12 +601,88 @@
     </div>
   </div>
 
-  <!-- 6e · Die Buehne. Was der Moderator ansagen kann, und die Knoepfe
-       fuer Wand, Auktion und Schaetzspiel. Haengt am Live-Stream, nicht am
-       60-Sekunden-Takt. -->
-  <div class="panel" id="buehnepanel">
-    <span class="label">Live · für die Ansage und den Beamer</span>
-    <h2>Die Bühne</h2>
+  <!-- 6c3 · Zeiten und Phase. Am Abend verschiebt man in der Regie (+15);
+       hier stehen die Fenster selbst. -->
+  <div class="panel" id="zeitpanel">
+    <span class="label">App-freie Fenster · gilt sofort für alle Apps</span>
+    <h2>Zeiten</h2>
+    <table class="ztab"><tbody id="zliste"></tbody></table>
+    <div class="exportzeile">
+      <button class="export" id="zspeichern" type="button">Zeiten speichern</button>
+      <span class="fussnote" style="margin:0" id="znote"></span>
+    </div>
+
+    <!-- Die Phase der App: vor · abend · danach. Automatisch nach Datum;
+         von Hand, wenn am Morgen des 17. die Startseite nicht mehr
+         "heute Abend" sagen soll - oder zum Testen des "Danach". -->
+    <div class="exportzeile" id="phaseZeile">
+      <span class="fussnote" style="margin:0">Phase der App:</span>
+      <button class="export" data-phase="" type="button">Automatik</button>
+      <button class="export" data-phase="vor" type="button">Vor dem Abend</button>
+      <button class="export" data-phase="abend" type="button">Der Abend</button>
+      <button class="export" data-phase="danach" type="button">Danach</button>
+      <span class="fussnote" style="margin:0" id="phaseNote"></span>
+    </div>
+  </div>
+
+  <!-- 6d · REGIE. Der Abend auf einem Handy: oben "Jetzt", darunter die
+       Knoepfe in der Reihenfolge des Abends, gross genug fuer eine Hand im
+       dunklen Saal. Vorbereitung und Danach haben eigene Reiter. -->
+  <div class="panel regie" id="regiepanel">
+    <div class="rg-jetzt">
+      <div class="rg-uhr"><b id="rgUhr">–:–</b><span>Köln</span></div>
+      <div class="rg-lauf">
+        <span class="label">Jetzt</span>
+        <b id="rgJetzt">–</b>
+        <span class="fnote" id="rgNaechst" style="margin:0"></span>
+      </div>
+      <div class="rg-app" id="rgAppZeile"><b id="rgApp">–</b><span id="rgErreich"></span></div>
+    </div>
+
+    <div class="jetztbox" id="jetztbox">
+      <div>
+        <b id="jetztstatus">Die App läuft normal</b>
+        <span class="fnote" id="jetztseit" style="margin:0"></span>
+      </div>
+      <button class="rg-knopf" id="jetztknopf" type="button">Jetzt ohne App</button>
+    </div>
+    <p class="fnote">Legt sofort ein Blatt über alle Apps, bis du es wieder löst. Für Momente, die in keiner Liste stehen.<span id="serverzeit" style="display:none"></span></p>
+
+    <span class="label rg-label">Tischwechsel · geht als Push mit der eigenen Tischnummer</span>
+    <div class="rg-reihe" id="wechselKnoepfe"></div>
+    <div class="jetztbox" id="signalbox" style="margin-top:12px">
+      <div>
+        <b id="signalstatus">Kein Signal</b>
+        <span class="fnote" id="signalseit" style="margin:0"></span>
+      </div>
+      <button class="rg-knopf klein" id="signalfrei" type="button" style="display:none">Zurücknehmen</button>
+    </div>
+
+    <span class="label rg-label">Ansage an alle · erscheint in der App, ohne Push</span>
+    <div class="rg-reihe" id="schnellsaetze">
+      <button type="button" class="rg-knopf" data-satz="Wir starten in 10 Minuten.">In 10 Minuten<small>Wir starten in 10 Minuten.</small></button>
+      <button type="button" class="rg-knopf" data-satz="Bitte zurück an die Tische.">Zurück an die Tische<small>Bitte zurück an die Tische.</small></button>
+      <button type="button" class="rg-knopf" data-satz="Gleich beginnt die Auktion.">Gleich Auktion<small>Gleich beginnt die Auktion.</small></button>
+    </div>
+    <div class="mailtools">
+      <input id="naechstesText" type="text" placeholder="Ein Satz an alle: z. B. „Ien Bäumler, Teil 1 – Augen nach vorn.“" autocomplete="off" maxlength="120">
+      <button type="button" class="rg-knopf klein" id="naechstesKnopf">Nur in die App</button>
+      <button type="button" class="rg-knopf klein" id="raumKnopf">In die App + Push</button>
+    </div>
+
+    <span class="label rg-label">Wenn es hakt</span>
+    <div class="rg-reihe">
+      <button class="rg-knopf" id="plus15" type="button">Alles ab jetzt +15 Min</button>
+      <button class="rg-knopf" id="minus15" type="button">−15 Min</button>
+          </div>
+    <p class="fnote">Schiebt Ablauf und app-freie Fenster gemeinsam – nur, was noch vor uns liegt.</p>
+    <div class="rg-reihe">
+      <button class="rg-knopf rg-not" id="allesFrei" type="button">Notfall: alles frei</button>
+          </div>
+    <p class="fnote">Nimmt Signal und Handschalter zurück und schaltet alle Fenster aus – ein Griff.</p>
+
+    <details class="rg-details" id="buehnepanel">
+      <summary>Auktion &amp; Wand</summary>
     <p class="fnote">Die Wand für den Beamer: <a id="wandLink" href="/wand" target="_blank" rel="noopener" style="color:var(--ivory)">/wand</a> – im Vollbild öffnen. Sie folgt dem Abend von selbst; hier kannst du eingreifen.</p>
     <div class="kpis" style="margin-top:14px">
       <div class="kpi"><b id="bRaum">–</b><span>Im Raum</span></div>
@@ -674,6 +721,7 @@
       <span class="fussnote" style="margin:0" id="auktionNote"></span>
     </div>
     <div id="bieterListe" class="fnote"></div>
+    </details>
   </div>
 
   <!-- 6f · Nach dem Abend. Der eine Sendekanal (Push und Mail), die News,
@@ -984,8 +1032,13 @@ function quelleSetzen(d){
   tag.className = "demo-tag live";
   tag.textContent = "Live-Daten";
   $("#stand").textContent = "Stand " + uhr(d.stand || Date.now()) + " · aktualisiert sich selbst";
-  $("#sub").textContent = "Ein Blick für alle Beteiligten: Wie läuft der Versand, wer öffnet, wer sagt zu, " +
+  /* Der Untertitel gehoert zum Reiter Einladung - die anderen Reiter haben
+     ihren eigenen und duerfen vom Live-Takt nicht ueberschrieben werden. */
+  const subLive = "Ein Blick für alle Beteiligten: Wie läuft der Versand, wer öffnet, wer sagt zu, " +
     "wer hat bezahlt. Die Zahlen kommen aus dem Gästeregister, den Lettermint-Webhooks und Stripe.";
+  if(typeof TAB_TEXTE !== "undefined") TAB_TEXTE.einladung.sub = subLive;
+  const anTab = document.querySelector("#tabs button.an");
+  if(!anTab || anTab.dataset.tab === "einladung") $("#sub").textContent = subLive;
   $("#fuss").textContent = "Live-Daten aus dem Gästeregister · Zustellung, Öffnung und Klick über Lettermint, " +
     "Zahlungen über Stripe · THE CIRCLE — connecting generations";
   $("#funnelnote").hidden = false;
@@ -1461,6 +1514,7 @@ function zeitenZeichnen(z){
       ? "seit " + new Date(z.jetzt.seit).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"})
       : "");
   knopf.textContent = an ? "Wieder freigeben" : "Jetzt ohne App";
+  regieZeichnen();
 
   const tb = $("#zliste");
   tb.innerHTML = "";
@@ -1499,6 +1553,8 @@ function zeitenZeichnen(z){
 let appStand = null;
 function appZeichnen(a){
   appStand = a;
+  if(a.jetztMs) uhrOffset = a.jetztMs - Date.now();
+  regieZeichnen();
   txt($("#aIm"), a.im); txt($("#aReg"), a.registriert); txt($("#aInst"), a.installiert);
   txt($("#aPush"), a.push); txt($("#aDa"), a.da); txt($("#aVerb"), a.verbunden);
   if(!a.pushMoeglich) txt($("#aPushNote"), "Push ist noch nicht scharf: VAPID_PUBLIC / VAPID_PRIVATE fehlen in der Umgebung.");
@@ -1523,8 +1579,12 @@ function appZeichnen(a){
   } else if(a.pushMoeglich) txt($("#aPushNote"), "");
   const w = $("#wechselKnoepfe"); w.innerHTML = "";
   (a.gaenge || []).forEach((g, i) => {
-    const b = document.createElement("button"); b.type = "button"; b.className = "export" + (a.gang === i + 1 ? " gross" : "");
-    b.textContent = "Tischwechsel · " + (i + 1) + ". Gang " + g + (a.gang === i + 1 ? " (läuft)" : "");
+    /* Zustand im Knopf: erledigt (dunkel), laeuft (koralle), offen. */
+    const b = document.createElement("button"); b.type = "button";
+    const zustand = a.gang === i + 1 ? "an" : (a.gang > i + 1 ? "erledigt" : "");
+    b.className = "rg-knopf " + zustand;
+    b.textContent = (i + 1) + ". Gang · " + g;
+    const sm = document.createElement("small"); sm.textContent = zustand === "an" ? "läuft · gesendet" : (zustand === "erledigt" ? "erledigt ✓" : "Tischwechsel senden"); b.appendChild(sm);
     b.addEventListener("click", () => {
       if(!confirm("Tischwechsel zum " + (i + 1) + ". Gang (" + g + ") an alle Gäste schicken?")) return;
       /* Handschalter oder Fenster aktiv: Der Server haelt die Push zurueck.
@@ -1538,7 +1598,7 @@ function appZeichnen(a){
 }
 async function signalSchicken(rumpf, knopf){
   if(!KEY) return;
-  if(knopf){ knopf.disabled = true; knopf.dataset.text = knopf.textContent; knopf.textContent = "wird gesendet …"; }
+  if(knopf){ knopf.disabled = true; knopf.dataset.html = knopf.innerHTML; knopf.textContent = "wird gesendet …"; }
   try{
     const c = new AbortController(); const tid = setTimeout(()=>c.abort(), 10000);
     const r = await fetch("/api/admin/signal?key=" + encodeURIComponent(KEY), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf), signal: c.signal });
@@ -1549,7 +1609,7 @@ async function signalSchicken(rumpf, knopf){
     /* Die Push laeuft im Hintergrund weiter - in 8 s das Ergebnis holen. */
     setTimeout(laden, 8000);
   }catch(e){ alert("Server nicht erreichbar."); }
-  finally{ if(knopf){ knopf.disabled = false; knopf.textContent = knopf.dataset.text; } }
+  finally{ if(knopf){ knopf.disabled = false; knopf.innerHTML = knopf.dataset.html; } }
 }
 $("#allesFrei").addEventListener("click", async () => {
   if(!confirm("Alles frei: Signal weg, Handschalter aus, alle Fenster aus?")) return;
@@ -1565,7 +1625,9 @@ $("#raumKnopf").addEventListener("click", () => {
   if(appStand && appStand.appfrei){ trotz = confirm("Die App ist gerade stumm gestellt (" + appStand.appfrei + "). Push trotzdem senden?"); if(!trotz) return; }
   signalSchicken({ art:"raum", text:t, trotzAppfrei: trotz }, $("#raumKnopf"));
 });
-$$("#schnellsaetze button").forEach(b => b.addEventListener("click", () => { $("#naechstesText").value = b.dataset.satz; }));
+/* Ein Tippen, eine Ansage - direkt in die App, ohne Push (kein Umweg ueber
+   das Textfeld; das Feld bleibt fuer den freien Satz). */
+$$("#schnellsaetze button").forEach(b => b.addEventListener("click", () => signalSchicken({ art:"naechstes", text: b.dataset.satz }, b)));
 $("#signalfrei").addEventListener("click", () => signalSchicken({ art:"frei", rueckgaengig: $("#signalfrei").textContent === "Rückgängig" }));
 async function planSchicken(senden){
   if(!KEY) return;
@@ -2238,23 +2300,50 @@ function esc(s){
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+/* ---------- Regie: das "Jetzt" ----------
+   Uhr in Koelner Zeit (Serveruhr), was gerade laeuft, was als Naechstes
+   kommt, ob die App stumm ist, wen ein Tischwechsel erreicht. */
+let uhrOffset = 0;
+const hhmmBerlin = d => d.toLocaleTimeString("de-DE", { hour:"2-digit", minute:"2-digit", timeZone:"Europe/Berlin" });
+function regieZeichnen(){
+  const jetzt = new Date(Date.now() + uhrOffset), now = hhmmBerlin(jetzt);
+  txt($("#rgUhr"), now);
+  const z = zeitenStand; if(!z) return;
+  const tl = (z.timeline || []).filter(p => p && p.time).slice().sort((x, y) => x.time.localeCompare(y.time));
+  const lauf = tl.filter(p => p.time <= now).pop(), next = tl.find(p => p.time > now);
+  txt($("#rgJetzt"), lauf ? lauf.time + " \u00b7 " + lauf.title : (tl[0] ? "Vor dem Beginn \u00b7 " + tl[0].time + " " + tl[0].title : "\u2013"));
+  const minuten = t => { const [h, m] = t.split(":").map(Number), [h2, m2] = now.split(":").map(Number); return (h * 60 + m) - (h2 * 60 + m2); };
+  const frei = (z.appfrei || []).filter(f => !f.aus && f.from > now).sort((x, y) => x.from.localeCompare(y.from))[0];
+  let n = next ? "Als N\u00e4chstes " + next.time + " \u00b7 " + next.title + " (in " + minuten(next.time) + " Min)" : "";
+  if(frei && (!next || frei.from <= next.time)) n = "App-frei ab " + frei.from + " \u00b7 " + (frei.was || frei.id) + " (in " + minuten(frei.from) + " Min)" + (next && next.time !== frei.from ? " \u00b7 danach " + next.time + " " + next.title : "");
+  txt($("#rgNaechst"), n);
+  const a = appStand || {};
+  const stumm = z.jetzt ? "Ohne App: " + z.jetzt.was : (a.appfrei ? "App stumm: " + a.appfrei : "");
+  $("#rgAppZeile").classList.toggle("stumm", !!stumm);
+  txt($("#rgApp"), stumm || ("App l\u00e4uft normal" + (a.signal ? " \u00b7 Signal steht" : "")));
+  txt($("#rgErreich"), a.im != null ? a.da + " im Haus \u00b7 " + a.push + " per Push erreichbar \u00b7 " + a.installiert + " installiert" : "");
+}
+setInterval(regieZeichnen, 1000);
+
 /* ---------- Reiter ----------
    Einladung: alles bis zur Zusage. Der Abend: Zeiten, App, Buehne, danach.
    Merkt sich den zuletzt offenen Reiter; #abend im Link oeffnet ihn direkt
    (fuer Mathis am 16.09.: /monitor?key=…#abend). */
-const ABEND_PANELS = ["zeitpanel", "apppanel", "buehnepanel", "nachpanel"];
+const TAB_VON = { apppanel: "vorbereitung", tischpanel: "vorbereitung", zeitpanel: "vorbereitung", regiepanel: "regie", nachpanel: "danach" };
 const TAB_TEXTE = {
-  einladung: { label: "Einladungsmanagement · Lettermint & Stripe", titel: "Einladungs - Monitor",
-               sub: $("#sub").textContent },
-  abend:     { label: "Der Abend · Steuerung der App", titel: "Abend - Monitor",
-               sub: "Zeiten und app-freie Fenster, wer die App hat, Signale und Tischwechsel, die Wand, die Auktion – und alles, was nach dem 16.09. kommt. Gilt sofort für alle geöffneten Apps." }
+  einladung:    { label: "Einladungsmanagement \u00b7 Lettermint & Stripe", titel: "Einladungs\u200a-\u200aMonitor", sub: $("#sub").textContent },
+  vorbereitung: { label: "Die Tage davor", titel: "Vorbereitung",
+                  sub: "Wer die App schon hat und wer noch fehlt, die Demo f\u00fcr das Team, Jonans Tischordnung und die app-freien Fenster des Abends." },
+  regie:        { label: "Am 16.09. \u00b7 Mathis und Nicole", titel: "Regie",
+                  sub: "Der Abend auf einem Bildschirm: was gerade l\u00e4uft, Tischwechsel, Ansagen, Handschalter. Jeder Knopf gilt sofort f\u00fcr alle ge\u00f6ffneten Apps." },
+  danach:       { label: "Nach dem 16.09.", titel: "Danach",
+                  sub: "Feedback-Frage, Fotos und Galerie, News, die eine Nachricht an die Runde \u2013 und THE CIRCLE No2." }
 };
 function tabZeigen(name){
   const t = TAB_TEXTE[name] ? name : "einladung";
   Array.from(document.querySelector(".wrap").children).forEach(el => {
     if(el.tagName === "HEADER" || el.tagName === "FOOTER" || el.id === "tabs" || el.id === "tabLabel" || el.id === "tabTitel" || el.id === "sub") return;
-    const abend = ABEND_PANELS.includes(el.id);
-    el.classList.toggle("tabweg", t === "abend" ? !abend : abend);
+    el.classList.toggle("tabweg", (TAB_VON[el.id] || "einladung") !== t);
   });
   $$("#tabs button").forEach(b => b.classList.toggle("an", b.dataset.tab === t));
   txt($("#tabLabel"), TAB_TEXTE[t].label); txt($("#tabTitel"), TAB_TEXTE[t].titel); txt($("#sub"), TAB_TEXTE[t].sub);

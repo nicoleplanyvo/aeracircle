@@ -605,7 +605,7 @@ auch. Vier Dinge vorher, ein Ablauf für den Tag, einer für die Wochen danach.
 
 | Variable | Wozu |
 |---|---|
-| `VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT` | Web Push. Ohne die drei ist Push aus – der Monitor sagt es unter „Die App“. Einmal erzeugen (unten), **nie wechseln**: ein neuer Schlüssel macht alle Abos der Gäste ungültig. |
+| `VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT` | Web Push. Ohne die drei ist Push aus – der Monitor sagt es unter „Vorbereitung“ → „Die App“. Einmal erzeugen (unten), **nie wechseln**: ein neuer Schlüssel macht alle Abos der Gäste ungültig. |
 | `TZ=Europe/Berlin` | Logs und Serveruhr in Kölner Zeit. Die App-frei-Fenster rechnen ohnehin in Kölner Zeit. |
 | `VERANTWORTLICH`, `DATENSCHUTZ_KONTAKT` | Impressum und Datenschutz unter `/impressum`, `/datenschutz`. Solange sie fehlen, steht dort „noch einzutragen“. |
 | `RUNDE=no1` | In welche Runde neue Importe fallen. Gästebuch, Galerie und News sind je Runde getrennt – die Gäste von No2 sehen die von No1 nicht. |
@@ -617,7 +617,7 @@ node -e "console.log(require('./server/webpush').schluesselErzeugen())"
 ```
 
 Die beiden Werte **nur** in Plesk eintragen (nicht in eine Mail, nicht in
-einen Chat), dann Anwendung neu starten. Prüfen: Monitor → „Die App“ zeigt
+einen Chat), dann Anwendung neu starten. Prüfen: Monitor → „Vorbereitung“ → „Die App“ zeigt
 keine VAPID-Warnung mehr; Knopf „Push-Probe“ schickt eine an alle, die sie
 erlaubt haben.
 
@@ -645,7 +645,7 @@ der Reihenfolge der gedruckten Tischordnung:
 
 Die App zeigt am Tisch das Partnerlogo, wie auf dem Schild im Raum. Andere
 Namen im Monitor unter Tischordnung, eine je Zeile: `1;Dom`. Ablauf im
-Monitor → „Die App“ → Tischordnung: **Probelauf** (zeigt unbekannte
+Monitor → „Vorbereitung“ → „Tischordnung“: **Probelauf** (zeigt unbekannte
 Adressen, unbekannte Tischnamen und Gäste ohne Platz), dann **Übernehmen**.
 Einzelne Plätze am Abend über „Platz setzen“ – ohne die ganze Datei neu zu
 laden. Der Tisch steht in der App als eckige Karte mit zwei Reihen; die
@@ -653,7 +653,7 @@ Reihenfolge darin ist alphabetisch, nicht die Sitzordnung.
 
 ### 7.1a Demo für das Team
 
-Monitor → „Die App“ → **Demo für das Team**: eine Zeile je Person
+Monitor → „Vorbereitung“ → „Die App“ → **Demo für das Team**: eine Zeile je Person
 (`Name;E-Mail;Firma;Rolle`), dann „Demo-Gäste anlegen“. Jede Person bekommt
 einen echten persönlichen Link und geht durch dieselbe Registrierung wie ein
 Gast (Profil, Bild, Freigabe, Startbildschirm, Push). Die Demo-Gäste bilden
@@ -680,10 +680,10 @@ Demo-Zugang.
 Erzwingen lässt sich die Installation auf keinem Handy. Sehen und
 schließen lässt sie sich:
 
-1. Monitor → „Die App“ → **Wer fehlt noch?** zeigt drei Namenslisten:
+1. Monitor → „Vorbereitung“ → „Die App“ → **Wer fehlt noch?** zeigt drei Namenslisten:
    nicht registriert, registriert aber nicht auf dem Startbildschirm,
    installiert aber ohne Push. Mit Adresse und Telefon.
-2. Monitor → „Nach dem Abend“ → Nachricht, Anlass **Erinnerung · App
+2. Monitor → „Danach“ → Nachricht, Anlass **Erinnerung · App
    einrichten**. Das Ziel springt auf „nur an die ohne App“ und der Kanal
    auf Mail (Push erreicht diese Gruppe per Definition nicht). Probe an die
    eigene Adresse, dann an alle. Für die Nicht-Registrierten dasselbe mit
@@ -693,19 +693,19 @@ schließen lässt sie sich:
 
 ### 7.3 Am 16.09. – Checkliste für 17:00 (Mathis)
 
-- [ ] Monitor auf dem Handy offen, Reiter „Der Abend · App“ (`/monitor?key=…#abend`)
+- [ ] Monitor auf dem Handy offen, Reiter „Regie“ (`/monitor?key=…#regie`)
 - [ ] Optional, nur wenn die Playa einen Bildschirm hat: die Wand (`/wand`, Vollbild) zeigt AV8-Votum, Auktion und den Kreis; ohne Bildschirm stehen dieselben Zahlen im Monitor
-- [ ] Monitor → „Der Abend“: Serveruhr (Köln) stimmt auf die Minute; Phase steht auf **Automatik**
+- [ ] Regie: Uhr (Köln) stimmt auf die Minute; unter „Vorbereitung“ → „Zeiten“ steht die Phase auf **Automatik**
 - [ ] Zeiten-Tabelle gegen den Ablauf von Desi geprüft (App-frei: 19:30 Impuls I, 21:15 Impuls II, 22:45 Auktion)
 - [ ] Tischplan übernommen, „Ohne Platz“ leer oder bekannt
-- [ ] „Die App“: Zahlen Registriert / Installiert / Push erreichbar gelesen – **so viele erreicht ein Tischwechsel als Push**, die anderen sehen ihn nur in der offenen App
+- [ ] Regie, Zeile unter der Uhr: „x im Haus · y per Push erreichbar“ gelesen – **so viele erreicht ein Tischwechsel als Push**, die anderen sehen ihn nur in der offenen App
 - [ ] „Wer fehlt noch?“ offen auf dem Handy am Einlass: Name des Gastes suchen, Mail öffnen lassen, auf dem iPhone „In Safari öffnen“ → Teilen → „Zum Home-Bildschirm“, dann Push erlauben
 - [ ] Push-Probe an sich selbst (eigener Gastlink auf dem Handy, App installiert, Push erlaubt)
 - [ ] Ein Signal testen und zurücknehmen: „Nur in die App“ mit einem Satz → erscheint im eigenen Handy → „Zurücknehmen“
 - [ ] Falls Wand im Einsatz: einmal durch Ruhe → AV8 (Vorhang zu) → Auktion → Kreis → Automatik
 - [ ] Wissen, wo **Notfall: alles frei** ist (nimmt Signal, Handschalter und alle Fenster zurück)
 
-Am Abend selbst: Tischwechsel je Gang über die Knöpfe unter „Die App“ (fragt
+Am Abend selbst: Tischwechsel je Gang über die drei Knöpfe in der Regie (fragt
 nach; im App-freien Fenster hält der Server die Push zurück und fragt noch
 einmal). Verschiebt sich alles: **+15 Min** schiebt Ablauf, App-frei- und
 Live-Fenster gemeinsam – nur, was noch vor uns liegt.
@@ -714,8 +714,8 @@ Live-Fenster gemeinsam – nur, was noch vor uns liegt.
 
 1. **Phase.** Am Morgen des 17. steht die App von selbst auf „danach“
    (Startseite ohne Countdown, Leiste mit Galerie und News). Wenn nicht:
-   Monitor → „Der Abend“ → Phase **Danach**.
-2. **Feedback-Frage** (24–36 h danach): Monitor → „Nach dem Abend“ →
+   Monitor → „Vorbereitung“ → „Zeiten“ → Phase **Danach**.
+2. **Feedback-Frage** (24–36 h danach): Monitor → „Danach“ →
    Nachricht, Anlass *Feedback-Frage*, erst **Probe** an die eigene Adresse,
    dann **An alle**. Antworten stehen darunter, CSV zum Herunterladen.
 3. **Fotos.** Fotograf liefert JPEGs; wer auf einem Bild ist, steht am
