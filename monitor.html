@@ -193,6 +193,15 @@
 
   /* Kopfzeile: Quelle der Zahlen + Stand */
   .kopf-rechts{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+  /* Zwei Reiter: Einladung (Versand, Zusagen, Zahlung) und Der Abend (App,
+     Zeiten, Buehne, danach). Eine Seite, ein Schluessel, zwei Arbeitsplaetze. */
+  .tabs{display:flex;gap:4px;margin:18px 0 0;border-bottom:1px solid var(--line-soft)}
+  .tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;
+    font-family:var(--sans);font-size:11px;letter-spacing:.22em;text-transform:uppercase;padding:12px 16px 10px;margin-bottom:-1px}
+  .tabs button:hover{color:var(--ivory)}
+  .tabs button.an{color:var(--ivory);border-bottom-color:var(--coral)}
+  .tabs button b{display:inline-block;min-width:18px;margin-left:8px;padding:1px 6px;border-radius:999px;background:var(--coral);color:#331014;font-size:10px;letter-spacing:0;vertical-align:1px}
+  .tabweg{display:none !important}
   .demo-tag.live{background:var(--blau);color:#fff}
   .demo-tag.warn{background:var(--coral);color:#fff}
   .stand{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
@@ -322,8 +331,12 @@
     </div>
   </header>
 
-  <span class="label">Einladungsmanagement · Lettermint &amp; Stripe</span>
-  <h1>Einladungs&#8202;-&#8202;Monitor</h1>
+  <nav class="tabs" id="tabs" aria-label="Bereiche">
+    <button type="button" data-tab="einladung" class="an">Einladung</button>
+    <button type="button" data-tab="abend">Der Abend · App<b id="tabAbendZahl" style="display:none"></b></button>
+  </nav>
+  <span class="label" id="tabLabel">Einladungsmanagement · Lettermint &amp; Stripe</span>
+  <h1 id="tabTitel">Einladungs&#8202;-&#8202;Monitor</h1>
   <p class="sub" id="sub">Ein Blick für alle Beteiligten: Wie läuft der Versand, wer öffnet, wer sagt zu, wer hat bezahlt. Live gespeist aus dem Gästeregister, den Lettermint-Webhooks und Stripe — hier mit Demo-Daten.</p>
 
   <!-- 1 · Was jetzt ansteht. Steht bewusst VOR den Kennzahlen: der Monitor
@@ -2223,6 +2236,37 @@ function esc(s){
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/* ---------- Reiter ----------
+   Einladung: alles bis zur Zusage. Der Abend: Zeiten, App, Buehne, danach.
+   Merkt sich den zuletzt offenen Reiter; #abend im Link oeffnet ihn direkt
+   (fuer Mathis am 16.09.: /monitor?key=…#abend). */
+const ABEND_PANELS = ["zeitpanel", "apppanel", "buehnepanel", "nachpanel"];
+const TAB_TEXTE = {
+  einladung: { label: "Einladungsmanagement · Lettermint & Stripe", titel: "Einladungs - Monitor",
+               sub: $("#sub").textContent },
+  abend:     { label: "Der Abend · Steuerung der App", titel: "Abend - Monitor",
+               sub: "Zeiten und app-freie Fenster, wer die App hat, Signale und Tischwechsel, die Wand, die Auktion – und alles, was nach dem 16.09. kommt. Gilt sofort für alle geöffneten Apps." }
+};
+function tabZeigen(name){
+  const t = TAB_TEXTE[name] ? name : "einladung";
+  Array.from(document.querySelector(".wrap").children).forEach(el => {
+    if(el.tagName === "HEADER" || el.tagName === "FOOTER" || el.id === "tabs" || el.id === "tabLabel" || el.id === "tabTitel" || el.id === "sub") return;
+    const abend = ABEND_PANELS.includes(el.id);
+    el.classList.toggle("tabweg", t === "abend" ? !abend : abend);
+  });
+  $$("#tabs button").forEach(b => b.classList.toggle("an", b.dataset.tab === t));
+  txt($("#tabLabel"), TAB_TEXTE[t].label); txt($("#tabTitel"), TAB_TEXTE[t].titel); txt($("#sub"), TAB_TEXTE[t].sub);
+  try{ localStorage.setItem("circle.mtab", t); }catch(e){}
+  if(location.hash !== "#" + t) history.replaceState(null, "", location.pathname + location.search + "#" + t);
+  window.scrollTo(0, 0);
+}
+$$("#tabs button").forEach(b => b.addEventListener("click", () => tabZeigen(b.dataset.tab)));
+window.addEventListener("hashchange", () => tabZeigen(location.hash.slice(1)));
+{
+  let gemerkt = ""; try{ gemerkt = localStorage.getItem("circle.mtab") || ""; }catch(e){}
+  tabZeigen(location.hash.slice(1) || gemerkt || "einladung");
 }
 </script>
 </body>

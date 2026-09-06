@@ -685,7 +685,7 @@ schließen lässt sie sich:
 
 ### 7.3 Am 16.09. – Checkliste für 17:00 (Mathis)
 
-- [ ] Monitor auf dem Handy offen (`/monitor?key=…`), Wand auf dem Beamer (`/wand`, Vollbild)
+- [ ] Monitor auf dem Handy offen, Reiter „Der Abend · App“ (`/monitor?key=…#abend`), Wand auf dem Beamer (`/wand`, Vollbild)
 - [ ] Monitor → „Der Abend“: Serveruhr (Köln) stimmt auf die Minute; Phase steht auf **Automatik**
 - [ ] Zeiten-Tabelle gegen den Ablauf von Desi geprüft (App-frei: 19:30 Impuls I, 21:15 Impuls II, 22:45 Auktion)
 - [ ] Tischplan übernommen, „Ohne Platz“ leer oder bekannt
