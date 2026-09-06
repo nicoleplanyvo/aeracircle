@@ -167,6 +167,9 @@
   }
   .partner-grid .tile span{font-size:7.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);text-align:center}
   .colophon .more{color:var(--faint);font-size:11.5px;margin-top:14px}
+  .partner-grid a.tile{text-decoration:none;color:inherit;-webkit-tap-highlight-color:transparent}
+  .partner-grid a.tile:hover,.partner-grid a.tile:focus-visible{border-color:var(--line);outline:none}
+  .partner-grid a.tile:hover img{opacity:1}
 
   /* ---------- Enso ---------- */
   .enso-block{padding:14px 24px 8px;display:flex;gap:20px;align-items:center}
@@ -3521,6 +3524,26 @@ renderMenuPref();
 renderSterne();
 renderInteresse();
 renderPaddle();
+/* Partnerlogos fuehren zur Website des Partners. Eine Liste, ein Ort;
+   der Schluessel ist der alt-Text der Kachel. Referrer-Policy sorgt dafuer,
+   dass der persoenliche Token dabei nicht mitreist. */
+const PARTNER_URLS = {
+  "neuland.ai": "https://neuland.ai",
+  "Conrad": "https://www.conrad.de",
+  "Dein Dach": "https://www.deindach-hemmersbach.de",
+  "DEKRA": "https://www.dekra.de",
+  "jto Gebäudemanagement": "https://www.jto-koeln.de",
+  "Merzenich Bäckereien": "https://baeckerei-merzenich.de",
+  "Sion Kölsch": "https://www.sion.de",
+  "SKS Versicherungsmakler": "https://www.sks-vm.com",
+  "fuchsrohrbach Rechtsanwälte": "https://fuchsrohrbach.de",
+  "SMARTVELO": "https://smartvelo-mobility.com"
+};
+$$(".partner-grid .tile").forEach(t => {
+  const img = t.querySelector("img"); const u = img && PARTNER_URLS[img.alt]; if(!u) return;
+  const a = document.createElement("a"); a.className = "tile"; a.href = u; a.target = "_blank"; a.rel = "noopener noreferrer";
+  a.setAttribute("aria-label", img.alt + " – Website öffnen"); a.appendChild(img); t.replaceWith(a);
+});
 /* Service Worker: macht die App startfaehig, wenn das WLAN in der Playa
    unter 130 Gaesten einbricht. Bewusst NACH dem Laden angemeldet - die
    Anmeldung darf den ersten Aufbau der Seite nicht aufhalten. Schlaegt sie
