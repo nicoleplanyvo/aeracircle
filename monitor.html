@@ -567,6 +567,18 @@
     </div>
     <div id="lueckeBlock" style="display:none;margin-top:8px"></div>
 
+    <!-- Demo fuer das Team: eigene Runde, zaehlt nirgends mit. Jeder aus dem
+         Team bekommt einen echten Link und erlebt die App wie ein Gast. -->
+    <span class="label" style="display:block;margin-top:22px">Demo für das Team</span>
+    <p class="fnote">Eigene Runde „demo“: Die Demo-Gäste sehen im Gästebuch nur einander, haben einen kleinen Tischplan mit Wechsel je Gang und bekommen Signale und Push wie alle. In Pools, Funnel und Wellen tauchen sie nicht auf. Eine Zeile je Person: <code>Name;E-Mail;Firma;Rolle</code>. Wer schon als echter Gast im Register steht, nutzt seinen echten Link.</p>
+    <textarea id="demoListe" class="plancsv" rows="4" placeholder="Desiree Betz;desi@…;Ihre Markenwerkstatt;Gastgeberin&#10;Anne …;anne@…;;&#10;Dylan …;dylan@…;;"></textarea>
+    <div class="exportzeile">
+      <button class="export" id="demoAnlegen" type="button">Demo-Gäste anlegen</button>
+      <button class="export" id="demoLoeschen" type="button">Alle Demo-Gäste löschen</button>
+      <span class="fussnote" style="margin:0" id="demoNote"></span>
+    </div>
+    <div id="demoGaeste" style="margin-top:8px"></div>
+
     <div class="jetztbox" id="signalbox" style="margin-top:18px">
       <div>
         <b id="signalstatus">Kein Signal</b>
@@ -1719,6 +1731,30 @@ async function lueckeHolen(){
 }
 $("#lueckeAuf").addEventListener("click", () => { const w = $("#lueckeBlock"); const auf = w.style.display === "none"; w.style.display = auf ? "" : "none"; txt($("#lueckeAuf"), auf ? "Liste zu" : "Wer fehlt noch?"); if(auf) lueckeHolen(); });
 if(KEY){ lueckeHolen(); setInterval(() => { if(!document.hidden) lueckeHolen(); }, 120000); }
+
+/* ---------- Demo fuer das Team ---------- */
+function demoZeichnen(gaeste){
+  const w = $("#demoGaeste"); w.innerHTML = "";
+  gaeste.forEach(g => {
+    const z = document.createElement("div"); z.className = "fbzeile";
+    const b = document.createElement("b"); b.textContent = g.name; z.appendChild(b);
+    z.appendChild(document.createTextNode(" · " + (g.registriert ? "registriert" : "noch nicht registriert") + (g.installiert ? " · installiert" : "") + (g.push ? " · Push" : "") + " · "));
+    const a = document.createElement("a"); a.href = g.link; a.textContent = g.link; a.style.color = "var(--ivory)"; a.target = "_blank"; a.rel = "noopener"; z.appendChild(a);
+    const k = document.createElement("button"); k.className = "export"; k.type = "button"; k.textContent = "Link kopieren"; k.style.marginLeft = "8px";
+    k.addEventListener("click", async () => { try{ await navigator.clipboard.writeText(g.link); txt(k, "kopiert"); setTimeout(() => txt(k, "Link kopieren"), 1500); }catch(e){ prompt("Link:", g.link); } });
+    z.appendChild(k); w.appendChild(z);
+  });
+  if(!gaeste.length){ const p = document.createElement("p"); p.className = "fnote"; p.textContent = "Keine Demo-Gäste."; w.appendChild(p); }
+}
+async function demoHolen(){ const d = await adminGet("/api/admin/demo"); if(d) demoZeichnen(d.gaeste || []); }
+$("#demoAnlegen").addEventListener("click", async () => {
+  const gaeste = $("#demoListe").value.split(/\r?\n/).map(z => z.split(";").map(x => x.trim())).filter(z => z[0]).map(z => ({ name: z[0], email: z[1] || "", firma: z[2] || "", rolle: z[3] || "" }));
+  if(!gaeste.length){ txt($("#demoNote"), "Erst Namen eintragen."); return; }
+  const d = await adminPost("/api/admin/demo", { gaeste });
+  if(d && d.ok){ txt($("#demoNote"), d.angelegt + " angelegt" + (d.schonEcht.length ? " · schon echte Gäste (eigenen Link nutzen): " + d.schonEcht.join(", ") : "") + " – Links unten, jeden nur persönlich weitergeben."); $("#demoListe").value = ""; demoZeichnen(d.gaeste); }
+});
+$("#demoLoeschen").addEventListener("click", async () => { if(!confirm("Alle Demo-Gäste samt Profilen, Verbindungen und Plätzen löschen?")) return; const d = await adminPost("/api/admin/demo", { loeschen: true }); if(d && d.ok){ txt($("#demoNote"), d.geloescht + " gelöscht."); demoZeichnen([]); } });
+if(KEY) demoHolen();
 async function senden(probe, trotzdem){
   const rumpf = { art: $("#sdArt").value, kanal: $("#sdKanal").value, ziel: $("#sdZiel").value, titel: $("#sdTitel").value.trim(), text: $("#sdText").value.trim(), url: $("#sdUrl").value.trim() || "/", ctaText: $("#sdCta").value.trim() };
   if(!rumpf.titel || !rumpf.text){ txt($("#sdNote"), "Titel und Text fehlen."); return; }

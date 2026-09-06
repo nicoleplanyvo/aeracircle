@@ -854,6 +854,11 @@ function kurzprofil(ich, inv) {
  * Der Plan kommt am 14.09. von Jonan; die Maske steht vorher. Ein Gast
  * sitzt je Gang an einem Tisch (Switch zwischen den Gaengen). "gang" ist
  * der Gang, der gerade laeuft - 0 vor dem Essen. */
+/* Zehn Tische, benannt nach den Partnern - so stehen sie auf der gedruckten
+   Tischordnung von Desi (Logo oben, zehn Plaetze). Die Nummer ist die
+   Reihenfolge dort; in Jonans CSV darf statt der Nummer der Name stehen. */
+const TISCHE_STANDARD = ["DeinDach", "Conrad", "jto", "fuchsrohrbach", "Merzenich", "neuland.ai", "Sion", "SKS", "SMARTVÉLO", "DEKRA"];
+const tischNorm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "").replace(/^tisch/, "");
 function tische() {
   if (!state.tische) state.tische = {
     gaenge: ["Vorspeise", "Hauptspeise", "Dessert"],
@@ -861,7 +866,28 @@ function tische() {
     liste: [],                   // [{ nr, name }]
     sitz: {}                     // gid -> [tischNr je Gang]
   };
-  return state.tische;
+  const t = state.tische;
+  /* Solange niemand Namen vergeben hat, gelten die zehn Partnertische -
+     auch wenn ein frueherer Import nur die Nummern 1-3 angelegt hat. */
+  const eigene = t.liste.some(x => x.name && !TISCHE_STANDARD.includes(x.name));
+  if (!eigene) {
+    TISCHE_STANDARD.forEach((name, i) => {
+      const e = t.liste.find(x => x.nr === i + 1);
+      if (!e) t.liste.push({ nr: i + 1, name }); else if (!e.name) e.name = name;
+    });
+    t.liste.sort((a, b) => a.nr - b.nr);
+  }
+  return t;
+}
+/* "5", "Merzenich" oder "Tisch Merzenich" -> Tischnummer. 0 = unbekannt. */
+function tischNummer(wert) {
+  const s = String(wert || "").trim();
+  if (!s) return 0;
+  const n = parseInt(s, 10);
+  if (n) return n;
+  const k = tischNorm(s); if (!k) return 0;
+  const t = tische().liste.find(x => x.name && (tischNorm(x.name) === k || tischNorm(x.name).startsWith(k) || k.startsWith(tischNorm(x.name))));
+  return t ? t.nr : -1;
 }
 function meinTisch(inv, gangNr) {
   const t = tische();
@@ -1213,6 +1239,7 @@ function poolStats() {
    * Kopfzeile 94 meldete: derselbe Bildschirm, zwei Wahrheiten. */
   const vlog = versandLogLesenGepuffert();
   for (const inv of Object.values(state.invites)) {
+    if (inv.demo) continue;                      // Demo-Gaeste des Teams zaehlen nirgends mit
     const p = pools[inv.pool] || (pools[inv.pool] = {
       pool: inv.pool, typ: inv.typ, gesamt: 0,
       /* Pools sind nicht sortenrein: in AERA sitzen Ehrengaeste UND
@@ -1237,7 +1264,7 @@ function poolStats() {
 }
 
 function gesamtStats() {
-  const all = Object.values(state.invites);
+  const all = Object.values(state.invites).filter(i => !i.demo);
   const zaehl = f => all.filter(f).length;
   /* "Versendet" hat zwei Quellen: den sent-Webhook von Lettermint UND das
    * Versand-Gedaechtnis der CLI (nur lesend). Ohne das Log zeigte der
@@ -3535,12 +3562,13 @@ const server = http.createServer((req, res) => {
           if (inv.email) byMail[inv.email.toLowerCase()] = inv;
           byName[(inv.name || "").trim().toLowerCase()] = inv;
         }
-        const neu = {}, gefunden = [], unbekannt = [], tischNrn = new Set();
+        const neu = {}, gefunden = [], unbekannt = [], tischNrn = new Set(), unbekannteTische = new Set();
         for (const r of rows.slice(1)) {
           const mail = iMail >= 0 ? clean(r[iMail], 120).toLowerCase() : "";
           const name = iName >= 0 ? clean(r[iName], 80).trim().toLowerCase() : "";
           const inv = (mail && byMail[mail]) || (name && byName[name]) || null;
-          const plaetze = iGang.map(i => i >= 0 ? (parseInt(r[i], 10) || 0) : 0);
+          /* Nummer oder Tischname ("Merzenich") - beides geht. */
+          const plaetze = iGang.map(i => { if (i < 0) return 0; const n = tischNummer(r[i]); if (n < 0) { unbekannteTische.add(String(r[i]).trim()); return 0; } return n; });
           if (!inv) { unbekannt.push(mail || name); continue; }
           neu[gid(inv)] = plaetze;
           plaetze.forEach(n => { if (n) tischNrn.add(n); });
@@ -3550,8 +3578,9 @@ const server = http.createServer((req, res) => {
          * niemandem auf - er sieht "–" und bekommt eine Push ins Leere. */
         const ohnePlatz = Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === RUNDE && !neu[gid(i)]).map(i => i.name).sort();
         if (q.get("senden") !== "1") {
-          return json(res, 200, { ok: true, probelauf: true, gefunden: gefunden.length, unbekannt, ohnePlatz, tische: [...tischNrn].sort((a, b) => a - b) });
+          return json(res, 200, { ok: true, probelauf: true, gefunden: gefunden.length, unbekannt, ohnePlatz, tische: [...tischNrn].sort((a, b) => a - b), unbekannteTische: [...unbekannteTische] });
         }
+        if (unbekannteTische.size) return json(res, 400, { error: "Unbekannte Tischnamen: " + [...unbekannteTische].join(", ") + " – Namen unter Tischordnung anlegen oder Nummern benutzen", unbekannteTische: [...unbekannteTische] });
         const t = tische();
         t.sitz = neu;
         /* Tische, die im Plan vorkommen, aber noch keinen Eintrag haben,
@@ -3781,6 +3810,63 @@ const server = http.createServer((req, res) => {
       const r = clean(q.get("runde"), 20) || RUNDE, g = galerie(r), fotos = Object.values(g.fotos);
       return json(res, 200, { ok: true, offen: !!g.offen, anzahl: fotos.length, zugeordnet: fotos.filter(f => (f.wer || []).length).length,
                               ohne: fotos.filter(f => !(f.wer || []).length).length, liste: fotos.slice(-30).map(f => ({ id: f.id, datei: f.datei, wer: (f.wer || []).length, m: galerieUrl(r, f.id, "m") })) });
+    }
+
+    /* --- Demo fuer das Team ---
+     * Eigene Runde "demo": Gaestebuch, Tischplan und Galerie sehen nur
+     * einander. Pool "Demo", nie in Pools, Funnel oder Wellen gezaehlt
+     * (inv.demo). Jeder bekommt einen echten persoenlichen Link und geht
+     * durch dieselbe Registrierung wie ein Gast - das IST die Demo.
+     * Signale und Tischwechsel aus dem Monitor erreichen sie wie alle. */
+    const demoListe = () => Object.values(state.invites).filter(i => i.demo).map(i => ({
+      name: i.name, email: i.email || "", firma: i.firma || "", registriert: !!(i.profil && i.profil.registriert),
+      installiert: !!(i.app && i.app.standalone), push: !!i.push, link: PUBLIC_URL + "/?t=" + i.token
+    })).sort((a, b) => a.name.localeCompare(b.name, "de"));
+    if (req.method === "GET" && url === "/api/admin/demo") return json(res, 200, { ok: true, gaeste: demoListe() });
+    if (req.method === "POST" && url === "/api/admin/demo") {
+      return readBody(req, res, body => {
+        const t = tische();
+        if (body.loeschen) {
+          let n = 0;
+          for (const inv of Object.values(state.invites)) {
+            if (!inv.demo) continue;
+            const p = inv.profil || {};
+            if (p.foto) for (const sfx of ["", "-m"]) { try { fs.unlinkSync(path.join(FOTO_DIR, p.foto + sfx + ".jpg")); } catch (e) {} }
+            delete t.sitz[gid(inv)];
+            delete state.invites[inv.token]; n++;
+          }
+          for (const k of Object.keys(state.verbindungen || {})) if (k.startsWith("demo|")) delete state.verbindungen[k];
+          if (state.galerie) delete state.galerie.demo;
+          dirty = true; logEvent("Demo gelöscht", wer, n + " Gäste");
+          return json(res, 200, { ok: true, geloescht: n, gaeste: [] });
+        }
+        const liste = Array.isArray(body.gaeste) ? body.gaeste.slice(0, 20) : [];
+        const angelegt = [], schonEcht = [];
+        for (const g of liste) {
+          const name = cleanText(g && g.name, 60); if (!name) continue;
+          const email = clean((g && g.email) || "", 120).toLowerCase();
+          if (email && email.indexOf("@") < 1) continue;
+          const bekannt = Object.values(state.invites).find(i => email ? (i.email || "").toLowerCase() === email : i.name.trim().toLowerCase() === name.toLowerCase());
+          if (bekannt && !bekannt.demo) { schonEcht.push(bekannt.name); continue; }   // echter Gast: eigenen echten Link benutzen
+          if (bekannt) { angelegt.push(bekannt); continue; }
+          const token = newToken();
+          const inv = state.invites[token] = {
+            token, pool: "Demo", typ: "ehrengast", runde: "demo", demo: true,
+            name, email, firma: cleanText(g.firma || "", 80), rolle: cleanText(g.rolle || "", 80), anrede: "Hallo",
+            partner: "", partnerLogo: "", status: "zugesagt", zugesagt: Date.now(),
+            mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 }, daten: {}, zahlung: null, ticketNr: "", t: Date.now()
+          };
+          angelegt.push(inv);
+        }
+        /* Ein kleiner Tischplan fuer die Demo: bis zu drei Tische, je Gang
+         * neu gemischt - so sieht man den Tischwechsel. Echte Plaetze
+         * bleiben unberuehrt; Jonans Import ersetzt spaeter alles. */
+        const alle = Object.values(state.invites).filter(i => i.demo);
+        const nT = Math.min(3, Math.max(1, Math.ceil(alle.length / 3)));
+        alle.forEach((inv, i) => { t.sitz[gid(inv)] = t.gaenge.map((_, g) => ((i + g) % nT) + 1); });
+        dirty = true; logEvent("Demo angelegt", wer, angelegt.length + " Gäste");
+        return json(res, 200, { ok: true, angelegt: angelegt.length, schonEcht, gaeste: demoListe() });
+      });
     }
 
     /* Wer fehlt noch: nicht registriert, registriert aber nicht installiert,

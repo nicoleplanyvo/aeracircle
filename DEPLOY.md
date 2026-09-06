@@ -631,10 +631,41 @@ anna@beispiel.de,1,3,2
 ```
 
 Statt `email` geht auch `name` (muss dem Namen im Register entsprechen).
-Tischnamen optional darunter im Monitor, eine je Zeile: `1;Dom`. Ablauf im
+In den Gang-Spalten darf statt der Nummer der **Tischname** stehen
+(`Merzenich`, `Tisch Merzenich`, `SKS`). Die zehn Tische sind vorbelegt, in
+der Reihenfolge der gedruckten Tischordnung:
+
+| Nr | Tisch | Nr | Tisch |
+|---|---|---|---|
+| 1 | DeinDach | 6 | neuland.ai |
+| 2 | Conrad | 7 | Sion |
+| 3 | jto | 8 | SKS |
+| 4 | fuchsrohrbach | 9 | SMARTVÉLO |
+| 5 | Merzenich | 10 | DEKRA |
+
+Die App zeigt am Tisch das Partnerlogo, wie auf dem Schild im Raum. Andere
+Namen im Monitor unter Tischordnung, eine je Zeile: `1;Dom`. Ablauf im
 Monitor → „Die App“ → Tischordnung: **Probelauf** (zeigt unbekannte
-Adressen und Gäste ohne Platz), dann **Übernehmen**. Einzelne Plätze am
-Abend über „Platz setzen“ – ohne die ganze Datei neu zu laden.
+Adressen, unbekannte Tischnamen und Gäste ohne Platz), dann **Übernehmen**.
+Einzelne Plätze am Abend über „Platz setzen“ – ohne die ganze Datei neu zu
+laden. Der Tisch steht in der App als eckige Karte mit zwei Reihen; die
+Reihenfolge darin ist alphabetisch, nicht die Sitzordnung.
+
+### 7.1a Demo für das Team
+
+Monitor → „Die App“ → **Demo für das Team**: eine Zeile je Person
+(`Name;E-Mail;Firma;Rolle`), dann „Demo-Gäste anlegen“. Jede Person bekommt
+einen echten persönlichen Link und geht durch dieselbe Registrierung wie ein
+Gast (Profil, Bild, Freigabe, Startbildschirm, Push). Die Demo-Gäste bilden
+eine eigene Runde: Sie sehen im Gästebuch nur einander, haben einen kleinen
+Tischplan mit Wechsel je Gang und bekommen Signale, Tischwechsel und Push
+aus dem Monitor wie alle. In Pools, Funnel, Wellen und „Wer fehlt noch“
+tauchen sie nicht auf. Wer schon als echter Gast im Register steht, wird
+nicht doppelt angelegt und nutzt seinen echten Link.
+
+Links nur persönlich weitergeben (WhatsApp an die Person, nicht in die
+Gruppe). Nach der Demo: „Alle Demo-Gäste löschen“ nimmt Profile, Bilder,
+Verbindungen und Plätze wieder heraus.
 
 ### 7.2a Drei Tage vorher: die Lücke schließen
 

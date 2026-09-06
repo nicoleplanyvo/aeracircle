@@ -685,22 +685,27 @@
   .tischnr{font-family:var(--disp);font-weight:600;font-size:64px;line-height:1;
     background:linear-gradient(120deg,var(--coral),var(--ivory));-webkit-background-clip:text;background-clip:text;color:transparent}
   .tischname{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--sand);margin-top:6px;min-height:14px}
-  .tischrund{position:relative;width:min(78vw,300px);height:min(78vw,300px);margin:24px auto 10px}
-  .tischrund::before{
-    content:"";position:absolute;inset:18%;border-radius:50%;
-    border:1px solid rgba(216,211,195,.32);background:radial-gradient(circle at 50% 38%,rgba(216,211,195,.16),rgba(216,211,195,.04) 72%);
-  }
-  .tischmitte{position:absolute;inset:18%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
-  .tischmitte b{font-family:var(--disp);font-weight:600;font-size:40px;line-height:1;
-    background:linear-gradient(120deg,var(--coral),var(--ivory));-webkit-background-clip:text;background-clip:text;color:transparent}
+  /* Der Tisch wie auf der gedruckten Tischordnung: eckig, Partnerlogo
+     oben, die Plaetze in zwei Reihen an den Laengsseiten. Die Reihenfolge
+     ist alphabetisch, nicht die Sitzordnung - die entsteht im Raum. */
+  .tischrund{position:relative;width:min(88vw,340px);margin:22px auto 10px;
+    border:1px solid rgba(216,211,195,.32);border-radius:14px;padding:18px 14px 16px;
+    background:linear-gradient(180deg,rgba(216,211,195,.14),rgba(216,211,195,.04))}
+  .tischrund::before{content:"";position:absolute;left:50%;top:10px;width:44px;height:3px;margin-left:-22px;background:var(--coral);border-radius:2px}
+  .tischmitte{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:64px;margin:8px 0 14px;pointer-events:none}
+  .tischmitte img{max-height:44px;max-width:70%;width:auto;height:auto;display:block;opacity:.95}
+  .tischmitte b{font-family:var(--disp);font-weight:600;font-size:30px;line-height:1;color:var(--ivory)}
   .tischmitte span{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--sand);margin-top:6px}
-  .sitz{position:absolute;width:72px;margin:-24px 0 0 -36px;
-    display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;
-    -webkit-tap-highlight-color:transparent}
-  .sitz .avatar{width:48px;height:48px;font-size:13px}
-  .sitz i{font-style:normal;font-size:11px;letter-spacing:.02em;color:var(--ivory);white-space:normal;text-align:center;line-height:1.2;
-    max-width:72px;overflow:hidden;text-overflow:ellipsis;font-family:var(--sans);font-weight:500}
+  .tischseiten{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}
+  .sitz{display:flex;align-items:center;gap:8px;min-height:52px;padding:4px 2px;cursor:pointer;
+    border-top:1px solid rgba(216,211,195,.14);-webkit-tap-highlight-color:transparent}
+  .sitz:nth-child(-n+2){border-top:0}
+  .sitz .avatar{width:40px;height:40px;font-size:12px;flex:none}
+  .sitz i{font-style:normal;font-size:11.5px;letter-spacing:.01em;color:var(--ivory);line-height:1.2;text-align:left;
+    overflow:hidden;font-family:var(--sans);font-weight:500;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
   .sitz.ich i{color:var(--coral)}
+  .sitz.frei{cursor:default;opacity:.45}
+  .sitz.frei .avatar{border-style:dashed;background:none}
   .gaenge{display:flex;flex-direction:column;margin-top:10px}
   .gaenge div{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-top:1px solid var(--line-soft)}
   .gaenge div:first-child{border-top:0}
@@ -2985,6 +2990,14 @@ async function kontaktSpeichern(g){
 }
 
 /* ---- Tisch ---- */
+/* Tischname -> Partnerlogo aus dem Fuss der Startseite (dieselben Bilder,
+   kein zweites Mal geladen). "Merzenich" trifft "Merzenich Bäckereien",
+   "SKS" trifft "SKS Versicherungsmakler", "DeinDach" trifft "Dein Dach". */
+function partnerLogo(name){
+  const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+  const k = norm(name); if(k.length < 3) return null;
+  return $$(".partner-grid img").find(img => { const a = norm(img.alt); const n = Math.min(4, k.length, a.length); return n >= 3 && a.slice(0, n) === k.slice(0, n); }) || null;
+}
 async function ladeTisch(gang){
   if(!APP.token) return;
   try{ APP.tisch = await appGet("/api/app/tisch" + (gang ? "?gang=" + gang : "")); cacheSet("tisch", APP.tisch); renderTisch(); }
@@ -3003,24 +3016,30 @@ function renderTisch(){
   /* Der Tisch als Kreis, ich unten. Die Reihenfolge ist alphabetisch,
      nicht die echte Sitzordnung - die kennt niemand vorher. */
   const rund = $("#tischRund"); rund.innerHTML = "";
-  /* Nummer und Name in die Mitte des Tischs - so liest sich der Kreis als
-     Tisch mit Namensschild, nicht als zweite Gaesteliste. */
+  /* Kopf des Tischs: das Partnerlogo, wenn der Tischname einem Partner
+     entspricht - so sieht die Karte aus wie das Schild auf dem Tisch. */
   { const m = document.createElement("div"); m.className = "tischmitte";
-    const b = document.createElement("b"); b.textContent = t.tisch ? "Tisch " + t.tisch : "–";
-    const sp = document.createElement("span"); sp.textContent = eig.tischName || "";
-    m.appendChild(b); m.appendChild(sp); rund.appendChild(m); }
+    const logo = partnerLogo(eig.tischName);
+    if(logo){ const im = document.createElement("img"); im.src = logo.src; im.alt = eig.tischName; m.appendChild(im); const sp = document.createElement("span"); sp.textContent = "Tisch " + t.tisch + " · " + eig.tischName; m.appendChild(sp); }
+    else { const b = document.createElement("b"); b.textContent = t.tisch ? "Tisch " + t.tisch : "–"; m.appendChild(b); if(eig.tischName){ const sp = document.createElement("span"); sp.textContent = eig.tischName; m.appendChild(sp); } }
+    rund.appendChild(m); }
   const leute = [{ id:"", name:APP.ich ? APP.ich.name : "Du", foto:APP.ich ? APP.ich.foto : "", ich:true, registriert:true }].concat(t.nachbarn);
-  const B = rund.clientWidth || 260, n = leute.length, R = Math.max(B / 2 - 30, 60);
-  leute.forEach((g, i) => {
-    const a = Math.PI / 2 + (i / n) * Math.PI * 2;      // ich bei 90 Grad = unten
-    const s = document.createElement("div"); s.className = "sitz" + (g.ich ? " ich" : "");
-    s.style.left = (50 + Math.cos(a) * R / B * 100) + "%";
-    s.style.top  = (50 + Math.sin(a) * R / B * 100) + "%";
+  /* Zwei Reihen wie an der Tafel: links, rechts, links, rechts. Bis acht
+     Plaetze werden leere Plaetze angedeutet - der Tisch wirkt dann wie im
+     Raum, nicht wie eine Liste, die zufaellig kurz ist. */
+  const seiten = document.createElement("div"); seiten.className = "tischseiten";
+  const plaetze = Math.max(leute.length, 8);
+  for(let i = 0; i < plaetze; i++){
+    const g = leute[i];
+    const s = document.createElement("div");
+    if(!g){ s.className = "sitz frei"; const a = document.createElement("div"); a.className = "avatar klein"; s.appendChild(a); const i2 = document.createElement("i"); i2.textContent = ""; s.appendChild(i2); seiten.appendChild(s); continue; }
+    s.className = "sitz" + (g.ich ? " ich" : "");
     s.appendChild(avatarEl(g));
     const i2 = document.createElement("i"); i2.textContent = g.ich ? "Du" : g.name; s.appendChild(i2);
     if(!g.ich) s.addEventListener("click", ()=>gastOeffnen(g.id));
-    rund.appendChild(s);
-  });
+    seiten.appendChild(s);
+  }
+  rund.appendChild(seiten);
   rund.style.display = t.tisch ? "block" : "none";
   const mp = $("#meineTischePanel"); mp.style.display = hatPlan ? "block" : "none";
   const mt = $("#meineTische"); mt.innerHTML = "";
