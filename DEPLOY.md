@@ -660,12 +660,20 @@ Gast (Profil, Bild, Freigabe, Startbildschirm, Push). Die Demo-Gäste bilden
 eine eigene Runde: Sie sehen im Gästebuch nur einander, haben einen kleinen
 Tischplan mit Wechsel je Gang und bekommen Signale, Tischwechsel und Push
 aus dem Monitor wie alle. In Pools, Funnel, Wellen und „Wer fehlt noch“
-tauchen sie nicht auf. Wer schon als echter Gast im Register steht, wird
-nicht doppelt angelegt und nutzt seinen echten Link.
+tauchen sie nicht auf.
+
+Das Team steht meist auch auf der echten Gästeliste. Deshalb ist die
+Demo-Kopie ein getrennter Eintrag ohne Mailadresse (die Adresse steht nur
+zur Anzeige im Monitor): Der nächste Import der Gästeliste würde sonst die
+Kopie statt des echten Eintrags aktualisieren. Der echte Eintrag und der
+echte Link bleiben unberührt.
 
 Links nur persönlich weitergeben (WhatsApp an die Person, nicht in die
 Gruppe). Nach der Demo: „Alle Demo-Gäste löschen“ nimmt Profile, Bilder,
-Verbindungen und Plätze wieder heraus.
+Verbindungen und Plätze wieder heraus. Wer die App mit dem Demo-Link auf
+den Startbildschirm gelegt hat, öffnet sie danach einmal mit dem echten
+Link und legt sie neu ab – das Symbol startet sonst mit dem gelöschten
+Demo-Zugang.
 
 ### 7.2a Drei Tage vorher: die Lücke schließen
 
@@ -685,7 +693,8 @@ schließen lässt sie sich:
 
 ### 7.3 Am 16.09. – Checkliste für 17:00 (Mathis)
 
-- [ ] Monitor auf dem Handy offen, Reiter „Der Abend · App“ (`/monitor?key=…#abend`), Wand auf dem Beamer (`/wand`, Vollbild)
+- [ ] Monitor auf dem Handy offen, Reiter „Der Abend · App“ (`/monitor?key=…#abend`)
+- [ ] Optional, nur wenn die Playa einen Bildschirm hat: die Wand (`/wand`, Vollbild) zeigt AV8-Votum, Auktion und den Kreis; ohne Bildschirm stehen dieselben Zahlen im Monitor
 - [ ] Monitor → „Der Abend“: Serveruhr (Köln) stimmt auf die Minute; Phase steht auf **Automatik**
 - [ ] Zeiten-Tabelle gegen den Ablauf von Desi geprüft (App-frei: 19:30 Impuls I, 21:15 Impuls II, 22:45 Auktion)
 - [ ] Tischplan übernommen, „Ohne Platz“ leer oder bekannt
@@ -693,7 +702,7 @@ schließen lässt sie sich:
 - [ ] „Wer fehlt noch?“ offen auf dem Handy am Einlass: Name des Gastes suchen, Mail öffnen lassen, auf dem iPhone „In Safari öffnen“ → Teilen → „Zum Home-Bildschirm“, dann Push erlauben
 - [ ] Push-Probe an sich selbst (eigener Gastlink auf dem Handy, App installiert, Push erlaubt)
 - [ ] Ein Signal testen und zurücknehmen: „Nur in die App“ mit einem Satz → erscheint im eigenen Handy → „Zurücknehmen“
-- [ ] Wand: einmal durch Ruhe → AV8 (Vorhang zu) → Auktion → Kreis → Automatik
+- [ ] Falls Wand im Einsatz: einmal durch Ruhe → AV8 (Vorhang zu) → Auktion → Kreis → Automatik
 - [ ] Wissen, wo **Notfall: alles frei** ist (nimmt Signal, Handschalter und alle Fenster zurück)
 
 Am Abend selbst: Tischwechsel je Gang über die Knöpfe unter „Die App“ (fragt

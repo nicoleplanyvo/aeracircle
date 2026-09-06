@@ -583,7 +583,7 @@
     <!-- Demo fuer das Team: eigene Runde, zaehlt nirgends mit. Jeder aus dem
          Team bekommt einen echten Link und erlebt die App wie ein Gast. -->
     <span class="label" style="display:block;margin-top:22px">Demo für das Team</span>
-    <p class="fnote">Eigene Runde „demo“: Die Demo-Gäste sehen im Gästebuch nur einander, haben einen kleinen Tischplan mit Wechsel je Gang und bekommen Signale und Push wie alle. In Pools, Funnel und Wellen tauchen sie nicht auf. Eine Zeile je Person: <code>Name;E-Mail;Firma;Rolle</code>. Wer schon als echter Gast im Register steht, nutzt seinen echten Link.</p>
+    <p class="fnote">Eigene Runde „demo“: Die Demo-Gäste sehen im Gästebuch nur einander, haben einen kleinen Tischplan mit Wechsel je Gang und bekommen Signale und Push wie alle. In Pools, Funnel und Wellen tauchen sie nicht auf. Eine Zeile je Person: <code>Name;E-Mail;Firma;Rolle</code>. Wer auch auf der echten Gästeliste steht, bekommt eine getrennte Demo-Kopie; der echte Eintrag und der echte Link bleiben unberührt. Nach der Demo die App einmal mit dem echten Link öffnen und neu auf den Startbildschirm legen.</p>
     <textarea id="demoListe" class="plancsv" rows="4" placeholder="Desiree Betz;desi@…;Ihre Markenwerkstatt;Gastgeberin&#10;Anne …;anne@…;;&#10;Dylan …;dylan@…;;"></textarea>
     <div class="exportzeile">
       <button class="export" id="demoAnlegen" type="button">Demo-Gäste anlegen</button>
@@ -1764,7 +1764,7 @@ $("#demoAnlegen").addEventListener("click", async () => {
   const gaeste = $("#demoListe").value.split(/\r?\n/).map(z => z.split(";").map(x => x.trim())).filter(z => z[0]).map(z => ({ name: z[0], email: z[1] || "", firma: z[2] || "", rolle: z[3] || "" }));
   if(!gaeste.length){ txt($("#demoNote"), "Erst Namen eintragen."); return; }
   const d = await adminPost("/api/admin/demo", { gaeste });
-  if(d && d.ok){ txt($("#demoNote"), d.angelegt + " angelegt" + (d.schonEcht.length ? " · schon echte Gäste (eigenen Link nutzen): " + d.schonEcht.join(", ") : "") + " – Links unten, jeden nur persönlich weitergeben."); $("#demoListe").value = ""; demoZeichnen(d.gaeste); }
+  if(d && d.ok){ txt($("#demoNote"), d.angelegt + " angelegt" + (d.auchEcht && d.auchEcht.length ? " · auch echt im Register (Demo-Kopie getrennt): " + d.auchEcht.join(", ") : "") + " – Links unten, jeden nur persönlich weitergeben."); $("#demoListe").value = ""; demoZeichnen(d.gaeste); }
 });
 $("#demoLoeschen").addEventListener("click", async () => { if(!confirm("Alle Demo-Gäste samt Profilen, Verbindungen und Plätzen löschen?")) return; const d = await adminPost("/api/admin/demo", { loeschen: true }); if(d && d.ok){ txt($("#demoNote"), d.geloescht + " gelöscht."); demoZeichnen([]); } });
 if(KEY) demoHolen();

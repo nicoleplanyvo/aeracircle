@@ -3819,7 +3819,7 @@ const server = http.createServer((req, res) => {
      * durch dieselbe Registrierung wie ein Gast - das IST die Demo.
      * Signale und Tischwechsel aus dem Monitor erreichen sie wie alle. */
     const demoListe = () => Object.values(state.invites).filter(i => i.demo).map(i => ({
-      name: i.name, email: i.email || "", firma: i.firma || "", registriert: !!(i.profil && i.profil.registriert),
+      name: i.name, email: i.demoEmail || i.email || "", firma: i.firma || "", registriert: !!(i.profil && i.profil.registriert),
       installiert: !!(i.app && i.app.standalone), push: !!i.push, link: PUBLIC_URL + "/?t=" + i.token
     })).sort((a, b) => a.name.localeCompare(b.name, "de"));
     if (req.method === "GET" && url === "/api/admin/demo") return json(res, 200, { ok: true, gaeste: demoListe() });
@@ -3841,18 +3841,23 @@ const server = http.createServer((req, res) => {
           return json(res, 200, { ok: true, geloescht: n, gaeste: [] });
         }
         const liste = Array.isArray(body.gaeste) ? body.gaeste.slice(0, 20) : [];
-        const angelegt = [], schonEcht = [];
+        const angelegt = [], auchEcht = [];
         for (const g of liste) {
           const name = cleanText(g && g.name, 60); if (!name) continue;
           const email = clean((g && g.email) || "", 120).toLowerCase();
           if (email && email.indexOf("@") < 1) continue;
-          const bekannt = Object.values(state.invites).find(i => email ? (i.email || "").toLowerCase() === email : i.name.trim().toLowerCase() === name.toLowerCase());
-          if (bekannt && !bekannt.demo) { schonEcht.push(bekannt.name); continue; }   // echter Gast: eigenen echten Link benutzen
-          if (bekannt) { angelegt.push(bekannt); continue; }
+          /* Dieselbe Person nur einmal in der Demo. */
+          const vorher = Object.values(state.invites).find(i => i.demo && i.name.trim().toLowerCase() === name.toLowerCase());
+          if (vorher) { angelegt.push(vorher); continue; }
+          /* Das Team steht meist auch auf der echten Gaesteliste. Die Demo-
+           * Kopie bekommt deshalb KEINE Mailadresse: der naechste Import der
+           * Gaesteliste wuerde sonst die Kopie statt des echten Eintrags
+           * aktualisieren. Die Adresse steht nur zur Anzeige im Monitor. */
+          if (Object.values(state.invites).some(i => !i.demo && email && (i.email || "").toLowerCase() === email)) auchEcht.push(name);
           const token = newToken();
           const inv = state.invites[token] = {
             token, pool: "Demo", typ: "ehrengast", runde: "demo", demo: true,
-            name, email, firma: cleanText(g.firma || "", 80), rolle: cleanText(g.rolle || "", 80), anrede: "Hallo",
+            name, email: "", demoEmail: email, firma: cleanText(g.firma || "", 80), rolle: cleanText(g.rolle || "", 80), anrede: "Hallo",
             partner: "", partnerLogo: "", status: "zugesagt", zugesagt: Date.now(),
             mail: { sent: 0, delivered: 0, opened: 0, clicked: 0 }, daten: {}, zahlung: null, ticketNr: "", t: Date.now()
           };
@@ -3865,7 +3870,7 @@ const server = http.createServer((req, res) => {
         const nT = Math.min(3, Math.max(1, Math.ceil(alle.length / 3)));
         alle.forEach((inv, i) => { t.sitz[gid(inv)] = t.gaenge.map((_, g) => ((i + g) % nT) + 1); });
         dirty = true; logEvent("Demo angelegt", wer, angelegt.length + " Gäste");
-        return json(res, 200, { ok: true, angelegt: angelegt.length, schonEcht, gaeste: demoListe() });
+        return json(res, 200, { ok: true, angelegt: angelegt.length, auchEcht, gaeste: demoListe() });
       });
     }
 
