@@ -718,6 +718,9 @@
   .plantisch b small{font-family:var(--sans);font-weight:400;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--sand);margin-left:8px}
   .plantisch p{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.6}
   .plantisch p em{font-style:normal;color:var(--coral)}
+  /* Gesichter je Tisch: wer sitzt wo, auf einen Blick - nicht nur als Namen. */
+  .planavatare{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .avatar.mini{width:36px;height:36px;font-size:11px;cursor:pointer}
 
   /* ---------- Signal-Banner ---------- */
   #signalBanner{
@@ -3039,10 +3042,13 @@ async function ladePlan(gang){
   p.tische.forEach(t => {
     const d = document.createElement("div"); d.className = "plantisch";
     const b = document.createElement("b"); b.textContent = "Tisch " + t.nr; if(t.name){ const s = document.createElement("small"); s.textContent = t.name; b.appendChild(s); }
+    /* Erst die Gesichter, dann die Namen. Antippen oeffnet das Kurzprofil. */
+    const av = document.createElement("div"); av.className = "planavatare";
+    t.gaeste.forEach(g => { const a = avatarEl({ name:g.name, foto:g.foto, registriert:true, ich:g.ich }, "mini"); a.title = g.ich ? "Du" : g.name; if(!g.ich) a.addEventListener("click", ()=>gastOeffnen(g.id)); av.appendChild(a); });
     const q = document.createElement("p");
     t.gaeste.forEach((g, i) => { if(i) q.appendChild(document.createTextNode(" · ")); const e = document.createElement(g.ich ? "em" : "span"); e.textContent = g.ich ? "Du" : g.name; q.appendChild(e); });
     if(!t.gaeste.length) q.textContent = "–";
-    d.appendChild(b); d.appendChild(q); pl.appendChild(d);
+    d.appendChild(b); if(t.gaeste.length) d.appendChild(av); d.appendChild(q); pl.appendChild(d);
   });
 }
 
