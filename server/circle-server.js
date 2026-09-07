@@ -381,7 +381,8 @@ function kreisZahlen() {
            signalGesehen: state.signal && state.signal.gesehen ? Object.keys(state.signal.gesehen).length : 0,
            phase: phaseJetzt(), phaseHand: state.phaseHand || "",
            appfrei: appfreiJetzt() ? ((appfreiJetzt().was) || "Handschalter") : "",
-           pushMoeglich: pushMoeglich(), signal: state.signal || null, gaenge: tische().gaenge, tische: tische().liste.length };
+           pushMoeglich: pushMoeglich(), pushGesperrt: pushGesperrt(), pushFrei: !!state.pushFrei,
+           signal: state.signal || null, gaenge: tische().gaenge, tische: tische().liste.length };
 }
 function snapshot() {
   return JSON.stringify({
@@ -999,8 +1000,32 @@ const pushbar = () => Object.values(state.invites).filter(i => imKreis(i) && i.p
  * serverseitig, nicht nur in der Oberflaeche: eine Push, die im Impuls
  * ankommt, holt niemand zurueck. Tote Abonnements (404/410) werden
  * geloescht, damit der Zaehler im Monitor stimmt. */
+/* --- Am Abend keine Push ---
+ * Entscheidung der Veranstalter: Am 16.09. bekommt niemand eine Push, auch
+ * nicht zum Tischwechsel. Der Tischwechsel steht trotzdem sofort in jeder
+ * offenen App (Banner ueber den Live-Stream) und im Reiter Tisch.
+ * NACH dem Abend bleibt Push erlaubt - Fotos, News und die naechste Runde
+ * sind der Grund, warum die App auf dem Startbildschirm liegt.
+ * state.pushFrei hebt die Sperre von Hand auf, falls doch einmal etwas
+ * dringend an alle muss. */
+/* Schaetzspiel: wer lag am naechsten an der Summe, die wirklich gespendet
+   wird. Aendert sich die Summe nachtraeglich, aendern sich die Sieger mit -
+   sonst stuende auf der Wand ein Gewinner, der nicht mehr gewonnen hat. */
+function tippsZu(erloes) {
+  return Object.values(state.invites).filter(i => imKreis(i) && i.tipp)
+    .map(i => ({ id: gid(i), name: i.name, wert: i.tipp.wert, abstand: Math.abs(i.tipp.wert - erloes), karte: String(i.ticketNr || "").replace(/\D/g, ""), inv: i }))
+    .sort((a, b) => a.abstand - b.abstand);
+}
+const siegerAus = tipps => tipps.slice(0, 3).map(x => ({ name: x.name, vorname: x.name.split(" ")[0], wert: x.wert, abstand: x.abstand, karte: x.karte }));
+
+function pushGesperrt() {
+  if (state.pushFrei) return null;
+  return phaseJetzt() === "abend" ? "am Abend ohne Push (so abgestimmt)" : null;
+}
 async function pushAnAlle(nachricht, opts) {
   if (!pushMoeglich()) return { gesendet: 0, grund: "kein VAPID-Schluessel" };
+  const gesperrt = pushGesperrt();
+  if (gesperrt && !(opts && opts.trotzSperre)) return { gesendet: 0, grund: gesperrt };
   const frei = appfreiJetzt();
   if (frei && !(opts && opts.trotzAppfrei)) return { gesendet: 0, grund: "app-frei: " + (frei.was || "Handschalter") };
   const payload = JSON.stringify(nachricht);
@@ -1020,6 +1045,8 @@ async function pushAnAlle(nachricht, opts) {
 /* Wie pushAnAlle, aber der Text wird je Gast gebaut (Tischnummer). */
 async function pushJeGast(bauen, opts) {
   if (!pushMoeglich()) return { gesendet: 0, grund: "kein VAPID-Schlüssel" };
+  const gesperrt = pushGesperrt();
+  if (gesperrt && !(opts && opts.trotzSperre)) return { gesendet: 0, grund: gesperrt };
   const frei = appfreiJetzt();
   if (frei && !(opts && opts.trotzAppfrei)) return { gesendet: 0, grund: "app-frei: " + (frei.was || "Handschalter") };
   let gesendet = 0, tot = 0, fehler = 0;
@@ -1039,7 +1066,7 @@ const tischName = nr => ((tische().liste.find(x => x.nr === nr) || {}).name || "
  * sein Handy in der Tasche, und eine Anfrage, die um 23 Uhr gelesen wird,
  * kommt nach dem Gespraech. Im app-freien Fenster geht nichts raus. */
 async function pushAnEinen(inv, nachricht) {
-  if (!pushMoeglich() || !inv || !inv.push || appfreiJetzt()) return false;
+  if (!pushMoeglich() || !inv || !inv.push || appfreiJetzt() || pushGesperrt()) return false;
   try {
     const a = await webpush.senden({ subscription: inv.push, payload: JSON.stringify(nachricht), vapid: VAPID, ttl: 3600, urgency: "normal" });
     if (a.status === 404 || a.status === 410) { inv.push = null; dirty = true; return false; }
@@ -4005,11 +4032,9 @@ const server = http.createServer((req, res) => {
     if (req.method === "POST" && url === "/api/admin/zuschlag") {
       return readBody(req, res, async body => {
         const erloes = parseInt(body.erloes, 10) || (state.bid && state.bid.amount) || 0;
-        const tipps = Object.values(state.invites).filter(i => imKreis(i) && i.tipp)
-          .map(i => ({ id: gid(i), name: i.name, wert: i.tipp.wert, abstand: Math.abs(i.tipp.wert - erloes), karte: String(i.ticketNr || "").replace(/\D/g, ""), inv: i }))
-          .sort((a, b) => a.abstand - b.abstand);
-        state.auktion = { zu: Date.now(), erloes, wer, karte: state.bid ? state.bid.paddle : "",
-          sieger: tipps.slice(0, 3).map(x => ({ name: x.name, vorname: x.name.split(" ")[0], wert: x.wert, abstand: x.abstand, karte: x.karte })), tipps: tipps.length };
+        const tipps = tippsZu(erloes);
+        state.auktion = { zu: Date.now(), erloes, gebot: (state.bid && state.bid.amount) || 0, wer, karte: state.bid ? state.bid.paddle : "",
+          sieger: siegerAus(tipps), tipps: tipps.length };
         dirty = true; broadcast();
         logEvent("Zuschlag", wer, erloes + " €");
         if (tipps[0]) pushAnEinen(tipps[0].inv, { titel: "Dein Tipp war am nächsten", text: erloes.toLocaleString("de-DE") + " € – du lagst " + tipps[0].abstand.toLocaleString("de-DE") + " € daneben. Komm nach vorn.", url: "/?t=" + tipps[0].inv.token + "#live", tag: "tipp" });
@@ -4020,6 +4045,32 @@ const server = http.createServer((req, res) => {
     if (req.method === "POST" && url === "/api/admin/zuschlag-zurueck") {
       state.auktion = null; dirty = true; broadcast();
       return json(res, 200, { ok: true });
+    }
+    /* Der Spendenbetrag nach dem Zuschlag. Das Gebot ist das eine, die
+     * Spende das andere: Legt THE CIRCLE etwas drauf, damit eine runde
+     * Summe dasteht, wird sie hier gesetzt - Wand, App und das Schaetzspiel
+     * rechnen ab dann mit dieser Zahl. Das Gebot bleibt daneben stehen. */
+    if (req.method === "POST" && url === "/api/admin/erloes") {
+      return readBody(req, res, body => {
+        if (!state.auktion) return json(res, 409, { error: "Noch kein Zuschlag" });
+        const erloes = parseInt(body.erloes, 10);
+        if (!(erloes > 0)) return json(res, 400, { error: "Betrag in Euro" });
+        const tipps = tippsZu(erloes);
+        state.auktion.erloes = erloes;
+        state.auktion.aufgerundet = erloes !== (state.auktion.gebot || 0);
+        state.auktion.sieger = siegerAus(tipps);
+        dirty = true; broadcast();
+        logEvent("Spendenbetrag", wer, erloes + " €");
+        return json(res, 200, { ok: true, auktion: state.auktion });
+      });
+    }
+    /* Push von Hand freigeben oder wieder sperren. Am Abend ist Push aus. */
+    if (req.method === "POST" && url === "/api/admin/push-sperre") {
+      return readBody(req, res, body => {
+        state.pushFrei = !!body.frei; dirty = true; broadcast();
+        logEvent("Push", wer, state.pushFrei ? "freigegeben" : "gesperrt");
+        return json(res, 200, { ok: true, pushFrei: !!state.pushFrei, gesperrt: pushGesperrt() });
+      });
     }
     /* Live-Zahlen fuer die Buehnen-Karte - mit Namen, deshalb hinter dem
      * Schluessel; die Gaeste bekommen im Stream nur Betrag und Karte. */

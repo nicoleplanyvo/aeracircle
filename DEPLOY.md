@@ -605,7 +605,7 @@ auch. Vier Dinge vorher, ein Ablauf für den Tag, einer für die Wochen danach.
 
 | Variable | Wozu |
 |---|---|
-| `VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT` | Web Push. Ohne die drei ist Push aus – der Monitor sagt es unter „Vorbereitung“ → „Die App“. Einmal erzeugen (unten), **nie wechseln**: ein neuer Schlüssel macht alle Abos der Gäste ungültig. |
+| `VAPID_PUBLIC`, `VAPID_PRIVATE`, `VAPID_SUBJECT` | Web Push – gebraucht **nach** dem Abend (Fotos, News, nächste Runde). Am 16.09. selbst geht keine Push raus, siehe 7.3a. Ohne die drei ist Push ganz aus; der Monitor sagt es unter „Vorbereitung“ → „Die App“. Einmal erzeugen (unten), **nie wechseln**: ein neuer Schlüssel macht alle Abos der Gäste ungültig. |
 | `TZ=Europe/Berlin` | Logs und Serveruhr in Kölner Zeit. Die App-frei-Fenster rechnen ohnehin in Kölner Zeit. |
 | `VERANTWORTLICH`, `DATENSCHUTZ_KONTAKT` | Impressum und Datenschutz unter `/impressum`, `/datenschutz`. Solange sie fehlen, steht dort „noch einzutragen“. |
 | `RUNDE=no1` | In welche Runde neue Importe fallen. Gästebuch, Galerie und News sind je Runde getrennt – die Gäste von No2 sehen die von No1 nicht. |
@@ -698,17 +698,36 @@ schließen lässt sie sich:
 - [ ] Regie: Uhr (Köln) stimmt auf die Minute; unter „Vorbereitung“ → „Zeiten“ steht die Phase auf **Automatik**
 - [ ] Zeiten-Tabelle gegen den Ablauf von Desi geprüft (App-frei: 19:30 Impuls I, 21:15 Impuls II, 22:45 Auktion)
 - [ ] Tischplan übernommen, „Ohne Platz“ leer oder bekannt
-- [ ] Regie, Zeile unter der Uhr: „x im Haus · y per Push erreichbar“ gelesen – **so viele erreicht ein Tischwechsel als Push**, die anderen sehen ihn nur in der offenen App
+- [ ] Regie, Zeile unter der Uhr: „x im Haus“ gelesen. Der Tischwechsel erscheint in **jeder offenen App** als Banner und im Reiter Tisch – wer die App zu hat, sieht ihn beim nächsten Öffnen
 - [ ] „Wer fehlt noch?“ offen auf dem Handy am Einlass: Name des Gastes suchen, Mail öffnen lassen, auf dem iPhone „In Safari öffnen“ → Teilen → „Zum Home-Bildschirm“, dann Push erlauben
-- [ ] Push-Probe an sich selbst (eigener Gastlink auf dem Handy, App installiert, Push erlaubt)
+- [ ] Regie zeigt „Push: heute Abend aus“ – so ist es gewollt (7.3a). Die Push-Probe gehört vor den 16.09.
 - [ ] Ein Signal testen und zurücknehmen: „Nur in die App“ mit einem Satz → erscheint im eigenen Handy → „Zurücknehmen“
 - [ ] Falls Wand im Einsatz: einmal durch Ruhe → AV8 (Vorhang zu) → Auktion → Kreis → Automatik
 - [ ] Wissen, wo **Notfall: alles frei** ist (nimmt Signal, Handschalter und alle Fenster zurück)
 
-Am Abend selbst: Tischwechsel je Gang über die drei Knöpfe in der Regie (fragt
-nach; im App-freien Fenster hält der Server die Push zurück und fragt noch
-einmal). Verschiebt sich alles: **+15 Min** schiebt Ablauf, App-frei- und
-Live-Fenster gemeinsam – nur, was noch vor uns liegt.
+Am Abend selbst: Tischwechsel je Gang über die drei Knöpfe in der Regie
+(fragt nach). Verschiebt sich alles: **+15 Min** schiebt Ablauf, App-frei-
+und Live-Fenster gemeinsam – nur, was noch vor uns liegt.
+
+### 7.3a Am 16.09. geht keine Push raus
+
+So abgestimmt mit den Veranstaltern: An diesem Abend bekommt niemand eine
+Benachrichtigung, auch nicht zum Tischwechsel. Der Server sperrt Push
+automatisch, solange die Phase „abend" läuft – niemand muss daran denken.
+
+Was stattdessen passiert: Der Tischwechsel steht **sofort in jeder offenen
+App** als Banner über dem Bild und im Reiter Tisch. Wer die App gerade zu
+hat, sieht ihn beim nächsten Öffnen. Dasselbe gilt für Ansagen.
+
+Die Regie zeigt den Zustand über den Tischwechsel-Knöpfen. Muss doch einmal
+etwas dringend aufs Handy, gibt es dort „Push freigeben" – danach wieder
+sperren. Nach dem Abend (Phase „danach") sind Push wieder normal erlaubt;
+genau dafür liegt die App auf dem Startbildschirm.
+
+**Fünf Minuten vor jedem app-freien Fenster** zeigt die App eine Leiste mit
+Countdown: „Impuls · Ien Bäumler – schließ ab, was offen ist." Im Fenster
+selbst steht, bis wann es dauert. So weiß jeder, dass er sein Votum oder
+seinen Tipp noch abgeben kann.
 
 ### 7.4 Danach – Fotos, News, Feedback
 

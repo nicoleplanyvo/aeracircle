@@ -232,6 +232,12 @@
   .regie .jetztbox .rg-knopf{min-height:52px;flex:none}
   .regie .mailtools{margin-top:8px}
   .regie .mailtools input{min-height:48px}
+  .rg-hinweis{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    margin-top:18px;padding:12px 14px;border:1px solid var(--line-soft);border-radius:12px}
+  .rg-hinweis b{display:block;font-family:var(--sans);font-weight:500;font-size:13px}
+  .rg-hinweis span{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;max-width:44em}
+  .rg-hinweis.frei{border-color:var(--coral)}
+  .rg-hinweis.frei b{color:var(--coral)}
   .rg-details{margin-top:24px;border-top:1px solid var(--line-soft);padding-top:8px}
   .rg-details summary{cursor:pointer;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);padding:12px 0;list-style:none}
   .rg-details summary::before{content:"▸ ";color:var(--faint)}
@@ -648,7 +654,12 @@
     </div>
     <p class="fnote">Legt sofort ein Blatt über alle Apps, bis du es wieder löst. Für Momente, die in keiner Liste stehen.<span id="serverzeit" style="display:none"></span></p>
 
-    <span class="label rg-label">Tischwechsel · geht als Push mit der eigenen Tischnummer</span>
+    <div class="rg-hinweis" id="pushZeile">
+      <div><b id="pushStand">Push: am Abend aus</b><span id="pushNote">Der Tischwechsel steht sofort in jeder offenen App – als Banner und im Reiter Tisch. Aufs gesperrte Handy geht heute nichts.</span></div>
+      <button class="rg-knopf klein" id="pushSchalter" type="button">Push freigeben</button>
+    </div>
+
+    <span class="label rg-label">Tischwechsel · erscheint sofort in jeder offenen App</span>
     <div class="rg-reihe" id="wechselKnoepfe"></div>
     <div class="jetztbox" id="signalbox" style="margin-top:12px">
       <div>
@@ -719,6 +730,14 @@
       <button class="export gross" id="zuschlag" type="button">Zuschlag · Auflösen</button>
       <button class="export" id="zuschlagZurueck" type="button" style="display:none">Zuschlag zurücknehmen</button>
       <span class="fussnote" style="margin:0" id="auktionNote"></span>
+    </div>
+    <!-- Das Gebot ist das eine, die Spende das andere: Legt THE CIRCLE
+         etwas drauf, steht hier die runde Summe. Wand, App und das
+         Schaetzspiel rechnen ab dann mit ihr. -->
+    <div class="mailtools" id="erloesZeile" style="display:none">
+      <input id="erloesBetrag" type="number" inputmode="numeric" placeholder="Spendenbetrag €" style="max-width:170px">
+      <button class="export" id="erloesSetzen" type="button">Spendenbetrag setzen</button>
+      <span class="fussnote" style="margin:0" id="erloesNote"></span>
     </div>
     <div id="bieterListe" class="fnote"></div>
     </details>
@@ -1558,6 +1577,19 @@ function appZeichnen(a){
   txt($("#aIm"), a.im); txt($("#aReg"), a.registriert); txt($("#aInst"), a.installiert);
   txt($("#aPush"), a.push); txt($("#aDa"), a.da); txt($("#aVerb"), a.verbunden);
   if(!a.pushMoeglich) txt($("#aPushNote"), "Push ist noch nicht scharf: VAPID_PUBLIC / VAPID_PRIVATE fehlen in der Umgebung.");
+  /* Am Abend geht keine Push raus - das muss dastehen, BEVOR jemand den
+     Tischwechsel drueckt und auf eine Quittung wartet, die nie kommt. */
+  const pz = $("#pushZeile");
+  if(pz){
+    const frei = !!a.pushFrei, gesperrt = a.pushGesperrt;
+    pz.classList.toggle("frei", frei);
+    txt($("#pushStand"), gesperrt ? "Push: heute Abend aus" : (frei ? "Push: von Hand freigegeben" : "Push: möglich"));
+    txt($("#pushNote"), gesperrt
+      ? "So abgestimmt. Der Tischwechsel steht sofort in jeder offenen App – als Banner und im Reiter Tisch. Aufs gesperrte Handy geht heute nichts."
+      : (frei ? "Achtung: Push geht wieder raus, auch am Abend. Nach dem Notfall wieder sperren."
+              : "Außerhalb des Abends erreichen Push die Gäste normal – Fotos, News, nächste Runde."));
+    txt($("#pushSchalter"), frei ? "Wieder sperren" : "Push freigeben");
+  }
   const s = a.signal;
   txt($("#signalstatus"), s ? (s.art === "wechsel" ? "Tischwechsel läuft: " + s.text : "Als Nächstes: " + s.text) : "Kein Signal");
   txt($("#signalseit"), s && s.t ? "seit " + new Date(s.t).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"}) + (s.wer ? " · von " + s.wer : "") : "");
@@ -1678,7 +1710,10 @@ function buehneZeichnen(d){
   $$("#wandModi button").forEach(b => b.classList.toggle("gross", d.wand && d.wand.modus === b.dataset.modus));
   txt($("#vorhang"), d.wand && d.wand.enthuellt ? "Vorhang: wieder zu" : "Vorhang: Ergebnis zeigen");
   const a = d.auktion;
-  txt($("#auktionNote"), a && a.zu ? "Zuschlag " + a.erloes.toLocaleString("de-DE") + " €" + (a.sieger && a.sieger[0] ? " · Schätzspiel: " + a.sieger.map(x => x.name + " (" + x.wert.toLocaleString("de-DE") + " €, ±" + x.abstand + ")").join(" · ") : " · keine Tipps") : "");
+  txt($("#auktionNote"), a && a.zu ? "Spende " + a.erloes.toLocaleString("de-DE") + " €" + (a.gebot && a.gebot !== a.erloes ? " (Gebot " + a.gebot.toLocaleString("de-DE") + " €)" : "") + (a.sieger && a.sieger[0] ? " · Schätzspiel: " + a.sieger.map(x => x.name + " (" + x.wert.toLocaleString("de-DE") + " €, ±" + x.abstand + ")").join(" · ") : " · keine Tipps") : "");
+  /* Nach dem Zuschlag laesst sich die Summe noch runden. */
+  $("#erloesZeile").style.display = a && a.zu ? "flex" : "none";
+  if(a && a.zu && !$("#erloesBetrag").value) $("#erloesBetrag").placeholder = a.erloes.toLocaleString("de-DE") + " €";
   $("#zuschlagZurueck").style.display = a && a.zu ? "" : "none";
   $("#zuschlag").disabled = !!(a && a.zu);
   const bl = $("#bieterListe"); bl.textContent = (d.bids || []).length ? "Gebote: " + d.bids.map(b => b.amount.toLocaleString("de-DE") + " € (" + (b.paddle ? "Karte " + b.paddle : "") + (b.name ? " " + b.name : "") + (b.quelle === "saal" ? ", Saal" : "") + ")").join(" · ") : "";
@@ -1704,6 +1739,19 @@ $("#zuschlag").addEventListener("click", async () => {
   await adminPost("/api/admin/zuschlag", { erloes: parseInt(e, 10) || b }); buehneHolen();
 });
 $("#zuschlagZurueck").addEventListener("click", async () => { if(confirm("Zuschlag zurücknehmen? Die Auktion ist dann wieder offen.")) { await adminPost("/api/admin/zuschlag-zurueck"); buehneHolen(); } });
+$("#pushSchalter").addEventListener("click", async () => {
+  const frei = !!(appStand && appStand.pushFrei);
+  if(!frei && !confirm("Push wieder freigeben? Ab sofort bekommen die Gäste Benachrichtigungen aufs Handy – heute Abend war das ausdrücklich nicht gewollt.")) return;
+  await adminPost("/api/admin/push-sperre", { frei: !frei }); laden();
+});
+$("#erloesSetzen").addEventListener("click", async () => {
+  const e = parseInt($("#erloesBetrag").value, 10);
+  if(!e){ txt($("#erloesNote"), "Betrag in Euro eintragen."); return; }
+  const gebot = buehne && buehne.auktion ? (buehne.auktion.gebot || buehne.auktion.erloes) : 0;
+  if(!confirm("Spendenbetrag auf " + e.toLocaleString("de-DE") + " € setzen?" + (gebot ? "\n\nHöchstgebot war " + gebot.toLocaleString("de-DE") + " €." : "") + "\nWand, App und das Schätzspiel rechnen ab dann mit dieser Summe.")) return;
+  const d = await adminPost("/api/admin/erloes", { erloes: e });
+  if(d && d.ok){ txt($("#erloesNote"), "Gesetzt: " + e.toLocaleString("de-DE") + " €"); $("#erloesBetrag").value = ""; buehneHolen(); }
+});
 $("#sitzSetzen").addEventListener("click", async () => {
   const wer = $("#sitzWer").value.trim(), gang = parseInt($("#sitzGang").value, 10), tisch = parseInt($("#sitzTisch").value, 10) || 0;
   if(!wer || !gang) return;
