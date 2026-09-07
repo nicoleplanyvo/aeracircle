@@ -116,7 +116,10 @@
   /* Sektions-Titel: Uppercase-Didone mit Verlauf */
   .sect{padding:38px 24px 10px}
   .sect .label{display:block;margin-bottom:12px}
-  .sect h2{font-size:clamp(50px,14.5vw,62px);letter-spacing:0}
+  /* Die grossen Ueberschriften sind ein Wort ohne Trennstelle ("GÄSTEBUCH").
+     Passt es nicht, laeuft es sonst rechts aus dem Bild - deshalb hier
+     kleiner beginnen und in passeUeberschriften() genau einpassen. */
+  .sect h2{font-size:clamp(38px,12.2vw,62px);letter-spacing:0;overflow-wrap:anywhere}
   .sect .lede{margin-top:12px}
 
   /* ---------- Hero ---------- */
@@ -391,14 +394,23 @@
     display:grid;grid-template-columns:1fr 1fr auto 1fr 1fr;align-items:center;
     padding:6px 8px calc(8px + env(safe-area-inset-bottom));
   }
-  nav button.punkt::after{content:attr(data-n);position:absolute;top:8px;right:-4px;min-width:16px;height:16px;padding:0 4px;
+  /* Der Zaehler sitzt UEBER dem Wort, nicht darauf: sonst stand da
+     "Gästebuc" mit einem roten Plaettchen auf dem letzten Buchstaben. */
+  nav button.punkt::after{content:attr(data-n);position:absolute;top:1px;right:50%;margin-right:-26px;min-width:15px;height:15px;padding:0 4px;
     border-radius:8px;background:var(--coral);color:var(--ink);font-size:9px;font-weight:600;letter-spacing:0;
     display:flex;align-items:center;justify-content:center}
   nav button{
     -webkit-appearance:none;appearance:none;background:none;border:0;cursor:pointer;
-    color:var(--faint);padding:14px 2px 10px;position:relative;
-    font-family:var(--sans);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:400;
-    transition:color .2s;-webkit-tap-highlight-color:transparent;
+    color:var(--faint);padding:16px 1px 10px;position:relative;
+    font-family:var(--sans);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:400;
+    white-space:nowrap;transition:color .2s;-webkit-tap-highlight-color:transparent;
+  }
+  /* iPhone SE und schmaler: "Gästebuch" ist das laengste Wort in der
+     Leiste - es muss ganz dastehen, sonst rutscht die Leiste aus dem Bild. */
+  @media (max-width:365px){
+    nav button{font-size:8.8px;letter-spacing:.04em}
+    nav .navspiral{padding:4px 8px 0}
+    nav button.punkt::after{margin-right:-22px}
   }
   nav button:focus-visible{outline:2px solid var(--ivory);outline-offset:2px}
   nav button.active{color:var(--ivory)}
@@ -632,14 +644,24 @@
     font-family:var(--sans);font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:8px 13px;cursor:pointer}
   .filter button.an{border-color:var(--ivory);color:var(--ivory)}
   .chip.st{
-    flex:none;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    flex:0 1 auto;max-width:40%;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
     padding:6px 11px;border:1px solid var(--line-soft);color:var(--muted);border-radius:999px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  /* Auf schmalen Geraeten hat der Name Vorrang vor dem Status. */
+  @media (max-width:365px){
+    .chip.st{font-size:9px;letter-spacing:.06em;padding:5px 8px}
+    .grow{gap:10px}
   }
   .chip.st.verbunden{border-color:var(--ivory);color:var(--ivory)}
   .chip.st.anfrage{border-color:var(--coral);color:var(--coral)}
   .chip.st.angefragt,.chip.st.spaeter{color:var(--muted)}
-  .grow .zwei{display:flex;gap:6px;flex:none}
-  .grow .zwei .btn{padding:12px 16px;font-size:10px;min-height:44px}
+  /* Zwei Knoepfe in einer Gaestezeile: Sie bekommen eine eigene Reihe unter
+     dem Namen. Nebeneinander blieben vom Namen sechs Pixel uebrig - man las
+     "C" statt "Cora Cramer". */
+  .grow.mitzwei{flex-wrap:wrap}
+  .grow .zwei{display:flex;gap:8px;flex:1 0 100%;margin-top:4px}
+  .grow .zwei .btn{flex:1;padding:11px 8px;font-size:10px;min-height:44px;letter-spacing:.14em}
 
   /* Kurzprofil als Blatt von unten */
   #sheetHinter{position:fixed;inset:0;z-index:118;background:rgba(6,12,26,.72);
@@ -2052,6 +2074,7 @@ function show(view){
   if(view==="menu") requestAnimationFrame(drawBrushlines);
   if(view==="home") requestAnimationFrame(()=>{ drawSkyline(); renderRing(); });
   if(view==="tisch" && typeof renderTisch === "function") requestAnimationFrame(renderTisch);
+  requestAnimationFrame(()=>passeUeberschriften(document.querySelector('section[data-view="'+view+'"]')));
   if(view==="news") ladeNews().then(newsGesehen);
   if(view==="galerie" && !APP.galerie) ladeGalerie(0);
 }
@@ -2068,6 +2091,21 @@ function momentCount(){ return MOMENTS.filter(m => S.moments[m.id]).length }
    Deshalb steht die Zahl nirgends mehr von Hand im Text, sondern wird aus
    MOMENTS gefuellt. */
 const ZAHLWORT = ["null","ein","zwei","drei","vier","fünf","sechs","sieben","acht","neun"];
+/* Ueberschriften einpassen. "GÄSTEBUCH" ist ein Wort ohne Trennstelle: Bei
+   der vollen Groesse steht auf einem 390er Display das "H" ausserhalb des
+   Bildschirms. Statt eine Groesse zu raten, wird sie gemessen und so weit
+   verkleinert, bis das Wort passt - das gilt dann auch fuer laengere
+   Ueberschriften, die spaeter dazukommen. */
+function passeUeberschriften(scope){
+  (scope || document).querySelectorAll(".sect h2, .hero h1 .name").forEach(el => {
+    el.style.fontSize = "";
+    let s = parseFloat(getComputedStyle(el).fontSize);
+    /* Sicherheitsnetz: hoechstens 30 Schritte, nie kleiner als 24 px. */
+    for(let i = 0; i < 30 && s > 24 && el.scrollWidth > el.clientWidth + 1; i++){
+      s -= Math.max(1, s * .04); el.style.fontSize = s.toFixed(1) + "px";
+    }
+  });
+}
 function momenteWortSetzen(){
   const w = ZAHLWORT[MOMENTS.length] || String(MOMENTS.length);
   $$("[data-momente]").forEach(el => {
@@ -2810,6 +2848,10 @@ async function appPost(p, body){
   return d;
 }
 const STATUS_TEXT = { keine:"", angefragt:"Angefragt", anfrage:"Möchte sich verbinden", verbunden:"Verbunden", spaeter:"Später" };
+/* In der Liste steht die kurze Fassung: "Möchte sich verbinden" schob den
+   Namen aus der Zeile - man las den Status und nicht, wer gemeint ist.
+   Der ganze Satz steht im Kurzprofil, wo Platz dafuer ist. */
+const STATUS_KURZ = { keine:"", angefragt:"Angefragt", anfrage:"Anfrage", verbunden:"Verbunden", spaeter:"Später" };
 
 /* ---- Teilnehmerliste ---- */
 function gastRow(g, opts){
@@ -2825,7 +2867,9 @@ function gastRow(g, opts){
   if(su){ const e = document.createElement("em"); e.textContent = (g.sucht ? "sucht " : "") + su; t.appendChild(e); }
   row.appendChild(t);
   if(opts && opts.anfrage){
-    /* Anfrage an mich: die zwei Antworten direkt in der Zeile, kein Umweg. */
+    /* Anfrage an mich: die zwei Antworten unter dem Namen, in voller Breite -
+       daneben blieb vom Namen nichts uebrig. */
+    row.classList.add("mitzwei");
     const z = document.createElement("div"); z.className = "zwei";
     const ja = document.createElement("button"); ja.className = "btn btn--solid"; ja.textContent = "Verbinden";
     ja.addEventListener("click", e => { e.stopPropagation(); verbindenAktion(g.id, "annehmen"); });
@@ -2833,7 +2877,7 @@ function gastRow(g, opts){
     sp.addEventListener("click", e => { e.stopPropagation(); verbindenAktion(g.id, "spaeter"); });
     z.appendChild(ja); z.appendChild(sp); row.appendChild(z);
   } else if(g.verbindung && g.verbindung !== "keine"){
-    const c = document.createElement("span"); c.className = "chip st " + g.verbindung; c.textContent = STATUS_TEXT[g.verbindung]; row.appendChild(c);
+    const c = document.createElement("span"); c.className = "chip st " + g.verbindung; c.textContent = STATUS_KURZ[g.verbindung]; row.appendChild(c);
   } else if(g.da){
     const c = document.createElement("span"); c.className = "chip st"; c.textContent = "im Haus"; row.appendChild(c);
   }
@@ -3592,6 +3636,7 @@ if ("serviceWorker" in navigator && window.isSecureContext) {
 }
 
 momenteWortSetzen();
+passeUeberschriften();
 renderTimeline();
 renderStatus();
 $$(".spiralcv").forEach(cv=>drawSpiral(cv));
@@ -3600,7 +3645,7 @@ if(S.impulseSeen) $("#impulseCount").textContent = "№ " + S.impulseSeen;
 setInterval(renderTimeline, 30000);
 setInterval(renderStatus, 1000);
 let rsz;
-addEventListener("resize", ()=>{ clearTimeout(rsz); rsz=setTimeout(()=>{ drawSkyline(); renderRing(); drawBrushlines(); $$(".spiralcv").forEach(cv=>drawSpiral(cv)); },200); });
+addEventListener("resize", ()=>{ clearTimeout(rsz); rsz=setTimeout(()=>{ drawSkyline(); renderRing(); drawBrushlines(); passeUeberschriften(); $$(".spiralcv").forEach(cv=>drawSpiral(cv)); },200); });
 {
   const v = new URLSearchParams(location.search).get("view");
   if(v && document.querySelector('section[data-view="'+v+'"]')) show(v);
