@@ -675,6 +675,18 @@ den Startbildschirm gelegt hat, öffnet sie danach einmal mit dem echten
 Link und legt sie neu ab – das Symbol startet sonst mit dem gelöschten
 Demo-Zugang.
 
+**Den Abend vorab ohne Grauschleier sehen:** an den eigenen Demo-Link
+`&demo=1` anhängen. Ein Chip oben springt durch die Uhrzeiten des Abends
+(17:30 · 19:36 Impuls · 19:55 AV8 · 21:40 Live Painting · 22:50 Auktion),
+die Karten öffnen sich wie am echten Abend. Was man dort anklickt, zählt
+in die echten Zähler – danach im App-Panel **AV8-Zähler auf null**.
+
+**Die Glocke** (oben rechts in der App, ab Stufe „alles“): Anfragen an
+mich und alle Meldungen des Abends (Tischwechsel mit eigenem Tisch,
+Ansagen) zum Nachlesen, auch wenn das Banner längst weg ist. Eine neue
+Anfrage kommt live an: Toast, Vibration, Zahl an der Glocke – kein
+Neuladen nötig.
+
 ### 7.1b Welle 2: erst nur das Profil, dann alles
 
 Der App-Zugang (Welle 2) geht Tage vor dem Abend raus – aber die Gäste

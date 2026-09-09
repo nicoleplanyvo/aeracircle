@@ -267,6 +267,9 @@ let state = {
   zeiten: JSON.parse(JSON.stringify(ZEITEN_STANDARD)),
   applause: 0,
   votes: { ja: 0, vielleicht: 0, nein: 0 },
+  /* Meldungen des Abends (Tischwechsel, Ansagen) - fuer die Glocke in
+   * der App, nachlesbar auch wenn das Banner laengst weg ist. */
+  meldungen: [],
   /* Rueckmeldung an AV8. Kein Pitch-Votum, sondern ein Stimmungsbild:
    * die Frage nach der Investition (votes), eine Sterne-Bewertung des
    * Produkts und zwei Angebote, die ein Gast markieren kann. */
@@ -1095,6 +1098,12 @@ const SIGNAL_LEBT = 15 * 60_000;
 function signalAktuell() { return state.signal && (Date.now() - state.signal.t) < SIGNAL_LEBT ? state.signal : null; }
 function signalZeile() { return "event: signal\ndata: " + JSON.stringify(signalAktuell()) + "\n\n"; }
 function signalSenden() { anAlle(signalZeile()); }
+/* Jede Meldung bleibt liegen - 60 reichen fuer einen Abend. */
+function meldungMerken(sig) {
+  if (!Array.isArray(state.meldungen)) state.meldungen = [];
+  state.meldungen.push({ t: sig.t, art: sig.art, text: sig.text, gang: sig.gang || 0 });
+  if (state.meldungen.length > 60) state.meldungen.splice(0, state.meldungen.length - 60);
+}
 
 /* Ein Gast darf anfragen, aber nicht die Liste abgrasen. Das ist kein
  * Angriff, sondern der Reflex "ich sammle mal alle" - und er macht das
@@ -2653,7 +2662,10 @@ const server = http.createServer((req, res) => {
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
     const inv = findByGid(q.get("wen"));
-    if (!inv || !imKreis(inv) || !gleicheRunde(inv, ich)) return json(res, 404, { error: "unbekannt" });
+    /* Sich selbst gibt es hier nicht - sonst stuende unter dem eigenen
+     * Profil ein "Verbinden"-Knopf. Liste und Verbinden sperren das
+     * ebenfalls; das hier ist die dritte Tuer. */
+    if (!inv || !imKreis(inv) || inv === ich || !gleicheRunde(inv, ich)) return json(res, 404, { error: "unbekannt" });
     return json(res, 200, { ok: true, gast: kurzprofil(ich, inv) });
   }
 
@@ -2730,6 +2742,19 @@ const server = http.createServer((req, res) => {
   }
 
   /* Mein Kreis: alle Begegnungen des Abends an einem Ort. */
+  /* Meldungen fuer die Glocke: die letzten Tischwechsel und Ansagen,
+   * beim Tischwechsel mit dem eigenen Tisch dieses Gangs. */
+  if (req.method === "GET" && url === "/api/app/meldungen") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    const ich = findInvite(q.get("t"));
+    if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    const liste = (state.meldungen || []).slice(-30).reverse().map(m => {
+      const nr = m.art === "wechsel" && m.gang ? meinTisch(ich, m.gang) : 0;
+      return { t: m.t, art: m.art, text: m.text, gang: m.gang || 0, tisch: nr || 0, tischName: nr ? tischName(nr) : "" };
+    });
+    return json(res, 200, { ok: true, meldungen: liste });
+  }
+
   if (req.method === "GET" && url === "/api/app/kreis") {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
@@ -3693,6 +3718,7 @@ const server = http.createServer((req, res) => {
           const vorher = t.gang;
           t.gang = gang;
           state.signal = { art: "wechsel", gang, text: t.gaenge[gang - 1], t: Date.now(), wer, vorherGang: vorher };
+          meldungMerken(state.signal);
           dirty = true; signalSenden();
           logEvent("Tischwechsel", wer, t.gaenge[gang - 1]);
           /* SOFORT antworten. Die Pushes laufen im Hintergrund; ihr Ergebnis
@@ -3722,6 +3748,7 @@ const server = http.createServer((req, res) => {
            * Liste steht. "naechstes": nur in die offenen Apps. */
           const text = cleanText(body.text, 120) || "Gleich geht es weiter.";
           state.signal = { art: "naechstes", text, t: Date.now(), wer };
+          meldungMerken(state.signal);
           dirty = true; signalSenden();
           logEvent(art === "raum" ? "An den Raum" : "Als Nächstes", wer, text);
           if (art === "raum") {
@@ -4097,6 +4124,15 @@ const server = http.createServer((req, res) => {
         logEvent("Push", wer, state.pushFrei ? "freigegeben" : "gesperrt");
         return json(res, 200, { ok: true, pushFrei: !!state.pushFrei, gesperrt: pushGesperrt() });
       });
+    }
+    /* Nach einer Probe: die AV8-Zaehler auf null. Sonst zeigt die Wand am
+     * Abend die Sterne vom Test. Tipps, Gebote und Verbindungen bleiben. */
+    if (req.method === "POST" && url === "/api/admin/zaehler-null") {
+      state.applause = 0; state.votes = { ja: 0, vielleicht: 0, nein: 0 };
+      state.sterne = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }; state.interesse = { intro: 0, investor: 0 };
+      dirty = true; broadcast();
+      logEvent("Zähler", wer, "AV8-Zähler auf null");
+      return json(res, 200, { ok: true });
     }
     /* Live-Zahlen fuer die Buehnen-Karte - mit Namen, deshalb hinter dem
      * Schluessel; die Gaeste bekommen im Stream nur Betrag und Karte. */

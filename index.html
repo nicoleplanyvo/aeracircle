@@ -107,6 +107,25 @@
     font-family:var(--sans);font-size:10px;color:var(--muted);
     font-variant-numeric:tabular-nums;font-weight:500;
   }
+  /* Glocke: Anfragen an mich und die Meldungen des Abends, nachlesbar. */
+  header .rechts{display:flex;align-items:center;gap:4px}
+  #glocke{position:relative;width:38px;height:38px;border:0;background:none;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
+  #glocke svg{width:22px;height:22px;display:block}
+  #glocke.neu{color:var(--ivory)}
+  #glockeN{position:absolute;top:1px;right:0;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--coral);color:var(--ink);font-family:var(--sans);font-size:10px;font-weight:600;display:grid;place-items:center;letter-spacing:0}
+  #meldHinter{position:fixed;inset:0;z-index:116;background:rgba(6,12,26,.72);display:none;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  #meldHinter.show{display:block}
+  #meldSheet{position:fixed;left:0;right:0;bottom:0;z-index:117;background:linear-gradient(180deg,#18335f,#122648);
+    border-top:1px solid var(--line);border-radius:22px 22px 0 0;padding:10px 24px calc(28px + env(safe-area-inset-bottom));
+    transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.8,.2,1);max-height:88vh;overflow:auto}
+  #meldSheet.show{transform:translateY(0)}
+  #meldSheet .griff{width:38px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 18px}
+  #meldSheet h3{font-family:var(--sans);font-weight:500;font-size:15px;color:var(--ivory);margin:0 0 6px}
+  .meldung{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line-soft);align-items:flex-start}
+  .meldung:first-child{border-top:0}
+  .meldung time{flex:none;font-family:var(--sans);font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums;padding-top:2px;min-width:38px}
+  .meldung b{display:block;font-family:var(--sans);font-weight:500;font-size:14px;line-height:1.35;color:var(--ivory);overflow-wrap:anywhere}
+  .meldung span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
 
   main{padding:0 0 calc(var(--nav-h) + env(safe-area-inset-bottom) + 30px)}
   section[data-view]{display:none;animation:fadein .4s ease}
@@ -805,7 +824,7 @@
   /* Stufe "profil" (vor dem Abend, bis das Team freischaltet): nur das
      eigene Profil. Keine Leiste, kein Ring, kein Programm - was noch nicht
      da ist, muss auch nicht erklaert werden. */
-  body[data-stufe="profil"] nav, body[data-stufe="profil"] #ringMini{display:none}
+  body[data-stufe="profil"] nav, body[data-stufe="profil"] #ringMini, body[data-stufe="profil"] #glocke{display:none}
   body[data-stufe="profil"] .nurvoll{display:none!important}
   body:not([data-stufe="profil"]) .nurprofil{display:none!important}
   .profilkarte{display:flex;gap:14px;align-items:center;margin-top:14px}
@@ -1077,9 +1096,12 @@
     <div class="wordmark">
       <img class="brandlogo" alt="THE CIRCLE – connecting generations">
     </div>
-    <div id="ringMini" title="Dein Kreis">
-      <canvas id="ensoMini" width="76" height="76" aria-hidden="true"></canvas>
-      <span id="ringMiniNum">0/5</span>
+    <div class="rechts">
+      <button type="button" id="glocke" aria-label="Meldungen" title="Meldungen"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M6 16v-5a6 6 0 0 1 12 0v5l1.6 2.2H4.4L6 16z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M10 20.5a2 2 0 0 0 4 0"/></svg><span id="glockeN" hidden>0</span></button>
+      <div id="ringMini" title="Dein Kreis">
+        <canvas id="ensoMini" width="76" height="76" aria-hidden="true"></canvas>
+        <span id="ringMiniNum">0/5</span>
+      </div>
     </div>
   </header>
 
@@ -1576,6 +1598,25 @@
 
 </div>
 
+<!-- Glocke: Anfragen an mich und die Meldungen des Abends. Liegt UNTER
+     dem Kurzprofil, damit ein Tipp auf einen Gast dessen Blatt darueber
+     oeffnet. -->
+<div id="meldHinter"></div>
+<div id="meldSheet" role="dialog" aria-modal="true" aria-label="Meldungen">
+  <div class="griff"></div>
+  <button type="button" class="sheetzu" id="meldZu" aria-label="Schließen">×</button>
+  <span class="label">Meldungen</span>
+  <div id="meldAnfragenBlock" style="display:none;margin-top:12px">
+    <h3>Möchten sich mit dir verbinden</h3>
+    <div class="gliste" id="meldAnfragen"></div>
+  </div>
+  <div style="margin-top:16px">
+    <h3>Der Abend</h3>
+    <div id="meldListe"></div>
+    <p class="fnote" id="meldLeer">Noch keine Meldungen. Tischwechsel und Ansagen erscheinen hier – auch später zum Nachlesen.</p>
+  </div>
+</div>
+
 <!-- Ein Bild gross, mit Teilen/Speichern ueber das Systemmenue. -->
 <div id="lichtbox" role="dialog" aria-label="Bild">
   <img id="lbBild" alt="">
@@ -1976,7 +2017,7 @@ const store = {
 };
 let S = Object.assign({ name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
   stern:0, interesse:{},
-  contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0 }, store.load());
+  contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0, meldGesehen:0 }, store.load());
 /* Demo/Vorschau: ?name=Anna&firma=AERA überspringt das Onboarding */
 {
   const q = new URLSearchParams(location.search);
@@ -2641,7 +2682,7 @@ const LIVE = { on:false, d:null, pending:0, timer:null, post:null };
       try{ zeitenUebernehmen(JSON.parse(e.data)); }catch(err){}
     });
     es.addEventListener("signal", e => {
-      try{ signalZeigen(JSON.parse(e.data)); }catch(err){}
+      try{ const s = JSON.parse(e.data); signalZeigen(s); meldungLokal(s); }catch(err){}
     });
   }
   connect();
@@ -2931,7 +2972,7 @@ if(DEMO){
    Das Herzstueck aus dem Call vom 19.08. Alles haengt am persoenlichen
    Token; ohne ihn (Demo) bleibt die Liste leer und sagt, warum. */
 const APP = { token:"", ich:null, gaeste:[], kreis:null, tisch:null, plan:null,
-              vapid:"", signal:null, signalWeg:0, gangGezeigt:0, install:null, stufe:"voll" };
+              vapid:"", signal:null, signalWeg:0, gangGezeigt:0, install:null, stufe:"voll", meldungen:[] };
 
 const initialen = n => ((n||"").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()) || "·";
 function avatarEl(g, klasse){
@@ -3039,8 +3080,66 @@ function renderKreis(){
   /* Zaehler am Reiter: Anfragen an mich. */
   const nb = document.querySelector('nav button[data-nav="kreis"]');
   if(nb){ nb.classList.toggle("punkt", k.anfragen.length > 0); nb.dataset.n = k.anfragen.length; }
+  /* Neue Anfrage seit dem letzten Stand: Glocke, ein Satz, ein Brummen.
+     Beim ersten Laden nicht - was schon da war, ist keine Neuigkeit. */
+  const ids = new Set(k.anfragen.map(g => g.id));
+  if(APP.anfragenBekannt) k.anfragen.forEach(g => { if(!APP.anfragenBekannt.has(g.id)){ toast(g.name + " möchte sich mit dir verbinden."); buzz([30, 40, 30]); } });
+  APP.anfragenBekannt = ids;
+  renderGlocke(); if($("#meldSheet").classList.contains("show")) renderMeldungen();
   if(n && !S.moments.verbindung) collect("verbindung", "Verbunden – ein Strich mehr im Kreis.");
 }
+/* ---- Glocke: Anfragen an mich + Meldungen des Abends ---- */
+function meldungenNeu(){ return APP.meldungen.filter(m => m.t > (S.meldGesehen || 0)).length; }
+function renderGlocke(){
+  const g = $("#glocke"); if(!g) return;
+  const n = (APP.kreis ? APP.kreis.anfragen.length : 0) + meldungenNeu();
+  const b = $("#glockeN"); b.hidden = n === 0; b.textContent = n > 9 ? "9+" : String(n);
+  g.classList.toggle("neu", n > 0);
+}
+function meldungZeile(m){
+  const d = document.createElement("div"); d.className = "meldung";
+  const t = document.createElement("time"); t.textContent = new Date(m.t).toLocaleTimeString("de-DE", { hour:"2-digit", minute:"2-digit" });
+  const x = document.createElement("div"); const b = document.createElement("b"); const s = document.createElement("span");
+  if(m.art === "wechsel"){
+    b.textContent = "Tischwechsel · " + (m.text || "");
+    s.textContent = m.tisch ? "Dein Tisch: " + m.tisch + (m.tischName ? " · " + m.tischName : "") : "Dein Tisch steht im Tischplan.";
+    if(m.gang) d.addEventListener("click", ()=>{ meldZu(); show("tisch"); ladeTisch(m.gang); });
+  } else { b.textContent = m.text || ""; s.textContent = "Ansage"; }
+  x.appendChild(b); x.appendChild(s); d.appendChild(t); d.appendChild(x);
+  return d;
+}
+function renderMeldungen(){
+  const ab = $("#meldAnfragenBlock"), al = $("#meldAnfragen"); al.innerHTML = "";
+  const anf = APP.kreis ? APP.kreis.anfragen : [];
+  ab.style.display = anf.length ? "" : "none";
+  anf.forEach(g => al.appendChild(gastRow(g, { anfrage:true })));
+  const l = $("#meldListe"); l.innerHTML = "";
+  APP.meldungen.forEach(m => l.appendChild(meldungZeile(m)));
+  $("#meldLeer").style.display = APP.meldungen.length ? "none" : "";
+}
+async function ladeMeldungen(){
+  if(!APP.token) return;
+  try{ const d = await appGet("/api/app/meldungen"); APP.meldungen = d.meldungen || []; }catch(e){}
+  renderGlocke(); if($("#meldSheet").classList.contains("show")) renderMeldungen();
+}
+/* Ein Signal aus dem Stream sofort in die Liste - ohne dass 130 Apps in
+   derselben Sekunde den Server fragen. */
+function meldungLokal(s){
+  if(!s || !s.t || APP.meldungen.some(m => m.t === s.t)) return;
+  const mein = (s.art === "wechsel" && APP.tisch && APP.tisch.meine && APP.tisch.meine.find(x => x.gang === s.gang)) || {};
+  APP.meldungen.unshift({ t: s.t, art: s.art, text: s.text, gang: s.gang || 0, tisch: mein.tisch || 0, tischName: mein.tischName || "" });
+  renderGlocke(); if($("#meldSheet").classList.contains("show")) renderMeldungen();
+}
+function meldAuf(){
+  renderMeldungen();
+  $("#meldSheet").classList.add("show"); $("#meldHinter").classList.add("show");
+  S.meldGesehen = Date.now(); persist(); renderGlocke();
+}
+function meldZu(){ $("#meldSheet").classList.remove("show"); $("#meldHinter").classList.remove("show"); }
+$("#glocke").addEventListener("click", meldAuf);
+$("#meldZu").addEventListener("click", meldZu);
+$("#meldHinter").addEventListener("click", meldZu);
+
 /* Letzter Stand im Speicher: Bricht das WLAN ein, steht im Gaestebuch die
    Liste von vorhin mit Uhrzeit - nicht "Noch ist niemand da" ueber 130
    anwesenden Gaesten. */
@@ -3056,7 +3155,7 @@ async function ladeKreis(){
   try{ APP.kreis = await appGet("/api/app/kreis"); cacheSet("kreis", APP.kreis); renderKreis(); }
   catch(e){ const c = cacheGet("kreis"); if(c && !APP.kreis){ APP.kreis = c.v; renderKreis(); } }
 }
-async function ladeAlles(){ if(!APP.token) { renderGaeste(); return; } await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]); renderDanach(); }
+async function ladeAlles(){ if(!APP.token) { renderGaeste(); return; } await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]); ladeMeldungen(); renderDanach(); }
 
 /* ---- Kurzprofil ---- */
 let sheetGast = null;
@@ -3716,7 +3815,7 @@ if(S.name) $("#onboarding").classList.add("hidden");
       try{ localStorage.removeItem("circle.v1"); }catch(e){}
       S = { name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
             stern:0, interesse:{},
-        contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0 };
+        contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0, meldGesehen:0 };
     }
     /* Manifest je Gast: start_url traegt den Token, damit die installierte
        App mit ihm startet. Und der Token in die Adresse, damit die vom

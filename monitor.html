@@ -592,6 +592,10 @@
       <button class="export" id="demoLoeschen" type="button">Alle Demo-Gäste löschen</button>
       <span class="fussnote" style="margin:0" id="demoNote"></span>
     </div>
+    <div class="exportzeile" style="margin-top:8px">
+      <button class="export" id="zaehlerNull" type="button">AV8-Zähler auf null</button>
+      <span class="fussnote" style="margin:0">Nach einer Probe: Sterne, Investieren, Interesse und Applaus zurück auf null. Tipps, Gebote und Verbindungen bleiben.</span>
+    </div>
     <div id="demoGaeste" style="margin-top:8px"></div>
   </div>
 
@@ -1782,6 +1786,12 @@ try{
   const esB = new EventSource("/api/live/stream"); let bt = 0;
   esB.onmessage = () => { clearTimeout(bt); bt = setTimeout(buehneHolen, 800); };
 }catch(e){}
+
+/* ---------- Zaehler nach einer Probe ---------- */
+$("#zaehlerNull").addEventListener("click", async () => {
+  if(!confirm("AV8-Zähler (Sterne, Investieren, Interesse, Applaus) auf null? Tipps und Gebote bleiben.")) return;
+  const d = await adminPost("/api/admin/zaehler-null", {}); if(d && d.ok) laden();
+});
 
 /* ---------- Stufe vor dem Abend ---------- */
 $$("#stufeZeile button").forEach(b => b.addEventListener("click", async () => {
