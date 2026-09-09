@@ -752,8 +752,10 @@
   .gaenge div:first-child{border-top:0}
   .gaenge div.jetzt b{color:var(--coral)}
   .gaenge span{font-size:13px;color:var(--muted)}
-  .gaenge b{font-family:var(--disp);font-weight:600;font-size:18px}
-  .gaenge b small{font-family:var(--sans);font-weight:400;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-left:8px}
+  /* Nummer und Partnername untereinander, rechtsbuendig: nebeneinander
+     verschob "Tisch 2" je nach Laenge des Partnernamens hin und her. */
+  .gaenge b{font-family:var(--disp);font-weight:600;font-size:18px;display:flex;flex-direction:column;align-items:flex-end;text-align:right;flex:none;margin-left:12px}
+  .gaenge b small{font-family:var(--sans);font-weight:400;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-top:3px}
   .gangwahl{display:flex;gap:6px;margin:12px 0 6px;flex-wrap:wrap}
   .gangwahl button{background:none;border:1px solid var(--line-soft);color:var(--muted);border-radius:999px;
     font-family:var(--sans);font-size:9px;letter-spacing:.18em;text-transform:uppercase;padding:7px 12px;cursor:pointer}
@@ -3705,9 +3707,12 @@ if(S.name) $("#onboarding").classList.add("hidden");
      draengen, eine leere Huelle. */
   const tok = t || (!q.get("name") && S.token) || "";
   if(tok && !q.get("name")){
-    if(t && S.token && S.token !== t){
-      /* Anderer Token als zuletzt (geteiltes Geraet, weitergeleiteter Link):
-         der lokale Fortschritt gehoert einem anderen - komplett zuruecksetzen. */
+    if(t && S.token !== t){
+      /* Anderer Token als zuletzt (geteiltes Geraet, weitergeleiteter Link)
+         ODER Reste ohne Token (Vorschau mit ?name=, Demo-Durchlauf im selben
+         Browser): der lokale Fortschritt gehoert nicht zu diesem Gast -
+         komplett zuruecksetzen. Sonst startet jemand mit 3/5 Momenten, die
+         er nie gesammelt hat. */
       try{ localStorage.removeItem("circle.v1"); }catch(e){}
       S = { name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
             stern:0, interesse:{},
