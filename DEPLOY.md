@@ -694,8 +694,10 @@ Tischplan.
 
 Die Mail zu Welle 2 (`app-zugang.html`, `app-zugang-partner.html`) sagt
 das auch so: heute nur das Profil, Programm und Tischplan folgen kurz vor
-dem 16. September. Wer die Vorlagen in Lettermint pflegt, lädt beide neu
-hoch.
+dem 16. September. Hochladen muss man nichts (§2.2): Der Server setzt die
+Vorlagen aus `email/` beim Versand selbst zusammen, mit dem Pull sind sie
+aktuell. Vor dem Versand einmal anschauen:
+`node server/circle-server.js welle 2 --vorschau=welle2.html`.
 
 Per Hand, ohne Monitor:
 
