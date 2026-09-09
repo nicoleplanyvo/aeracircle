@@ -137,7 +137,10 @@
   .venue{
     margin-top:12px;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--faint);
   }
-  #skyline{display:block;width:100%;height:84px;margin-top:20px}
+  /* margin-bottom = maximale Drift des Parallax (unten): Die Skyline
+     schwebt beim Scrollen nach unten und darf dabei nicht in die naechste
+     Karte laufen. Der Platz ist von Anfang an reserviert. */
+  #skyline{display:block;width:100%;height:84px;margin-top:20px;margin-bottom:34px}
 
   .colophon{text-align:center;padding:14px 24px 40px}
   .colophon .label{display:block;margin-bottom:12px}
@@ -3713,7 +3716,7 @@ if(!reduceMotion){
       const vh = innerHeight;
       const sk = $("#skyline");
       if(sk && sk.getBoundingClientRect().bottom > 0){
-        sk.style.transform = "translateY(" + Math.min(scrollY*.22, 70).toFixed(1) + "px)";
+        sk.style.transform = "translateY(" + Math.min(scrollY*.14, 34).toFixed(1) + "px)";
       }
       $$(".t-ghost").forEach(g=>{
         const r = g.parentElement.getBoundingClientRect();
