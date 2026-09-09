@@ -2035,7 +2035,9 @@ $("#jetztknopf").addEventListener("click", () => {
   if(an) return zeitenSchreiben({ jetzt: false }, "Wieder freigegeben");
   const was = prompt("Was läuft gerade? (steht dann in der App)", "Jetzt im Raum");
   if(was === null) return;
-  zeitenSchreiben({ jetzt: { was, hinweis: "Leg das Handy kurz weg." } }, "Ohne App gestellt");
+  /* Kein zweiter "Leg das Handy weg"-Satz: Die Ueberschrift sagt das schon.
+     Der Hinweis sagt, wann es weitergeht. */
+  zeitenSchreiben({ jetzt: { was, hinweis: "Die Moderation hat das Wort – die App meldet sich, wenn es weitergeht." } }, "Ohne App gestellt");
 });
 
 $("#zspeichern").addEventListener("click", () => {

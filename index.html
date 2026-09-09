@@ -2467,7 +2467,11 @@ function renderAppfrei(){
   const reg = $("#registrierung"); const inReg = reg && !reg.classList.contains("hidden");
   if(!f || appfreiWeg[f.id] || inReg){ el.classList.remove("show"); renderGleichStill(); return; }
   $("#appfreiWas").textContent = f.was;
-  $("#appfreiText").textContent = f.hinweis;
+  /* Der Hinweis nur, wenn er etwas Eigenes sagt - "Leg das Handy kurz weg"
+     zweimal untereinander liest sich wie ein Fehler. */
+  const titel = $("#appfreiTitel").textContent.trim();
+  const hinweis = (f.hinweis || "").trim();
+  $("#appfreiText").textContent = hinweis && hinweis.replace(/\.$/, "") !== titel.replace(/\.$/, "") ? hinweis : "";
   /* Wie lange noch: Ohne diese Zeile weiss niemand, ob er zehn Minuten oder
      eine Stunde ohne App dasteht. Der Handschalter hat kein Ende - dann
      steht dort nichts, das waere sonst geraten. */
