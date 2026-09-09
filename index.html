@@ -2,7 +2,12 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <!-- resizes-content: Auf Android schrumpft sonst die Tastatur nur den
+       sichtbaren Ausschnitt, nicht das Layout. Ein position:fixed-Blatt wie
+       die Registrierung bleibt dann in voller Hoehe stehen, Chrome scrollt
+       bei jedem Feldwechsel den Ausschnitt hin und her ("springt"), und der
+       untere Teil liegt hinter der Tastatur. -->
 <!-- Navy aus der CI. Stand vorher auf #131316 - einem Grau, das nirgends im
      Entwurf vorkommt; im Vollbild lag um die App ein fremder Rahmen. -->
 <meta name="theme-color" content="#122648">
@@ -1517,13 +1522,18 @@
       </div>
 
       <div class="panel rv notes">
-        <span class="label">Meine Erkenntnis</span>
+        <span class="label">Dein Satz zum Abend</span>
         <h3>Was nimmst du mit?</h3>
+        <p>Eine Notiz für dich selbst – ein Gedanke, ein Name, ein Vorsatz. Andere Gäste sehen sie nicht; das Team liest sie nach dem Abend in der Auswertung.</p>
         <textarea id="notesArea" maxlength="500" placeholder="Ein Satz, der bleibt &hellip;"></textarea>
+        <p class="fnote" id="notesStand"></p>
       </div>
 
-      <div style="padding:6px 24px 10px">
-        <button class="btn btn--solid btn--full rv" id="recapBtn">Meinen Abend teilen</button>
+      <div class="panel rv">
+        <span class="label">Weitererzählen</span>
+        <h3>Dein Abend in einem Satz.</h3>
+        <p>Baut aus Momenten, Verbindungen und deinem Satz einen kurzen Text und öffnet das Teilen-Menü deines Handys – für WhatsApp, LinkedIn oder eine Notiz. Nur was du dort abschickst, sehen andere.</p>
+        <button class="btn btn--solid btn--full" id="recapBtn" style="margin-top:12px">Meinen Abend teilen</button>
       </div>
     </section>
 
@@ -2589,7 +2599,10 @@ function renderMenuPref(){
        Rueckblick. Nur mit Token; ohne bleibt er im Geraet. */
     saveT = setTimeout(()=>{ S.notes = ta.value.trim(); persist(); if(APP.token) appPost("/api/app/abend", { satz: S.notes }).catch(()=>{}); }, 600);
   });
-  ta.addEventListener("blur", ()=>{ if(ta.value.trim()) toast("Notiert – nur für dich."); });
+  const stand = $("#notesStand");
+  const standZeigen = ()=>{ stand.textContent = ta.value.trim() ? "Gespeichert – auf diesem Handy und in deinem Zugang." : ""; };
+  standZeigen();
+  ta.addEventListener("input", ()=>{ clearTimeout(ta._st); ta._st = setTimeout(standZeigen, 700); });
 }
 
 /* ================= PITCH-VOTUM ================= */
