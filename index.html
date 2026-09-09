@@ -2167,11 +2167,20 @@ const ZAHLWORT = ["null","ein","zwei","drei","vier","fünf","sechs","sieben","ac
 function passeUeberschriften(scope){
   (scope || document).querySelectorAll(".sect h2, .hero h1 .name").forEach(el => {
     el.style.fontSize = "";
+    /* Gemessen wird das LAENGSTE WORT, nicht die Zeile: Die Ueberschrift
+       darf overflow-wrap:anywhere behalten (letztes Netz), aber dann bricht
+       "PROGRAMM" zu "PROGRAM / M", ohne dass scrollWidth je ueber die
+       Breite geht - und die Schrift wurde nie kleiner. */
+    const wort = (el.textContent || "").trim().split(/\s+/).sort((a, b) => b.length - a.length)[0] || "";
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap;pointer-events:none;font:inherit;letter-spacing:inherit;text-transform:inherit";
+    probe.textContent = wort; el.appendChild(probe);
     let s = parseFloat(getComputedStyle(el).fontSize);
     /* Sicherheitsnetz: hoechstens 30 Schritte, nie kleiner als 24 px. */
-    for(let i = 0; i < 30 && s > 24 && el.scrollWidth > el.clientWidth + 1; i++){
+    for(let i = 0; i < 30 && s > 24 && probe.offsetWidth > el.clientWidth + 1; i++){
       s -= Math.max(1, s * .04); el.style.fontSize = s.toFixed(1) + "px";
     }
+    probe.remove();
   });
 }
 function momenteWortSetzen(){
@@ -3821,6 +3830,9 @@ requestAnimationFrame(()=>{ drawSkyline(); renderRing(); drawBrushlines(); watch
 /* (Der Impuls-Zaehler ist mit dem alten Impuls-Block entfallen. Die Zeile
    stand noch hier und haette bei jedem Gast mit gespeichertem Zaehler den
    Rest der Initialisierung abgebrochen - Uhr, Ablauf, Fenster inbegriffen.) */
+/* Erst messen, wenn die Schrift wirklich da ist: Mit der Ersatzschrift
+   gemessen, stimmt die Groesse fuer die echte nicht. */
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>passeUeberschriften());
 setInterval(renderTimeline, 30000);
 setInterval(renderStatus, 1000);
 let rsz;
