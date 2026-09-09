@@ -1799,7 +1799,7 @@
 
   <div class="rg-step" data-rg="app">
     <span class="label">Fast geschafft</span>
-    <h1>Leg die App auf deinen Startbildschirm.</h1>
+    <h1 id="rgAppTitel">Leg die App auf deinen Startbildschirm.</h1>
     <p class="lede" id="rgAppText">Dann liegt THE CIRCLE am Abend als Symbol neben deinen anderen Apps – ohne Browserleiste, ohne Suchen nach dem Link.</p>
     <div class="rg-anleitung" id="rgIos" style="display:none">
       <div id="rgIosSafari" style="display:none"><b>0</b> Tippe oben rechts auf <em>⋯</em> und wähle <em>In Safari öffnen</em></div>
@@ -3272,6 +3272,14 @@ const istIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSS
    in Safari geht es weiter - das muss der Gast erfahren, sonst scheitert
    die Installation still. */
 const istIosOhneSafari = () => istIos() && !/Safari\//.test(navigator.userAgent);
+/* Rechner statt Handy: Da ist "Startbildschirm" das falsche Wort, und am
+   Abend zaehlt ohnehin das Telefon. */
+const istDesktop = () => !istIos() && !/Android|Mobile|Tablet/i.test(navigator.userAgent);
+/* Chrome am Rechner steckt die Seite nach dem Installieren in das App-
+   Fenster - dieselbe Seite laeuft weiter. Ohne dieses Signal stuende dort
+   immer noch "Leg die App auf deinen Startbildschirm" ueber einem
+   Fenster, das die App IST. */
+window.addEventListener("appinstalled", ()=>{ APP.installiert = true; APP.install = null; rgAppSchritt(); renderAppHinweis(); toast("Installiert – THE CIRCLE liegt jetzt neben deinen anderen Apps."); });
 function b64ToBytes(s){ const p = "=".repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
 async function pushErlauben(){
   if(!("PushManager" in window) || !APP.vapid || !APP.token) return false;
@@ -3291,14 +3299,19 @@ function renderAppHinweis(){
   const el = $("#appHinweis"); if(!el) return;
   let weg = false; try{ weg = !!sessionStorage.getItem("circle.ah"); }catch(e){}
   if(!APP.token || weg){ el.style.display = "none"; return; }
-  const sa = istStandalone();
-  const pushOffen = sa && "PushManager" in window && !!APP.vapid && !(APP.ich && APP.ich.push) && Notification.permission !== "denied";
+  const sa = istStandalone() || !!APP.installiert;
+  const pushOffen = istStandalone() && "PushManager" in window && !!APP.vapid && !(APP.ich && APP.ich.push) && Notification.permission !== "denied";
   $("#ahIos").style.display = "none"; $("#ahInstall").style.display = "none"; $("#ahPush").style.display = "none";
   if(!sa){
     $("#ahLabel").textContent = "Damit die App bleibt";
     $("#ahTitel").textContent = "Leg THE CIRCLE auf deinen Startbildschirm.";
     $("#ahText").textContent = "Am Abend zeigt sie dir deinen Tisch und den Tischwechsel, ohne Browserleiste und ohne Suchen nach dem Link. Danach: deine Fotos vom Abend und die nächste Runde.";
-    if(istIos()){ $("#ahIos").style.display = ""; $("#ahIosSafari").style.display = istIosOhneSafari() ? "" : "none"; }
+    if(istDesktop()){
+      $("#ahTitel").textContent = "Am Abend zählt dein Handy.";
+      $("#ahText").textContent = "Öffne deinen Link auf dem Handy und leg THE CIRCLE dort auf den Startbildschirm – ohne Browserleiste, ohne Suchen nach dem Link. Am Abend zeigt sie dir Tisch und Tischwechsel, danach deine Fotos.";
+      if(APP.install) $("#ahInstall").style.display = "";
+    }
+    else if(istIos()){ $("#ahIos").style.display = ""; $("#ahIosSafari").style.display = istIosOhneSafari() ? "" : "none"; }
     else if(APP.install) $("#ahInstall").style.display = "";
     else $("#ahText").textContent += " Im Menü deines Browsers: „App installieren“ oder „Zum Startbildschirm“.";
   } else if(pushOffen){
@@ -3394,15 +3407,7 @@ $("#rgFertig").addEventListener("click", async ()=>{
     const d = await appPost("/api/app/profil", body);
     Object.assign(APP.ich, body, { foto: d.foto, registriert: d.registriert, sichtbar: d.sichtbar });
     S.company = [body.firma, body.rolle].filter(Boolean).join(" · "); S.phone = body.telefon; persist(); renderCard(); renderProfilKarte();
-    /* Schritt 4: Startbildschirm. Auf iOS gibt es keinen Prompt, nur den
-       Weg ueber Teilen; auf Android das Banner des Browsers. Wer schon in
-       der installierten App ist, sieht direkt die Push-Frage. */
-    if(istStandalone()){
-      $("#rgAppText").textContent = "Die App liegt schon auf deinem Startbildschirm.";
-      $("#rgIos").style.display = "none";
-    } else if(istIos()){ $("#rgIos").style.display = ""; $("#rgIosSafari").style.display = istIosOhneSafari() ? "" : "none"; }
-    $("#rgInstall").style.display = APP.install ? "" : "none";
-    $("#rgPushBlock").style.display = (istStandalone() && "PushManager" in window && APP.vapid && !APP.ich.push) ? "" : "none";
+    rgAppSchritt();
     rgSchritt("app");
     ladeAlles();
   }catch(e){ $("#rgFehler").textContent = (e.name === "AbortError") ? "Das Netz ist gerade langsam – bitte nochmal." : (e.message || "Speichern ging nicht – gleich nochmal."); }
@@ -3413,7 +3418,39 @@ $("#rgLoeschen").addEventListener("click", async ()=>{
   try{ await appPost("/api/app/loeschen", {}); try{ localStorage.removeItem("circle.v1"); }catch(e){} location.replace("/?t=" + encodeURIComponent(APP.token)); }
   catch(e){ toast("Ging gerade nicht."); }
 });
-$("#rgInstall").addEventListener("click", async ()=>{ if(!APP.install) return; APP.install.prompt(); try{ await APP.install.userChoice; }catch(e){} APP.install = null; $("#rgInstall").style.display = "none"; });
+/* Schritt 3: Startbildschirm. Auf iOS gibt es keinen Prompt, nur den Weg
+   ueber Teilen; auf Android das Banner des Browsers; am Rechner ein
+   Fenster - dort sagt der Text, dass am Abend das Handy zaehlt. Wer schon
+   in der installierten App ist (oder sie gerade installiert hat), liest
+   das - und sieht direkt die Push-Frage. */
+function rgAppSchritt(){
+  const drin = istStandalone() || APP.installiert;
+  $("#rgIos").style.display = "none";
+  if(drin){
+    $("#rgAppTitel").textContent = "Die App ist installiert.";
+    $("#rgAppText").textContent = istDesktop()
+      ? "THE CIRCLE öffnet sich jetzt als eigenes Fenster. Am Abend zählt dein Handy: Öffne deinen Link dort und leg die App auf den Startbildschirm."
+      : "Sie liegt jetzt neben deinen anderen Apps – am Abend öffnest du THE CIRCLE von dort.";
+  } else if(istDesktop()){
+    $("#rgAppTitel").textContent = "Am Abend zählt dein Handy.";
+    $("#rgAppText").textContent = "Öffne deinen Link dort und leg THE CIRCLE auf den Startbildschirm – dann ist die App am Abend griffbereit." + (APP.install ? " Hier am Rechner kannst du sie zusätzlich als Fenster installieren." : "");
+  } else {
+    $("#rgAppTitel").textContent = "Leg die App auf deinen Startbildschirm.";
+    $("#rgAppText").textContent = "Dann liegt THE CIRCLE am Abend als Symbol neben deinen anderen Apps – ohne Browserleiste, ohne Suchen nach dem Link.";
+    if(istIos()){ $("#rgIos").style.display = ""; $("#rgIosSafari").style.display = istIosOhneSafari() ? "" : "none"; }
+  }
+  $("#rgInstall").style.display = (APP.install && !drin) ? "" : "none";
+  $("#rgPushBlock").style.display = (drin && istStandalone() && "PushManager" in window && APP.vapid && APP.ich && !APP.ich.push) ? "" : "none";
+  $("#rgSchliessen").textContent = drin ? "Weiter" : (istDesktop() ? "Weiter – ich mache das am Handy" : "Erst mal ohne – ich mache das später");
+}
+$("#rgInstall").addEventListener("click", async ()=>{
+  if(!APP.install) return;
+  APP.install.prompt();
+  let wahl = null; try{ wahl = await APP.install.userChoice; }catch(e){}
+  APP.install = null;
+  if(wahl && wahl.outcome === "accepted") APP.installiert = true;
+  rgAppSchritt();
+});
 $("#rgPush").addEventListener("click", async ()=>{ if(await pushErlauben()) $("#rgPushBlock").style.display = "none"; });
 $("#rgSchliessen").addEventListener("click", ()=>{ $("#registrierung").classList.add("hidden"); renderPushKnopf(); renderDaKnopf(); show("kreis"); });
 $("#profilBtn").addEventListener("click", ()=>{ if(APP.ich) registrierungStarten(APP.ich); });
