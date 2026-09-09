@@ -842,6 +842,9 @@
     padding:calc(22px + env(safe-area-inset-top)) 26px calc(30px + env(safe-area-inset-bottom));
   }
   #registrierung.hidden{display:none}
+  /* Am Laptop dieselbe Spalte wie die App - sonst laufen Felder und
+     Knopf ueber 1600 px und der Name steht allein am linken Rand. */
+  #registrierung > *{max-width:430px;margin-left:auto;margin-right:auto}
   .rg-kopf{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px}
   .rg-kopf img{height:22px;width:auto}
   .rg-schritte{display:flex;gap:6px}
@@ -1762,6 +1765,11 @@
     <div class="rg-feld"><label for="rgUeber">Ein Satz über dich <span>(optional)</span></label><input id="rgUeber" type="text" maxlength="200" placeholder="Was dich gerade umtreibt"></div>
     <div class="rg-feld"><label for="rgSucht">Wonach du heute suchst <span>(optional, steht in der Liste)</span></label><input id="rgSucht" type="text" maxlength="60" placeholder="z. B. Mitgründer, Investoren, gute Gespräche"></div>
     <div class="rg-feld"><label for="rgLinkedin">LinkedIn <span>(optional)</span></label><input id="rgLinkedin" type="text" maxlength="120" inputmode="url" placeholder="linkedin.com/in/…"></div>
+    <!-- Die Nummer wird sonst nirgends abgefragt (in der Zusage ist sie
+         optional und bleibt meist leer). Sie steht nur auf der Karte und
+         geht nur an die, mit denen sich der Gast verbindet - das regelt
+         Schritt 2. -->
+    <div class="rg-feld"><label for="rgTelefon">Handynummer <span>(optional, nur für die, mit denen du dich verbindest)</span></label><input id="rgTelefon" type="tel" maxlength="30" autocomplete="tel" inputmode="tel" placeholder="+49 …"></div>
     <button class="btn btn--solid btn--full" type="button" data-rgweiter="freigabe" id="rgBildWeiter">Weiter</button>
     <button class="btn btn--full leise" type="button" id="rgBildWeg" style="display:none">Bild entfernen</button>
   </div>
@@ -1782,10 +1790,6 @@
         <span>Verbinden geht trotzdem. Deine Mail und Nummer bleiben bei dir – du kannst das später ändern.</span>
       </label>
     </div>
-    <!-- Die Nummer wird sonst nirgends abgefragt (in der Zusage ist sie
-         optional und bleibt meist leer). Hier, wo der Gast entscheidet, was
-         auf seiner Karte steht, kann er sie eintragen - oder eben nicht. -->
-    <div class="rg-feld" style="margin-top:16px"><label for="rgTelefon">Handynummer <span>(optional – steht nur auf deiner Karte)</span></label><input id="rgTelefon" type="tel" maxlength="30" autocomplete="tel" inputmode="tel" placeholder="+49 …"></div>
     <p class="fnote" id="rgKontaktVorschau"></p>
     <p class="fnote">Mit dem Eintritt gelten die <a href="/datenschutz" target="_blank" rel="noopener" style="color:var(--ivory)">Datenschutzhinweise</a>. Profil und Bild kannst du jederzeit löschen.</p>
     <button class="btn btn--solid btn--full" type="button" id="rgFertig">In den Kreis eintreten</button>
