@@ -379,7 +379,7 @@ function kreisZahlen() {
   return { im, registriert: reg, installiert: inst, da, push, verbunden, gang: tische().gang, runde: RUNDE,
            letzterPush: state.letzterPush || null, koeln: berlinJetzt().hhmm, jetztMs: Date.now(),
            signalGesehen: state.signal && state.signal.gesehen ? Object.keys(state.signal.gesehen).length : 0,
-           phase: phaseJetzt(), phaseHand: state.phaseHand || "",
+           phase: phaseJetzt(), phaseHand: state.phaseHand || "", stufe: appStufe(), stufeHand: state.appStufe || "",
            appfrei: appfreiJetzt() ? ((appfreiJetzt().was) || "Handschalter") : "",
            pushMoeglich: pushMoeglich(), pushGesperrt: pushGesperrt(), pushFrei: !!state.pushFrei,
            signal: state.signal || null, gaenge: tische().gaenge, tische: tische().liste.length };
@@ -430,7 +430,7 @@ function revHoch() { state.rev = (state.rev || 0) + 1; }
  * Geraete an derselben Zelle haengen. */
 function zeitenZeile() {
   return "event: zeiten\ndata: " + JSON.stringify(Object.assign({}, state.zeiten,
-    { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt(), phase: phaseJetzt() })) + "\n\n";
+    { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt(), phase: phaseJetzt(), stufe: appStufe() })) + "\n\n";
 }
 /* Ein einziger halbtoter Socket darf nicht die Schleife sprengen - sonst
  * bekommt die halbe Menge hinter ihm den Tischwechsel nie. */
@@ -943,6 +943,18 @@ function phaseJetzt() {
   const f = folgetag.toISOString().slice(0, 10);
   if (datum === f && hhmm < "02:00") return "abend";
   return "danach";
+}
+
+/* --- Stufe der App vor dem Abend: "profil" · "voll" ---
+ * Der App-Zugang geht Tage vor dem Abend raus, aber noch nicht alles soll
+ * zu sehen sein: Erst ergaenzt jeder sein Profil (Bild, Rolle, Kontakt-
+ * freigabe, App auf den Startbildschirm). Programm, Tischplan und
+ * Gaestebuch schaltet das Team spaeter von Hand frei.
+ * Gilt NUR in der Phase "vor": Am Abend und danach ist immer alles offen -
+ * ein vergessener Schalter darf am 16.09. niemandem den Tischplan nehmen. */
+function appStufe() {
+  if (phaseJetzt() !== "vor") return "voll";
+  return state.appStufe === "voll" ? "voll" : "profil";
 }
 
 /* --- Galerie ---
@@ -2254,7 +2266,7 @@ const server = http.createServer((req, res) => {
    * veralteten Zeiten aus der App-Datei. */
   if (req.method === "GET" && url === "/api/live/zeiten") {
     return json(res, 200, { ok: true, zeiten: Object.assign({}, state.zeiten,
-      { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt(), phase: phaseJetzt() }) });
+      { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt(), phase: phaseJetzt(), stufe: appStufe() }) });
   }
 
   /* Health verraet keine Geheimnisse, aber ob der Monitor-Schutz greift –
@@ -2526,7 +2538,7 @@ const server = http.createServer((req, res) => {
       /* Nach dem Abend: was der Gast mitnimmt. */
       abend: inv.abend || null, momente: inv.momente || {}, feedback: inv.feedback || null,
       galerieOffen: !!galerie(rundeVon(inv)).offen, no2: state.no2 || null
-    }, vapid: VAPID.publicKey, signal: signalAktuell(), jetztMs: Date.now(), phase: phaseJetzt() });
+    }, vapid: VAPID.publicKey, signal: signalAktuell(), jetztMs: Date.now(), phase: phaseJetzt(), stufe: appStufe() });
   }
 
   /* Registrierung abschliessen: Profil vervollstaendigen, Bild, Freigabe.
@@ -3745,6 +3757,20 @@ const server = http.createServer((req, res) => {
         dirty = true; zeitenSenden(); broadcast();
         logEvent("Phase", wer, state.phaseHand || "automatisch");
         return json(res, 200, { ok: true, phase: phaseJetzt(), phaseHand: state.phaseHand, no2: state.no2 || null });
+      });
+    }
+
+    /* Stufe der App vor dem Abend: "profil" (nur das eigene Profil) oder
+     * "voll" (Programm, Tischplan, Gaestebuch). Geht sofort an alle offenen
+     * Apps. Am Abend und danach ohne Wirkung - siehe appStufe(). */
+    if (req.method === "POST" && url === "/api/admin/app-stufe") {
+      return readBody(req, res, body => {
+        const st = String(body.stufe || "");
+        if (st !== "profil" && st !== "voll") return json(res, 400, { error: "stufe muss profil oder voll sein" });
+        state.appStufe = st;
+        dirty = true; zeitenSenden(); broadcast();
+        logEvent("App-Stufe", wer, st === "voll" ? "alles offen" : "nur Profil");
+        return json(res, 200, { ok: true, stufe: appStufe(), stufeHand: state.appStufe, phase: phaseJetzt() });
       });
     }
 

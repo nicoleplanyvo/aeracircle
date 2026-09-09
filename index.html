@@ -797,6 +797,17 @@
   .danach{display:none}
   .danach.an{display:block}
   body[data-phase="danach"] #skyline{display:none}
+  /* Stufe "profil" (vor dem Abend, bis das Team freischaltet): nur das
+     eigene Profil. Keine Leiste, kein Ring, kein Programm - was noch nicht
+     da ist, muss auch nicht erklaert werden. */
+  body[data-stufe="profil"] nav, body[data-stufe="profil"] #ringMini{display:none}
+  body[data-stufe="profil"] .nurvoll{display:none!important}
+  body:not([data-stufe="profil"]) .nurprofil{display:none!important}
+  .profilkarte{display:flex;gap:14px;align-items:center;margin-top:14px}
+  .profilkarte .avatar{width:64px;height:64px;font-size:16px}
+  .profilkarte .pk-text{min-width:0;flex:1}
+  .profilkarte .pk-text b{display:block;font-family:var(--sans);font-weight:500;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
+  .profilkarte .pk-text span{display:block;color:var(--paper-muted);font-size:12.5px;line-height:1.45;margin-top:3px;overflow-wrap:anywhere}
   .abendzahlen{display:flex;gap:8px;padding:0 24px;margin-top:18px}
   .abendzahlen div{flex:1;border:1px solid var(--line-soft);padding:14px 8px;text-align:center}
   .abendzahlen b{display:block;font-family:var(--sans);font-weight:400;font-size:24px;line-height:1;font-variant-numeric:tabular-nums}
@@ -1099,6 +1110,21 @@
           <button type="button" class="btn btn--solid btn--full" id="ahPush" style="display:none">Benachrichtigungen erlauben</button>
           <button type="button" class="btn btn--full leise" id="ahSpaeter">Später</button>
         </div>
+        <!-- Stufe "profil": das eigene Profil ist alles, was es jetzt gibt -
+             und ein Satz, was noch kommt. -->
+        <div class="panel rv nurprofil" id="profilKarte">
+          <span class="label">Dein Profil</span>
+          <div class="profilkarte">
+            <div class="avatar" id="pkBild"></div>
+            <div class="pk-text"><b id="pkName">–</b><span id="pkZeile"></span></div>
+          </div>
+          <button type="button" class="btn btn--full" id="pkBearbeiten" style="margin-top:14px">Profil bearbeiten</button>
+        </div>
+        <div class="panel rv nurprofil" id="baldKarte">
+          <span class="label">Bald mehr</span>
+          <h3>Programm, Tischplan und Gästebuch folgen.</h3>
+          <p>Kurz vor dem Abend schalten wir alles frei – dann siehst du hier, wer noch kommt, wo du sitzt und was wann passiert.</p>
+        </div>
         <div class="count-grid rv" id="countGrid" style="--d:260ms">
           <div class="cell"><b class="grad" id="cdD">–</b><span>Tage</span></div>
           <div class="cell"><b class="grad" id="cdH">–</b><span>Std</span></div>
@@ -1153,13 +1179,13 @@
         </div>
       </div>
 
-      <div class="ticker" aria-hidden="true">
+      <div class="ticker nurvoll" aria-hidden="true">
         <div class="ticker-track">
           <span class="tgroup"><span>The Circle</span><span class="o">Connecting Generations</span><span>16 · 09 · 2026</span><span class="o">Playa Cologne</span></span><span class="tgroup"><span>The Circle</span><span class="o">Connecting Generations</span><span>16 · 09 · 2026</span><span class="o">Playa Cologne</span></span>
         </div>
       </div>
 
-      <div class="enso-block rv">
+      <div class="enso-block rv nurvoll">
         <div class="ensowrap">
           <canvas id="ensoBig" width="248" height="248" aria-hidden="true"></canvas>
           <div class="num"><span id="ringBigNum">0<small>&hairsp;/&hairsp;5</small></span></div>
@@ -1169,16 +1195,16 @@
           <p><span data-momente>Fünf</span> Momente, ein Strich pro Moment. Sammle sie – und schließe deinen Kreis.</p>
         </div>
       </div>
-      <div class="chips rv" id="momentDots" style="--d:80ms"></div>
+      <div class="chips rv nurvoll" id="momentDots" style="--d:80ms"></div>
 
-      <div class="stats rv" id="stats">
+      <div class="stats rv nurvoll" id="stats">
         <div><b class="grad" data-count="3">0</b><span>Generationen</span></div>
         <div><b class="grad" data-count="5">0</b><span>Momente</span></div>
         <div><b class="grad" data-count="3">0</b><span>Gänge</span></div>
         <div><b class="grad" data-count="1">0</b><span>Werk</span></div>
       </div>
 
-      <div class="piece rv" id="nextUpCard" style="margin-top:10px">
+      <div class="piece rv nurvoll" id="nextUpCard" style="margin-top:10px">
         <span class="label">Als Nächstes</span>
         <h3 id="nextUpTitle">–</h3>
         <p id="nextUpDesc"></p>
@@ -2098,6 +2124,7 @@ function drawBrushlines(){
 
 /* ================= NAV ================= */
 function show(view){
+  if(APP.stufe === "profil" && view !== "home") view = "home";
   $$("section[data-view]").forEach(s => s.classList.toggle("active", s.dataset.view===view));
   $$("nav button").forEach(b => b.classList.toggle("active", b.dataset.nav===view));
   window.scrollTo({top:0, behavior: reduceMotion ? "auto" : "smooth"});
@@ -2627,6 +2654,7 @@ function zeitenUebernehmen(z){
   /* Die Phase (vor · abend · danach) kommt mit: Schaltet das Team im
      Monitor auf "danach", dreht sich die Startseite in allen offenen Apps. */
   if(z.phase) phaseSetzen(z.phase);
+  if(z.stufe) stufeSetzen(z.stufe);
   renderTimeline();
   renderStatus();
 }
@@ -2881,7 +2909,7 @@ if(DEMO){
    Das Herzstueck aus dem Call vom 19.08. Alles haengt am persoenlichen
    Token; ohne ihn (Demo) bleibt die Liste leer und sagt, warum. */
 const APP = { token:"", ich:null, gaeste:[], kreis:null, tisch:null, plan:null,
-              vapid:"", signal:null, signalWeg:0, gangGezeigt:0, install:null };
+              vapid:"", signal:null, signalWeg:0, gangGezeigt:0, install:null, stufe:"voll" };
 
 const initialen = n => ((n||"").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase()) || "·";
 function avatarEl(g, klasse){
@@ -3344,7 +3372,7 @@ $("#rgFertig").addEventListener("click", async ()=>{
   try{
     const d = await appPost("/api/app/profil", body);
     Object.assign(APP.ich, body, { foto: d.foto, registriert: d.registriert, sichtbar: d.sichtbar });
-    S.company = [body.firma, body.rolle].filter(Boolean).join(" · "); persist(); renderCard();
+    S.company = [body.firma, body.rolle].filter(Boolean).join(" · "); persist(); renderCard(); renderProfilKarte();
     /* Schritt 4: Startbildschirm. Auf iOS gibt es keinen Prompt, nur den
        Weg ueber Teilen; auf Android das Banner des Browsers. Wer schon in
        der installierten App ist, sieht direkt die Push-Frage. */
@@ -3389,6 +3417,32 @@ function phaseSetzen(p){
   if(danach){ renderDanach(); if(APP.token){ ladeNews(); ladeGalerie(0); } }
   else { const akt = document.querySelector("section[data-view].active"); if(akt && (akt.dataset.view === "news" || akt.dataset.view === "galerie")) show("home"); }
 }
+/* Stufe vor dem Abend (vom Server): "profil" = nur das eigene Profil,
+   "voll" = alles. Schaltet das Team frei, oeffnet sich die Leiste in allen
+   offenen Apps - mit einem Satz dazu, sonst steht sie ploetzlich da. */
+function stufeSetzen(s){
+  s = s === "profil" ? "profil" : "voll";
+  const vorher = APP.stufe;
+  APP.stufe = s; document.body.dataset.stufe = s;
+  if(s === "profil"){
+    renderProfilKarte();
+    const akt = document.querySelector("section[data-view].active");
+    if(akt && akt.dataset.view !== "home") show("home");
+  } else if(vorher === "profil"){
+    toast("Jetzt offen: Programm, Tischplan und Gästebuch.");
+    if(APP.token) ladeAlles();
+  }
+}
+function renderProfilKarte(){
+  const ich = APP.ich; if(!ich) return;
+  const b = $("#pkBild"); b.textContent = ""; b.style.backgroundImage = "";
+  if(ich.foto) b.style.backgroundImage = "url(" + ich.foto + ")"; else b.textContent = initialen(ich.name || "");
+  $("#pkName").textContent = ich.name || "";
+  const zeile = [ich.firma, ich.rolle].filter(Boolean).join(" · ");
+  $("#pkZeile").textContent = !ich.registriert ? "Noch nicht vervollständigt."
+    : (zeile || "Unternehmen und Rolle fehlen noch.") + (ich.foto ? "" : " · Noch kein Bild.");
+}
+$("#pkBearbeiten").addEventListener("click", ()=>{ if(APP.ich) registrierungStarten(APP.ich); });
 function datumSchoen(s){ const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || "")); return m ? m[3] + "." + m[2] + "." + m[1] : String(s || ""); }
 function renderDanach(){
   if(APP.phase !== "danach") return;
@@ -3550,6 +3604,7 @@ async function appStarten(t){
   if(d.ich.abend && d.ich.abend.satz && !S.notes){ S.notes = d.ich.abend.satz; $("#notesArea").value = S.notes; }
   persist();
   phaseSetzen(d.phase || "");
+  stufeSetzen(d.stufe || "voll");
   $("#onboarding").classList.add("hidden");
   /* Wer ueber einen Partner kommt, liest, wessen Gast er ist. */
   if(d.ich.partner) $("#heroLede").textContent = "Schön, dass du Teil des Kreises bist – als Gast von " + d.ich.partner + ".";

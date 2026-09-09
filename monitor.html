@@ -565,6 +565,15 @@
     </div>
     <p class="fnote" id="aPushNote"></p>
 
+    <!-- Stufe vor dem Abend: erst nur das eigene Profil, dann alles. -->
+    <span class="label" style="display:block;margin-top:18px">Was die Gäste sehen</span>
+    <div class="exportzeile" id="stufeZeile">
+      <button class="export" data-stufe="profil" type="button">Nur das Profil</button>
+      <button class="export" data-stufe="voll" type="button">Alles freischalten</button>
+      <span class="fussnote" style="margin:0" id="stufeNote"></span>
+    </div>
+    <p class="fnote">„Nur das Profil“: Der Gast ergänzt Bild, Rolle und Kontaktfreigabe und legt die App auf den Startbildschirm – Programm, Tischplan und Gästebuch bleiben zu. „Alles freischalten“ öffnet sie sofort in allen Apps. Am Abend ist immer alles offen, egal wie der Schalter steht.</p>
+
     <!-- Wer fehlt noch: drei Listen mit Namen. Die Zahl oben sagt, wie
          gross die Luecke ist; die Namen sagen, wen man anruft. -->
     <div class="exportzeile" style="margin-top:10px">
@@ -1601,6 +1610,9 @@ function appZeichnen(a){
   /* Phase: welcher Knopf gilt, und was die App gerade zeigt. */
   $$("#phaseZeile button").forEach(b => b.classList.toggle("gross", (a.phaseHand || "") === b.dataset.phase));
   txt($("#phaseNote"), a.phase ? "Die App zeigt: " + ({ vor:"vor dem Abend", abend:"der Abend", danach:"danach" }[a.phase] || a.phase) + (a.phaseHand ? " (von Hand)" : " (automatisch)") : "");
+  /* Stufe: was die Gaeste vor dem Abend sehen. */
+  $$("#stufeZeile button").forEach(b => b.classList.toggle("gross", a.stufe === b.dataset.stufe));
+  txt($("#stufeNote"), a.phase === "vor" ? (a.stufe === "voll" ? "Offen: Programm, Tischplan, Gästebuch." : "Die Gäste sehen nur ihr Profil.") : "Am Abend und danach ist alles offen.");
   /* Das Ergebnis der letzten Push - bleibt stehen, bis die naechste kommt. */
   const lp = a.letzterPush;
   if(lp){
@@ -1770,6 +1782,14 @@ try{
   const esB = new EventSource("/api/live/stream"); let bt = 0;
   esB.onmessage = () => { clearTimeout(bt); bt = setTimeout(buehneHolen, 800); };
 }catch(e){}
+
+/* ---------- Stufe vor dem Abend ---------- */
+$$("#stufeZeile button").forEach(b => b.addEventListener("click", async () => {
+  const st = b.dataset.stufe;
+  if(st === "voll" && !confirm("Programm, Tischplan und Gästebuch für alle Gäste freischalten? Öffnet sich sofort in allen Apps.")) return;
+  if(st === "profil" && !confirm("Wieder auf „nur Profil“ stellen? Programm, Tischplan und Gästebuch verschwinden sofort aus allen Apps.")) return;
+  const d = await adminPost("/api/admin/app-stufe", { stufe: st }); if(d && d.ok) laden();
+}));
 
 /* ---------- Phase ---------- */
 $$("#phaseZeile button").forEach(b => b.addEventListener("click", async () => {

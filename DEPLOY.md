@@ -675,6 +675,35 @@ den Startbildschirm gelegt hat, öffnet sie danach einmal mit dem echten
 Link und legt sie neu ab – das Symbol startet sonst mit dem gelöschten
 Demo-Zugang.
 
+### 7.1b Welle 2: erst nur das Profil, dann alles
+
+Der App-Zugang (Welle 2) geht Tage vor dem Abend raus – aber die Gäste
+sollen zunächst nur eines tun: ihr Profil ergänzen. Deshalb hat die App vor
+dem Abend zwei Stufen:
+
+| Stufe | Der Gast sieht | Wann |
+|---|---|---|
+| **Nur das Profil** (Vorgabe) | Registrierung wie bisher (Bild, Rolle, Kontaktfreigabe, Startbildschirm, Push), danach die Startseite mit Profilkarte, Countdown und „Gut zu wissen“. Keine Leiste, kein Programm, kein Tischplan, kein Gästebuch. | ab Welle 2 |
+| **Alles freischalten** | Die ganze App. Öffnet sich sofort in allen offenen Apps, mit einem Hinweis „Jetzt offen: Programm, Tischplan und Gästebuch“. | kurz vor dem Abend, wenn der Tischplan steht |
+
+Der Schalter: Monitor → „Vorbereitung“ → „Die App“ → **Was die Gäste
+sehen**. Nach dem Neustart steht er auf „Nur das Profil“, es ist nichts zu
+tun. Am 16.09. und danach ist die App **immer** ganz offen, egal wie der
+Schalter steht – ein vergessener Klick nimmt am Abend niemandem den
+Tischplan.
+
+Die Mail zu Welle 2 (`app-zugang.html`, `app-zugang-partner.html`) sagt
+das auch so: heute nur das Profil, Programm und Tischplan folgen kurz vor
+dem 16. September. Wer die Vorlagen in Lettermint pflegt, lädt beide neu
+hoch.
+
+Per Hand, ohne Monitor:
+
+```
+curl -X POST -H 'Content-Type: application/json' -d '{"stufe":"voll"}' \
+  'https://thecircle.planyvo.com/api/admin/app-stufe?key=SCHLÜSSEL'
+```
+
 ### 7.2a Drei Tage vorher: die Lücke schließen
 
 Erzwingen lässt sich die Installation auf keinem Handy. Sehen und
