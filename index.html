@@ -1779,6 +1779,10 @@
         <span>Verbinden geht trotzdem. Deine Mail und Nummer bleiben bei dir – du kannst das später ändern.</span>
       </label>
     </div>
+    <!-- Die Nummer wird sonst nirgends abgefragt (in der Zusage ist sie
+         optional und bleibt meist leer). Hier, wo der Gast entscheidet, was
+         auf seiner Karte steht, kann er sie eintragen - oder eben nicht. -->
+    <div class="rg-feld" style="margin-top:16px"><label for="rgTelefon">Handynummer <span>(optional – steht nur auf deiner Karte)</span></label><input id="rgTelefon" type="tel" maxlength="30" autocomplete="tel" inputmode="tel" placeholder="+49 …"></div>
     <p class="fnote" id="rgKontaktVorschau"></p>
     <p class="fnote">Mit dem Eintritt gelten die <a href="/datenschutz" target="_blank" rel="noopener" style="color:var(--ivory)">Datenschutzhinweise</a>. Profil und Bild kannst du jederzeit löschen.</p>
     <button class="btn btn--solid btn--full" type="button" id="rgFertig">In den Kreis eintreten</button>
@@ -3320,11 +3324,20 @@ function rgSchritt(name){
   $("#registrierung").scrollTo(0, 0);
 }
 $$("[data-rgweiter]").forEach(b => b.addEventListener("click", ()=>rgSchritt(b.dataset.rgweiter)));
+/* Was auf der Karte stuende - liest die Nummer live aus dem Feld, damit
+   der Satz stimmt, waehrend der Gast noch tippt. */
+function rgKontaktVorschau(){
+  const ich = APP.ich || {};
+  const tel = $("#rgTelefon").value.trim();
+  $("#rgKontaktVorschau").textContent = "Auf deiner Karte steht: " + ([ich.email, tel].filter(Boolean).join(" · ") || "– (keine Kontaktdaten hinterlegt)");
+}
+$("#rgTelefon").addEventListener("input", rgKontaktVorschau);
 function registrierungStarten(ich){
   $("#rgName").textContent = ich.name;
   $("#rgFirma").value = ich.firma || ""; $("#rgRolle").value = ich.rolle || "";
   $("#rgUeber").value = ich.ueber || ""; $("#rgLinkedin").value = ich.linkedin || "";
-  $("#rgKontaktVorschau").textContent = "Auf deiner Karte steht: " + ([ich.email, ich.telefon].filter(Boolean).join(" · ") || "– (keine Kontaktdaten hinterlegt)");
+  $("#rgTelefon").value = ich.telefon || "";
+  rgKontaktVorschau();
   if(ich.foto){ const v = $("#rgVorschau"); v.style.backgroundImage = "url(" + ich.foto + ")"; v.textContent = ""; }
   else $("#rgVorschau").textContent = initialen(ich.name);
   /* Neu = Vorgabe "weitergeben" (das Gaestebuch lebt davon); wer schon
@@ -3366,13 +3379,14 @@ $("#rgFertig").addEventListener("click", async ()=>{
   const b = $("#rgFertig"); b.disabled = true; $("#rgFehler").textContent = "";
   const sichtbar = ($$("input[name=rgSichtbar]").find(r => r.checked) || {}).value === "1";
   const body = { firma: $("#rgFirma").value.trim(), rolle: $("#rgRolle").value.trim(),
-                 ueber: $("#rgUeber").value.trim(), sucht: $("#rgSucht").value.trim(), linkedin: $("#rgLinkedin").value.trim(), sichtbar };
+                 ueber: $("#rgUeber").value.trim(), sucht: $("#rgSucht").value.trim(), linkedin: $("#rgLinkedin").value.trim(),
+                 telefon: $("#rgTelefon").value.trim(), sichtbar };
   if(rgBild){ body.foto = rgBild.foto; body.mini = rgBild.mini; }
   else if(rgBildLoeschen){ body.foto = ""; }
   try{
     const d = await appPost("/api/app/profil", body);
     Object.assign(APP.ich, body, { foto: d.foto, registriert: d.registriert, sichtbar: d.sichtbar });
-    S.company = [body.firma, body.rolle].filter(Boolean).join(" · "); persist(); renderCard(); renderProfilKarte();
+    S.company = [body.firma, body.rolle].filter(Boolean).join(" · "); S.phone = body.telefon; persist(); renderCard(); renderProfilKarte();
     /* Schritt 4: Startbildschirm. Auf iOS gibt es keinen Prompt, nur den
        Weg ueber Teilen; auf Android das Banner des Browsers. Wer schon in
        der installierten App ist, sieht direkt die Push-Frage. */
