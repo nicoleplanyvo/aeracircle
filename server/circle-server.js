@@ -114,7 +114,7 @@ const LETTERMINT_WEBHOOK_SECRET = process.env.LETTERMINT_WEBHOOK_SECRET || "";
 const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.de";
 /* Rueckmeldefrist der Einladung. Steht in drei Vorlagen - deshalb an EINER
  * Stelle, sonst laeuft sie beim naechsten Verschieben auseinander.
- * Verschoben auf den 09.09. (zuvor 27./28.08., dann 03.09.): waehrend noch
+ * Verschoben auf den 11.09. (zuvor 27./28.08., 03.09., 09.09.): waehrend noch
  * nachgefasst wird, laeuft die Frist immer wieder ab, und jede neue
  * Einladung nennt dann ein Datum aus der Vergangenheit.
  *
@@ -130,8 +130,8 @@ const WEBSITE_URL = process.env.WEBSITE_URL || "https://www.the-circle-cologne.d
  * Zwei Fristen statt einer, weil die Bezahlgaeste spaeter dran waren: ihre
  * Einladung ging spaeter raus, und ueberwiesen sein wollte sie auch noch.
  * Stand heute laufen beide auf denselben Tag. */
-const RSVP_DEADLINE = "09.09.2026";
-const RSVP_DEADLINE_TICKET = "09.09.2026";
+const RSVP_DEADLINE = "11.09.2026";
+const RSVP_DEADLINE_TICKET = "11.09.2026";
 const rsvpFrist = inv => (inv && inv.typ === "ticket") ? RSVP_DEADLINE_TICKET : RSVP_DEADLINE;
 /* Wie viele Bezahlgaeste hoechstens in den Kreis duerfen. Der Saal ist
  * endlich, und die Plaetze der Partner- und Ehrengaeste sind zugesagt,
