@@ -19,6 +19,7 @@
                         DIREKT in die App, die Name/Kontakt/Ernaehrung selbst laedt.
                         NICHT {{link}} nehmen - das ist die Landing Page fuer die Zusage.
                         Diese Welle geht NUR an Gaeste mit Status zugesagt/bezahlt.
+    {{qr_url}}          Bild des persoenlichen Check-in-Codes (PNG, absolute Adresse)
     {{ticket_nr}}       Ticket-/Bieterkarten-Nummer (Spalte ticket_nr der Versandliste)
     {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
     {{logo_url}}        offizielles Logo -> /assets/logo-neg.png (PNG! Gmail/Outlook zeigen SVG nicht)
@@ -125,6 +126,26 @@
         </td></tr>
         <tr><td align="center" style="padding:6px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2px;color:#7a8db3;text-transform:uppercase;line-height:2;">Kein Download &middot; kein Login &middot; dein Link ist pers&ouml;nlich &middot; danach: &bdquo;Zum Home-Bildschirm&ldquo;</div>
+        </td></tr>
+
+
+        <!-- Check-in am Einlass: der persoenliche Code. Als Bild, weil eine
+             Mail nichts rechnen kann; wer die Bilder blockiert, liest den
+             Satz darunter und zeigt am Einlass seinen Namen. -->
+        <tr><td align="center" style="padding:34px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#7a8db3;text-transform:uppercase;">Dein Check-in</div>
+          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:18px;line-height:1.6;color:#aeb9d2;padding-top:10px;">
+            Zeig diesen Code am Einlass &mdash; wir scannen ihn,<br>und du bist im Kreis.
+          </div>
+        </td></tr>
+        <tr><td align="center" style="padding:18px 40px 0 40px;">
+          <img src="{{qr_url}}" width="180" height="180" alt="Dein Check-in-Code"
+               style="display:block;border:0;width:180px;height:180px;background:#ffffff;padding:12px;margin:0 auto;">
+        </td></tr>
+        <tr><td align="center" style="padding:12px 52px 0 52px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.7;color:#7a8db3;">
+            Du findest ihn jederzeit in der App wieder. Ohne Code geht es auch &mdash; sag am Einlass einfach deinen Namen.
+          </div>
         </td></tr>
 
         <!-- Hinweis: Handy am Abend -->

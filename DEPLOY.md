@@ -720,6 +720,35 @@ Neuladen nötig.
   Aufnahmen entstehen und verwendet werden dürfen. Ohne Haken kein
   Eintritt; der Zeitpunkt wird am Gast gespeichert.
 
+### 7.1a3 Check-in am Einlass per QR-Code
+
+Jeder Gast bekommt **mit Welle 2 seinen eigenen Code** in der Mail
+(`{{qr_url}}`, ein PNG vom Server). Er steht außerdem in der App ganz oben
+unter „Dein Check-in“ – am Einlass sucht niemand in seinen Mails.
+
+**Am Abend:** Ein Handy oder Tablet am Einlass, Kamera auf den Code. Der
+Code führt auf `…/einlass?g=TOKEN`; die Seite checkt den Gast ein und zeigt
+groß seinen Namen:
+
+| Farbe | Bedeutung |
+|---|---|
+| Grün | Willkommen – oder „War schon eingecheckt“ |
+| Orange | Steht nicht auf der Gästeliste für heute (Status dabei) |
+| Rot | Code gehört zu keinem Gast |
+
+Darunter „Nächsten Gast scannen“ – so läuft es ohne Zurücktippen weiter.
+Wer seinen Code nicht findet, sagt seinen Namen: Im Monitor unter
+„Vorbereitung → Die App“ lässt sich der QR-Code auch groß anzeigen, und
+wer im Haus ist, steht in der Regie.
+
+Der eingecheckte Gast sieht es sofort in seiner App: Die Karte dreht sich
+auf „Eingecheckt“, und der erste Moment im Kreis ist gesetzt.
+
+Den Encoder dafür liefert `server/qr.js` – eine einzelne gebündelte Datei
+(qrcode, MIT), kein `npm install`. Selbst gerechnet wäre der Code das
+falsche Risiko: Ob er stimmt, merkt man erst, wenn 130 Leute vor der Tür
+stehen.
+
 ### 7.1b Welle 2: erst nur das Profil, dann alles
 
 Der App-Zugang (Welle 2) geht Tage vor dem Abend raus – aber die Gäste

@@ -594,8 +594,19 @@
     </div>
     <div class="exportzeile" style="margin-top:8px">
       <button class="export" id="zaehlerNull" type="button">Start-up-Zähler auf null</button>
-      <span class="fussnote" style="margin:0">Nach einer Probe: Sterne, Investieren, Interesse und Applaus zurück auf null. Tipps, Gebote und Verbindungen bleiben.</span>
+      <span class="fussnote" style="margin:0">Nach einer Probe: Sterne, Investieren, Interesse und Applaus zurück auf null. Titelvorschläge und Verbindungen bleiben.</span>
     </div>
+
+    <!-- Der Check-in am Abend: ein Aufsteller mit diesem Code am Einlass.
+         Wer ihn scannt, ist eingecheckt - die App weiss aus dem Speicher,
+         wer sie geoeffnet hat. -->
+    <span class="label" style="display:block;margin-top:22px">Check-in am Einlass</span>
+    <p class="fnote">Ein QR-Code für alle. Ausdrucken, an den Einlass stellen: Wer ihn mit dem Handy scannt, wird als „im Haus“ geführt. Wer die App noch nicht geöffnet hat, liest den Hinweis auf seinen persönlichen Link.</p>
+    <div class="exportzeile">
+      <button class="export" id="qrZeigen" type="button">QR-Code zeigen</button>
+      <a class="export" href="/checkin" target="_blank" rel="noopener">Zum Ausdrucken öffnen</a>
+    </div>
+    <div id="qrKasten" style="display:none;margin-top:10px;text-align:center"></div>
     <div id="demoGaeste" style="margin-top:8px"></div>
   </div>
 
@@ -1797,6 +1808,19 @@ try{
   const esB = new EventSource("/api/live/stream"); let bt = 0;
   esB.onmessage = () => { clearTimeout(bt); bt = setTimeout(buehneHolen, 800); };
 }catch(e){}
+
+/* ---------- QR-Code fuer den Check-in ---------- */
+$("#qrZeigen").addEventListener("click", () => {
+  const k = $("#qrKasten");
+  if(k.style.display !== "none"){ k.style.display = "none"; return; }
+  k.innerHTML = "";
+  const img = document.createElement("img");
+  img.src = "/checkin-qr.svg"; img.alt = "QR-Code für den Check-in";
+  img.style.cssText = "width:200px;height:200px;background:#fff;padding:10px;display:inline-block";
+  const p = document.createElement("p"); p.className = "fnote"; p.style.marginTop = "8px";
+  p.textContent = location.origin + "/?da=1";
+  k.appendChild(img); k.appendChild(p); k.style.display = "block";
+});
 
 /* ---------- Titelvorschlaege fuer das Werk ---------- */
 $("#werkLaden").addEventListener("click", async () => {

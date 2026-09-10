@@ -20,7 +20,7 @@
  *    das Votum steht - das darf nie aus der Konserve kommen. Lieber ein
  *    leeres Feld als eine Zahl von vorhin.
  */
-const VERSION = "circle-2026-09-10f";
+const VERSION = "circle-2026-09-10g";
 const SCHALE  = "schale-" + VERSION;      // die Seite
 const STATIK  = "statik-" + VERSION;      // Bilder, Schriften
 

@@ -157,8 +157,12 @@
   .hero .lede{margin-top:16px}
   .statusline{display:flex;align-items:baseline;margin-top:20px;font-size:13px;color:var(--muted)}
   #countdown{font-variant-numeric:tabular-nums;color:var(--ivory);font-weight:400}
+  /* Eine Zeile: Datum, Uhrzeit und Ort gehoeren zusammen. Schrift und
+     Sperrung geben nach, bevor die Zeile umbricht. */
   .venue{
-    margin-top:12px;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--faint);
+    margin-top:12px;color:var(--faint);text-transform:uppercase;
+    font-size:clamp(7.5px,2.4vw,10px);letter-spacing:clamp(.08em,.7vw,.26em);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
 
   .colophon{text-align:center;padding:14px 24px 40px}
@@ -215,10 +219,14 @@
   .enso-side p{font-size:13px;color:var(--muted)}
 
   /* Momente */
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding:0 24px}
+  /* Fuenf Momente, eine Zeile: Umbrechen liess die letzte Marke allein
+     stehen. Schrift und Abstaende richten sich nach der Breite. */
+  .chips{display:flex;flex-wrap:nowrap;gap:clamp(3px,1.4vw,7px);margin-top:14px;padding:0 24px}
   .chip{
-    font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
-    border:1px solid var(--line-soft);padding:6px 12px;color:var(--faint);
+    flex:1 1 0;min-width:0;text-align:center;
+    font-size:clamp(6.5px,1.95vw,9px);letter-spacing:.1em;text-transform:uppercase;
+    border:1px solid var(--line-soft);padding:6px 3px;color:var(--faint);
+    white-space:nowrap;overflow:hidden;text-overflow:clip;
   }
   .chip.done{background:var(--ivory);border-color:var(--ivory);color:var(--ink);font-weight:500}
 
@@ -1115,6 +1123,12 @@
   }
   #appBlatt.show{transform:translateY(0)}
   #appBlatt .griff{width:38px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 18px}
+  /* Die Karte auf der Startseite: derselbe Ton wie das Blatt, damit man
+     sieht, dass beides dasselbe meint. */
+  .qrbild{margin-top:16px;text-align:center}
+  .qrbild img{width:200px;height:200px;background:#fff;padding:12px;display:inline-block;border-radius:4px}
+  .appkarte{border-color:var(--coral)!important;background:linear-gradient(180deg,rgba(255,107,108,.10),rgba(255,107,108,.03))}
+  .appkarte .label{color:var(--coral)}
 
   @media (prefers-reduced-motion:reduce){
     *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
@@ -1163,8 +1177,7 @@
           <div class="cell"><b class="grad" id="cdM">–</b><span>Min</span></div>
           <div class="cell"><b class="grad" id="cdS">–</b><span>Sek</span></div>
         </div>
-        <p class="venue rv" style="--d:320ms">16. September 2026 · ab 18:00 Uhr · Playa Cologne</p>
-        <button type="button" class="btn btn--solid btn--full dabtn" id="daBtn">Ich bin da</button>
+        <p class="venue rv" style="--d:320ms">16.09.2026 · ab 18 Uhr · Playa Cologne</p>
       </div>
 
       <!-- Stufe "profil": das eigene Profil ist alles, was es jetzt gibt -
@@ -1255,13 +1268,32 @@
       <div class="panel rv">
         <span class="label" style="display:block;margin-bottom:14px">Gut zu wissen</span>
         <div class="facts">
-          <div class="row"><span class="k">Beginn</span><span class="v">18:00 Uhr · Ende offen</span></div>
+          <div class="row"><span class="k">Beginn</span><span class="v">18:00 Uhr</span></div>
           <div class="row"><span class="k">Ort</span><span class="v">Playa Cologne · <a href="https://maps.google.com/?q=Playa+Cologne" target="_blank" rel="noopener">Route</a></span></div>
           <div class="row"><span class="k">Dresscode</span><span class="v">Come as you are</span></div>
           <div class="row"><span class="k">Foto &amp; Film</span><span class="v">Der Abend wird begleitet</span></div>
           <div class="row nurvoll"><span class="k">Menü</span><span class="v"><a href="#" data-zeige="menu">Drei Gänge ansehen</a></span></div>
-          <div class="row"><span class="k">App</span><span class="v"><a href="#" id="factApp">Auf den Startbildschirm legen</a></span></div>
         </div>
+      </div>
+
+      <!-- Der Check-in-Code. Am Einlass wird er gescannt; er steht auch in
+           der Welle-2-Mail, aber am Einlass sucht niemand in seinen Mails. -->
+      <div class="panel rv" id="qrKarte" style="display:none">
+        <span class="label" id="qrLabel">Dein Check-in</span>
+        <h3 id="qrTitel">Zeig diesen Code am Einlass.</h3>
+        <p id="qrText">Wir scannen ihn, und du bist im Kreis.</p>
+        <div class="qrbild"><img id="qrBild" alt="Dein Check-in-Code" width="200" height="200"></div>
+        <p class="fnote" id="qrNr"></p>
+      </div>
+
+      <!-- Der Weg auf den Startbildschirm: sichtbar, solange es nicht
+           erledigt ist. Steht unter "Gut zu wissen", nicht zwischen
+           Begruessung und Countdown. -->
+      <div class="panel rv appkarte" id="appKarte" style="display:none">
+        <span class="label" id="akLabel">Damit die App bleibt</span>
+        <h3 id="akTitel">Leg THE CIRCLE auf deinen Startbildschirm.</h3>
+        <p id="akText"></p>
+        <button type="button" class="btn btn--solid btn--full" id="akKnopf" style="margin-top:16px">So geht's</button>
       </div>
 
       <div class="panel rv" id="hostPanel" style="display:none">
@@ -2035,11 +2067,13 @@ const CONFIG = {
    Ablauf; an ihre Stelle tritt die Rückmeldung an das Start-up. Die Zahl muss zu
    MOMENTS_TOTAL im Server passen, sonst schließt sich der Kreis nie. */
 const MOMENTS = [
-  { id:"ankommen",   label:"Angekommen" },
-  { id:"impuls",     label:"Impuls" },
-  { id:"av8",        label:"Feedback" },
-  { id:"kunst",      label:"Kunst" },
-  { id:"verbindung", label:"Verbindung" }
+  /* "kurz" steht in der Marken-Reihe unter dem Ring: fuenf nebeneinander,
+     da passt kein "Angekommen". Der lange Name steht ueberall sonst. */
+  { id:"ankommen",   label:"Angekommen", kurz:"Da" },
+  { id:"impuls",     label:"Impuls",     kurz:"Impuls" },
+  { id:"av8",        label:"Feedback",   kurz:"Start-up" },
+  { id:"kunst",      label:"Kunst",      kurz:"Kunst" },
+  { id:"verbindung", label:"Verbindung", kurz:"Kontakt" }
 ];
 
 /* Impulskarten und Circle-Bingo sind raus: im Call vom 19.08. als
@@ -2236,7 +2270,8 @@ function renderRing(){
   MOMENTS.forEach(m=>{
     const el = document.createElement("span");
     el.className = "chip" + (S.moments[m.id] ? " done" : "");
-    el.textContent = m.label;
+    el.textContent = m.kurz || m.label;
+    el.title = m.label;
     dots.appendChild(el);
   });
   $$("[data-moment]").forEach(btn=>{
@@ -2361,7 +2396,10 @@ function renderStatus(){
     $("#cdM").textContent = String(Math.floor(ms%3600000/60000)).padStart(2,"0");
     $("#cdS").textContent = String(Math.floor(ms%60000/1000)).padStart(2,"0");
   } else if(now < new Date(last.getTime()+120*60000)){
-    st.textContent = "Der Kreis ist geöffnet – heute Abend in der Playa Cologne.";
+    /* Der Check-in laeuft ueber den QR-Code am Einlass - wer noch nicht
+       eingecheckt ist, liest hier, was zu tun ist. */
+    st.textContent = (APP.ich && APP.ich.da) ? "Du bist da – schön, dass du hier bist."
+      : "Der Kreis ist geöffnet – scann den Code am Einlass.";
     grid.style.display = "none";
   } else {
     st.textContent = "Der Abend ist Geschichte – die Verbindungen bleiben.";
@@ -3118,7 +3156,14 @@ async function ladeKreis(){
   try{ APP.kreis = await appGet("/api/app/kreis"); cacheSet("kreis", APP.kreis); renderKreis(); }
   catch(e){ const c = cacheGet("kreis"); if(c && !APP.kreis){ APP.kreis = c.v; renderKreis(); } }
 }
-async function ladeAlles(){ if(!APP.token) { renderGaeste(); return; } await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]); ladeMeldungen(); renderDanach(); }
+async function ladeAlles(){
+  if(!APP.token) { renderGaeste(); return; }
+  await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]);
+  /* Wurde am Einlass gescannt, steht es beim naechsten Abgleich im eigenen
+     Eintrag - die Karte oben dreht sich dann von selbst um. */
+  try{ const d = await appGet("/api/app/ich"); if(d && d.ich){ APP.ich = d.ich; renderQrKarte(); renderStatus(); } }catch(e){}
+  ladeMeldungen(); renderDanach();
+}
 
 /* Die Gerichte des angezeigten Gangs, aus dem Menue uebernommen. */
 function renderGangMenue(t){
@@ -3360,18 +3405,33 @@ $("#signalWeg").addEventListener("click", ()=>{
 });
 
 /* ---- Ich bin da ---- */
+/* Der Check-in laeuft am Einlass ueber einen QR-Code (ein Aufsteller,
+   derselbe Code fuer alle). Wer ihn scannt, landet auf "/?da=1"; die App
+   weiss aus dem Speicher, wer sie geoeffnet hat, und meldet ihn an.
+   Deshalb kein "Ich bin da"-Knopf mehr: Es soll genau einen Weg geben,
+   und der beginnt am Einlass. */
 async function ichBinDa(){
   if(!APP.token){ collect("ankommen", "Angekommen – der erste Strich im Kreis."); return; }
-  try{ await appPost("/api/app/da", {}); if(APP.ich) APP.ich.da = Date.now(); renderDaKnopf(); collect("ankommen", "Angekommen – der erste Strich im Kreis."); }
+  if(APP.ich && APP.ich.da){ toast("Du bist schon eingecheckt."); return; }
+  try{
+    await appPost("/api/app/da", {});
+    if(APP.ich) APP.ich.da = Date.now();
+    renderStatus(); renderQrKarte();
+    collect("ankommen", "Willkommen, " + ((APP.ich && APP.ich.vorname) || "schön dass du da bist") + " – dein Abend beginnt.");
+  }
   catch(e){ toast("Ging gerade nicht – gleich nochmal."); }
 }
-function renderDaKnopf(){
-  const b = $("#daBtn"); if(!b) return;
-  const heute = new Date().toISOString().slice(0, 10) === CONFIG.eventDate;
-  const zeig = (heute || DEMO) && !(APP.ich && APP.ich.da) && !S.moments.ankommen && APP.phase !== "danach";
-  b.classList.toggle("show", zeig);
+/* Aus dem QR-Code am Einlass: einmal einchecken, dann die Spur aus der
+   Adresszeile nehmen - ein zweites Laden soll nicht wieder auslösen. */
+function qrCheckin(){
+  const q = new URLSearchParams(location.search);
+  if(q.get("da") !== "1") return;
+  q.delete("da");
+  const rest = q.toString();
+  history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
+  if(!APP.token){ toast("Öffne zuerst deinen persönlichen Link aus der Mail."); return; }
+  ichBinDa();
 }
-$("#daBtn").addEventListener("click", ichBinDa);
 
 /* ---- Push ---- */
 const istStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -3412,6 +3472,7 @@ function appBlattAuf(){ $("#appBlatt").classList.add("show"); $("#appHinter").cl
 function appBlattZu(){ $("#appBlatt").classList.remove("show"); $("#appHinter").classList.remove("show"); }
 $("#appHinter").addEventListener("click", appBlattZu);
 function renderAppHinweis(){
+  renderAppKarte();
   const el = $("#appBlatt"); if(!el) return;
   let weg = false; try{ weg = !!sessionStorage.getItem("circle.ah"); }catch(e){}
   if(!APP.token || weg){ appBlattZu(); return; }
@@ -3447,9 +3508,48 @@ function renderAppHinweis(){
     appBlattAuto = true; appBlattAuf();
   }, 1400);
 }
-/* Der Weg zurueck zum Blatt: eine Zeile in "Gut zu wissen". */
-$("#factApp").addEventListener("click", e => {
-  e.preventDefault();
+/* Die Karte auf der Startseite zeigt dasselbe wie das Blatt - und bleibt
+   stehen, bis es erledigt ist. "Spaeter" schliesst nur das Blatt. */
+/* Der Check-in-Code: vor dem Abend als Vorschau, am Abend gross - und
+   sobald jemand ihn gescannt hat, sagt die Karte das auch. */
+function renderQrKarte(){
+  const k = $("#qrKarte"); if(!k) return;
+  if(!APP.token || APP.phase === "danach"){ k.style.display = "none"; return; }
+  const bild = $("#qrBild");
+  const quelle = "/qr/" + encodeURIComponent(APP.token) + ".svg";
+  if(bild.getAttribute("src") !== quelle) bild.src = quelle;
+  const da = !!(APP.ich && APP.ich.da);
+  $("#qrLabel").textContent = da ? "Du bist da" : "Dein Check-in";
+  $("#qrTitel").textContent = da ? "Eingecheckt." : "Zeig diesen Code am Einlass.";
+  $("#qrText").textContent = da ? "Schön, dass du hier bist. Den Code brauchst du heute nicht mehr."
+    : "Wir scannen ihn, und du bist im Kreis. Er steht auch in deiner Mail.";
+  $("#qrNr").textContent = (APP.ich && APP.ich.ticketNr) ? "Deine Nummer im Kreis: " + APP.ich.ticketNr : "";
+  k.style.display = "";
+}
+function renderAppKarte(){
+  const k = $("#appKarte"); if(!k) return;
+  const drin = istStandalone() || APP.installiert;
+  const pushOffen = istStandalone() && "PushManager" in window && !!APP.vapid && !(APP.ich && APP.ich.push) && Notification.permission !== "denied";
+  if(!APP.token || (drin && !pushOffen)){ k.style.display = "none"; return; }
+  if(drin && pushOffen){
+    $("#akLabel").textContent = "Ein Tippen noch";
+    $("#akTitel").textContent = "Erlaube Benachrichtigungen.";
+    $("#akText").textContent = "Am Abend bleibt es still. Danach erreichen dich so deine Fotos und die News aus dem Kreis.";
+    $("#akKnopf").textContent = "Benachrichtigungen erlauben";
+  } else if(istDesktop()){
+    $("#akLabel").textContent = "Für den Abend";
+    $("#akTitel").textContent = "Am Abend zählt dein Handy.";
+    $("#akText").textContent = "Öffne deinen Link auf dem Handy und leg THE CIRCLE dort auf den Startbildschirm – dann ist die App am Abend griffbereit.";
+    $("#akKnopf").textContent = "Was zu tun ist";
+  } else {
+    $("#akLabel").textContent = "Damit die App bleibt";
+    $("#akTitel").textContent = "Leg THE CIRCLE auf deinen Startbildschirm.";
+    $("#akText").textContent = "Ein Tippen, und die App liegt neben deinen anderen – ohne Browserleiste, ohne Suchen nach dem Link.";
+    $("#akKnopf").textContent = "So geht's";
+  }
+  k.style.display = "";
+}
+$("#akKnopf").addEventListener("click", ()=>{
   try{ sessionStorage.removeItem("circle.ah"); }catch(err){}
   renderAppHinweis(); appBlattAuf();
 });
@@ -3593,7 +3693,7 @@ $("#rgInstall").addEventListener("click", async ()=>{
   rgAppSchritt();
 });
 $("#rgPush").addEventListener("click", async ()=>{ if(await pushErlauben()) $("#rgPushBlock").style.display = "none"; });
-$("#rgSchliessen").addEventListener("click", ()=>{ $("#registrierung").classList.add("hidden"); renderPushKnopf(); renderDaKnopf(); show("home"); renderAppHinweis(); });
+$("#rgSchliessen").addEventListener("click", ()=>{ $("#registrierung").classList.add("hidden"); renderPushKnopf(); show("home"); renderAppHinweis(); });
 $("#profilBtn").addEventListener("click", ()=>{ if(APP.ich) registrierungStarten(APP.ich); });
 
 /* ================= NACH DEM ABEND (Welle 4) =================
@@ -3614,8 +3714,9 @@ function phaseSetzen(p){
   if(nt){ nt.dataset.nav = danach ? "galerie" : "tisch"; nt.textContent = danach ? "Galerie" : "Tisch"; }
   if(nl){ nl.dataset.nav = danach ? "news" : "live"; nl.textContent = danach ? "News" : "Live"; }
   $("#danachBlock").classList.toggle("an", danach);
+  renderQrKarte();
   const nu = $("#nextUpCard"); if(nu) nu.style.display = danach ? "none" : "";
-  renderStatus(); renderDaKnopf();
+  renderStatus();
   if(danach){ renderDanach(); if(APP.token){ ladeNews(); ladeGalerie(0); } }
   else { const akt = document.querySelector("section[data-view].active"); if(akt && (akt.dataset.view === "news" || akt.dataset.view === "galerie")) show("home"); }
 }
@@ -3814,7 +3915,7 @@ async function appStarten(t){
   $("#onboarding").classList.add("hidden");
   /* Wer ueber einen Partner kommt, liest, wessen Gast er ist. */
   if(d.ich.partner) $("#heroLede").textContent = "Schön, dass du Teil des Kreises bist – als Gast von " + d.ich.partner + ".";
-  renderCard(); renderMenuPref(); renderRing(); renderDaKnopf(); renderPushKnopf();
+  renderCard(); renderMenuPref(); renderRing(); renderPushKnopf(); renderQrKarte(); qrCheckin();
   if(d.signal) signalZeigen(d.signal);
   if(!d.ich.registriert) registrierungStarten(d.ich);
   else { toast("Willkommen zurück, " + d.ich.vorname + "."); ladeAlles(); }

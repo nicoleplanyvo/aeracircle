@@ -51,6 +51,7 @@ const https = require("https");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const zlib = require("zlib");
 
 const PORT = process.env.PORT || 8080;
 const ROOT = path.join(__dirname, "..");
@@ -94,6 +95,73 @@ function adminName(key) {
     if (a.length === b.length && crypto.timingSafeEqual(a, b)) return name;
   }
   return null;
+}
+
+
+/* ---------- QR-Code fuer den Check-in am Einlass ----------
+ * Jeder Gast bekommt mit Welle 2 seinen eigenen Code. Am Einlass wird er
+ * gescannt (Monitor -> Einlass), und der Gast steht als "im Haus".
+ *
+ * Das Rechnen uebernimmt server/qr.js - ein Encoder selbst geschrieben
+ * waere hier die falsche Stelle zum Sparen: Ob er stimmt, merkt man erst,
+ * wenn 130 Leute vor der Tuer stehen. Die Bilder baut der Server selbst,
+ * SVG fuer den Bildschirm und PNG fuer die Mail (Mailprogramme koennen
+ * kein SVG).
+ */
+const QR = require("./qr.js");
+
+function qrMatrix(text) {
+  const d = QR.create(text, { errorCorrectionLevel: "M" });
+  const n = d.modules.size, M = [];
+  for (let r = 0; r < n; r++) {
+    const zeile = [];
+    for (let c = 0; c < n; c++) zeile.push(d.modules.get(r, c) ? 1 : 0);
+    M.push(zeile);
+  }
+  return M;
+}
+function qrSvg(text, rand = 4) {
+  const M = qrMatrix(text), n = M.length, gesamt = n + rand * 2;
+  let d = "";
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+    if (M[r][c]) d += "M" + (c + rand) + " " + (r + rand) + "h1v1h-1z";
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + gesamt + ' ' + gesamt +
+    '" shape-rendering="crispEdges" role="img" aria-label="QR-Code"><rect width="' + gesamt +
+    '" height="' + gesamt + '" fill="#fff"/><path fill="#000" d="' + d + '"/></svg>';
+}
+/* PNG von Hand: ein Graustufenbild, eine Zeile je Modulreihe, mit zlib
+ * gepackt. Das spart eine zweite Bibliothek - ein PNG ist an dieser Stelle
+ * nur ein Kopf, ein Datenblock und drei Pruefsummen. */
+function qrPng(text, skala = 8, rand = 4) {
+  const M = qrMatrix(text), n = M.length, seite = (n + rand * 2) * skala;
+  const zeilen = Buffer.alloc((seite + 1) * seite, 0xFF);
+  for (let y = 0; y < seite; y++) {
+    zeilen[y * (seite + 1)] = 0;                    // Filter "keiner"
+    const mr = Math.floor(y / skala) - rand;
+    if (mr < 0 || mr >= n) continue;
+    for (let x = 0; x < seite; x++) {
+      const mc = Math.floor(x / skala) - rand;
+      if (mc >= 0 && mc < n && M[mr][mc]) zeilen[y * (seite + 1) + 1 + x] = 0x00;
+    }
+  }
+  const crcTab = [];
+  for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; crcTab[i] = c >>> 0; }
+  const crc = buf => { let c = 0xFFFFFFFF; for (const b of buf) c = crcTab[(c ^ b) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const bloc = (typ, daten) => {
+    const laenge = Buffer.alloc(4); laenge.writeUInt32BE(daten.length);
+    const koerper = Buffer.concat([Buffer.from(typ, "ascii"), daten]);
+    const p = Buffer.alloc(4); p.writeUInt32BE(crc(koerper));
+    return Buffer.concat([laenge, koerper, p]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(seite, 0); ihdr.writeUInt32BE(seite, 4);
+  ihdr[8] = 8; ihdr[9] = 0; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;   // 8 Bit, Graustufen
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+    bloc("IHDR", ihdr),
+    bloc("IDAT", zlib.deflateSync(zeilen, { level: 9 })),
+    bloc("IEND", Buffer.alloc(0))
+  ]);
 }
 
 /* ---------- Lettermint: Versand ueber die API ----------
@@ -1735,6 +1803,10 @@ function renderMail(inv, datei, extra) {
     vorname: (inv.name || "").split(" ")[0],
     link: inviteLink(inv.token),
     app_link: appLink(inv.token),
+    /* Der persoenliche Check-in-Code als Bild. Mailprogramme koennen kein
+     * SVG, deshalb PNG - und als absolute Adresse, damit es auch geladen
+     * wird, wenn die Mail Wochen spaeter noch einmal geoeffnet wird. */
+    qr_url: PUBLIC_URL + "/qr/" + encodeURIComponent(inv.token) + ".png",
     ticket_nr: inv.ticketNr || "",
     platz_satz: platzSatz(inv),
     partner_name: inv.partner || "",
@@ -2679,6 +2751,58 @@ const server = http.createServer((req, res) => {
      * ebenfalls; das hier ist die dritte Tuer. */
     if (!inv || !imKreis(inv) || inv === ich || !gleicheRunde(inv, ich)) return json(res, 404, { error: "unbekannt" });
     return json(res, 200, { ok: true, gast: kurzprofil(ich, inv) });
+  }
+
+  /* Der persoenliche Check-in-Code. Er steckt in der Welle-2-Mail als Bild
+   * und liegt in der App unter "Mein Code". Am Einlass wird er gescannt.
+   * Ohne Schluessel abrufbar - der Token IST der Ausweis, und die Mail kann
+   * ihn nicht anders transportieren. Er verraet nichts ueber den Gast: das
+   * Bild zeigt nur eine Adresse. */
+  /* Was der Scanner am Einlass oeffnet. Der Gast wird eingecheckt und die
+   * Seite sagt in einem Wort, ob alles stimmt - sie muss aus zwei Metern
+   * Entfernung lesbar sein, im Halbdunkel, mit einer Hand. */
+  if (req.method === "GET" && (url === "/einlass" || url.startsWith("/einlass?"))) {
+    const t = q.get("g") || "";
+    const inv = t ? findInvite(t) : null;
+    const seite = (farbe, titel, zeile2, zeile3) =>
+      '<!doctype html><html lang="de"><head><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<title>Einlass · THE CIRCLE</title><style>' +
+      'html,body{margin:0;height:100%;background:' + farbe + ';color:#0e1c39;' +
+      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}' +
+      'div{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+      'text-align:center;padding:28px;gap:10px}' +
+      'b{font-size:clamp(30px,9vw,54px);line-height:1.05;font-weight:600}' +
+      'span{font-size:clamp(15px,4.4vw,20px);opacity:.75}' +
+      'small{font-size:13px;opacity:.6;margin-top:14px}' +
+      'a{color:inherit}</style></head><body><div>' +
+      "<b>" + titel + "</b><span>" + zeile2 + "</span>" +
+      (zeile3 ? "<small>" + zeile3 + "</small>" : "") +
+      '<small><a href="/einlass">Nächsten Gast scannen</a></small>' +
+      "</div></body></html>";
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+    if (!t) return res.end(seite("#f8f7f4", "Bereit", "Code des Gastes scannen.", ""));
+    if (!inv) return res.end(seite("#ffd4d4", "Unbekannt", "Dieser Code gehört zu keinem Gast.", "Bitte in der Gästeliste nachsehen."));
+    if (!imKreis(inv)) return res.end(seite("#ffe9c9", inv.name, "Steht nicht auf der Gästeliste für heute.", "Status: " + inv.status));
+    const schon = !!inv.da;
+    if (!schon) { inv.da = Date.now(); logEvent("da", inv.name, inv.pool); dirty = true; revHoch(); broadcast(); }
+    return res.end(seite("#d8f5dd", inv.name,
+      schon ? "War schon eingecheckt." : "Willkommen.",
+      [inv.firma, inv.ticketNr].filter(Boolean).join(" · ")));
+  }
+
+  if (req.method === "GET" && url.startsWith("/qr/")) {
+    const t = decodeURIComponent(url.slice(4).replace(/\.(png|svg)$/, ""));
+    const inv = findInvite(t);
+    if (!inv) return json(res, 404, { error: "unbekannt" });
+    const ziel = PUBLIC_URL + "/einlass?g=" + encodeURIComponent(t);
+    if (url.endsWith(".svg")) {
+      res.writeHead(200, { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=86400" });
+      return res.end(qrSvg(ziel));
+    }
+    const png = qrPng(ziel, 8);
+    res.writeHead(200, { "Content-Type": "image/png", "Content-Length": png.length, "Cache-Control": "public, max-age=86400" });
+    return res.end(png);
   }
 
   /* Ein Titel fuer das Werk. Die Versteigerung laeuft nur im Raum; in der
@@ -3683,7 +3807,7 @@ const server = http.createServer((req, res) => {
         const header = rows[0].map(h => h.trim().toLowerCase());
         const col = n => header.indexOf(n);
         const iMail = col("email") >= 0 ? col("email") : col("e-mail"), iName = col("name");
-        const iGang = [col("gang1"), col("gang2")];
+        const iGang = [col("gang1"), col("gang2")].filter(x => x >= 0);
         if (iMail < 0 && iName < 0) return json(res, 400, { error: "Spalte 'email' oder 'name' fehlt" });
         if (iGang[0] < 0) return json(res, 400, { error: "Spalte 'gang1' fehlt" });
         const byMail = {}, byName = {};
@@ -3712,6 +3836,13 @@ const server = http.createServer((req, res) => {
         if (unbekannteTische.size) return json(res, 400, { error: "Unbekannte Tischnamen: " + [...unbekannteTische].join(", ") + " – Namen unter Tischordnung anlegen oder Nummern benutzen", unbekannteTische: [...unbekannteTische] });
         const t = tische();
         t.sitz = neu;
+        /* Die Gaenge folgen den Spalten der Liste: Steht dort nur gang1 und
+         * gang2, gibt es zwei Wechsel - ein frueher angelegter dritter Gang
+         * verschwindet mit dem Import. */
+        if (iGang.length && iGang.length !== t.gaenge.length) {
+          t.gaenge = t.gaenge.slice(0, iGang.length);
+          if (t.gang > t.gaenge.length) t.gang = t.gaenge.length;
+        }
         /* Tische, die im Plan vorkommen, aber noch keinen Eintrag haben,
          * anlegen - ohne Namen. Namen kommen ueber /api/admin/tische. */
         for (const nr of tischNrn) if (!t.liste.find(x => x.nr === nr)) t.liste.push({ nr, name: "" });
