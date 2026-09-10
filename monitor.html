@@ -753,6 +753,17 @@
       <span class="fussnote" style="margin:0" id="erloesNote"></span>
     </div>
     <div id="bieterListe" class="fnote"></div>
+
+    <!-- Statt der Versteigerung in der App: Die Gaeste geben dem Werk einen
+         Namen. Die Liste ist das, was Max Leinfelder am Ende bekommt. -->
+    <span class="label" style="display:block;margin-top:22px">Titel für das Werk</span>
+    <p class="fnote">Die Gäste schlagen ab 22:45 in der App einen Namen für Max Leinfelders Bild vor. Damit schließt sich für sie der Kunst-Moment.</p>
+    <div class="exportzeile">
+      <button class="export" id="werkLaden" type="button">Vorschläge zeigen</button>
+      <a class="export" id="werkCsv" href="#" download>Als CSV</a>
+      <span class="fussnote" style="margin:0" id="werkZahl"></span>
+    </div>
+    <div id="werkListe" style="display:none;margin-top:8px"></div>
     </details>
   </div>
 
@@ -1786,6 +1797,29 @@ try{
   const esB = new EventSource("/api/live/stream"); let bt = 0;
   esB.onmessage = () => { clearTimeout(bt); bt = setTimeout(buehneHolen, 800); };
 }catch(e){}
+
+/* ---------- Titelvorschlaege fuer das Werk ---------- */
+$("#werkLaden").addEventListener("click", async () => {
+  const kasten = $("#werkListe");
+  if(kasten.style.display !== "none"){ kasten.style.display = "none"; return; }
+  const d = await adminGet("/api/admin/werknamen");
+  if(!d || !d.ok) return;
+  kasten.innerHTML = "";
+  txt($("#werkZahl"), d.anzahl + (d.anzahl === 1 ? " Vorschlag" : " Vorschläge"));
+  if(!d.anzahl){
+    const p = document.createElement("p"); p.className = "fnote"; p.style.margin = "0";
+    p.textContent = "Noch kein Vorschlag – das Feld öffnet um 22:45.";
+    kasten.appendChild(p);
+  }
+  d.liste.forEach(x => {
+    const z = document.createElement("p"); z.className = "fnote"; z.style.margin = "4px 0";
+    const t = document.createElement("b"); t.textContent = "„" + x.titel + "“";
+    z.appendChild(t); z.appendChild(document.createTextNode(" · " + x.name));
+    kasten.appendChild(z);
+  });
+  kasten.style.display = "block";
+  $("#werkCsv").href = "/api/admin/werknamen?csv=1&key=" + encodeURIComponent(KEY);
+});
 
 /* ---------- Zaehler nach einer Probe ---------- */
 $("#zaehlerNull").addEventListener("click", async () => {

@@ -701,7 +701,12 @@ Neuladen nötig.
   „Live“. Zurücknehmen ließe sich das mit `const LIVE_AN = false;` in
   `index.html`.
 - **Die Auktion läuft nur im Raum** (Blind-Auktion). Wand und Monitor
-  behalten sie, die App hat keinen Auktions-Tipp.
+  behalten sie. In der App gibt es dafür weder Bieterkarte noch Gebote noch
+  Schätzspiel. An ihrer Stelle steht **„Wie soll das Werk heißen?“**: Ab
+  22:45 schlägt jeder Gast einen Titel für Max Leinfelders Bild vor, und
+  damit schließt sich für ihn der Kunst-Moment. Die Vorschläge stehen im
+  Monitor unter „Regie → Auktion & Wand → Titel für das Werk“, dort auch
+  als CSV für Max.
 - **Kein Banner beim Tischwechsel.** Der Plan aktualisiert sich still, der
   Wechsel steht auch nicht in der Glocke. Ansagen erscheinen weiter.
 - **Zwei Gänge mit Tischwechsel** (Vorspeise, Hauptspeise). Das Dessert

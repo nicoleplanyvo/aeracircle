@@ -344,13 +344,6 @@
     background:linear-gradient(180deg,var(--panel-hi),var(--panel-lo));
   }
   .lot .label{display:block;margin-bottom:12px}
-  #paddleNo{
-    font-family:var(--disp);font-weight:600;font-size:92px;line-height:1;
-    margin:8px 0 0;font-variant-numeric:tabular-nums;display:none;
-  }
-  #paddleNo::before{content:"№ ";font-size:38px;color:var(--faint);-webkit-text-stroke:0}
-  .lot.raised #paddleNo{display:block}
-  .lot.raised #paddleHint{display:none}
   .lot .btn{margin-top:18px}
 
   .person{display:flex;gap:16px;align-items:flex-start;padding:24px}
@@ -1026,7 +1019,7 @@
   }
   .tipp-row input:focus{outline:none;border-color:var(--line)}
   .tipp-row .btn{flex:none}
-  #tippShow{
+  #werkShow{
     font-family:var(--disp);font-weight:600;font-size:26px;margin-top:14px;display:none;
     font-variant-numeric:tabular-nums;
   }
@@ -1043,9 +1036,6 @@
   .vbar .track{flex:1;height:4px;background:var(--line-soft);overflow:hidden}
   .vbar .track i{display:block;height:100%;background:var(--ivory);width:0;transition:width .5s ease}
   .vbar b{flex:0 0 30px;text-align:right;font-family:var(--sans);font-weight:500;font-size:13px;font-variant-numeric:tabular-nums}
-  #bidBoard{display:none;margin-top:20px;padding-top:16px;border-top:1px solid var(--line-soft)}
-  #bidLead{font-family:var(--disp);font-weight:600;font-size:clamp(30px,9vw,38px);line-height:1;font-variant-numeric:tabular-nums}
-  #bidMeta{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-top:6px;display:block}
   .bid-row{display:none;gap:8px;margin-top:14px}
   .bid-row .btn{flex:1;padding:12px 4px;font-size:9.5px}
 
@@ -1443,40 +1433,25 @@
         <div id="interesseLive" class="label" style="font-size:8.5px;margin-top:12px"></div>
       </div>
 
-      <div class="lot rv gated" data-gate="auktion" id="paddleBox">
+      <!-- Die Versteigerung findet nur im Raum statt (Blind-Auktion). In der
+           App schliesst sich der Kunst-Kreis anders: Wer will, gibt dem Werk
+           einen Namen. Ein Vorschlag je Gast, aenderbar bis zum Schluss. -->
+      <div class="panel rv gated" data-gate="auktion" id="werkBox">
         <div class="gate" aria-hidden="true">
           <b>Das Werk entsteht noch</b>
-          <span>Die Versteigerung öffnet um 22:45</span>
+          <span>Öffnet um 22:45</span>
           <i>Schau Max beim Malen zu.</i>
         </div>
-        <span class="label">Live Painting · Versteigerung</span>
-        <p class="lede" id="paddleHint" style="font-size:13px">
-          Max Leinfelder malt heute live. Das Werk wird versteigert,
-          der Erlös vollständig gespendet. Heb deine Bieterkarte, wenn du dabei sein willst.
-        </p>
-        <div id="paddleNo" class="grad">–</div>
-        <p class="lede" id="paddleSub" style="font-size:11.5px;display:none;margin-top:6px">Deine Bieterkarte – zeig sie dem Moderator.</p>
-        <button class="btn btn--solid" id="paddleBtn">Bieterkarte heben</button>
-        <div id="bidBoard">
-          <div id="bidLead" class="grad">–</div>
-          <span id="bidMeta">führt</span>
-        </div>
-        <div class="bid-row" id="bidRow">
-          <button class="btn" data-inc="100">+ 100 €</button>
-          <button class="btn" data-inc="250">+ 250 €</button>
-          <button class="btn" data-inc="500">+ 500 €</button>
-        </div>
-      </div>
-
-      <div class="panel rv">
-        <span class="label">Schätzspiel</span>
-        <h3>Was bringt das Werk?</h3>
-        <p>Tippe den Erlös der Versteigerung – aufgelöst wird live im Raum. Der gesamte Erlös wird gespendet.</p>
+        <span class="label">Dein Titel</span>
+        <h3>Wie soll das Werk heißen?</h3>
+        <p>Max Leinfelder malt heute Abend live. Gib dem Bild einen Namen – die
+           Vorschläge gehen an ihn, und einer davon bleibt am Werk.</p>
         <div class="tipp-row">
-          <input type="number" id="tippInput" inputmode="numeric" min="1" placeholder="z. B. 5000">
-          <button class="btn" id="tippBtn">€ tippen</button>
+          <input type="text" id="werkInput" maxlength="60" placeholder="z. B. Zwischen den Generationen">
+          <button class="btn" id="werkBtn">Vorschlagen</button>
         </div>
-        <div id="tippShow" class="grad"></div>
+        <div id="werkShow" class="grad"></div>
+        <p class="fnote" id="werkNote" style="margin-top:10px"></p>
       </div>
 
       <div class="person rv">
@@ -2028,7 +2003,7 @@ const CONFIG = {
        nicht, warum in der App ploetzlich nach einem Start-up gefragt wird.
        Die Kennung bleibt "av8" - daran haengen die gespeicherten Momente. */
     { id:"av8",      time:"18:55", title:"planyvo stellt sich vor",          ort:"Dinnerbereich",
-      desc:"Kurz vorgestellt von der Moderation – die App hinter diesem Abend. Was du davon hältst, kannst du gleich sagen." },
+      desc:"Kurz vorgestellt von der Moderation – die App, die dich durch diesen Abend begleitet. Was du davon hältst, kannst du gleich sagen." },
     { id:"gang1",    time:"19:00", title:"Erster Gang · Vorspeise",      ort:"Dinnerbereich",
       desc:"Das Sharing-Menü beginnt. Alles kommt in die Mitte." },
     { id:"vortrag1", time:"19:30", title:"Impuls · Ien Bäumler (I)",     ort:"Dinnerbereich",
@@ -2046,12 +2021,11 @@ const CONFIG = {
     { id:"vortrag2", time:"21:15", title:"Impuls · Ien Bäumler (II)",    ort:"Dinnerbereich",
       desc:"Der zweite Teil – dort, wo der erste aufgehört hat." },
     { id:"painting", time:"21:30", title:"Live Painting · Max Leinfelder", ort:"Wechselbereich · bis 22:00",
-      desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm.",
-      moment:"kunst", momentLabel:"Kunst erlebt" },
+      desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm – später gibst du ihm einen Namen." },
     { id:"gang3",    time:"22:15", title:"Dritter Gang · Dessert",       ort:"Dinnerbereich",
       desc:"Süßer Abschluss – wird an den Tischen serviert, ohne Wechsel." },
     { id:"auktion",  time:"22:45", title:"Auktion · Live Painting",      ort:"Dinnerbereich",
-      desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet." },
+      desc:"Max Leinfelders Werk findet sein Zuhause – im Raum, als Blind-Auktion. Der Erlös wird gespendet." },
     { id:"dj",       time:"22:55", title:"Ausklang · Drinks & DJ",       ort:"",
       desc:"Der Abend endet, wie er begonnen hat: mit Atmosphäre." }
   ]
@@ -2080,9 +2054,9 @@ const store = {
      Namensformular haengen. */
   save(s){ try{ localStorage.setItem("circle.v1", JSON.stringify(s)); }catch(e){} }
 };
-let S = Object.assign({ name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
+let S = Object.assign({ name:"", company:"", moments:{}, applause:0, impulseSeen:0, completeShown:false,
   stern:0, interesse:{},
-  contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0, meldGesehen:0 }, store.load());
+  contacts:[], notes:"", vote:null, werkname:"", bingo:{}, bingoLines:0, meldGesehen:0 }, store.load());
 /* Demo/Vorschau: ?name=Anna&firma=AERA überspringt das Onboarding */
 {
   const q = new URLSearchParams(location.search);
@@ -2561,30 +2535,14 @@ $$(".ibtn").forEach(b=>{
 /* Die Bieterkarte ist die Kreisnummer aus der Zusage - eindeutig je Gast.
    Der alte Hash aus dem Namen kannte nur 88 Nummern fuer 130 Gaeste:
    "Karte 47" - und zwei Haende gehen hoch. Ohne Zusage (Demo) wie bisher. */
-function paddleNumber(name){
+/* Die Kreisnummer des Gastes; ohne Register eine aus dem Namen
+   abgeleitete Zahl, damit auf der Einladung nie ein Platzhalter steht. */
+function kreisNummer(name){
   if(APP.ich && APP.ich.ticketNr){ const n = String(APP.ich.ticketNr).replace(/\D/g, ""); if(n) return n; }
   let h = 0;
   for(const c of name) h = (h*31 + c.charCodeAt(0)) >>> 0;
   return 11 + (h % 88);
 }
-function renderPaddle(){
-  const box = $("#paddleBox");
-  if(S.paddle){
-    box.classList.add("raised");
-    $("#paddleNo").textContent = paddleNumber(S.name || "Gast");
-    $("#paddleSub").style.display = "block";
-    $("#paddleBtn").textContent = "Bieterkarte gehoben";
-    $("#paddleBtn").classList.add("done");
-  }
-}
-$("#paddleBtn").addEventListener("click", ()=>{
-  if(S.paddle) return;
-  S.paddle = true; persist();
-  renderPaddle();
-  buzz(30);
-  toast("№ "+paddleNumber(S.name||"Gast")+" – viel Erfolg beim Bieten.");
-});
-
 /* ================= KARTE ================= */
 function renderCard(){
   $("#guestName").textContent = S.name || "Gast";
@@ -2633,23 +2591,34 @@ $$("[data-vote]").forEach(b=>{
 renderVote();
 
 /* ================= ERLÖS-TIPP ================= */
-function renderTipp(){
-  if(S.tipp){
-    $("#tippShow").style.display = "block";
-    $("#tippShow").textContent = "Dein Tipp: " + Number(S.tipp).toLocaleString("de-DE") + " €";
-    $("#tippBtn").textContent = "Ändern";
+/* ================= TITEL FÜR DAS WERK ================= */
+/* Die Versteigerung laeuft nur im Raum. Hier schliesst sich der Kunst-Kreis:
+   ein Name fuer das Bild, aenderbar bis zum Schluss. */
+function renderWerk(){
+  const zeig = $("#werkShow"), note = $("#werkNote");
+  if(!zeig) return;
+  if(S.werkname){
+    zeig.style.display = "block";
+    zeig.textContent = "„" + S.werkname + "“";
+    note.textContent = "Dein Vorschlag ist notiert – du kannst ihn bis zum Schluss ändern.";
+    $("#werkBtn").textContent = "Ändern";
+    $("#werkInput").placeholder = S.werkname;
+  } else {
+    zeig.style.display = "none"; note.textContent = "";
+    $("#werkBtn").textContent = "Vorschlagen";
   }
 }
-$("#tippBtn").addEventListener("click", ()=>{
-  const v = parseInt($("#tippInput").value, 10);
-  if(!v || v < 1){ $("#tippInput").focus(); return; }
-  S.tipp = v; persist();
-  $("#tippInput").value = "";
-  renderTipp(); buzz(15);
-  if(LIVE.on) LIVE.post("/api/live/tipp", { wert: v, t: APP.token || undefined }).catch(()=>toast("Netz gerade weg – Tipp nochmal setzen."));
-  toast("Tipp gesetzt: " + v.toLocaleString("de-DE") + " € – Auflösung live.");
+$("#werkBtn").addEventListener("click", async ()=>{
+  const v = $("#werkInput").value.trim();
+  if(!v){ $("#werkInput").focus(); return; }
+  S.werkname = v.slice(0, 60); persist();
+  $("#werkInput").value = "";
+  renderWerk(); buzz(15);
+  if(APP.token) appPost("/api/app/werkname", { name: S.werkname }).catch(()=>toast("Netz gerade weg – gleich nochmal."));
+  collect("kunst", "Dein Titel ist notiert – der Kunst-Moment ist deiner.");
 });
-renderTipp();
+$("#werkInput").addEventListener("keydown", e => { if(e.key === "Enter") $("#werkBtn").click(); });
+renderWerk();
 
 /* ================= RECAP: MEIN ABEND ================= */
 function abendText(){
@@ -2789,56 +2758,12 @@ function renderLiveState(){
     if(i.investor) teile.push(i.investor + "× Investorengespräch");
     $("#interesseLive").textContent = teile.join(" · ");
   }
-  $("#bidRow").style.display = (d.auktion && d.auktion.zu) ? "none" : "flex";
-  if(d.auktion && d.auktion.zu){
-    $("#bidBoard").style.display = "block";
-    $("#bidLead").textContent = d.auktion.erloes.toLocaleString("de-DE") + " €";
-    $("#bidMeta").textContent = "Zuschlag" + (d.auktion.karte ? " · Karte № " + d.auktion.karte : "") +
-      (d.auktion.sieger && d.auktion.sieger[0] ? " · Schätzspiel: " + d.auktion.sieger[0].vorname + " (" + d.auktion.sieger[0].wert.toLocaleString("de-DE") + " €)" : "");
-  } else if(d.bid){
-    $("#bidBoard").style.display = "block";
-    $("#bidLead").textContent = d.bid.amount.toLocaleString("de-DE") + " €";
-    $("#bidMeta").textContent = "Höchstgebot · Karte № " + (d.bid.paddle || "–");
-  }
 }
-$$("#bidRow [data-inc]").forEach(b=>{
-  b.addEventListener("click", async ()=>{
-    if(!LIVE.on && DEMO){
-      if(!S.paddle){ toast("Heb zuerst deine Bieterkarte."); buzz(20); return; }
-      const cur = LIVE.d && LIVE.d.bid ? LIVE.d.bid.amount : 0;
-      const amount = cur + parseInt(b.dataset.inc, 10);
-      const paddle = String(paddleNumber(S.name || "Gast"));
-      demoSim.bid = { amount, paddle, name: S.name };
-      LIVE.d = demoSim; renderLiveState();
-      buzz(25); toast("Dein Gebot: " + amount.toLocaleString("de-DE") + " € · Karte № " + paddle);
-      setTimeout(()=>{
-        if(demoSim.bid && demoSim.bid.paddle === paddle){
-          demoSim.bid = { amount: amount + 250, paddle: "47", name: "S. König" };
-          LIVE.d = demoSim; renderLiveState();
-          toast("Überboten – Karte № 47 hält dagegen."); buzz([30,50,30]);
-        }
-      }, 4200);
-      return;
-    }
-    if(!LIVE.on) return;
-    if(!S.paddle){ toast("Heb zuerst deine Bieterkarte."); buzz(20); return; }
-    const current = LIVE.d && LIVE.d.bid ? LIVE.d.bid.amount : 0;
-    const amount = current + parseInt(b.dataset.inc, 10);
-    const paddle = String(paddleNumber(S.name || "Gast"));
-    try{
-      const r = await LIVE.post("/api/live/bid", {amount, paddle, name:S.name, t: APP.token || undefined});
-      if(r.status === 409) toast("Überboten – im Raum liegt schon mehr.");
-      else { buzz(25); toast("Dein Gebot: " + amount.toLocaleString("de-DE") + " € · Karte № " + paddle); }
-    }catch(e){ toast("Gebot kam nicht durch – nochmal tippen."); buzz([30,60,30]); }
-  });
-});
-
 /* ================= DEMO-SIMULATION ================= */
 const demoSim = {
   applause: 412,
   votes: { ja: 31, vielleicht: 9, nein: 4 },
   guests: 87,
-  bid: { amount: 3250, paddle: "47", name: "S. König" },
   bids: []
 };
 if(DEMO){
@@ -2866,7 +2791,6 @@ if(DEMO){
       if(Math.random() < .08) demoSim.votes.nein++;
     }
     if(inWindow(CONFIG.gates.auktion) && Math.random() < .18){
-      demoSim.bid = { amount: demoSim.bid.amount + 250, paddle: String(rnd(11,98)), name: "Gast" };
     }
     LIVE.d = demoSim;
     renderLiveState();
@@ -2922,7 +2846,7 @@ if(DEMO){
     S.diet = invDiet; S.allergy = $("#invAllergy").value.trim();
     persist();
     if(invTyp === "zusage"){                       // Ehrengast: keine Zahlung
-      $("#invTicket").textContent = "№ " + paddleNumber(S.name);
+      $("#invTicket").textContent = "№ " + kreisNummer(S.name);
       invShow("fertig"); buzz([40,60,40]);
     } else {
       invShow("zahlung");
@@ -2932,13 +2856,13 @@ if(DEMO){
     const b = $("#invPay");
     b.textContent = "Zahlung läuft …"; b.disabled = true;
     setTimeout(()=>{
-      $("#invTicket").textContent = "№ " + paddleNumber(S.name || "Gast");
+      $("#invTicket").textContent = "№ " + kreisNummer(S.name || "Gast");
       invShow("fertig"); buzz([40,60,40]);
     }, 900);
   });
   $("#invEnter").addEventListener("click", ()=>{
     $("#invite").classList.add("hidden");
-    renderCard(); renderRing(); renderPaddle(); renderMenuPref();
+    renderCard(); renderRing(); renderMenuPref();
     toast("Willkommen im Kreis, " + S.name.split(" ")[0] + ".");
   });
 }
@@ -3883,6 +3807,7 @@ async function appStarten(t){
      Handy nach dem Abend heisst nicht leerer Kreis. */
   if(d.ich.momente) for(const k in d.ich.momente) if(!S.moments[k]) S.moments[k] = d.ich.momente[k];
   if(d.ich.abend && d.ich.abend.satz && !S.notes){ S.notes = d.ich.abend.satz; $("#notesArea").value = S.notes; }
+  if(d.ich.abend && d.ich.abend.werkname && !S.werkname){ S.werkname = d.ich.abend.werkname.text || ""; renderWerk(); }
   persist();
   phaseSetzen(d.phase || "");
   stufeSetzen(d.stufe || "voll");
@@ -3926,9 +3851,9 @@ if(S.name) $("#onboarding").classList.add("hidden");
          komplett zuruecksetzen. Sonst startet jemand mit 3/5 Momenten, die
          er nie gesammelt hat. */
       try{ localStorage.removeItem("circle.v1"); }catch(e){}
-      S = { name:"", company:"", moments:{}, applause:0, paddle:false, impulseSeen:0, completeShown:false,
+      S = { name:"", company:"", moments:{}, applause:0, impulseSeen:0, completeShown:false,
             stern:0, interesse:{},
-        contacts:[], notes:"", vote:null, tipp:null, bingo:{}, bingoLines:0, meldGesehen:0 };
+        contacts:[], notes:"", vote:null, werkname:"", bingo:{}, bingoLines:0, meldGesehen:0 };
     }
     /* Manifest je Gast: start_url traegt den Token, damit die installierte
        App mit ihm startet. Und der Token in die Adresse, damit die vom
@@ -3982,7 +3907,6 @@ renderCard();
 renderMenuPref();
 renderSterne();
 renderInteresse();
-renderPaddle();
 /* Partnerlogos fuehren zur Website des Partners. Eine Liste, ein Ort;
    der Schluessel ist der alt-Text der Kachel. Referrer-Policy sorgt dafuer,
    dass der persoenliche Token dabei nicht mitreist. */

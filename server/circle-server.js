@@ -241,7 +241,7 @@ const ZEITEN_STANDARD = {
     { id:"opening",  time:"18:30", title:"Begrüßung · Amiaz Habtu",      ort:"Dinnerbereich",
       desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
     { id:"av8",      time:"18:55", title:"planyvo stellt sich vor",          ort:"Dinnerbereich",
-      desc:"Kurz vorgestellt von der Moderation – die App hinter diesem Abend. Was du davon hältst, kannst du gleich sagen." },
+      desc:"Kurz vorgestellt von der Moderation – die App, die dich durch diesen Abend begleitet. Was du davon hältst, kannst du gleich sagen." },
     { id:"gang1",    time:"19:00", title:"Erster Gang · Vorspeise",      ort:"Dinnerbereich",
       desc:"Das Sharing-Menü beginnt. Alles kommt in die Mitte." },
     { id:"vortrag1", time:"19:30", title:"Impuls · Ien Bäumler (I)",     ort:"Dinnerbereich",
@@ -253,11 +253,11 @@ const ZEITEN_STANDARD = {
     { id:"vortrag2", time:"21:15", title:"Impuls · Ien Bäumler (II)",    ort:"Dinnerbereich",
       desc:"Der zweite Teil – dort, wo der erste aufgehört hat." },
     { id:"painting", time:"21:30", title:"Live Painting · Max Leinfelder", ort:"Wechselbereich · bis 22:00",
-      desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm.", moment:"kunst", momentLabel:"Kunst erlebt" },
+      desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm – später gibst du ihm einen Namen." },
     { id:"gang3",    time:"22:15", title:"Dritter Gang · Dessert",       ort:"Dinnerbereich",
       desc:"Süßer Abschluss – wird an den Tischen serviert, ohne Wechsel." },
     { id:"auktion",  time:"22:45", title:"Auktion · Live Painting",      ort:"Dinnerbereich",
-      desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet." },
+      desc:"Max Leinfelders Werk findet sein Zuhause – im Raum, als Blind-Auktion. Der Erlös wird gespendet." },
     { id:"dj",       time:"22:55", title:"Ausklang · Drinks & DJ",       ort:"",
       desc:"Der Abend endet, wie er begonnen hat: mit Atmosphäre." }
   ]
@@ -2681,6 +2681,24 @@ const server = http.createServer((req, res) => {
     return json(res, 200, { ok: true, gast: kurzprofil(ich, inv) });
   }
 
+  /* Ein Titel fuer das Werk. Die Versteigerung laeuft nur im Raum; in der
+   * App schliesst sich der Kunst-Kreis, indem der Gast dem Bild einen Namen
+   * gibt. Ein Vorschlag je Gast, aenderbar bis zum Schluss - die Liste geht
+   * am Ende an Max Leinfelder. */
+  if (req.method === "POST" && url === "/api/app/werkname") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    return readBody(req, res, body => {
+      const inv = findInvite(body.t);
+      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
+      const name = cleanText(body.name, 60);
+      if (!inv.abend) inv.abend = {};
+      if (name) inv.abend.werkname = { text: name, t: Date.now() };
+      else delete inv.abend.werkname;
+      dirty = true;
+      return json(res, 200, { ok: true, name });
+    });
+  }
+
   /* Die Visitenkarte als Datei, die das Handy selbst oeffnet. Ein
    * Download-Link legt auf dem Rechner nur eine .vcf in den Ordner; als
    * Seite mit dem richtigen Typ ausgeliefert, bietet iOS und Android
@@ -4011,6 +4029,20 @@ const server = http.createServer((req, res) => {
       const l = appLuecke(r);
       const zeile = i => ({ name: i.name, email: i.email || "", telefon: (i.daten && i.daten.phone) || "", pool: i.pool || "", gid: gid(i) });
       return json(res, 200, { ok: true, runde: r, im: l.im, nichtRegistriert: l.nichtRegistriert.map(zeile), ohneApp: l.ohneApp.map(zeile), ohnePush: l.ohnePush.map(zeile) });
+    }
+
+    /* Die Titelvorschlaege fuer das Werk - fuer die Buehne und fuer Max. */
+    if (req.method === "GET" && url === "/api/admin/werknamen") {
+      const liste = Object.values(state.invites)
+        .filter(i => imKreis(i) && rundeVon(i) === RUNDE && i.abend && i.abend.werkname && i.abend.werkname.text)
+        .map(i => ({ name: i.name, vorname: (i.name || "").split(" ")[0], titel: i.abend.werkname.text, t: i.abend.werkname.t }))
+        .sort((a, b) => b.t - a.t);
+      if (q.get("csv") === "1") {
+        const z = ["titel;gast"].concat(liste.map(x => [x.titel, x.name].map(v => String(v).replace(/;/g, ",")).join(";")));
+        res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="werknamen.csv"' });
+        return res.end("\uFEFF" + z.join("\r\n"));
+      }
+      return json(res, 200, { ok: true, anzahl: liste.length, liste });
     }
 
     /* Feedback-Auswertung. */
