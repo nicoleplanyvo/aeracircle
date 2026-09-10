@@ -4028,18 +4028,47 @@ $$(".partner-grid .tile").forEach(t => {
   const a = document.createElement("a"); a.className = "tile"; a.href = u; a.target = "_blank"; a.rel = "noopener noreferrer";
   a.setAttribute("aria-label", img.alt + " – Website öffnen"); a.appendChild(img); t.replaceWith(a);
 });
-/* Die Partner stehen bei jedem Aufruf in einer anderen Reihenfolge: Ein
-   fester Platz oben waere ein Vorteil, den niemand vereinbart hat.
-   Fisher-Yates auf den Kacheln - dieselben Kacheln, neue Ordnung. */
+/* Die Partner stehen bei jedem Aufruf in einer anderen Reihenfolge - und
+   nie in derselben wie beim letzten Mal. Ein fester Platz oben waere ein
+   Vorteil, den niemand vereinbart hat, und zweimal dieselbe Ordnung sieht
+   aus wie eine Rangfolge. Darum merken wir uns die letzte Folge und
+   mischen neu, bis eine andere herauskommt. Die Verlinkung haengt an der
+   Kachel, nicht am Platz. */
 {
   const gitter = $(".partner-grid");
-  if(gitter){
-    const kacheln = Array.from(gitter.children);
-    for(let i = kacheln.length - 1; i > 0; i--){
-      const j = Math.floor(Math.random() * (i + 1));
-      [kacheln[i], kacheln[j]] = [kacheln[j], kacheln[i]];
-    }
-    kacheln.forEach(k => gitter.appendChild(k));
+  if(gitter && gitter.children.length > 1){
+    const SCHLUESSEL = "circle.partnerfolge";
+    const folge = liste => liste.map(k => (k.querySelector("img") || {}).alt || "").join("|");
+    let letzte = ""; try{ letzte = localStorage.getItem(SCHLUESSEL) || ""; }catch(e){}
+    const mischen = () => {
+      const kacheln = Array.from(gitter.children);
+      /* Fisher-Yates, notfalls mehrfach: bei zehn Partnern ist ein
+         Wiederholer selten, aber nicht unmoeglich. */
+      for(let versuch = 0; versuch < 12; versuch++){
+        for(let i = kacheln.length - 1; i > 0; i--){
+          const j = Math.floor(Math.random() * (i + 1));
+          [kacheln[i], kacheln[j]] = [kacheln[j], kacheln[i]];
+        }
+        if(folge(kacheln) !== letzte) break;
+      }
+      kacheln.forEach(k => gitter.appendChild(k));
+      letzte = folge(kacheln);
+      try{ localStorage.setItem(SCHLUESSEL, letzte); }catch(e){}
+    };
+    mischen();
+    /* Eine App vom Startbildschirm wird selten neu geladen - der naechste
+       "Aufruf" ist dort die Rueckkehr aus dem Hintergrund. Nur nach einer
+       echten Pause und nur, wenn die Partner gerade nicht auf dem Schirm
+       stehen: unter den Augen des Gastes springt nichts. */
+    let weg = 0;
+    document.addEventListener("visibilitychange", () => {
+      if(document.hidden){ weg = Date.now(); return; }
+      if(!weg || Date.now() - weg < 60000) return;
+      weg = 0;
+      const r = gitter.getBoundingClientRect();
+      if(r.bottom > 0 && r.top < innerHeight) return;
+      mischen();
+    });
   }
 }
 /* Service Worker: macht die App startfaehig, wenn das WLAN in der Playa
