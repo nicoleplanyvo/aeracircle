@@ -361,6 +361,10 @@ eine package.json, die es hier bewusst nicht gibt).
 die App durch, nicht an deine Shell:
 
 ```bash
+# Zuerst in das Anwendungsverzeichnis - das SSH-Terminal in Plesk startet
+# eine Ebene hoeher, und dort gibt es kein server/.
+cd /var/www/vhosts/planyvo.com/thecircle.planyvo.com
+
 export PUBLIC_URL=https://thecircle.planyvo.com
 export LETTERMINT_TOKEN=lm_...          # und ggf. MAIL_REPLY_TO
 
