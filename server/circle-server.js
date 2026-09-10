@@ -1829,6 +1829,10 @@ function renderMail(inv, datei, extra) {
     planyvo_logo_url: assetUrl("planyvo-neg.png"),
     logo_url: assetUrl("logo-zentriert-neg.png"),
     partnerwand_url: assetUrl("partnerwand-bordeaux.jpg"),
+    /* Dieselbe Wand auf Navy - fuer die Mails der Welle 2, die auf Navy
+     * stehen. Ein JPG traegt seinen Grund mit; die Bordeaux-Datei saehe
+     * dort aus wie ein Kasten in einer anderen Farbe. */
+    partnerwand_navy_url: assetUrl("partnerwand-navy.jpg"),
     portrait_amiaz_url: assetUrl("portrait-amiaz.jpg"),
     portrait_ien_url: assetUrl("portrait-ien.jpg"),
     portrait_max_url: assetUrl("portrait-max.jpg")

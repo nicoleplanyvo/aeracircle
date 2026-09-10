@@ -23,6 +23,7 @@
     {{ticket_nr}}       Ticket-/Bieterkarten-Nummer (Spalte ticket_nr der Versandliste)
     {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
     {{logo_url}}        offizielles Logo -> /assets/logo-neg.png (PNG! Gmail/Outlook zeigen SVG nicht)
+    {{partnerwand_navy_url}}  Partnerwand negativ weiss auf Navy -> email/assets/partnerwand-navy.jpg (1000x300)
     {{partner_logo_url}}  NUR fuer Partner-Gaeste: Logo des einladenden Partners, negativ weiss
                         (Beispiel: email/assets/partner-deindach-neg.png). Leer -> Block ausblenden.
     {{partner_name}}      Name des einladenden Partners (Alt-Text)
@@ -153,6 +154,16 @@
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#aeb9d2;">
             Am Abend gen&uuml;gt dein Handy &mdash; und auch das nur,<br>wenn der Moment es verlangt. Der Rest ist Gespr&auml;ch.
           </div>
+        </td></tr>
+
+        <!-- Partner des Abends, negativ weiss auf Navy. Eigene Datei, nicht die
+             Bordeaux-Wand der Einladung: die haette hier einen bordeauxroten
+             Kasten mitten in die Navy-Karte gesetzt. Der einladende Partner
+             steht oben auf dem Ticket, hier steht die ganze Runde. -->
+        <tr><td align="center" style="padding:34px 40px 0 40px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#7a8db3;text-transform:uppercase;padding-bottom:16px;">Partner des Abends</div>
+          <img src="{{partnerwand_navy_url}}" width="440" alt="Partner: SMARTV&Eacute;LO, SKS, sion, Conrad, DEKRA, fuchsrohrbach, Merzenich, DeinDach, neuland.ai, jto"
+               style="display:block;width:100%;max-width:440px;height:auto;border:0;margin:0 auto;">
         </td></tr>
 
         <tr><td style="padding:32px 64px 0 64px;"><div style="border-top:1px solid #33507f;font-size:0;line-height:0;">&nbsp;</div></td></tr>
