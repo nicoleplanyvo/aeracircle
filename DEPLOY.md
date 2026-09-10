@@ -737,9 +737,6 @@ groß seinen Namen:
 | Rot | Code gehört zu keinem Gast |
 
 Darunter „Nächsten Gast scannen“ – so läuft es ohne Zurücktippen weiter.
-Wer seinen Code nicht findet, sagt seinen Namen: Im Monitor unter
-„Vorbereitung → Die App“ lässt sich der QR-Code auch groß anzeigen, und
-wer im Haus ist, steht in der Regie.
 
 Der eingecheckte Gast sieht es sofort in seiner App: Die Karte dreht sich
 auf „Eingecheckt“, und der erste Moment im Kreis ist gesetzt.
@@ -748,6 +745,42 @@ Den Encoder dafür liefert `server/qr.js` – eine einzelne gebündelte Datei
 (qrcode, MIT), kein `npm install`. Selbst gerechnet wäre der Code das
 falsche Risiko: Ob er stimmt, merkt man erst, wenn 130 Leute vor der Tür
 stehen.
+
+### 7.1a4 Der Reiter „Einlass“ im Monitor
+
+An der Tür steht jemand anderes als in der Regie. Deshalb hat der Einlass
+einen **eigenen Reiter**: `/monitor?key=…#einlass`. Dort gibt es genau
+zwei Dinge und keinen Knopf, der in alle Apps durchschlägt.
+
+**Der Scanner.** „Scanner öffnen“ macht die Kamera an und liest die Codes
+der Gäste am Stück – ohne dass sich zwischendurch eine Seite öffnet. Jeder
+Treffer färbt den Schirm groß: grün „Willkommen“ bzw. „War schon
+eingecheckt“, orange „Steht nicht auf der Gästeliste für heute“, rot
+„Unbekannt“. Derselbe Code zählt drei Sekunden lang nur einmal, damit ein
+Gast, der seinen Code stehen lässt, nicht zehnmal gemeldet wird.
+
+Browser mit eigenem Codeleser (Android) nehmen den; alle anderen – jedes
+iPhone – holen sich `/jsqr.js` von uns (jsQR, Apache-2.0, `server/jsqr.js`,
+131 KB, wird nur bei Bedarf geladen). **Kein CDN:** Am Abend darf der
+Einlass nicht daran hängen, ob ein fremder Server erreichbar ist.
+
+Wenn die Kamera nicht freigegeben ist oder gar nicht existiert, sagt es
+der Scanner und schließt sich – die Liste bleibt.
+
+**Die Liste zum Abhaken.** Alle Gäste des Abends, alphabetisch, mit Suche
+nach Name und Firma und drei Filtern (Noch nicht da · Schon da · Alle).
+Eine Zeile antippen setzt den Haken samt Uhrzeit; noch einmal antippen
+nimmt ihn nach Rückfrage zurück. Oben steht „X von Y im Haus“.
+
+Scanner, Liste und die Seite `/einlass` schreiben **dasselbe Feld**. Der
+Einlass kann also jederzeit wechseln: Kamera streikt → abhaken. Gast hat
+sein Handy nicht dabei → abhaken. Beides sieht die App des Gastes sofort.
+
+**Demo-Gäste zählen mit, aber nicht in der Zahl.** Sie stehen in der Liste
+mit dem Vermerk „Probe“, damit sich der ganze Weg – Code scannen, Name auf
+dem Schirm, Haken in der Liste – vorher üben lässt. In „X von Y im Haus“
+tauchen sie nicht auf. Vor dem Abend löschen: Reiter Vorbereitung → „Alle
+Demo-Gäste löschen“.
 
 ### 7.1b Welle 2: erst nur das Profil, dann alles
 

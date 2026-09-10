@@ -283,6 +283,10 @@
   .chip:hover{border-color:var(--blau);color:var(--ivory)}
   .chip[aria-pressed="true"]{background:var(--ivory);border-color:var(--ivory);color:var(--ink);font-weight:600}
   .fussnote{font-size:10px;line-height:1.6;color:var(--faint);margin-top:14px}
+  /* Erklaerender Halbsatz unter einem Knopf oder einer Zeile. Stand bisher
+     ohne eigene Regel und damit in voller Textgroesse - er las sich wie
+     der Inhalt, nicht wie die Fussnote, die er ist. */
+  .fnote{font-size:11px;line-height:1.6;color:var(--faint);margin-top:10px}
 
   /* Wellenwahl über dem Funnel */
   .wellenwahl{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0 12px}
@@ -317,6 +321,59 @@
     letter-spacing:.08em;color:var(--rosa);opacity:.75;margin-left:8px;white-space:nowrap}
   .ktable td.uv{color:var(--coral);font-weight:500}
   .ktable td.diet{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+  /* Einlass. Wird an der Tür im Stehen bedient, mit einer Hand, oft im
+     Halbdunkel: große Zeilen, große Trefferfläche, viel Kontrast. */
+  .ez-kopf{display:flex;gap:16px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+  .ez-zahl{font-family:var(--serif);font-size:clamp(30px,7vw,44px);line-height:1;color:var(--ivory)}
+  .ez-zahl small{font-family:var(--sans);font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--muted);margin-left:10px}
+  .ez-suche{width:100%;margin-top:16px;background:rgba(248,247,244,.04);border:1px solid var(--line-soft);
+    color:var(--ivory);font-family:var(--sans);font-size:16px;font-weight:300;padding:14px 16px}
+  .ez-suche::placeholder{color:var(--faint)}
+  .ez-suche:focus{outline:none;border-color:var(--blau)}
+  .ez-filter{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .ez-filter .export.an{border-color:var(--ivory);color:var(--ivory)}
+  .ez-liste{margin-top:14px;border-top:1px solid var(--line-soft)}
+  .ez-zeile{display:flex;gap:14px;align-items:center;width:100%;text-align:left;background:none;
+    border:0;border-bottom:1px solid var(--line-soft);color:var(--ivory);font-family:var(--sans);
+    font-weight:300;padding:13px 4px;min-height:64px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .ez-zeile:hover{background:rgba(248,247,244,.04)}
+  .ez-zeile:focus-visible{outline:2px solid var(--blau);outline-offset:-2px}
+  .ez-haken{flex:none;width:28px;height:28px;border:1px solid var(--line);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:15px;color:transparent}
+  .ez-zeile.da .ez-haken{border-color:#5fd08a;background:#5fd08a;color:var(--ink)}
+  .ez-name{flex:1 1 auto;min-width:0}
+  .ez-name b{display:block;font-weight:500;font-size:15px;line-height:1.3;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ez-name span{display:block;color:var(--faint);font-size:11.5px;line-height:1.45;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ez-zeile.da .ez-name b{color:var(--muted)}
+  .ez-zeit{flex:none;color:#5fd08a;font-size:12px;font-variant-numeric:tabular-nums;letter-spacing:.06em}
+  .ez-probe{flex:none;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
+    border:1px solid var(--line-soft);border-radius:999px;padding:3px 9px}
+  .ez-leer{color:var(--faint);padding:24px 0;font-size:13px}
+
+  /* Der Scanner liegt über allem: an der Tür zählt nur das Kamerabild. */
+  .scan{position:fixed;inset:0;z-index:400;background:#000;overflow:hidden}
+  .scan video{width:100%;height:100%;object-fit:cover;display:block}
+  .scan .rahmen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .scan .rahmen i{width:min(72vw,320px);aspect-ratio:1;border:2px solid rgba(255,255,255,.7);border-radius:20px;
+    box-shadow:0 0 0 100vmax rgba(0,0,0,.35)}
+  .scan .kopf{position:absolute;top:0;left:0;right:0;display:flex;gap:12px;align-items:center;
+    justify-content:space-between;padding:14px 16px;color:#fff;
+    background:linear-gradient(180deg,rgba(0,0,0,.7),transparent)}
+  .scan .kopf span{font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+  .scan .kopf button{background:rgba(255,255,255,.16);border:0;color:#fff;font-family:var(--sans);
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;padding:11px 20px;border-radius:999px;cursor:pointer}
+  .scan .fuss{position:absolute;left:0;right:0;bottom:0;padding:16px 18px 22px;color:#fff;text-align:center;
+    font-size:13px;line-height:1.5;background:linear-gradient(0deg,rgba(0,0,0,.72),transparent)}
+  .scan .antwort{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding:28px;gap:8px;color:#0e1c39;font-family:var(--sans)}
+  .scan .antwort.an{display:flex}
+  .scan .antwort b{font-size:clamp(28px,8vw,52px);line-height:1.05;font-weight:600}
+  .scan .antwort em{font-style:normal;font-size:clamp(15px,4.4vw,20px);opacity:.75}
+  .scan .antwort small{font-size:13px;opacity:.6}
 
   /* Ausgabe-Knöpfe */
   .exportzeile{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
@@ -375,6 +432,7 @@
   <nav class="tabs" id="tabs" aria-label="Bereiche">
     <button type="button" data-tab="einladung" class="an">Einladung</button>
     <button type="button" data-tab="vorbereitung">Vorbereitung</button>
+    <button type="button" data-tab="einlass">Einlass</button>
     <button type="button" data-tab="regie">Regie</button>
     <button type="button" data-tab="danach">Danach</button>
   </nav>
@@ -776,6 +834,26 @@
     </div>
     <div id="werkListe" style="display:none;margin-top:8px"></div>
     </details>
+  </div>
+
+  <!-- 6e · EINLASS. Eigener Reiter, weil an der Tür jemand anderes steht
+       als in der Regie: hier gibt es nur den Scanner und die Liste zum
+       Abhaken - keinen Knopf, der in alle Apps durchschlägt. -->
+  <div class="panel" id="einlasspanel">
+    <h2>Einlass</h2>
+    <div class="ez-kopf">
+      <div class="ez-zahl"><span id="ezDa">–</span><small id="ezVon">im Haus</small></div>
+      <button class="export gross" id="ezScan" type="button">Scanner öffnen</button>
+    </div>
+    <p class="fnote">Jeder Gast hat seinen Code in der Mail und in der App. Scannen genügt. Wer keinen dabei hat, wird hier von Hand abgehakt – beides zählt gleich, und beides sieht die App sofort.</p>
+    <input class="ez-suche" id="ezSuche" type="search" placeholder="Name oder Firma suchen …" autocomplete="off" spellcheck="false">
+    <div class="ez-filter" id="ezFilter">
+      <button type="button" class="export an" data-f="offen">Noch nicht da</button>
+      <button type="button" class="export" data-f="da">Schon da</button>
+      <button type="button" class="export" data-f="alle">Alle</button>
+    </div>
+    <div class="ez-liste" id="ezListe"></div>
+    <p class="fnote" id="ezNote"></p>
   </div>
 
   <!-- 6f · Nach dem Abend. Der eine Sendekanal (Push und Mail), die News,
@@ -2463,15 +2541,248 @@ function regieZeichnen(){
 }
 setInterval(regieZeichnen, 1000);
 
+/* ---------- Einlass: Abhakliste und Scanner ----------
+   Eine Wahrheit fuer drei Wege: der Gast scannt seinen eigenen Code, jemand
+   scannt ihn hier, oder jemand hakt ihn von Hand ab. Alle drei schreiben
+   dasselbe Feld, deshalb kann der Einlass jederzeit zwischen ihnen wechseln
+   - etwa wenn eine Kamera streikt oder ein Gast sein Handy nicht findet. */
+const EZ = { gaeste: [], filter: "offen", suche: "", gesamt: 0, da: 0, probe: 0, holt: false };
+let ezTakt = null;
+
+function ezSichtbar(){ const p = $("#einlasspanel"); return p && !p.classList.contains("tabweg"); }
+
+async function ezHolen(){
+  if(EZ.holt || !KEY) return;
+  EZ.holt = true;
+  const d = await adminGet("/api/admin/einlass");
+  EZ.holt = false;
+  if(!d || !d.ok) return;
+  EZ.gaeste = d.gaeste || []; EZ.gesamt = d.gesamt || 0; EZ.da = d.da || 0; EZ.probe = d.probe || 0;
+  ezZeichnen();
+}
+
+const ezUhr = t => { const d = new Date(t); return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0"); };
+
+function ezZeichnen(){
+  txt($("#ezDa"), String(EZ.da));
+  txt($("#ezVon"), "von " + EZ.gesamt + " im Haus");
+  const suche = EZ.suche.trim().toLowerCase();
+  const passt = g => {
+    if(EZ.filter === "da" && !g.da) return false;
+    if(EZ.filter === "offen" && g.da) return false;
+    if(!suche) return true;
+    return (g.name + " " + g.firma + " " + g.ticketNr + " " + g.partner).toLowerCase().includes(suche);
+  };
+  const liste = EZ.gaeste.filter(passt);
+  const ziel = $("#ezListe");
+  ziel.textContent = "";
+  if(!liste.length){
+    const p = document.createElement("p"); p.className = "ez-leer";
+    p.textContent = EZ.gaeste.length
+      ? (suche ? "Niemand gefunden. Anders schreiben oder auf \u201eAlle\u201c stellen."
+               : (EZ.filter === "offen" ? "Alle sind da." : "Noch niemand da."))
+      : "Noch keine G\u00e4steliste \u2013 oder der Schl\u00fcssel fehlt.";
+    ziel.appendChild(p); txt($("#ezNote"), ""); return;
+  }
+  const frag = document.createDocumentFragment();
+  for(const g of liste){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "ez-zeile" + (g.da ? " da" : "");
+    b.dataset.gid = g.gid;
+    b.setAttribute("aria-pressed", g.da ? "true" : "false");
+    const haken = document.createElement("span"); haken.className = "ez-haken"; haken.textContent = "\u2713";
+    const name = document.createElement("span"); name.className = "ez-name";
+    const nb = document.createElement("b"); nb.textContent = g.name || "(ohne Namen)";
+    const ns = document.createElement("span");
+    ns.textContent = [g.firma, g.rolle, g.ticketNr].filter(Boolean).join(" \u00b7 ");
+    name.appendChild(nb); name.appendChild(ns);
+    b.appendChild(haken); b.appendChild(name);
+    if(g.demo){ const p = document.createElement("span"); p.className = "ez-probe"; p.textContent = "Probe"; b.appendChild(p); }
+    const zeit = document.createElement("span"); zeit.className = "ez-zeit";
+    zeit.textContent = g.da ? ezUhr(g.da) : "";
+    b.appendChild(zeit);
+    frag.appendChild(b);
+  }
+  ziel.appendChild(frag);
+  txt($("#ezNote"), liste.length + " von " + EZ.gaeste.length + " angezeigt \u00b7 zum Abhaken auf die Zeile tippen, noch einmal nimmt es zur\u00fcck."
+      + (EZ.probe ? "  \u2014  " + EZ.probe + " Probe-G\u00e4ste sind zum \u00dcben dabei und z\u00e4hlen nicht mit. Vor dem Abend l\u00f6schen (Reiter Vorbereitung)." : ""));
+}
+
+/* Erst umschalten, dann melden: an der Tuer soll der Haken sofort stehen.
+   Antwortet der Server anders, zieht die naechste Abfrage es gerade. */
+async function ezSchalten(gidWert, soll){
+  const g = EZ.gaeste.find(x => x.gid === gidWert);
+  if(!g) return null;
+  const vorher = g.da;
+  g.da = soll ? Date.now() : 0;
+  EZ.da += soll ? 1 : -1;
+  ezZeichnen();
+  const d = await adminPost("/api/admin/einlass", { gid: gidWert, da: soll });
+  if(!d || !d.ok){ g.da = vorher; ezHolen(); return d; }
+  g.da = (d.gast && d.gast.da) || 0;
+  if(typeof d.da === "number") EZ.da = d.da;
+  if(typeof d.gesamt === "number") EZ.gesamt = d.gesamt;
+  ezZeichnen();
+  return d;
+}
+
+$("#ezListe").addEventListener("click", e => {
+  const zeile = e.target.closest(".ez-zeile"); if(!zeile) return;
+  const g = EZ.gaeste.find(x => x.gid === zeile.dataset.gid); if(!g) return;
+  if(g.da && !confirm((g.name || "Dieser Gast") + " steht als da. Zur\u00fccknehmen?")) return;
+  ezSchalten(g.gid, !g.da);
+});
+$("#ezSuche").addEventListener("input", () => { EZ.suche = $("#ezSuche").value; ezZeichnen(); });
+$$("#ezFilter button").forEach(b => b.addEventListener("click", () => {
+  EZ.filter = b.dataset.f;
+  $$("#ezFilter button").forEach(x => x.classList.toggle("an", x === b));
+  ezZeichnen();
+}));
+
+/* ---------- Der Scanner ----------
+   Zwei Wege, dasselbe Ergebnis: Browser mit eigenem Codeleser (Android)
+   nehmen den, alle anderen (jedes iPhone) holen sich jsQR von uns. Die
+   Kamera laeuft nur, solange der Scanner offen ist. */
+let scanStop = null;
+async function scannerOeffnen(){
+  if(!KEY) return alert("Ohne Schl\u00fcssel geht der Einlass nicht.");
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    return alert("Dieser Browser gibt keine Kamera frei. Der Gast kann seinen Code auch selbst mit der Handykamera scannen.");
+
+  const feld = document.createElement("div"); feld.className = "scan";
+  feld.innerHTML =
+    '<video playsinline muted autoplay></video>' +
+    '<div class="rahmen"><i></i></div>' +
+    '<div class="kopf"><span id="scanZahl"></span><button type="button" id="scanZu">Schlie\u00dfen</button></div>' +
+    '<div class="fuss" id="scanFuss">Code des Gastes in den Rahmen halten.</div>' +
+    '<div class="antwort" id="scanAntwort"><b></b><em></em><small></small></div>';
+  document.body.appendChild(feld);
+  const video = feld.querySelector("video");
+  const antwort = feld.querySelector("#scanAntwort");
+  txt(feld.querySelector("#scanZahl"), EZ.da + " von " + EZ.gesamt + " im Haus");
+
+  let strom = null, laeuft = true, zuletzt = "", sperre = 0;
+  const schliessen = () => {
+    laeuft = false; scanStop = null;
+    if(strom) strom.getTracks().forEach(t => t.stop());
+    feld.remove();
+    ezHolen();
+  };
+  scanStop = schliessen;
+  feld.querySelector("#scanZu").addEventListener("click", schliessen);
+
+  const zeigen = (farbe, gross, klein, fein) => {
+    antwort.style.background = farbe;
+    txt(antwort.querySelector("b"), gross);
+    txt(antwort.querySelector("em"), klein || "");
+    txt(antwort.querySelector("small"), fein || "");
+    antwort.classList.add("an");
+    setTimeout(() => antwort.classList.remove("an"), 1600);
+  };
+
+  async function melden(text){
+    /* Im Code steht die Einlass-Adresse; uns interessiert nur der Token. */
+    let t = text;
+    const m = /[?&]g=([^&\s]+)/.exec(text);
+    if(m) t = decodeURIComponent(m[1]);
+    const d = await adminPost("/api/admin/einlass", { t: t, da: true });
+    if(!d) return zeigen("#ffd4d4", "Kein Netz", "Noch einmal versuchen.", "");
+    if(!d.ok && d.grund === "unbekannt")
+      return zeigen("#ffd4d4", "Unbekannt", "Dieser Code geh\u00f6rt zu keinem Gast.", "In der Liste nachsehen.");
+    if(!d.ok)
+      return zeigen("#ffe9c9", (d.gast && d.gast.name) || "Nicht heute", "Steht nicht auf der G\u00e4steliste f\u00fcr heute.", "Status: " + (d.status || "?"));
+    const g = d.gast || {};
+    if(typeof d.da === "number"){ EZ.da = d.da; EZ.gesamt = d.gesamt || EZ.gesamt; }
+    txt(feld.querySelector("#scanZahl"), EZ.da + " von " + EZ.gesamt + " im Haus");
+    try{ navigator.vibrate && navigator.vibrate(d.schon ? [60,60,60] : 90); }catch(e){}
+    zeigen("#d8f5dd", g.name || "Willkommen",
+           d.schon ? "War schon eingecheckt." : "Willkommen.",
+           [g.firma, g.ticketNr].filter(Boolean).join(" \u00b7 "));
+  }
+
+  const treffer = text => {
+    const jetzt = Date.now();
+    /* Derselbe Code bleibt im Bild, solange der Gast ihn haelt - erst nach
+       drei Sekunden zaehlt er wieder. Ein anderer Code sofort. */
+    if(text === zuletzt && jetzt < sperre) return;
+    zuletzt = text; sperre = jetzt + 3000;
+    melden(text);
+  };
+
+  try{
+    strom = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+    video.srcObject = strom;
+    await video.play();
+  }catch(e){
+    schliessen();
+    return alert("Kamera nicht freigegeben. In den Einstellungen des Browsers erlauben \u2013 oder die G\u00e4ste in der Liste von Hand abhaken.");
+  }
+
+  let leser = null;
+  if(window.BarcodeDetector){
+    try{
+      const koennen = await BarcodeDetector.getSupportedFormats();
+      if(koennen.includes("qr_code")) leser = new BarcodeDetector({ formats: ["qr_code"] });
+    }catch(e){}
+  }
+  if(leser){
+    const runde = async () => {
+      if(!laeuft) return;
+      try{ const c = await leser.detect(video); if(c && c.length) treffer(c[0].rawValue); }catch(e){}
+      if(laeuft) requestAnimationFrame(runde);
+    };
+    requestAnimationFrame(runde);
+    return;
+  }
+  /* Kein eigener Leser: jsQR nachladen. Kommt von uns, nicht von fremd. */
+  txt(feld.querySelector("#scanFuss"), "Codeleser wird geladen \u2026");
+  if(!window.jsQR){
+    await new Promise((fertig, schief) => {
+      const s = document.createElement("script");
+      s.src = "/jsqr.js"; s.onload = fertig; s.onerror = schief;
+      document.head.appendChild(s);
+    }).catch(() => {});
+  }
+  if(!window.jsQR){
+    schliessen();
+    return alert("Der Codeleser l\u00e4sst sich nicht laden. Die G\u00e4ste k\u00f6nnen ihren Code selbst mit der Handykamera scannen \u2013 oder du hakst sie in der Liste ab.");
+  }
+  txt(feld.querySelector("#scanFuss"), "Code des Gastes in den Rahmen halten.");
+  const flaeche = document.createElement("canvas");
+  const stift = flaeche.getContext("2d", { willReadFrequently: true });
+  const runde = () => {
+    if(!laeuft) return;
+    const b = video.videoWidth, hh = video.videoHeight;
+    if(b && hh){
+      /* Nur die Mitte lesen: weniger Pixel, schnellere Runde, und der
+         Rahmen auf dem Bild sagt dem Gast ohnehin, wohin er halten soll. */
+      const kante = Math.floor(Math.min(b, hh) * 0.75);
+      flaeche.width = kante; flaeche.height = kante;
+      stift.drawImage(video, (b - kante) / 2, (hh - kante) / 2, kante, kante, 0, 0, kante, kante);
+      try{
+        const bild = stift.getImageData(0, 0, kante, kante);
+        const c = window.jsQR(bild.data, kante, kante, { inversionAttempts: "dontInvert" });
+        if(c && c.data) treffer(c.data);
+      }catch(e){}
+    }
+    setTimeout(() => requestAnimationFrame(runde), 120);
+  };
+  requestAnimationFrame(runde);
+}
+$("#ezScan").addEventListener("click", scannerOeffnen);
+addEventListener("keydown", e => { if(e.key === "Escape" && scanStop) scanStop(); });
+
 /* ---------- Reiter ----------
    Einladung: alles bis zur Zusage. Der Abend: Zeiten, App, Buehne, danach.
    Merkt sich den zuletzt offenen Reiter; #abend im Link oeffnet ihn direkt
    (fuer Mathis am 16.09.: /monitor?key=…#abend). */
-const TAB_VON = { apppanel: "vorbereitung", tischpanel: "vorbereitung", zeitpanel: "vorbereitung", regiepanel: "regie", nachpanel: "danach" };
+const TAB_VON = { apppanel: "vorbereitung", tischpanel: "vorbereitung", zeitpanel: "vorbereitung", einlasspanel: "einlass", regiepanel: "regie", nachpanel: "danach" };
 const TAB_TEXTE = {
   einladung:    { label: "Einladungsmanagement \u00b7 Lettermint & Stripe", titel: "Einladungs\u200a-\u200aMonitor", sub: $("#sub").textContent },
   vorbereitung: { label: "Die Tage davor", titel: "Vorbereitung",
                   sub: "Wer die App schon hat und wer noch fehlt, die Demo f\u00fcr das Team, Jonans Tischordnung und die app-freien Fenster des Abends." },
+  einlass:      { label: "Am 16.09. \u00b7 an der T\u00fcr", titel: "Einlass",
+                  sub: "Wer ist schon da? Code scannen oder von Hand abhaken \u2013 beides gilt sofort, auch f\u00fcr die App des Gastes." },
   regie:        { label: "Am 16.09. \u00b7 Mathis und Nicole", titel: "Regie",
                   sub: "Der Abend auf einem Bildschirm: was gerade l\u00e4uft, Tischwechsel, Ansagen, Handschalter. Jeder Knopf gilt sofort f\u00fcr alle ge\u00f6ffneten Apps." },
   danach:       { label: "Nach dem 16.09.", titel: "Danach",
@@ -2484,8 +2795,16 @@ function tabZeigen(name){
     el.classList.toggle("tabweg", (TAB_VON[el.id] || "einladung") !== t);
   });
   $$("#tabs button").forEach(b => b.classList.toggle("an", b.dataset.tab === t));
+  /* Fuenf Reiter passen auf einem Handy nicht nebeneinander: den offenen
+     ins Bild holen, sonst steht man auf einem Reiter, den man nicht sieht. */
+  const offen = document.querySelector("#tabs button.an");
+  if(offen && offen.scrollIntoView) try{ offen.scrollIntoView({ inline: "center", block: "nearest" }); }catch(e){}
   txt($("#tabLabel"), TAB_TEXTE[t].label); txt($("#tabTitel"), TAB_TEXTE[t].titel); txt($("#sub"), TAB_TEXTE[t].sub);
   try{ localStorage.setItem("circle.mtab", t); }catch(e){}
+  /* Der Einlass fragt nur, solange sein Reiter offen ist - sonst laeuft am
+     Abend auf jedem Handy eine Abfrage mit, die niemand ansieht. */
+  clearInterval(ezTakt); ezTakt = null;
+  if(t === "einlass" && KEY){ ezHolen(); ezTakt = setInterval(() => { if(ezSichtbar()) ezHolen(); }, 5000); }
   if(location.hash !== "#" + t) history.replaceState(null, "", location.pathname + location.search + "#" + t);
   window.scrollTo(0, 0);
 }

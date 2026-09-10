@@ -724,7 +724,7 @@ const TERMIN_ICS = [
   "DTEND;TZID=Europe/Berlin:20260916T230000",
   "SUMMARY:THE CIRCLE No1 - connecting generations",
   "LOCATION:" + icsText("Playa Cologne, Junkersdorfer Str. 1, 50933 Köln"),
-  "DESCRIPTION:" + icsText("Ein Abend im ausgewählten Kreis. Ab 18:00 Uhr."),
+  "DESCRIPTION:" + icsText("Ein Abend im ausgewählten Kreis. Beginn 18:00 Uhr."),
   "URL:" + WEBSITE_URL,
   "END:VEVENT",
   "END:VCALENDAR"
@@ -834,6 +834,14 @@ function appLuecke(runde) {
 const RUNDE = process.env.RUNDE || "no1";
 const rundeVon = inv => inv.runde || "no1";
 const gleicheRunde = (a, b) => rundeVon(a) === rundeVon(b);
+/* Wer an der Tuer erwartet wird. Einlass-Seite, Abhakliste und Scanner
+ * muessen sich hier einig sein - sonst hakt jemand einen Gast ab, den die
+ * Liste gar nicht kennt.
+ * Demo-Gaeste zaehlen mit: sonst liesse sich der ganze Weg - Code scannen,
+ * Name auf dem Schirm, Haken in der Liste - vor dem Abend kein einziges Mal
+ * proben. Sie stehen in der Liste als Probe gekennzeichnet und zaehlen nicht
+ * in "X von Y im Haus". */
+const heuteErwartet = inv => imKreis(inv) && (rundeVon(inv) === RUNDE || inv.demo);
 
 /* Profil-Anteil, der zum Gast dazukommt, wenn er die App registriert.
  * Vorher existiert er nicht - "noch nicht registriert" ist ein gueltiger,
@@ -1914,7 +1922,7 @@ function bestaetigungAbschicken(inv) {
     "",
     "du bist im Kreis" + (inv.ticketNr ? " – " + inv.ticketNr : "") + ".",
     "",
-    "16. September 2026, ab 18:00 Uhr",
+    "16. September 2026, um 18:00 Uhr",
     "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
     inv.typ === "ticket" ? "Beitrag: " + (preisVon(inv) / 100).toFixed(2).replace(".", ",") + " Euro, bezahlt" : null,
     "",
@@ -1950,7 +1958,7 @@ function textFassung(inv, welle) {
     (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
     "",
     "THE CIRCLE No1 - connecting generations",
-    "16. September 2026, ab 18:00 Uhr, Playa in der Kölner Südstadt",
+    "16. September 2026, um 18:00 Uhr, Playa in der Kölner Südstadt",
     "",
     welle === 0 ? "Alle Informationen: " + WEBSITE_URL
       : "Dein persönlicher Link: " + (welle === 2 ? appLink(inv.token) : inviteLink(inv.token)),
@@ -1978,7 +1986,7 @@ function whatsappText(inv) {
     "Ein Abend im ausgewählten Kreis: Gäste über Generationen hinweg, " +
       "ein Menü in drei Gängen – und ein Werk von Max Leinfelder, das vor deinen Augen entsteht.",
     "",
-    "16. September 2026, ab 18:00 Uhr",
+    "16. September 2026, um 18:00 Uhr",
     "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
     partnerZeile,
     "",
@@ -2787,7 +2795,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
     if (!t) return res.end(seite("#f8f7f4", "Bereit", "Code des Gastes scannen.", ""));
     if (!inv) return res.end(seite("#ffd4d4", "Unbekannt", "Dieser Code gehört zu keinem Gast.", "Bitte in der Gästeliste nachsehen."));
-    if (!imKreis(inv)) return res.end(seite("#ffe9c9", inv.name, "Steht nicht auf der Gästeliste für heute.", "Status: " + inv.status));
+    if (!heuteErwartet(inv)) return res.end(seite("#ffe9c9", inv.name, "Steht nicht auf der Gästeliste für heute.", "Status: " + inv.status));
     const schon = !!inv.da;
     if (!schon) { inv.da = Date.now(); logEvent("da", inv.name, inv.pool); dirty = true; revHoch(); broadcast(); }
     return res.end(seite("#d8f5dd", inv.name,
@@ -4594,6 +4602,52 @@ const server = http.createServer((req, res) => {
      * den Lettermint-Webhooks; Klicks erkennt der Server auch selbst, sobald
      * ein Gast seine Landing Page oeffnet. Der Token bleibt draussen - die
      * Links stehen in der Versandliste, hier geht es nur um den Status. */
+    /* ---- Einlass: die Liste zum Abhaken und der Scanner ----
+     * Beide schreiben in dasselbe Feld wie der QR-Code am Einlass (inv.da).
+     * Wer seinen Code scannt, steht sofort auch in der Liste als da - und
+     * wer von Hand abgehakt wird, gilt der App gegenueber als eingecheckt.
+     * Eine Wahrheit, drei Wege dorthin. */
+    if (req.method === "GET" && url === "/api/admin/einlass") {
+      const gaeste = Object.values(state.invites).filter(heuteErwartet)
+        .map(inv => ({
+          gid: gid(inv), name: inv.name || "", firma: inv.firma || "",
+          rolle: inv.rolle || "", ticketNr: inv.ticketNr || "",
+          typ: inv.typ, pool: inv.pool || "", partner: inv.partner || "",
+          demo: !!inv.demo, da: inv.da || 0
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+      const echt = gaeste.filter(g => !g.demo);
+      return json(res, 200, { ok: true, jetzt: Date.now(), gesamt: echt.length,
+                              da: echt.filter(g => g.da).length,
+                              probe: gaeste.length - echt.length, gaeste });
+    }
+    /* Abhaken - von Hand in der Liste oder durch einen gescannten Code.
+     * Die Liste kennt nur die oeffentliche gid und schickt die; der Scanner
+     * liest, was im Code steht (der Token aus /einlass?g=…) und schickt ihn
+     * als t. Ein unbekannter Code und ein Gast, der heute nicht erwartet
+     * wird, sind KEIN Fehler, sondern eine Antwort: der Scanner faerbt
+     * danach rot oder orange, genau wie die Einlass-Seite. */
+    if (req.method === "POST" && url === "/api/admin/einlass") {
+      return readBody(req, res, body => {
+        const inv = body.gid ? findByGid(body.gid) : findInvite(String(body.t || "").trim());
+        if (!inv) return json(res, 200, { ok: false, grund: "unbekannt" });
+        const g = () => ({ gid: gid(inv), name: inv.name || "", firma: inv.firma || "",
+                           rolle: inv.rolle || "", ticketNr: inv.ticketNr || "",
+                           demo: !!inv.demo, da: inv.da || 0 });
+        if (!heuteErwartet(inv))
+          return json(res, 200, { ok: false, grund: "nicht-heute", status: inv.status, gast: g() });
+        const soll = body.da !== false;
+        const schon = !!inv.da;
+        if (soll !== schon) {
+          inv.da = soll ? Date.now() : 0;
+          logEvent(soll ? "da" : "da zurückgenommen", inv.name, inv.pool);
+          dirty = true; revHoch(); broadcast();
+        }
+        const echt = Object.values(state.invites).filter(i => heuteErwartet(i) && !i.demo);
+        return json(res, 200, { ok: true, schon: soll && schon, gast: g(),
+                                gesamt: echt.length, da: echt.filter(i => i.da).length });
+      });
+    }
     if (url === "/api/admin/gaeste") {
       /* "Versendet" speist sich aus zwei Quellen: dem sent-Webhook von
        * Lettermint UND dem Versand-Gedaechtnis der CLI (nur LESEND - die
@@ -4769,6 +4823,15 @@ const server = http.createServer((req, res) => {
   if (req.method === "GET" && url === "/sw.js") {
     return serveFile(res, "sw.js", "text/javascript; charset=utf-8",
                      { "Cache-Control": "no-store" });
+  }
+  /* Der Codeleser fuer den Scanner im Monitor. Liegt bei uns, nicht bei
+   * einem CDN: am Abend darf der Einlass nicht daran haengen, ob ein
+   * Fremdserver erreichbar ist. Wird nur geholt, wenn der Browser keinen
+   * eigenen mitbringt - deshalb eine eigene Datei und kein Teil des
+   * Monitors. Lange Cache-Zeit: die Datei aendert sich nie. */
+  if (req.method === "GET" && url === "/jsqr.js") {
+    return serveFile(res, "server/jsqr.js", "text/javascript; charset=utf-8",
+                     { "Cache-Control": "public, max-age=31536000, immutable" });
   }
   if (req.method === "GET" && url === "/termin.ics") {
     res.writeHead(200, {
