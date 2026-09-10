@@ -691,22 +691,29 @@ Ansagen) zum Nachlesen, auch wenn das Banner längst weg ist. Eine neue
 Anfrage kommt live an: Toast, Vibration, Zahl an der Glocke – kein
 Neuladen nötig.
 
-### 7.1a2 Was die App am Abend NICHT tut (Stand 10.09.)
+### 7.1a2 Stand des Abends (10.09., nach Desis Durchsicht)
 
-Nach Desis Durchsicht ist die App bewusst schlanker:
-
-- **Kein Live-Bereich.** Der Start-up-Pitch ist abgesagt, die Auktion
-  findet nur im Raum statt (als Blind-Auktion). Der Reiter „Live“ ist aus,
-  die Rückmeldung an das Start-up und der Auktions-Tipp sind nicht
-  erreichbar. Zurückholen: in `index.html` `const LIVE_AN = false;` auf
-  `true` setzen – Reiter und Bereich sind sofort wieder da.
-- **Kein Banner beim Tischwechsel.** Der Plan aktualisiert sich still, wer
-  nachsehen will, tippt auf „Tisch“. Der Wechsel steht auch nicht in der
-  Glocke. Ansagen aus der Regie erscheinen weiter.
-- **Kein Ring mit Aufgaben, keine Zahlenreihe, keine Skyline.** Ohne Pitch
-  und ohne Auktion in der App blieben zu wenige Momente übrig.
-- Die **Auktion auf der Wand** und die Steuerung im Monitor bleiben – der
-  Raum bekommt sie, die App nicht.
+- **Das vorgestellte Start-up ist planyvo.** AV8 hat abgesagt. Der Punkt im
+  Ablauf heißt „planyvo stellt sich vor“, die drei Fragen an den Raum
+  (investieren, Sterne, Interesse) bleiben. Die Kennung im Code ist weiter
+  `av8` – daran hängen die gespeicherten Momente.
+- **Der Ring mit den fünf Momenten ist wieder da**, ebenso der Reiter
+  „Live“. Zurücknehmen ließe sich das mit `const LIVE_AN = false;` in
+  `index.html`.
+- **Die Auktion läuft nur im Raum** (Blind-Auktion). Wand und Monitor
+  behalten sie, die App hat keinen Auktions-Tipp.
+- **Kein Banner beim Tischwechsel.** Der Plan aktualisiert sich still, der
+  Wechsel steht auch nicht in der Glocke. Ansagen erscheinen weiter.
+- **Zwei Gänge mit Tischwechsel** (Vorspeise, Hauptspeise). Das Dessert
+  wird ohne Wechsel serviert. Die Tischplan-CSV hat nur noch `gang1,gang2`;
+  eine ältere Spalte `gang3` wird gelesen und ignoriert.
+- **Der Abend ist offen.** Nirgends steht mehr „bis 23:00 Uhr“, sondern
+  „ab 18:00 Uhr“; in „Gut zu wissen“ heißt es „Beginn 18:00 Uhr · Ende
+  offen“. Der Kalendereintrag (ICS) bleibt bei 18–23 Uhr, weil ein Termin
+  ohne Ende in vielen Kalendern gar nicht erst angelegt wird.
+- **Foto und Video:** Wer in den Kreis eintritt, hakt vorher ab, dass
+  Aufnahmen entstehen und verwendet werden dürfen. Ohne Haken kein
+  Eintritt; der Zeitpunkt wird am Gast gespeichert.
 
 ### 7.1b Welle 2: erst nur das Profil, dann alles
 

@@ -593,7 +593,7 @@
       <span class="fussnote" style="margin:0" id="demoNote"></span>
     </div>
     <div class="exportzeile" style="margin-top:8px">
-      <button class="export" id="zaehlerNull" type="button">AV8-Zähler auf null</button>
+      <button class="export" id="zaehlerNull" type="button">Start-up-Zähler auf null</button>
       <span class="fussnote" style="margin:0">Nach einer Probe: Sterne, Investieren, Interesse und Applaus zurück auf null. Tipps, Gebote und Verbindungen bleiben.</span>
     </div>
     <div id="demoGaeste" style="margin-top:8px"></div>
@@ -603,8 +603,8 @@
   <div class="panel" id="tischpanel">
     <span class="label">Vor dem Abend · von Jonan</span>
     <h2>Tischordnung</h2>
-    <p class="fnote">CSV mit Kopfzeile <code>email,gang1,gang2,gang3</code> (oder <code>name</code> statt <code>email</code>). Erst Probelauf, dann Übernehmen. Tischnamen darunter, eine je Zeile: <code>1;Dom</code>.</p>
-    <textarea id="planCsv" class="plancsv" rows="5" placeholder="email,gang1,gang2,gang3&#10;anna@beispiel.de,1,3,2"></textarea>
+    <p class="fnote">CSV mit Kopfzeile <code>email,gang1,gang2</code> (oder <code>name</code> statt <code>email</code>). Erst Probelauf, dann Übernehmen. Tischnamen darunter, eine je Zeile: <code>1;Dom</code>.</p>
+    <textarea id="planCsv" class="plancsv" rows="5" placeholder="email,gang1,gang2&#10;anna@beispiel.de,1,3"></textarea>
     <textarea id="planNamen" class="plancsv" rows="2" placeholder="1;Dom&#10;2;Rhein"></textarea>
     <p class="fnote" id="ohnePlatz" style="color:var(--coral)"></p>
     <div class="mailtools">
@@ -722,7 +722,7 @@
     <div class="exportzeile" id="wandModi">
       <button class="export" data-modus="auto" type="button">Automatik</button>
       <button class="export" data-modus="ruhe" type="button">Ruhe</button>
-      <button class="export" data-modus="av8" type="button">AV8</button>
+      <button class="export" data-modus="av8" type="button">Start-up</button>
       <button class="export" data-modus="auktion" type="button">Auktion</button>
       <button class="export" data-modus="kreis" type="button">Der Kreis</button>
       <button class="export" data-modus="aus" type="button">Schwarz</button>
@@ -1789,7 +1789,7 @@ try{
 
 /* ---------- Zaehler nach einer Probe ---------- */
 $("#zaehlerNull").addEventListener("click", async () => {
-  if(!confirm("AV8-Zähler (Sterne, Investieren, Interesse, Applaus) auf null? Tipps und Gebote bleiben.")) return;
+  if(!confirm("Start-up-Zähler (Sterne, Investieren, Interesse, Applaus) auf null? Tipps und Gebote bleiben.")) return;
   const d = await adminPost("/api/admin/zaehler-null", {}); if(d && d.ok) laden();
 });
 

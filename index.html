@@ -282,6 +282,10 @@
   .interesse{display:flex;flex-direction:column;gap:9px;margin-top:14px}
   .ibtn{text-align:left;line-height:1.4}
   .ibtn.an{background:var(--coral);border-color:var(--coral);color:var(--ink)}
+  #gangMenue .dishes li{color:var(--ivory);border-bottom:1px solid var(--line-soft);padding:9px 0}
+  #gangMenue .dishes li:last-child{border-bottom:0}
+  #gangMenue .dishes li em{color:var(--faint)}
+  #gangMenue h3{font-family:var(--sans);font-weight:500;font-size:19px;line-height:1.2;margin-bottom:2px}
   .dishes{list-style:none;margin:10px 0 0;padding:0}
   .dishes li{font-size:13.5px;line-height:1.55;padding:3px 0;color:var(--paper-ink)}
   .dishes li em{font-style:normal;font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
@@ -821,7 +825,7 @@
   /* Stufe "profil" (vor dem Abend, bis das Team freischaltet): nur das
      eigene Profil. Keine Leiste, kein Ring, kein Programm - was noch nicht
      da ist, muss auch nicht erklaert werden. */
-  body[data-stufe="profil"] nav, body[data-stufe="profil"] #glocke{display:none}
+  body[data-stufe="profil"] nav, body[data-stufe="profil"] #glocke, body[data-stufe="profil"] #ringMini{display:none}
   /* "Live" ruht, solange es dort nichts zu tun gibt (kein Start-up-Pitch,
      Auktion nur im Raum). Nach dem Abend traegt derselbe Knopf die News -
      dann ist er wieder da. */
@@ -861,7 +865,7 @@
 
   /* ---------- Registrierung ---------- */
   #registrierung{
-    position:fixed;inset:0;z-index:108;overflow:auto;
+    position:fixed;inset:0;z-index:122;overflow:auto;
     background:linear-gradient(180deg,var(--smoke-hi),var(--ink) 60%);
     padding:calc(22px + env(safe-area-inset-top)) 26px calc(30px + env(safe-area-inset-bottom));
   }
@@ -887,6 +891,17 @@
     font-family:var(--sans);font-size:16px;padding:9px 0;
   }
   .rg-feld input:focus{outline:none;border-bottom-color:var(--ivory)}
+  .rg-haken{display:flex;gap:12px;align-items:flex-start;margin-top:18px;cursor:pointer}
+  .rg-haken input{
+    -webkit-appearance:none;appearance:none;flex:none;width:22px;height:22px;margin:1px 0 0;
+    border:1px solid var(--line);background:none;cursor:pointer;position:relative;
+  }
+  .rg-haken input:checked{border-color:var(--coral);background:var(--coral)}
+  .rg-haken input:checked::after{
+    content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+    border:solid var(--ink);border-width:0 2px 2px 0;transform:rotate(45deg);
+  }
+  .rg-haken span{font-size:12.5px;line-height:1.5;color:var(--muted)}
   .rg-fest{color:var(--ivory);font-weight:500}
   .rg-bild{display:block;text-align:center;cursor:pointer;margin:10px 0 6px}
   .rg-bild .btn{display:inline-block}
@@ -991,6 +1006,13 @@
   }
   .notes textarea:focus{outline:none;border-color:var(--line)}
   .notes textarea::placeholder{color:var(--faint)}
+  /* Was beim Teilen wirklich herausgeht - wortwoertlich, damit niemand
+     raten muss. */
+  .teilenvorschau{
+    margin:12px 0 0;padding:14px 16px;border-left:2px solid var(--coral);
+    background:var(--panel-hi);color:var(--ivory);font-size:13px;line-height:1.6;
+    font-style:italic;overflow-wrap:anywhere;
+  }
 
   .vote-row{display:flex;gap:8px;margin-top:16px}
   .vote-row .btn{flex:1;padding:12px 4px;font-size:9px}
@@ -1119,6 +1141,10 @@
       <img class="brandlogo" alt="THE CIRCLE – connecting generations">
     </div>
     <div class="rechts">
+      <div id="ringMini" title="Dein Kreis">
+        <canvas id="ensoMini" width="76" height="76" aria-hidden="true"></canvas>
+        <span id="ringMiniNum">0/5</span>
+      </div>
       <button type="button" id="glocke" aria-label="Meldungen" title="Meldungen"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M6 16v-5a6 6 0 0 1 12 0v5l1.6 2.2H4.4L6 16z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M10 20.5a2 2 0 0 0 4 0"/></svg><span id="glockeN" hidden>0</span></button>
     </div>
   </header>
@@ -1147,7 +1173,7 @@
           <div class="cell"><b class="grad" id="cdM">–</b><span>Min</span></div>
           <div class="cell"><b class="grad" id="cdS">–</b><span>Sek</span></div>
         </div>
-        <p class="venue rv" style="--d:320ms">16. September 2026 · 18:00 – 23:00 Uhr · Playa Cologne</p>
+        <p class="venue rv" style="--d:320ms">16. September 2026 · ab 18:00 Uhr · Playa Cologne</p>
         <button type="button" class="btn btn--solid btn--full dabtn" id="daBtn">Ich bin da</button>
       </div>
 
@@ -1173,6 +1199,7 @@
       <div class="danach" id="danachBlock">
         <div class="abendzahlen rv" id="abendZahlen">
           <div><b id="azVerb">0</b><span>Verbindungen</span></div>
+          <div><b id="azMom">0</b><span>Momente</span></div>
           <div><b id="azFotos">0</b><span>Deine Fotos</span></div>
         </div>
         <div class="panel rv" id="fbKarte" style="display:none">
@@ -1216,6 +1243,18 @@
         </div>
       </div>
 
+      <div class="enso-block rv nurvoll">
+        <div class="ensowrap">
+          <canvas id="ensoBig" width="248" height="248" aria-hidden="true"></canvas>
+          <div class="num"><span id="ringBigNum">0<small>&hairsp;/&hairsp;5</small></span></div>
+        </div>
+        <div class="enso-side">
+          <span class="label">Dein Kreis</span>
+          <p><span data-momente>Fünf</span> Momente, ein Strich pro Moment. Sammle sie – und schließe deinen Kreis.</p>
+        </div>
+      </div>
+      <div class="chips rv nurvoll" id="momentDots" style="--d:80ms"></div>
+
       <div class="piece rv nurvoll" id="nextUpCard" style="margin-top:10px">
         <span class="label">Als Nächstes</span>
         <h3 id="nextUpTitle">–</h3>
@@ -1226,7 +1265,7 @@
       <div class="panel rv">
         <span class="label" style="display:block;margin-bottom:14px">Gut zu wissen</span>
         <div class="facts">
-          <div class="row"><span class="k">Beginn</span><span class="v">18:00 Uhr · bis 23:00 Uhr</span></div>
+          <div class="row"><span class="k">Beginn</span><span class="v">18:00 Uhr · Ende offen</span></div>
           <div class="row"><span class="k">Ort</span><span class="v">Playa Cologne · <a href="https://maps.google.com/?q=Playa+Cologne" target="_blank" rel="noopener">Route</a></span></div>
           <div class="row"><span class="k">Dresscode</span><span class="v">Come as you are</span></div>
           <div class="row"><span class="k">Foto &amp; Film</span><span class="v">Der Abend wird begleitet</span></div>
@@ -1345,16 +1384,16 @@
         <p class="lede" id="liveGuests" style="display:none;margin-top:10px">Im Raum: <b>–</b> Gäste</p>
       </div>
 
-      <!-- AV8. Kein Pitch mit Applaus, sondern ein Stimmungsbild: die
-           Gründer werden kurz vorgestellt, und wer mag, gibt ihnen etwas
-           mit. Drei Fragen, jede in einer Sekunde beantwortet. -->
+      <!-- Das vorgestellte Start-up (planyvo). Kein Pitch mit Applaus,
+           sondern ein Stimmungsbild: kurz vorgestellt, und wer mag, gibt
+           etwas mit. Drei Fragen, jede in einer Sekunde beantwortet. -->
       <div class="panel rv gated" data-gate="av8">
         <div class="gate" aria-hidden="true">
           <b>Noch geschlossen</b>
           <span>Öffnet mit dem ersten Gang</span>
           <i>Die Moderation stellt die Gründer vorher kurz vor.</i>
         </div>
-        <span class="label">Feedback für AV8</span>
+        <span class="label">Feedback für planyvo</span>
         <h3>Würdest du investieren?</h3>
         <p>Die Gründer sind den ganzen Abend an ihrem Stand – geh vorbei,
            probier, frag. Kein Handzeichen nötig, dein Bauchgefühl zählt.</p>
@@ -1508,7 +1547,8 @@
       <div class="panel rv">
         <span class="label">Weitererzählen</span>
         <h3>Dein Abend in einem Satz.</h3>
-        <p>Baut aus Momenten, Verbindungen und deinem Satz einen kurzen Text und öffnet das Teilen-Menü deines Handys – für WhatsApp, LinkedIn oder eine Notiz. Nur was du dort abschickst, sehen andere.</p>
+        <p>Das öffnet das Teilen-Menü deines Handys – für WhatsApp, LinkedIn oder eine Notiz. Nur was du dort abschickst, sehen andere. Geteilt wird genau dieser Text:</p>
+        <blockquote class="teilenvorschau" id="teilenVorschau"></blockquote>
         <button class="btn btn--solid btn--full" id="recapBtn" style="margin-top:12px">Meinen Abend teilen</button>
       </div>
     </section>
@@ -1533,6 +1573,16 @@
       <div class="panel rv" id="meineTischePanel" style="display:none">
         <span class="label">Deine Tische heute Abend</span>
         <div class="gaenge" id="meineTische"></div>
+      </div>
+
+      <!-- Was zu diesem Gang auf den Tisch kommt. Die Gerichte stehen nur
+           einmal im Dokument (im Menue) und werden hier uebernommen -
+           zwei Listen wuerden irgendwann auseinanderlaufen. -->
+      <div class="panel rv" id="gangMenue" style="display:none">
+        <span class="label" id="gangMenueLabel">Zu diesem Gang</span>
+        <h3 id="gangMenueTitel">–</h3>
+        <ul class="dishes" id="gangMenueListe"></ul>
+        <button type="button" class="btn btn--full" data-zeige="menu" style="margin-top:14px">Das ganze Menü</button>
       </div>
 
       <div class="panel rv" id="planPanel" style="display:none">
@@ -1673,7 +1723,7 @@
     <h1>Du bist<br><span class="grad">eingeladen.</span></h1>
     <p class="who">zu THE CIRCLE — connecting generations</p>
     <div class="inv-facts">
-      <span>16. September 2026 · 18:00 – 23:00 Uhr</span>
+      <span>16. September 2026 · ab 18:00 Uhr</span>
       <span>Playa Cologne</span>
       <span>3-Gang-Menü inkl. Getränke</span>
       <span id="invFact3">Dein Link ist persönlich · 1 Platz</span>
@@ -1844,6 +1894,12 @@
       </label>
     </div>
     <p class="fnote" id="rgKontaktVorschau"></p>
+    <!-- Der Abend wird fotografiert und gefilmt. Das steht nicht nur im
+         Kleingedruckten: Wer eintritt, hat es gelesen und angehakt. -->
+    <label class="rg-haken" for="rgFoto">
+      <input id="rgFoto" type="checkbox">
+      <span>Ich weiß, dass an diesem Abend Fotos und Videos entstehen, und bin damit einverstanden, dass THE CIRCLE und die Veranstalter sie für die Nachberichterstattung und Werbung verwenden.</span>
+    </label>
     <p class="fnote">Mit dem Eintritt gelten die <a href="/datenschutz" target="_blank" rel="noopener" style="color:var(--ivory)">Datenschutzhinweise</a>. Profil und Bild kannst du jederzeit löschen.</p>
     <button class="btn btn--solid btn--full" type="button" id="rgFertig">In den Kreis eintreten</button>
     <button class="btn btn--full leise" type="button" id="rgLoeschen" style="display:none">Profil und Bild löschen</button>
@@ -1927,7 +1983,7 @@ const CONFIG = {
      zugehört, im Wechselbereich gesprochen. Die Aktivierungen liegen
      deshalb in den Wechselzeiten, nicht mitten im Gang oder im Vortrag. */
   gates: {
-    /* AV8 hat den GANZEN Abend einen Stand, und die Moderation stellt die
+    /* Das Start-up wird vor der Vorspeise vorgestellt, und die Moderation stellt die
        Gruender vor der Vorspeise kurz vor (Desi, 04.09.). Das Fenster lag
        vorher auf 19:45-20:15 - geraten, und in beide Richtungen falsch:
        Es haette 45 Minuten nach der Vorstellung geoeffnet und schon zu
@@ -1967,13 +2023,12 @@ const CONFIG = {
       desc:"Ankommen in der Playa Cologne. Erste Gespräche, erste Drinks." },
     { id:"opening",  time:"18:30", title:"Begrüßung · Amiaz Habtu",      ort:"Dinnerbereich",
       desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
-    /* Steht so nicht in Desis Timing-Liste, gehoert aber in den Abend: Die
-       Moderation stellt AV8 vor der Vorspeise kurz vor, und die Gruender
-       haben den ganzen Abend einen Stand (Desi, 04.09.). Ohne diesen Punkt
-       weiss der Gast nicht, warum in der App ploetzlich nach AV8 gefragt
-       wird - und findet den Stand nicht. */
-    { id:"av8",      time:"18:55", title:"AV8 stellt sich vor",          ort:"Dinnerbereich",
-      desc:"Kurz vorgestellt von der Moderation. Ihr Stand ist den ganzen Abend geöffnet – geh vorbei und probier." },
+    /* Das vorgestellte Start-up. AV8 hat abgesagt; an ihrer Stelle stellt
+       planyvo sich vor (Nicole, 10.09.). Ohne diesen Punkt wuesste der Gast
+       nicht, warum in der App ploetzlich nach einem Start-up gefragt wird.
+       Die Kennung bleibt "av8" - daran haengen die gespeicherten Momente. */
+    { id:"av8",      time:"18:55", title:"planyvo stellt sich vor",          ort:"Dinnerbereich",
+      desc:"Kurz vorgestellt von der Moderation – die App hinter diesem Abend. Was du davon hältst, kannst du gleich sagen." },
     { id:"gang1",    time:"19:00", title:"Erster Gang · Vorspeise",      ort:"Dinnerbereich",
       desc:"Das Sharing-Menü beginnt. Alles kommt in die Mitte." },
     { id:"vortrag1", time:"19:30", title:"Impuls · Ien Bäumler (I)",     ort:"Dinnerbereich",
@@ -1994,7 +2049,7 @@ const CONFIG = {
       desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm.",
       moment:"kunst", momentLabel:"Kunst erlebt" },
     { id:"gang3",    time:"22:15", title:"Dritter Gang · Dessert",       ort:"Dinnerbereich",
-      desc:"Süßer Abschluss, bevor die Nacht beginnt." },
+      desc:"Süßer Abschluss – wird an den Tischen serviert, ohne Wechsel." },
     { id:"auktion",  time:"22:45", title:"Auktion · Live Painting",      ort:"Dinnerbereich",
       desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet." },
     { id:"dj",       time:"22:55", title:"Ausklang · Drinks & DJ",       ort:"",
@@ -2003,7 +2058,7 @@ const CONFIG = {
 };
 
 /* Fünf Momente. Start-Up-Pitch und Mentor-Minuten stehen nicht mehr im
-   Ablauf; an ihre Stelle tritt die Rückmeldung an AV8. Die Zahl muss zu
+   Ablauf; an ihre Stelle tritt die Rückmeldung an das Start-up. Die Zahl muss zu
    MOMENTS_TOTAL im Server passen, sonst schließt sich der Kreis nie. */
 const MOMENTS = [
   { id:"ankommen",   label:"Angekommen" },
@@ -2195,10 +2250,6 @@ function momenteWortSetzen(){
 }
 
 function renderRing(){
-  /* Der Ring mit den Aufgaben ist von der Startseite genommen (zu wenige
-     Aktionen ohne Pitch und ohne Auktion in der App). Die Momente selbst
-     bleiben - sie tragen die Zahlen nach dem Abend. */
-  if(!$("#ensoBig")) return;
   const n = momentCount();
   drawEnso($("#ensoMini"), n, MOMENTS.length, {lineFrac:.14});
   drawEnso($("#ensoBig"),  n, MOMENTS.length, {lineFrac:.15});
@@ -2237,7 +2288,7 @@ function collect(id, msg){
   /* Auch auf den Server - fuer "41 Kreise geschlossen" auf der Wand. */
   if(typeof APP !== "undefined" && APP.token) appPost("/api/app/moment", { id }).catch(()=>{});
   const n = momentCount();
-  if(reduceMotion || !$("#ensoBig") || n >= MOMENTS.length){
+  if(reduceMotion || n >= MOMENTS.length){
     renderRing();
   } else {
     /* das neue Segment malt sich als Strich */
@@ -2252,7 +2303,8 @@ function collect(id, msg){
     })(t0);
   }
   buzz(30);
-  if(msg) toast(msg);
+  renderTeilenVorschau();
+  toast(msg || "Ein Strich mehr – dein Kreis wächst.");
 }
 $$("[data-moment]").forEach(btn=>{
   btn.addEventListener("click", ()=>collect(btn.dataset.moment));
@@ -2441,16 +2493,16 @@ $("#appfreiWeiter").addEventListener("click", ()=>{
 });
 
 /* ================= DEMO-MODUS (Platzhalterdaten) ================= */
-/* Der Live-Bereich (Rueckmeldung an das Start-up, Auktions-Tipp) ruht:
-   der Pitch ist abgesagt, und die Auktion findet nur im Raum statt. Ein
-   "true" hier holt ihn samt Reiter zurueck. */
-const LIVE_AN = false;
+/* Der Live-Bereich: Rueckmeldung an das vorgestellte Start-up. Der
+   Auktions-Tipp ist raus - die Auktion laeuft nur im Raum. Ein "false"
+   hier nimmt Reiter und Bereich wieder heraus. */
+const LIVE_AN = true;
 document.body.dataset.live = LIVE_AN ? "an" : "aus";
 const DEMO = CONFIG.demo || new URLSearchParams(location.search).get("demo") === "1";
 const DEMO_STOPS = [
   { t:"17:30", label:"Vor dem Abend" },
   { t:"19:36", label:"Impuls läuft" },
-  { t:"19:55", label:"Feedback für AV8" },
+  { t:"19:55", label:"Feedback für planyvo" },
   { t:"21:40", label:"Live Painting" },
   { t:"22:50", label:"Auktion" }
 ];
@@ -2459,7 +2511,7 @@ function nowLive(){
   return DEMO ? eventTime(DEMO_STOPS[demoStop].t) : new Date(Date.now() + ZEIT_OFFSET);
 }
 
-/* ================= AV8-RÜCKMELDUNG =================
+/* ================= RÜCKMELDUNG AN DAS START-UP =================
    Der Applaus-Knopf ist mit dem Start-Up-Pitch entfallen. An seine Stelle
    treten drei Fragen an den Raum: investieren, Sterne, Interesse. Alle drei
    schicken nur Zahlen an den Server - wer was gewählt hat, speichert er
@@ -2560,7 +2612,7 @@ function renderMenuPref(){
     saveT = setTimeout(()=>{ S.notes = ta.value.trim(); persist(); if(APP.token) appPost("/api/app/abend", { satz: S.notes }).catch(()=>{}); }, 600);
   });
   const stand = $("#notesStand");
-  const standZeigen = ()=>{ stand.textContent = ta.value.trim() ? "Gespeichert – auf diesem Handy und in deinem Zugang." : ""; };
+  const standZeigen = ()=>{ stand.textContent = ta.value.trim() ? "Gespeichert – auf diesem Handy und in deinem Zugang." : ""; renderTeilenVorschau(); };
   standZeigen();
   ta.addEventListener("input", ()=>{ clearTimeout(ta._st); ta._st = setTimeout(standZeigen, 700); });
 }
@@ -2600,14 +2652,24 @@ $("#tippBtn").addEventListener("click", ()=>{
 renderTipp();
 
 /* ================= RECAP: MEIN ABEND ================= */
-$("#recapBtn").addEventListener("click", async ()=>{
+function abendText(){
+  /* Wird auch beim Aufbau der Seite gerufen, bevor APP steht. Ein
+     "typeof" hilft bei const nicht - dort wirft schon die Abfrage. */
+  let kreis = null; try{ kreis = APP.kreis; }catch(e){}
   const parts = [
     "THE CIRCLE · 16.09.2026 · Playa Cologne",
-    (APP.kreis && APP.kreis.verbunden.length) ? (APP.kreis.verbunden.length===1 ? "Eine neue Verbindung" : APP.kreis.verbunden.length + " neue Verbindungen") : null,
+    momentCount() ? "Mein Abend: " + momentCount() + "/" + MOMENTS.length + " Momente im Kreis" : null,
+    (kreis && kreis.verbunden.length) ? (kreis.verbunden.length===1 ? "Eine neue Verbindung" : kreis.verbunden.length + " neue Verbindungen") : null,
     S.notes ? "Meine Erkenntnis: „" + S.notes.slice(0,120) + "“" : null,
     "connecting generations."
   ].filter(Boolean);
-  const text = parts.join(" — ");
+  return parts.join(" — ");
+}
+function renderTeilenVorschau(){
+  const el = $("#teilenVorschau"); if(el) el.textContent = abendText();
+}
+$("#recapBtn").addEventListener("click", async ()=>{
+  const text = abendText();
   try{
     if(navigator.share){ await navigator.share({ title:"THE CIRCLE", text }); }
     else { await navigator.clipboard.writeText(text); toast("Dein Abend liegt in der Zwischenablage."); }
@@ -3061,7 +3123,8 @@ function renderKreis(){
   if(APP.anfragenBekannt) k.anfragen.forEach(g => { if(!APP.anfragenBekannt.has(g.id)){ toast(g.name + " möchte sich mit dir verbinden."); buzz([30, 40, 30]); } });
   APP.anfragenBekannt = ids;
   renderGlocke(); if($("#meldSheet").classList.contains("show")) renderMeldungen();
-  if(n && !S.moments.verbindung) collect("verbindung", "Verbunden.");
+  if(n && !S.moments.verbindung) collect("verbindung", "Verbunden – ein Strich mehr im Kreis.");
+  renderTeilenVorschau();
 }
 /* ---- Glocke: Anfragen an mich + Meldungen des Abends ---- */
 function meldungenNeu(){ return APP.meldungen.filter(m => m.t > (S.meldGesehen || 0)).length; }
@@ -3132,6 +3195,22 @@ async function ladeKreis(){
   catch(e){ const c = cacheGet("kreis"); if(c && !APP.kreis){ APP.kreis = c.v; renderKreis(); } }
 }
 async function ladeAlles(){ if(!APP.token) { renderGaeste(); return; } await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]); ladeMeldungen(); renderDanach(); }
+
+/* Die Gerichte des angezeigten Gangs, aus dem Menue uebernommen. */
+function renderGangMenue(t){
+  const kasten = $("#gangMenue"); if(!kasten) return;
+  const nr = (t && (t.angezeigt || t.gang)) || 0;
+  const bloecke = $$('section[data-view="menu"] .course');
+  const block = nr >= 1 ? bloecke[nr - 1] : null;
+  if(!block){ kasten.style.display = "none"; return; }
+  $("#gangMenueTitel").textContent = (block.querySelector("h3") || {}).textContent || "";
+  $("#gangMenueLabel").textContent = nr === (t && t.gang) ? "Jetzt auf dem Tisch" : "Zu diesem Gang";
+  const liste = $("#gangMenueListe"); liste.innerHTML = "";
+  block.querySelectorAll("li").forEach(li => {
+    const el = document.createElement("li"); el.innerHTML = li.innerHTML; liste.appendChild(el);
+  });
+  kasten.style.display = "";
+}
 
 /* ---- Kurzprofil ---- */
 let sheetGast = null;
@@ -3206,19 +3285,31 @@ async function verbindenAktion(id, aktion){
   }catch(e){ if(e.message !== "keine offene Anfrage") toast(e.message || "Ging gerade nicht."); }
   finally{ laufend.delete(k); }
 }
-/* vCard ueber das System-Teilen-Menue: ein Download-Link ist in der
-   installierten App auf iOS unzuverlaessig, das Teilen-Menue nicht. */
+/* Die Visitenkarte soll im Adressbuch landen, nicht im Download-Ordner.
+   Drei Wege in dieser Reihenfolge: das Teilen-Menue des Handys (dort steht
+   "Zu Kontakten hinzufuegen"), sonst die Karte vom Server mit dem richtigen
+   Dateityp - die oeffnet das Handy direkt als Kontakt -, und erst wenn
+   beides nicht geht, der Download. */
 async function kontaktSpeichern(g){
   const nm = g.name.trim().split(" "); const nach = nm.length > 1 ? nm.pop() : ""; const vor = nm.join(" ");
-  const vc = ["BEGIN:VCARD","VERSION:3.0","N:" + nach + ";" + vor + ";;;","FN:" + g.name,
-    g.firma ? "ORG:" + g.firma : "", g.rolle ? "TITLE:" + g.rolle : "",
-    g.email ? "EMAIL;TYPE=INTERNET:" + g.email : "", g.telefon ? "TEL;TYPE=CELL:" + g.telefon : "",
-    g.linkedin ? "URL:https://" + g.linkedin : "", "NOTE:THE CIRCLE No1 · 16.09.2026 · Playa Cologne" + (g.notiz ? " – " + g.notiz.replace(/[\r\n]+/g, " ") : ""),"END:VCARD"].filter(Boolean).join("\r\n");
-  const file = new File([vc], g.name.replace(/[^\wäöüÄÖÜß -]/g, "") + ".vcf", { type:"text/vcard" });
+  const esc = v => String(v || "").replace(/([\;,])/g, "\\$1").replace(/[\r\n]+/g, " ");
+  const vc = ["BEGIN:VCARD","VERSION:3.0","N:" + esc(nach) + ";" + esc(vor) + ";;;","FN:" + esc(g.name),
+    g.firma ? "ORG:" + esc(g.firma) : "", g.rolle ? "TITLE:" + esc(g.rolle) : "",
+    g.email ? "EMAIL;TYPE=INTERNET:" + esc(g.email) : "", g.telefon ? "TEL;TYPE=CELL:" + esc(g.telefon) : "",
+    g.linkedin ? "URL:https://" + esc(g.linkedin) : "",
+    "NOTE:" + esc("THE CIRCLE No1 · 16.09.2026 · Playa Cologne" + (g.notiz ? " – " + g.notiz : "")),
+    "END:VCARD"].filter(Boolean).join("\r\n") + "\r\n";
+  const name = (g.name.replace(/[^\wäöüÄÖÜß -]/g, "").trim() || "Kontakt") + ".vcf";
+  const file = new File([vc], name, { type:"text/vcard" });
   try{
     if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:g.name }); return; }
   }catch(e){ if(e && e.name === "AbortError") return; }
-  const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+  if(APP.token && g.id){
+    window.open("/api/app/vcf?t=" + encodeURIComponent(APP.token) + "&wen=" + encodeURIComponent(g.id), "_blank", "noopener");
+    toast("Karte geöffnet – „Neuen Kontakt sichern“ tippen.");
+    return;
+  }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   toast("Karte erzeugt – falls nichts passiert: " + [g.email, g.telefon].filter(Boolean).join(" · "));
 }
 
@@ -3283,6 +3374,7 @@ function renderTisch(){
     if(m.tischName){ const sm = document.createElement("small"); sm.textContent = m.tischName; b.appendChild(sm); }
     d.appendChild(s); d.appendChild(b); d.addEventListener("click", ()=>ladeTisch(m.gang)); mt.appendChild(d);
   });
+  renderGangMenue(t);
   $("#planPanel").style.display = hatPlan ? "block" : "none";
   if(hatPlan) ladePlan(t.angezeigt);
 }
@@ -3345,8 +3437,8 @@ $("#signalWeg").addEventListener("click", ()=>{
 
 /* ---- Ich bin da ---- */
 async function ichBinDa(){
-  if(!APP.token){ collect("ankommen", "Willkommen – schön, dass du da bist."); return; }
-  try{ await appPost("/api/app/da", {}); if(APP.ich) APP.ich.da = Date.now(); renderDaKnopf(); collect("ankommen", "Willkommen – schön, dass du da bist."); }
+  if(!APP.token){ collect("ankommen", "Angekommen – der erste Strich im Kreis."); return; }
+  try{ await appPost("/api/app/da", {}); if(APP.ich) APP.ich.da = Date.now(); renderDaKnopf(); collect("ankommen", "Angekommen – der erste Strich im Kreis."); }
   catch(e){ toast("Ging gerade nicht – gleich nochmal."); }
 }
 function renderDaKnopf(){
@@ -3468,10 +3560,16 @@ function rgKontaktVorschau(){
 }
 $("#rgTelefon").addEventListener("input", rgKontaktVorschau);
 function registrierungStarten(ich){
+  /* Blaetter zu: Sonst laege der Startbildschirm-Hinweis oder ein Profil
+     ueber dem Formular. */
+  if(typeof appBlattZu === "function") appBlattZu();
+  if(typeof meldZu === "function") meldZu();
+  if(typeof sheetZu === "function") sheetZu();
   $("#rgName").textContent = ich.name;
   $("#rgFirma").value = ich.firma || ""; $("#rgRolle").value = ich.rolle || "";
   $("#rgUeber").value = ich.ueber || ""; $("#rgLinkedin").value = ich.linkedin || "";
   $("#rgTelefon").value = ich.telefon || "";
+  $("#rgFoto").checked = !!ich.fotoOk;
   rgKontaktVorschau();
   if(ich.foto){ const v = $("#rgVorschau"); v.style.backgroundImage = "url(" + ich.foto + ")"; v.textContent = ""; }
   else $("#rgVorschau").textContent = initialen(ich.name);
@@ -3511,11 +3609,15 @@ $("#rgDatei").addEventListener("change", async e => {
   }catch(err){ rgBild = null; $("#rgBildNote").textContent = "Das Bild ließ sich nicht lesen – probier ein anderes."; }
 });
 $("#rgFertig").addEventListener("click", async ()=>{
+  if(!$("#rgFoto").checked){
+    $("#rgFehler").textContent = "Bitte bestätige noch, dass Fotos und Videos entstehen dürfen.";
+    $("#rgFoto").focus(); return;
+  }
   const b = $("#rgFertig"); b.disabled = true; $("#rgFehler").textContent = "";
   const sichtbar = ($$("input[name=rgSichtbar]").find(r => r.checked) || {}).value === "1";
   const body = { firma: $("#rgFirma").value.trim(), rolle: $("#rgRolle").value.trim(),
                  ueber: $("#rgUeber").value.trim(), sucht: $("#rgSucht").value.trim(), linkedin: $("#rgLinkedin").value.trim(),
-                 telefon: $("#rgTelefon").value.trim(), sichtbar };
+                 telefon: $("#rgTelefon").value.trim(), fotoOk: $("#rgFoto").checked, sichtbar };
   if(rgBild){ body.foto = rgBild.foto; body.mini = rgBild.mini; }
   else if(rgBildLoeschen){ body.foto = ""; }
   try{
@@ -3624,6 +3726,13 @@ function renderDanach(){
   if(APP.phase !== "danach") return;
   const ich = APP.ich || {};
   $("#azVerb").textContent = APP.kreis ? APP.kreis.verbunden.length : 0;
+  renderTeilenVorschau();
+  $("#azMom").textContent = momentCount();
+  /* Der Ring wird zur Erinnerung: kein "Sammle sie" mehr. */
+  {
+    const es = document.querySelector(".enso-side p");
+    if(es){ const n = momentCount(); es.textContent = n >= MOMENTS.length ? "Dein Kreis ist geschlossen – alle Momente des Abends." : "So sah dein Abend aus: " + n + " von " + MOMENTS.length + " Momenten."; }
+  }
   $("#azFotos").textContent = APP.galerie ? APP.galerie.highlights.length : 0;
   /* EINE Handlung: erst die Frage, dann die Fotos. */
   const fb = ich.feedback;

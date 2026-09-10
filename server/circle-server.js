@@ -240,8 +240,8 @@ const ZEITEN_STANDARD = {
       desc:"Ankommen in der Playa Cologne. Erste Gespräche, erste Drinks." },
     { id:"opening",  time:"18:30", title:"Begrüßung · Amiaz Habtu",      ort:"Dinnerbereich",
       desc:"Der Abend beginnt – mit Haltung, Humor und einem Blick auf das, was verbindet." },
-    { id:"av8",      time:"18:55", title:"AV8 stellt sich vor",          ort:"Dinnerbereich",
-      desc:"Kurz vorgestellt von der Moderation. Ihr Stand ist den ganzen Abend geöffnet – geh vorbei und probier." },
+    { id:"av8",      time:"18:55", title:"planyvo stellt sich vor",          ort:"Dinnerbereich",
+      desc:"Kurz vorgestellt von der Moderation – die App hinter diesem Abend. Was du davon hältst, kannst du gleich sagen." },
     { id:"gang1",    time:"19:00", title:"Erster Gang · Vorspeise",      ort:"Dinnerbereich",
       desc:"Das Sharing-Menü beginnt. Alles kommt in die Mitte." },
     { id:"vortrag1", time:"19:30", title:"Impuls · Ien Bäumler (I)",     ort:"Dinnerbereich",
@@ -255,7 +255,7 @@ const ZEITEN_STANDARD = {
     { id:"painting", time:"21:30", title:"Live Painting · Max Leinfelder", ort:"Wechselbereich · bis 22:00",
       desc:"Das Werk entsteht vor deinen Augen. Schau zu, sprich mit ihm.", moment:"kunst", momentLabel:"Kunst erlebt" },
     { id:"gang3",    time:"22:15", title:"Dritter Gang · Dessert",       ort:"Dinnerbereich",
-      desc:"Süßer Abschluss, bevor die Nacht beginnt." },
+      desc:"Süßer Abschluss – wird an den Tischen serviert, ohne Wechsel." },
     { id:"auktion",  time:"22:45", title:"Auktion · Live Painting",      ort:"Dinnerbereich",
       desc:"Max Leinfelders Werk findet sein Zuhause. Der Erlös wird gespendet." },
     { id:"dj",       time:"22:55", title:"Ausklang · Drinks & DJ",       ort:"",
@@ -270,7 +270,7 @@ let state = {
   /* Meldungen des Abends (Tischwechsel, Ansagen) - fuer die Glocke in
    * der App, nachlesbar auch wenn das Banner laengst weg ist. */
   meldungen: [],
-  /* Rueckmeldung an AV8. Kein Pitch-Votum, sondern ein Stimmungsbild:
+  /* Rueckmeldung an das Start-up. Kein Pitch-Votum, sondern ein Stimmungsbild:
    * die Frage nach der Investition (votes), eine Sterne-Bewertung des
    * Produkts und zwei Angebote, die ein Gast markieren kann. */
   sterne: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
@@ -621,7 +621,7 @@ function appLink(token) { return PUBLIC_URL + "/?t=" + token; }
 function stdLink(token) { return PUBLIC_URL + "/std?t=" + token; }
 
 /* Kalendereintrag fuer den Knopf auf der Bestaetigungsseite.
- * Die Zeiten stehen als 18:00 bis 23:00 Ortszeit Berlin. Damit jeder
+ * Die Zeiten stehen als 18:00 bis 23:00 Ortszeit Berlin (Kalendereintrag; der Abend selbst endet offen). Damit jeder
  * Kalender weiss, was Ortszeit an dem Tag bedeutet, liegt die passende
  * VTIMEZONE-Definition mit in der Datei - sonst raet Outlook.
  * Komma und Semikolon muessen in TEXT-Feldern escaped werden (RFC 5545). */
@@ -656,7 +656,7 @@ const TERMIN_ICS = [
   "DTEND;TZID=Europe/Berlin:20260916T230000",
   "SUMMARY:THE CIRCLE No1 - connecting generations",
   "LOCATION:" + icsText("Playa Cologne, Junkersdorfer Str. 1, 50933 Köln"),
-  "DESCRIPTION:" + icsText("Ein Abend im ausgewählten Kreis. 18:00 bis 23:00 Uhr."),
+  "DESCRIPTION:" + icsText("Ein Abend im ausgewählten Kreis. Ab 18:00 Uhr."),
   "URL:" + WEBSITE_URL,
   "END:VEVENT",
   "END:VCALENDAR"
@@ -865,12 +865,20 @@ const TISCHE_STANDARD = ["DeinDach", "Conrad", "jto", "fuchsrohrbach", "Merzenic
 const tischNorm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "").replace(/^tisch/, "");
 function tische() {
   if (!state.tische) state.tische = {
-    gaenge: ["Vorspeise", "Hauptspeise", "Dessert"],
+    gaenge: ["Vorspeise", "Hauptspeise"],
     gang: 0,                     // 1-basiert; 0 = noch kein Gang
     liste: [],                   // [{ nr, name }]
     sitz: {}                     // gid -> [tischNr je Gang]
   };
   const t = state.tische;
+  /* Das Dessert kommt ohne Wechsel an den Tisch. Ein frueher angelegter
+   * Zustand kennt noch drei Gaenge - solange niemand einen Plan importiert
+   * hat, wird er auf zwei gekuerzt. Steht schon ein Plan drin, bleibt er:
+   * daran haengen die Sitzplaetze der Gaeste. */
+  if (t.gaenge.length > 2 && !Object.keys(t.sitz || {}).length) {
+    t.gaenge = t.gaenge.slice(0, 2);
+    if (t.gang > 2) t.gang = 2;
+  }
   /* Solange niemand Namen vergeben hat, gelten die zehn Partnertische -
      auch wenn ein frueherer Import nur die Nummern 1-3 angelegt hat. */
   const eigene = t.liste.some(x => x.name && !TISCHE_STANDARD.includes(x.name));
@@ -1830,7 +1838,7 @@ function bestaetigungAbschicken(inv) {
     "",
     "du bist im Kreis" + (inv.ticketNr ? " – " + inv.ticketNr : "") + ".",
     "",
-    "16. September 2026, 18:00 bis 23:00 Uhr",
+    "16. September 2026, ab 18:00 Uhr",
     "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
     inv.typ === "ticket" ? "Beitrag: " + (preisVon(inv) / 100).toFixed(2).replace(".", ",") + " Euro, bezahlt" : null,
     "",
@@ -1866,7 +1874,7 @@ function textFassung(inv, welle) {
     (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
     "",
     "THE CIRCLE No1 - connecting generations",
-    "16. September 2026, 18:00 bis 23:00 Uhr, Playa in der Kölner Südstadt",
+    "16. September 2026, ab 18:00 Uhr, Playa in der Kölner Südstadt",
     "",
     welle === 0 ? "Alle Informationen: " + WEBSITE_URL
       : "Dein persönlicher Link: " + (welle === 2 ? appLink(inv.token) : inviteLink(inv.token)),
@@ -1894,7 +1902,7 @@ function whatsappText(inv) {
     "Ein Abend im ausgewählten Kreis: Gäste über Generationen hinweg, " +
       "ein Menü in drei Gängen – und ein Werk von Max Leinfelder, das vor deinen Augen entsteht.",
     "",
-    "16. September 2026, 18:00 bis 23:00 Uhr",
+    "16. September 2026, ab 18:00 Uhr",
     "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
     partnerZeile,
     "",
@@ -2357,7 +2365,7 @@ const server = http.createServer((req, res) => {
       const prev = gueltig(body.prev) ? body.prev : null;
       if (prev && state.sterne[prev] > 0) state.sterne[prev]--;
       if (stern) state.sterne[stern] = (state.sterne[stern] || 0) + 1;
-      /* Mit Token auch am Gast: AV8 soll nachher wissen, wer die fuenf
+      /* Mit Token auch am Gast: das Start-up soll nachher wissen, wer die fuenf
        * Sterne gegeben hat - nicht nur, dass es 31 waren. */
       const inv = findInvite(body.t);
       if (inv) { if (!inv.av8) inv.av8 = {}; inv.av8.stern = stern || 0; inv.av8.t = Date.now(); }
@@ -2541,6 +2549,7 @@ const server = http.createServer((req, res) => {
       ticketNr: inv.ticketNr || "", typ: inv.typ, partner: inv.partner || "",
       foto: fotoUrl(inv, false), sichtbar: !!p.sichtbar, registriert: p.registriert || 0,
       ueber: p.ueber || "", sucht: p.sucht || "", linkedin: p.linkedin || "",
+      fotoOk: !!p.fotoOk,
       da: inv.da || 0, push: !!inv.push, runde: rundeVon(inv),
       installiert: !!(inv.app && inv.app.standalone),
       tisch: meinTisch(inv), gang: tische().gang,
@@ -2566,6 +2575,9 @@ const server = http.createServer((req, res) => {
       if (body.sucht    !== undefined) p.sucht = cleanText(body.sucht, 60);
       if (body.linkedin !== undefined) p.linkedin = cleanText(body.linkedin, 120).replace(/^https?:\/\//, "");
       if (body.telefon  !== undefined) { if (!inv.daten) inv.daten = {}; inv.daten.phone = cleanText(body.telefon, 30); }
+      /* Einwilligung in Foto und Video, angehakt vor dem Eintritt in den
+       * Kreis. Mit Zeitstempel, damit spaeter belegbar ist, wann. */
+      if (body.fotoOk !== undefined) p.fotoOk = body.fotoOk ? (p.fotoOk || Date.now()) : 0;
       if (body.sichtbar !== undefined) p.sichtbar = !!body.sichtbar;
 
       /* Bild: zwei Groessen, beide vom Browser gerechnet. Gross fuers
@@ -2667,6 +2679,39 @@ const server = http.createServer((req, res) => {
      * ebenfalls; das hier ist die dritte Tuer. */
     if (!inv || !imKreis(inv) || inv === ich || !gleicheRunde(inv, ich)) return json(res, 404, { error: "unbekannt" });
     return json(res, 200, { ok: true, gast: kurzprofil(ich, inv) });
+  }
+
+  /* Die Visitenkarte als Datei, die das Handy selbst oeffnet. Ein
+   * Download-Link legt auf dem Rechner nur eine .vcf in den Ordner; als
+   * Seite mit dem richtigen Typ ausgeliefert, bietet iOS und Android
+   * direkt "Zu Kontakten hinzufuegen" an. Dieselben Sichtbarkeitsregeln
+   * wie im Kurzprofil: ohne Freigabe stehen dort nur Name und Firma. */
+  if (req.method === "GET" && url === "/api/app/vcf") {
+    if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
+    const ich = findInvite(q.get("t"));
+    if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    const inv = findByGid(q.get("wen"));
+    if (!inv || !imKreis(inv) || inv === ich || !gleicheRunde(inv, ich)) return json(res, 404, { error: "unbekannt" });
+    const g = kurzprofil(ich, inv);
+    const teile = String(g.name || "").trim().split(/\s+/);
+    const nach = teile.length > 1 ? teile.pop() : "";
+    const vor = teile.join(" ");
+    const esc = v => String(v || "").replace(/[\\;,]/g, m => "\\" + m).replace(/[\r\n]+/g, " ");
+    const zeilen = ["BEGIN:VCARD", "VERSION:3.0",
+      "N:" + esc(nach) + ";" + esc(vor) + ";;;", "FN:" + esc(g.name),
+      g.firma ? "ORG:" + esc(g.firma) : "", g.rolle ? "TITLE:" + esc(g.rolle) : "",
+      g.email ? "EMAIL;TYPE=INTERNET:" + esc(g.email) : "",
+      g.telefon ? "TEL;TYPE=CELL:" + esc(g.telefon) : "",
+      g.linkedin ? "URL:https://" + esc(g.linkedin) : "",
+      "NOTE:" + esc("THE CIRCLE No1 · 16.09.2026 · Playa Cologne" + (g.notiz ? " – " + g.notiz : "")),
+      "END:VCARD"].filter(Boolean);
+    const datei = (g.name || "kontakt").replace(/[^\w\u00C0-\u024F -]/g, "").trim() || "kontakt";
+    res.writeHead(200, {
+      "Content-Type": "text/vcard; charset=utf-8",
+      "Content-Disposition": 'inline; filename="' + datei + '.vcf"',
+      "Cache-Control": "no-store"
+    });
+    return res.end(zeilen.join("\r\n") + "\r\n");
   }
 
   /* Verbinden. Zustaende: offen -> verbunden | abgelehnt | spaeter.
@@ -3604,7 +3649,9 @@ const server = http.createServer((req, res) => {
 
     /* --- Tischordnung ---
      * CSV mit Kopfzeile. Erkannt werden: email ODER name (zum Finden des
-     * Gastes), dann gang1, gang2, gang3 (Tischnummern). Die Maske steht
+     * Gastes), dann gang1 und gang2 (Tischnummern). Das Dessert wird ohne
+     * Wechsel serviert, deshalb nur zwei Gaenge; eine Spalte gang3 wird
+     * gelesen, aber ignoriert, damit eine aeltere Liste nicht abbricht. Die Maske steht
      * damit vorher; am 14.09. kommen nur noch die Namen von Jonan hinein.
      * Ohne ?senden=1 ein Probelauf: wer gefunden wurde, wer nicht. */
     if (req.method === "POST" && url === "/api/admin/tischplan") {
@@ -3618,7 +3665,7 @@ const server = http.createServer((req, res) => {
         const header = rows[0].map(h => h.trim().toLowerCase());
         const col = n => header.indexOf(n);
         const iMail = col("email") >= 0 ? col("email") : col("e-mail"), iName = col("name");
-        const iGang = [col("gang1"), col("gang2"), col("gang3")];
+        const iGang = [col("gang1"), col("gang2")];
         if (iMail < 0 && iName < 0) return json(res, 400, { error: "Spalte 'email' oder 'name' fehlt" });
         if (iGang[0] < 0) return json(res, 400, { error: "Spalte 'gang1' fehlt" });
         const byMail = {}, byName = {};
@@ -4046,7 +4093,7 @@ const server = http.createServer((req, res) => {
     }
 
     /* Die Wand im Raum: was der Beamer zeigt. modus auto folgt dem Abend
-     * (Signal, Fenster); enthuellt ist der Vorhang fuer das AV8-Votum -
+     * (Signal, Fenster); enthuellt ist der Vorhang fuer das Start-up-Votum -
      * erst "87 Rueckmeldungen", dann auf Knopfdruck die Balken. */
     if (req.method === "POST" && url === "/api/admin/wand") {
       return readBody(req, res, body => {
@@ -4127,13 +4174,13 @@ const server = http.createServer((req, res) => {
         return json(res, 200, { ok: true, pushFrei: !!state.pushFrei, gesperrt: pushGesperrt() });
       });
     }
-    /* Nach einer Probe: die AV8-Zaehler auf null. Sonst zeigt die Wand am
+    /* Nach einer Probe: die Start-up-Zaehler auf null. Sonst zeigt die Wand am
      * Abend die Sterne vom Test. Tipps, Gebote und Verbindungen bleiben. */
     if (req.method === "POST" && url === "/api/admin/zaehler-null") {
       state.applause = 0; state.votes = { ja: 0, vielleicht: 0, nein: 0 };
       state.sterne = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }; state.interesse = { intro: 0, investor: 0 };
       dirty = true; broadcast();
-      logEvent("Zähler", wer, "AV8-Zähler auf null");
+      logEvent("Zähler", wer, "Start-up-Zähler auf null");
       return json(res, 200, { ok: true });
     }
     /* Live-Zahlen fuer die Buehnen-Karte - mit Namen, deshalb hinter dem
@@ -4145,7 +4192,7 @@ const server = http.createServer((req, res) => {
         signalGesehen: state.signal && state.signal.gesehen ? Object.keys(state.signal.gesehen).length : 0 });
     }
 
-    /* AV8-Blatt: wer hat was gedrueckt. Das ist das, was die Gruender am
+    /* Start-up-Blatt: wer hat was gedrueckt. Das ist das, was die Gruender am
      * Morgen danach bekommen - und der Grund, warum das Versprechen in der
      * App haltbar ist. */
     if (req.method === "GET" && url === "/api/admin/av8") {
