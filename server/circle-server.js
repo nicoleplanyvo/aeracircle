@@ -3718,7 +3718,9 @@ const server = http.createServer((req, res) => {
           const vorher = t.gang;
           t.gang = gang;
           state.signal = { art: "wechsel", gang, text: t.gaenge[gang - 1], t: Date.now(), wer, vorherGang: vorher };
-          meldungMerken(state.signal);
+          /* Der Tischwechsel steht bewusst NICHT in den Meldungen: In der App
+           * soll er weder als Banner noch in der Glocke auftauchen, der Plan
+           * aendert sich still. Push ist am Abend ohnehin gesperrt. */
           dirty = true; signalSenden();
           logEvent("Tischwechsel", wer, t.gaenge[gang - 1]);
           /* SOFORT antworten. Die Pushes laufen im Hintergrund; ihr Ergebnis

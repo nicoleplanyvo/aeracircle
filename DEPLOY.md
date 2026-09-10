@@ -691,6 +691,23 @@ Ansagen) zum Nachlesen, auch wenn das Banner längst weg ist. Eine neue
 Anfrage kommt live an: Toast, Vibration, Zahl an der Glocke – kein
 Neuladen nötig.
 
+### 7.1a2 Was die App am Abend NICHT tut (Stand 10.09.)
+
+Nach Desis Durchsicht ist die App bewusst schlanker:
+
+- **Kein Live-Bereich.** Der Start-up-Pitch ist abgesagt, die Auktion
+  findet nur im Raum statt (als Blind-Auktion). Der Reiter „Live“ ist aus,
+  die Rückmeldung an das Start-up und der Auktions-Tipp sind nicht
+  erreichbar. Zurückholen: in `index.html` `const LIVE_AN = false;` auf
+  `true` setzen – Reiter und Bereich sind sofort wieder da.
+- **Kein Banner beim Tischwechsel.** Der Plan aktualisiert sich still, wer
+  nachsehen will, tippt auf „Tisch“. Der Wechsel steht auch nicht in der
+  Glocke. Ansagen aus der Regie erscheinen weiter.
+- **Kein Ring mit Aufgaben, keine Zahlenreihe, keine Skyline.** Ohne Pitch
+  und ohne Auktion in der App blieben zu wenige Momente übrig.
+- Die **Auktion auf der Wand** und die Steuerung im Monitor bleiben – der
+  Raum bekommt sie, die App nicht.
+
 ### 7.1b Welle 2: erst nur das Profil, dann alles
 
 Der App-Zugang (Welle 2) geht Tage vor dem Abend raus – aber die Gäste

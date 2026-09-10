@@ -1,7 +1,7 @@
 {
   "name": "THE CIRCLE No1 – connecting generations",
   "short_name": "THE CIRCLE",
-  "description": "Der Abend des 16. September 2026 in der Playa Cologne: Ablauf, Menü, Live-Momente und die Menschen im Kreis.",
+  "description": "Der Abend des 16. September 2026 in der Playa Cologne: Ablauf, Menü und die Menschen im Kreis.",
   "lang": "de",
   "dir": "ltr",
   "start_url": "/",
@@ -11,7 +11,23 @@
   "background_color": "#122648",
   "theme_color": "#122648",
   "icons": [
-    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    {
+      "src": "/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
