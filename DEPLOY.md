@@ -216,7 +216,7 @@ Zusätzlich festlegen: **Reply-To** (wohin Antworten der Gäste gehen).
 **Lettermint hat keinen Vorlagen-Editor mit Serienbrief-Feldern.** Es ist ein
 reiner Versanddienst mit einer Schnittstelle. Deshalb werden die Vorlagen aus
 `email/` **nicht** irgendwo hochgeladen: Unser Server setzt für jeden Gast
-selbst Anrede, Namen, persönlichen Link, Ticketnummer und Partnerlogo ein und
+selbst Anrede, Namen, persönlichen Link und Partnerlogo ein und
 übergibt Lettermint die fertige Mail.
 
 Das ist auch der sicherere Weg. Ginge die Zuordnung über eine hochgeladene
@@ -528,7 +528,7 @@ node server/circle-server.js export | head -3      # einen Link kopieren
 Link öffnen → zusagen → im Checkout die Testkarte `4242 4242 4242 4242` mit
 beliebigem künftigen Datum und CVC.
 
-Danach muss der Gast seine Ticket-Nummer sehen und im Monitor auf **bezahlt**
+Danach muss der Gast die Bestätigung sehen und im Monitor auf **bezahlt**
 stehen. Bleibt er auf „zugesagt, nicht bezahlt", kam der Webhook nicht an →
 Stripe → *Webhooks → Versuche* zeigt die Antwort des Servers.
 

@@ -633,7 +633,10 @@ function serveFile(res, file, type, extra) {
 
 const newToken = () => crypto.randomBytes(9).toString("base64url");   // 12 Zeichen, unerratbar
 
-/* Die Nummer im Kreis.
+/* Die Nummer im Kreis. Seit dem 11.09. sieht sie kein Gast mehr und kein
+ * Bildschirm zeigt sie - sie bleibt als stille Kennung am Gast stehen,
+ * damit die Zuordnung in Zahlungen und Exporten haelt und die Nummer
+ * wieder auftauchen kann, wenn eine spaetere Runde sie will.
  *
  * Erste Fassung war "11 + (hash % 88)" - 88 moegliche Nummern. Bei 107
  * Gaesten ist eine Doppelung nicht unwahrscheinlich, sondern zwingend, und
@@ -765,7 +768,6 @@ function pubInvite(inv) {
      * Wer schon einen Platz hat, sieht keine Warteliste. */
     ticketFrei: (inv.status === "zugesagt" || inv.status === "bezahlt")
       ? TICKET_LIMIT : ticketPlaetzeFrei(),
-    ticketNr: inv.status === "zugesagt" || inv.status === "bezahlt" ? inv.ticketNr : "",
     /* Eigene Angaben aus der Zusage - nur der Token-Inhaber sieht sie.
      * Damit oeffnet sich die App aus der Welle-2-Mail fertig personalisiert. */
     phone: (inv.daten && inv.daten.phone) || "",
@@ -1924,7 +1926,7 @@ function bestaetigungAbschicken(inv) {
   const text = [
     (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
     "",
-    "du bist im Kreis" + (inv.ticketNr ? " – " + inv.ticketNr : "") + ".",
+    "du bist im Kreis.",
     "",
     "16. September 2026, um 18:00 Uhr",
     "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
@@ -2171,8 +2173,7 @@ function createCheckout(inv, cb) {
            * Hier nur, was Stripe nicht wissen kann: welcher Gast, welcher
            * Platz. */
           custom_fields: {
-            0: { name: "Gast",  value: (inv.name || "—").slice(0, 30) },
-            1: { name: "Platz", value: inv.ticketNr || "—" }
+            0: { name: "Gast", value: (inv.name || "—").slice(0, 30) }
           },
           metadata: { token: inv.token },
           rendering_options: { amount_tax_display: "include_inclusive_tax" }
@@ -2635,7 +2636,7 @@ const server = http.createServer((req, res) => {
       anrede: inv.anrede || "Hallo", firma: inv.firma || "", rolle: inv.rolle || "",
       email: inv.email || "", telefon: (inv.daten && inv.daten.phone) || "",
       diet: (inv.daten && inv.daten.diet) || "", allergy: (inv.daten && inv.daten.allergy) || "",
-      ticketNr: inv.ticketNr || "", typ: inv.typ, partner: inv.partner || "",
+      typ: inv.typ, partner: inv.partner || "",
       foto: fotoUrl(inv, false), sichtbar: !!p.sichtbar, registriert: p.registriert || 0,
       ueber: p.ueber || "", sucht: p.sucht || "", linkedin: p.linkedin || "",
       fotoOk: !!p.fotoOk,
@@ -2805,7 +2806,7 @@ const server = http.createServer((req, res) => {
     if (!schon) { inv.da = Date.now(); logEvent("da", inv.name, inv.pool); dirty = true; revHoch(); broadcast(); }
     return res.end(seite("#d8f5dd", inv.name,
       schon ? "War schon eingecheckt." : "Willkommen.",
-      [inv.firma, inv.ticketNr].filter(Boolean).join(" · ")));
+      inv.firma || ""));
   }
 
   if (req.method === "GET" && url.startsWith("/qr/")) {
@@ -4288,7 +4289,8 @@ const server = http.createServer((req, res) => {
     }
 
     /* Ein Gebot aus dem Saal - der Auktionator ruft es rein. Ohne den
-     * 5.000er-Deckel, mit Karte oder Name. */
+     * 5.000er-Deckel. Bieter werden beim Namen genannt: Kartennummern gibt
+     * es seit dem 11.09. nicht mehr. */
     if (req.method === "POST" && url === "/api/admin/gebot") {
       return readBody(req, res, body => {
         if (state.auktion && state.auktion.zu) return json(res, 409, { error: "Auktion ist beendet" });
@@ -4297,7 +4299,7 @@ const server = http.createServer((req, res) => {
         state.bid = { amount, paddle: clean(body.paddle, 6), name: clean(body.name, 30), t: Date.now(), quelle: "saal" };
         state.bids.unshift(state.bid); state.bids = state.bids.slice(0, 20);
         dirty = true; broadcast();
-        logEvent("Saal-Gebot", wer, amount + " € · Karte " + (state.bid.paddle || "–"));
+        logEvent("Saal-Gebot", wer, amount + " € · " + (state.bid.name || "ohne Namen"));
         return json(res, 200, { ok: true, bid: state.bid });
       });
     }
@@ -4315,7 +4317,7 @@ const server = http.createServer((req, res) => {
       return readBody(req, res, async body => {
         const erloes = parseInt(body.erloes, 10) || (state.bid && state.bid.amount) || 0;
         const tipps = tippsZu(erloes);
-        state.auktion = { zu: Date.now(), erloes, gebot: (state.bid && state.bid.amount) || 0, wer, karte: state.bid ? state.bid.paddle : "",
+        state.auktion = { zu: Date.now(), erloes, gebot: (state.bid && state.bid.amount) || 0, wer, bieter: state.bid ? state.bid.name : "",
           sieger: siegerAus(tipps), tipps: tipps.length };
         dirty = true; broadcast();
         logEvent("Zuschlag", wer, erloes + " €");
@@ -4616,7 +4618,7 @@ const server = http.createServer((req, res) => {
       const gaeste = Object.values(state.invites).filter(heuteErwartet)
         .map(inv => ({
           gid: gid(inv), name: inv.name || "", firma: inv.firma || "",
-          rolle: inv.rolle || "", ticketNr: inv.ticketNr || "",
+          rolle: inv.rolle || "",
           typ: inv.typ, pool: inv.pool || "", partner: inv.partner || "",
           demo: !!inv.demo, da: inv.da || 0
         }))
@@ -4637,7 +4639,7 @@ const server = http.createServer((req, res) => {
         const inv = body.gid ? findByGid(body.gid) : findInvite(String(body.t || "").trim());
         if (!inv) return json(res, 200, { ok: false, grund: "unbekannt" });
         const g = () => ({ gid: gid(inv), name: inv.name || "", firma: inv.firma || "",
-                           rolle: inv.rolle || "", ticketNr: inv.ticketNr || "",
+                           rolle: inv.rolle || "",
                            demo: !!inv.demo, da: inv.da || 0 });
         if (!heuteErwartet(inv))
           return json(res, 200, { ok: false, grund: "nicht-heute", status: inv.status, gast: g() });

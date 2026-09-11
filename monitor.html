@@ -782,7 +782,7 @@
       <div class="kpi"><b id="bVotum">–</b><span>Würden investieren</span></div>
       <div class="kpi"><b id="bSterne">–</b><span>Sterne · Anzahl</span></div>
       <div class="kpi"><b id="bInteresse">–</b><span>Intro · Investor</span></div>
-      <div class="kpi"><b id="bGebot">–</b><span>Höchstgebot · Karte</span></div>
+      <div class="kpi"><b id="bGebot">–</b><span>Höchstgebot · Bieter</span></div>
       <div class="kpi"><b id="bRinge">–</b><span>Kreise geschlossen</span></div>
     </div>
     <p class="fnote" id="bVotumDetail"></p>
@@ -804,7 +804,7 @@
     <span class="label" style="display:block;margin-top:22px">Auktion</span>
     <div class="mailtools">
       <input id="gebotBetrag" type="number" inputmode="numeric" placeholder="Betrag €" style="max-width:130px">
-      <input id="gebotKarte" type="text" placeholder="Karte / Name" style="max-width:160px" maxlength="30">
+      <input id="gebotKarte" type="text" placeholder="Name des Bieters" style="max-width:180px" maxlength="30">
       <button class="export" id="gebotSenden" type="button">Saal-Gebot eintragen</button>
       <button class="export" id="gebotZurueck" type="button">Letztes Gebot zurück</button>
     </div>
@@ -1821,7 +1821,7 @@ function buehneZeichnen(d){
   let su = 0, n = 0; for(let i = 1; i <= 5; i++){ const k = (d.sterne||{})[i]||0; su += i*k; n += k; }
   txt($("#bSterne"), n ? (su/n).toFixed(1).replace(".", ",") + " · " + n : "–");
   txt($("#bInteresse"), ((d.interesse||{}).intro||0) + " · " + ((d.interesse||{}).investor||0));
-  txt($("#bGebot"), d.bid ? d.bid.amount.toLocaleString("de-DE") + " € · " + (d.bid.paddle || "–") : "–");
+  txt($("#bGebot"), d.bid ? d.bid.amount.toLocaleString("de-DE") + " € · " + (d.bid.name || "ohne Namen") : "–");
   txt($("#bRinge"), d.ringe ? d.ringe.geschlossen : "–");
   $$("#wandModi button").forEach(b => b.classList.toggle("gross", d.wand && d.wand.modus === b.dataset.modus));
   txt($("#vorhang"), d.wand && d.wand.enthuellt ? "Vorhang: wieder zu" : "Vorhang: Ergebnis zeigen");
@@ -1832,7 +1832,7 @@ function buehneZeichnen(d){
   if(a && a.zu && !$("#erloesBetrag").value) $("#erloesBetrag").placeholder = a.erloes.toLocaleString("de-DE") + " €";
   $("#zuschlagZurueck").style.display = a && a.zu ? "" : "none";
   $("#zuschlag").disabled = !!(a && a.zu);
-  const bl = $("#bieterListe"); bl.textContent = (d.bids || []).length ? "Gebote: " + d.bids.map(b => b.amount.toLocaleString("de-DE") + " € (" + (b.paddle ? "Karte " + b.paddle : "") + (b.name ? " " + b.name : "") + (b.quelle === "saal" ? ", Saal" : "") + ")").join(" · ") : "";
+  const bl = $("#bieterListe"); bl.textContent = (d.bids || []).length ? "Gebote: " + d.bids.map(b => b.amount.toLocaleString("de-DE") + " € (" + (b.name || "ohne Namen") + (b.quelle === "saal" ? ", Saal" : "") + ")").join(" · ") : "";
 }
 async function adminPost(pfad, rumpf){
   if(!KEY) return null;
@@ -1844,8 +1844,9 @@ $$("#wandModi button").forEach(b => b.addEventListener("click", async () => { aw
 $("#vorhang").addEventListener("click", async () => { await adminPost("/api/admin/wand", { enthuellt: !(buehne && buehne.wand && buehne.wand.enthuellt) }); buehneHolen(); });
 $("#gebotSenden").addEventListener("click", async () => {
   const amount = parseInt($("#gebotBetrag").value, 10); if(!amount) return;
-  const k = $("#gebotKarte").value.trim(); const paddle = /^\d+$/.test(k) ? k : ""; const name = paddle ? "" : k;
-  const d = await adminPost("/api/admin/gebot", { amount, paddle, name }); if(d && d.ok){ $("#gebotBetrag").value = ""; $("#gebotKarte").value = ""; } buehneHolen();
+  /* Nur noch Namen: Bieterkarten gibt es seit dem 11.09. nicht mehr. */
+  const name = $("#gebotKarte").value.trim();
+  const d = await adminPost("/api/admin/gebot", { amount, name }); if(d && d.ok){ $("#gebotBetrag").value = ""; $("#gebotKarte").value = ""; } buehneHolen();
 });
 $("#gebotZurueck").addEventListener("click", async () => { if(confirm("Letztes Gebot zurücknehmen?")) { await adminPost("/api/admin/gebot-zurueck"); buehneHolen(); } });
 $("#zuschlag").addEventListener("click", async () => {
@@ -2413,16 +2414,6 @@ function gaesteRendern(){
     const name = document.createElement("td"); name.className = "gname";
     const nb = name.appendChild(document.createElement("b"));
     txt(nb, g.name || "—");
-    /* Die Nummer im Kreis steht neben dem Namen - sie ist die Kennung, die
-       der Gast selbst sieht (auf seiner Bestaetigung und am Abend). */
-    /* Die Nummer nur bei Gaesten, die zugesagt haben. Jeder traegt seit dem
-       Import eine, aber vorher hat sie keine Bedeutung - neben einem offenen
-       Gast gelesen sieht sie aus wie eine Zusage. */
-    if(g.ticketNr && (g.status === "zugesagt" || g.status === "bezahlt")){
-      const nr = nb.appendChild(document.createElement("small"));
-      nr.className = "tnr";
-      nr.textContent = g.ticketNr;
-    }
     /* Zweite Zeile: Unternehmen und Rolle, wenn der Gast sie angegeben hat -
        danach die Adresse. Leere Felder fallen weg, statt Trenner zu hinterlassen. */
     txt(name.appendChild(document.createElement("span")),
@@ -2571,7 +2562,7 @@ function ezZeichnen(){
     if(EZ.filter === "da" && !g.da) return false;
     if(EZ.filter === "offen" && g.da) return false;
     if(!suche) return true;
-    return (g.name + " " + g.firma + " " + g.ticketNr + " " + g.partner).toLowerCase().includes(suche);
+    return (g.name + " " + g.firma + " " + g.partner).toLowerCase().includes(suche);
   };
   const liste = EZ.gaeste.filter(passt);
   const ziel = $("#ezListe");
@@ -2594,7 +2585,7 @@ function ezZeichnen(){
     const name = document.createElement("span"); name.className = "ez-name";
     const nb = document.createElement("b"); nb.textContent = g.name || "(ohne Namen)";
     const ns = document.createElement("span");
-    ns.textContent = [g.firma, g.rolle, g.ticketNr].filter(Boolean).join(" \u00b7 ");
+    ns.textContent = [g.firma, g.rolle].filter(Boolean).join(" \u00b7 ");
     name.appendChild(nb); name.appendChild(ns);
     b.appendChild(haken); b.appendChild(name);
     if(g.demo){ const p = document.createElement("span"); p.className = "ez-probe"; p.textContent = "Probe"; b.appendChild(p); }
@@ -2697,7 +2688,7 @@ async function scannerOeffnen(){
     try{ navigator.vibrate && navigator.vibrate(d.schon ? [60,60,60] : 90); }catch(e){}
     zeigen("#d8f5dd", g.name || "Willkommen",
            d.schon ? "War schon eingecheckt." : "Willkommen.",
-           [g.firma, g.ticketNr].filter(Boolean).join(" \u00b7 "));
+           g.firma || "");
   }
 
   const treffer = text => {

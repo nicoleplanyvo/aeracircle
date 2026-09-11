@@ -1283,7 +1283,6 @@
         <h3 id="qrTitel">Zeig diesen Code am Einlass.</h3>
         <p id="qrText">Wir scannen ihn, und du bist im Kreis.</p>
         <div class="qrbild"><img id="qrBild" alt="Dein Check-in-Code" width="200" height="200"></div>
-        <p class="fnote" id="qrNr"></p>
       </div>
 
       <!-- Der Weg auf den Startbildschirm: sichtbar, solange es nicht
@@ -1805,7 +1804,6 @@
     </svg>
     <span class="label">Zusage bestätigt</span>
     <h1>Du bist <span class="grad">im Kreis.</span></h1>
-    <div class="inv-ticket grad" id="invTicket">№ –</div>
     <div class="inv-btns">
       <button class="btn btn--solid btn--full" id="invEnter">Vorschau der App ansehen</button>
     </div>
@@ -2569,18 +2567,9 @@ $$(".ibtn").forEach(b=>{
   });
 });
 
-/* ================= BIETERKARTE ================= */
-/* Die Bieterkarte ist die Kreisnummer aus der Zusage - eindeutig je Gast.
-   Der alte Hash aus dem Namen kannte nur 88 Nummern fuer 130 Gaeste:
-   "Karte 47" - und zwei Haende gehen hoch. Ohne Zusage (Demo) wie bisher. */
-/* Die Kreisnummer des Gastes; ohne Register eine aus dem Namen
-   abgeleitete Zahl, damit auf der Einladung nie ein Platzhalter steht. */
-function kreisNummer(name){
-  if(APP.ich && APP.ich.ticketNr){ const n = String(APP.ich.ticketNr).replace(/\D/g, ""); if(n) return n; }
-  let h = 0;
-  for(const c of name) h = (h*31 + c.charCodeAt(0)) >>> 0;
-  return 11 + (h % 88);
-}
+/* Eine Nummer im Kreis gibt es nicht mehr (Entscheidung Desi/Georg,
+   11.09.): kein Gast sieht eine, und in der Auktion nennt der Auktionator
+   den Namen. Wer bietet, hebt die Hand - nicht eine Karte. */
 /* ================= KARTE ================= */
 function renderCard(){
   $("#guestName").textContent = S.name || "Gast";
@@ -2884,7 +2873,6 @@ if(DEMO){
     S.diet = invDiet; S.allergy = $("#invAllergy").value.trim();
     persist();
     if(invTyp === "zusage"){                       // Ehrengast: keine Zahlung
-      $("#invTicket").textContent = "№ " + kreisNummer(S.name);
       invShow("fertig"); buzz([40,60,40]);
     } else {
       invShow("zahlung");
@@ -2894,7 +2882,6 @@ if(DEMO){
     const b = $("#invPay");
     b.textContent = "Zahlung läuft …"; b.disabled = true;
     setTimeout(()=>{
-      $("#invTicket").textContent = "№ " + kreisNummer(S.name || "Gast");
       invShow("fertig"); buzz([40,60,40]);
     }, 900);
   });
@@ -3523,7 +3510,6 @@ function renderQrKarte(){
   $("#qrTitel").textContent = da ? "Eingecheckt." : "Zeig diesen Code am Einlass.";
   $("#qrText").textContent = da ? "Schön, dass du hier bist. Den Code brauchst du heute nicht mehr."
     : "Wir scannen ihn, und du bist im Kreis. Er steht auch in deiner Mail.";
-  $("#qrNr").textContent = (APP.ich && APP.ich.ticketNr) ? "Deine Nummer im Kreis: " + APP.ich.ticketNr : "";
   k.style.display = "";
 }
 function renderAppKarte(){

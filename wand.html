@@ -203,21 +203,21 @@ function zeigen(){
   if(a && a.zu){
     $("#aukLabel").textContent = "Zuschlag · Der Erlös wird gespendet";
     $("#aukBetrag").textContent = fmt(a.erloes) + " €";
-    $("#aukKarte").textContent = a.karte ? "Karte № " + a.karte : "";
+    $("#aukKarte").textContent = a.bieter || "";
     $("#aukSatz").textContent = "";
     const s = a.sieger && a.sieger[0];
     $("#aukSieger").style.display = s ? "" : "none";
-    if(s){ $("#siegName").textContent = s.vorname + (s.karte ? " · Karte № " + s.karte : ""); $("#siegRest").textContent = "Tipp " + fmt(s.wert) + " € · " + fmt(s.abstand) + " € daneben"; }
+    if(s){ $("#siegName").textContent = s.vorname; $("#siegRest").textContent = "Tipp " + fmt(s.wert) + " € · " + fmt(s.abstand) + " € daneben"; }
   } else {
     $("#aukLabel").textContent = "Live Painting · Max Leinfelder";
     $("#aukSieger").style.display = "none";
-    if(D.bid){ $("#aukBetrag").textContent = fmt(D.bid.amount) + " €"; $("#aukKarte").textContent = D.bid.paddle ? "Höchstgebot · Karte № " + D.bid.paddle : "Höchstgebot"; $("#aukSatz").textContent = ""; }
+    if(D.bid){ $("#aukBetrag").textContent = fmt(D.bid.amount) + " €"; $("#aukKarte").textContent = D.bid.name ? "Höchstgebot · " + D.bid.name : "Höchstgebot"; $("#aukSatz").textContent = ""; }
     else {
       const g = Z && Z.gates && Z.gates.auktion;
       const vor = g && hhmm(jetzt()) < g.from;
       $("#aukBetrag").textContent = vor ? g.from : "–";
       $("#aukKarte").textContent = vor ? "Die Versteigerung beginnt" : "Noch kein Gebot";
-      $("#aukSatz").textContent = vor ? "Bieterkarte in der App heben – oder die Hand." : "Der Erlös wird vollständig gespendet.";
+      $("#aukSatz").textContent = vor ? "Wer bietet, hebt die Hand." : "Der Erlös wird vollständig gespendet.";
     }
   }
   /* Kreis */
