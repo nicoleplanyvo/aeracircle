@@ -2374,7 +2374,7 @@ function rechnungPdf(w) {
   }
   zeile(ys + 2, NAVY, X2, R - X2); ys += 10;
   T(X2, ys, "Rechnungsbetrag", { groesse: 10, fett: true });
-  T(R, ys - 2, w.betrag_brutto, { groesse: 12.5, fett: true });
+  T(R, ys - 2, w.betrag_brutto, { groesse: 12.5, fett: true, rechts: true });
   ys += 30;
 
   /* Der wichtigste Satz: nichts mehr zu tun. */
