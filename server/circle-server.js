@@ -1302,7 +1302,11 @@ function importRows(rows) {
       if (treffer.length === 1) inv = treffer[0];
     }
     if (inv) {
-      inv.pool = pool; inv.typ = typ;
+      /* Nur Spalten, die die Liste wirklich hat. Ohne diese Pruefung landete
+       * jeder bestehende Gast im Pool "Allgemein", sobald eine Liste ohne
+       * Pool-Spalte eingespielt wurde - und sein Typ gleich mit. */
+      if (iPool >= 0) inv.pool = pool;
+      if (iTyp >= 0 || iPool >= 0) inv.typ = typ;
       inv.name = zeilenName || inv.name;
       if (email && !inv.email) {                     // WhatsApp-Gast bekommt Adresse
         inv.email = email;
@@ -3670,8 +3674,20 @@ const server = http.createServer((req, res) => {
       const email = clean(q.get("email") || "", 120).toLowerCase();
       if (!name) return json(res, 400, { error: "name fehlt" });
       if (email && email.indexOf("@") < 1) return json(res, 400, { error: "email ohne @" });
-      const kopf = ["pool", "typ", "anrede", "name", "email", "firma", "rolle", "partner", "partner_logo", "telefon"];
-      const zeile = kopf.map(k => cleanText(q.get(k === "email" ? "email" : k) || "", 200));
+      /* Nur die Felder, die wirklich mitgeschickt wurden. Vorher stand hier
+       * eine feste Spaltenliste - ein Aufruf, der bloss den Partner nachtrug,
+       * loeschte damit still Firma, Rolle, Anrede und warf den Gast in den
+       * Pool "Allgemein". Jetzt gilt: Feld nicht dabei = bleibt, wie es war.
+       * Feld leer mitgegeben (&firma=) = wird bewusst geleert.
+       * name und email bleiben immer dabei: importRows braucht beide Spalten,
+       * und die Adresse ist der Schluessel, ueber den der Gast gefunden wird. */
+      const FELDER = ["pool", "typ", "anrede", "name", "email", "firma", "rolle", "partner", "partner_logo", "telefon"];
+      const kopf = [], zeile = [];
+      for (const f of FELDER) {
+        if (f !== "name" && f !== "email" && q.get(f) === null) continue;
+        kopf.push(f);
+        zeile.push(cleanText(q.get(f) || "", 200));
+      }
       let ergebnis;
       try { ergebnis = importRows([kopf, zeile]); }
       catch (e) { return json(res, 400, { error: e.message }); }

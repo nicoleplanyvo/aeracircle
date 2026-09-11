@@ -921,6 +921,25 @@ Wer es lieber auf der Kommandozeile macht, kann weiterhin:
 curl -s -X POST 'https://thecircle.planyvo.com/api/admin/absage?key=…&email=gast@example.com'
 ```
 
+**Einen einzelnen Gast anlegen oder ändern.** `/api/admin/gast` legt einen
+Gast an, wenn die Adresse neu ist, und ändert ihn sonst. Die Antwort
+enthält seinen persönlichen Link – praktisch, wenn ein Partner kurzfristig
+einen Platz weitergibt:
+
+```bash
+curl -s -X POST 'https://thecircle.planyvo.com/api/admin/gast?key=…&name=Uwe%20Rießler&email=uwe@example.com&pool=DEKRA&typ=ehrengast&anrede=Lieber&firma=DEKRA%20SE&rolle=Bereichsleiter&partner=DEKRA&partner_logo=partner-dekra-neg.png'
+```
+
+Die Regel dabei: **Was du nicht mitschickst, bleibt, wie es war.** Wer nur
+den Partner nachträgt, verliert Firma, Rolle und Pool nicht. Ein Feld
+*bewusst* leeren geht, indem man es leer mitgibt – `&firma=` löscht die
+Firma. Angelegt wird der Gast mit Status *offen*; zugesagt ist er erst,
+wenn er über seinen Link zusagt.
+
+Dasselbe gilt für ganze Listen über `/api/admin/import`: Spalten, die die
+Liste nicht hat, bleiben unangetastet. Eine Liste ohne `pool`-Spalte wirft
+also niemanden mehr in den Pool „Allgemein".
+
 **Sicherung.** Der gesamte Zustand liegt in `server/live-state.json`. Ein
 täglicher Cron in Plesk (**Geplante Aufgaben**) genügt:
 
