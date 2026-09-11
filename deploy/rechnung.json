@@ -1,0 +1,15 @@
+{
+  "aktiv": true,
+
+  "firma": "Ihre Markenwerkstatt",
+  "anschrift": ["Gertrudenstraße 9", "50667 Köln"],
+  "steuer": "USt-IdNr. DE 281 844 556",
+  "kontakt": "info@ihre-markenwerkstatt.de",
+
+  "ustsatz": 19,
+  "hinweis": "",
+  "praefix": "CIRCLE-2026-",
+
+  "kontoinhaber": "THE CIRCLE",
+  "bank": ["Kreissparkasse Köln", "IBAN DE92 3705 0299 0000 8089 01", "BIC COKSDE33XXX"]
+}

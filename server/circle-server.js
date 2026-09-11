@@ -217,40 +217,32 @@ function ticketZusagen() {
 }
 const ticketPlaetzeFrei = () => Math.max(0, TICKET_LIMIT - ticketZusagen());
 
-/* ---------- Rechnung ----------
- *
- * Warum wir sie selbst schreiben und nicht Stripe schreiben lassen:
- * Das Stripe-Konto laeuft auf eine andere Gesellschaft als die, die
- * Rechnungssteller sein soll. Die Kontodaten zu aendern hiesse, die gerade
- * erst abgeschlossene Pruefung erneut auszuloesen - und ohne Stripe kann
- * niemand mehr zahlen. Eine eigene Rechnung aus unserer Mail kostet uns
- * nichts und ruehrt an nichts.
- *
- * 100 Euro sind eine Kleinbetragsrechnung nach Paragraf 33 UStDV (bis 250
- * Euro brutto). Die braucht KEINE Anschrift des Empfaengers und keine
- * fortlaufende Nummer - beides haben wir ohnehin nicht vollstaendig. Noetig
- * sind: Aussteller mit Anschrift, Datum, Art der Leistung, Bruttobetrag und
- * der Steuersatz bzw. der Hinweis auf die Steuerbefreiung. Eine Nummer
- * vergeben wir trotzdem: die Buchhaltung dankt es.
- *
- * Alles Ausstellerbezogene kommt aus der Umgebung - es steht auf einem
- * steuerlichen Dokument und gehoert nicht in ein Repository. */
-const RECHNUNG_AKTIV    = process.env.RECHNUNG_AKTIV === "1";
-const RECHNUNG_FIRMA    = process.env.RECHNUNG_FIRMA || "";
-/* Zeilen mit | getrennt: "Musterstr. 1|50667 Köln" */
-const RECHNUNG_ANSCHRIFT= process.env.RECHNUNG_ANSCHRIFT || "";
-const RECHNUNG_STEUER   = process.env.RECHNUNG_STEUER || "";
-/* 19 = ausgewiesen, 0 = keine (dann gehoert der Grund in RECHNUNG_HINWEIS) */
-const RECHNUNG_USTSATZ  = parseFloat(process.env.RECHNUNG_USTSATZ || "0") || 0;
-const RECHNUNG_HINWEIS  = process.env.RECHNUNG_HINWEIS || "";
-const RECHNUNG_PRAEFIX  = process.env.RECHNUNG_PRAEFIX || "CIRCLE-2026-";
-const RECHNUNG_KONTAKT  = process.env.RECHNUNG_KONTAKT || MAIL_FROM.replace(/^.*<|>.*$/g, "");
+/* Rechnungsdaten: deploy/rechnung.json ist die Quelle. Sie liegt im Repo,
+ * damit die Rechnung mit dem naechsten Pull steht und niemand in Plesk
+ * Variablen eintippen muss. Nichts darin ist geheim - es ist genau das,
+ * was auf jeder verschickten Rechnung ohnehin steht.
+ * Umgebungswerte ueberschreiben einzelne Schluessel, falls ein Server
+ * andere Daten braucht als das Repo (Tests, eine zweite Runde). */
+let RJ = {};
+try { RJ = JSON.parse(fs.readFileSync(path.join(ROOT, "deploy", "rechnung.json"), "utf8")); }
+catch (e) { RJ = {}; }
+const zeilen = v => Array.isArray(v) ? v.join("|") : String(v || "");
+const RECHNUNG_AKTIV    = process.env.RECHNUNG_AKTIV !== undefined
+  ? process.env.RECHNUNG_AKTIV === "1" : RJ.aktiv === true;
+const RECHNUNG_FIRMA    = process.env.RECHNUNG_FIRMA || RJ.firma || "";
+/* Zeilen mit | getrennt: "Musterstr. 1|50667 Köln" (in der JSON eine Liste) */
+const RECHNUNG_ANSCHRIFT= process.env.RECHNUNG_ANSCHRIFT || zeilen(RJ.anschrift);
+const RECHNUNG_STEUER   = process.env.RECHNUNG_STEUER || RJ.steuer || "";
+/* 19 = ausgewiesen, 0 = keine (dann gehoert der Grund in den Hinweis) */
+const RECHNUNG_USTSATZ  = parseFloat(process.env.RECHNUNG_USTSATZ !== undefined
+  ? process.env.RECHNUNG_USTSATZ : (RJ.ustsatz != null ? RJ.ustsatz : 0)) || 0;
+const RECHNUNG_HINWEIS  = process.env.RECHNUNG_HINWEIS || RJ.hinweis || "";
+const RECHNUNG_PRAEFIX  = process.env.RECHNUNG_PRAEFIX || RJ.praefix || "CIRCLE-2026-";
+const RECHNUNG_KONTAKT  = process.env.RECHNUNG_KONTAKT || RJ.kontakt || MAIL_FROM.replace(/^.*<|>.*$/g, "");
 /* Die Rechnung stellt die Agentur aus, das Geld liegt auf dem Konto der
- * Veranstaltung - deshalb stehen Aussteller und Kontoinhaber getrennt.
- * RECHNUNG_BANK wie die Anschrift mit | getrennt:
- *   "Kreissparkasse Köln|IBAN DE.. .. ..|BIC ..." */
-const RECHNUNG_KONTOINHABER = process.env.RECHNUNG_KONTOINHABER || "";
-const RECHNUNG_BANK         = process.env.RECHNUNG_BANK || "";
+ * Veranstaltung - deshalb stehen Aussteller und Kontoinhaber getrennt. */
+const RECHNUNG_KONTOINHABER = process.env.RECHNUNG_KONTOINHABER || RJ.kontoinhaber || "";
+const RECHNUNG_BANK         = process.env.RECHNUNG_BANK || zeilen(RJ.bank);
 
 /* Ohne Aussteller und Anschrift ist es keine Rechnung, sondern ein Zettel. */
 const rechnungMoeglich = () => RECHNUNG_AKTIV && !!RECHNUNG_FIRMA && !!RECHNUNG_ANSCHRIFT;
@@ -4494,8 +4486,8 @@ const server = http.createServer((req, res) => {
     if (req.method === "POST" && url === "/api/admin/rechnungen") {
       if (!rechnungMoeglich()) {
         return json(res, 503, {
-          error: "Rechnungsversand ist nicht eingerichtet. Nötig: RECHNUNG_AKTIV=1, " +
-                 "RECHNUNG_FIRMA, RECHNUNG_ANSCHRIFT (und RECHNUNG_USTSATZ bzw. RECHNUNG_HINWEIS)."
+          error: "Rechnungsversand ist nicht eingerichtet: deploy/rechnung.json fehlt, " +
+                 "steht auf aktiv=false oder hat keine Firma und Anschrift."
         });
       }
       const dran = Object.values(state.invites).filter(rechnungFaellig);

@@ -568,6 +568,19 @@
         </div>
       </div>
 
+      <!-- Rechnungen. Neue Zahlungen bekommen ihre Rechnung von selbst;
+           der Knopf holt nach, was vor dem Einschalten bezahlt wurde. -->
+      <div class="panel" style="margin-bottom:8px" id="rechnungpanel">
+        <span class="label">Rechnungen · Angaben aus deploy/rechnung.json</span>
+        <h2>Rechnungen</h2>
+        <p class="fnote" id="rnNote">–</p>
+        <div class="exportzeile">
+          <button class="export" id="rnSenden" type="button" disabled>Keine Rechnung fällig</button>
+          <span class="fussnote" style="margin:0" id="rnErgebnis"></span>
+        </div>
+        <p class="fnote" id="rnListe"></p>
+      </div>
+
       <div class="panel">
         <span class="label">Register &amp; Lettermint · Live-Aktivität</span>
         <h2>Zuletzt passiert</h2>
@@ -1116,6 +1129,7 @@ async function laden(){
     poolsRendern(d.pools || []);
     fassungenRendern(d.fassungen || []);
     umsatzSetzen(d.gesamt);
+    rechnungenHolen();
     feedRendern(d.feed || []);
     quelleSetzen(d);
     await gaesteHolen();
@@ -1413,6 +1427,39 @@ function fassungenRendern(f){
     box.appendChild(k);
   }
 }
+
+/* ---------- Rechnungen ----------
+   Der Probelauf ist ein POST ohne senden=1: er aendert nichts, er zaehlt
+   nur. Ein 503 heisst "nicht eingerichtet" - das ist ein Zustand, kein
+   Fehler, deshalb kein alert. */
+let rnFaellig = 0;
+async function rechnungenHolen(){
+  if(!KEY || !$("#rechnungpanel")) return;
+  try{
+    const r = await fetch("/api/admin/rechnungen?key=" + encodeURIComponent(KEY),
+                          { method:"POST", headers:{"Content-Type":"application/json"}, body:"{}" });
+    const d = await r.json();
+    if(!r.ok){
+      txt($("#rnNote"), d.error || "Rechnungen sind nicht eingerichtet.");
+      txt($("#rnSenden"), "Nicht eingerichtet"); $("#rnSenden").disabled = true; txt($("#rnListe"), "");
+      return;
+    }
+    rnFaellig = d.anzahl || 0;
+    txt($("#rnNote"), "Ausgestellt von " + (d.aussteller || "?") + (d.ustsatz ? " \u00b7 " + d.ustsatz + "\u00a0% USt ausgewiesen" : " \u00b7 ohne USt") +
+        ". Jede neue Zahlung bekommt ihre Rechnung von selbst, wenige Sekunden nach der Best\u00e4tigung. Der Knopf holt nach, was davor bezahlt wurde.");
+    txt($("#rnSenden"), rnFaellig ? rnFaellig + (rnFaellig === 1 ? " f\u00e4llige Rechnung verschicken" : " f\u00e4llige Rechnungen verschicken") : "Keine Rechnung f\u00e4llig");
+    $("#rnSenden").disabled = !rnFaellig;
+    txt($("#rnListe"), rnFaellig ? "F\u00e4llig: " + (d.gaeste || []).map(g => g.name + " (" + g.betrag + ")").join(" \u00b7 ") : "");
+  }catch(e){ txt($("#rnNote"), "Rechnungen: Server nicht erreichbar."); }
+}
+$("#rnSenden").addEventListener("click", async () => {
+  if(!rnFaellig) return;
+  if(!confirm(rnFaellig + (rnFaellig === 1 ? " Rechnung" : " Rechnungen") + " jetzt per Mail verschicken? Jede bekommt eine feste Nummer, die bleibt.")) return;
+  $("#rnSenden").disabled = true; txt($("#rnErgebnis"), "wird verschickt \u2026");
+  const d = await adminPost("/api/admin/rechnungen?senden=1");
+  if(d && d.ok){ txt($("#rnErgebnis"), d.verschickt + " unterwegs"); setTimeout(rechnungenHolen, 3000 + 600 * d.verschickt); }
+  else { txt($("#rnErgebnis"), ""); $("#rnSenden").disabled = false; }
+});
 
 /* ---------- Umsatz ---------- */
 function umsatzSetzen(g){

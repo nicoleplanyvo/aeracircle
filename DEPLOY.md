@@ -940,6 +940,26 @@ Dasselbe gilt für ganze Listen über `/api/admin/import`: Spalten, die die
 Liste nicht hat, bleiben unangetastet. Eine Liste ohne `pool`-Spalte wirft
 also niemanden mehr in den Pool „Allgemein".
 
+**Rechnungen.** Die Angaben stehen in **`deploy/rechnung.json`** – Ausstellerin
+(Ihre Markenwerkstatt mit Anschrift und Steuernummer), Umsatzsteuersatz,
+Nummernkreis, Zahlungsempfänger (THE CIRCLE) und Bankverbindung. Nichts davon
+muss in Plesk eingetragen werden; mit dem nächsten Pull und Restart ist die
+Rechnung scharf. Die `RECHNUNG_*`-Variablen aus `deploy/env.example`
+überschreiben einzelne Werte nur, falls ein Server andere braucht.
+
+Sobald `aktiv` auf `true` steht, bekommt **jede neue Zahlung** ihre Rechnung
+von selbst, wenige Sekunden nach der Bestätigungsmail. Wer *vor* dem
+Einschalten bezahlt hat, steht im Monitor unter *Einladung → Rechnungen* als
+„fällig" – ein Knopf schickt sie nach. Jede Rechnung bekommt eine feste
+Nummer (`CIRCLE-2026-0001` …), die auch bei einem gescheiterten Versand am
+Gast bleibt; ein zweiter Anlauf schickt dieselbe Rechnung noch einmal.
+
+Das Blatt ist ein Geschäftsbrief in der CI von THE CIRCLE, ausgestellt von
+der Agentur: oben rechts die Rechnungsstellerin, unten im Fuß der
+Zahlungsempfänger mit Bankverbindung – als Angabe, nicht als Aufforderung,
+denn über Stripe ist beim Versand längst bezahlt. Ausgedruckt (Cmd+P) wird
+daraus ein A4-Blatt ohne grauen Rand.
+
 **Sicherung.** Der gesamte Zustand liegt in `server/live-state.json`. Ein
 täglicher Cron in Plesk (**Geplante Aufgaben**) genügt:
 
