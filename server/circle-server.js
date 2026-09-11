@@ -1847,6 +1847,8 @@ function renderMail(inv, datei, extra) {
     /* Dieselbe Wortmarke in Navy - fuer helle Belege wie die Rechnung, wo
      * eine weisse Marke auf weissem Papier nichts waere. */
     logo_ink_url: assetUrl("logo-zentriert-ink.png"),
+    /* Die Marke der Rechnungsstellerin, klein neben ihrem Namen. */
+    mw_logo_url: assetUrl("markenwerkstatt-logo.png"),
     partnerwand_url: assetUrl("partnerwand-bordeaux.jpg"),
     /* Dieselbe Wand auf Navy - fuer die Mails der Welle 2, die auf Navy
      * stehen. Ein JPG traegt seinen Grund mit; die Bordeaux-Datei saehe
