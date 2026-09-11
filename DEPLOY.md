@@ -901,6 +901,26 @@ sind nicht im Repo.
 **Änderungen ausrollen:** Plesk → Git → *Jetzt aktualisieren*, danach
 **Anwendung neu starten**. Ohne Neustart läuft der alte Stand weiter.
 
+**Eine Absage vermerken.** Die meisten Absagen kommen per Mail, über Dylan
+oder am Telefon – nicht über den persönlichen Link. Im Monitor unter
+*Einladung → Gästeliste · Mailstatus* steht in der Spalte **Stand** bei
+jedem Gast „Absage vermerken". Eine Rückfrage, ein Druck, fertig: Der Gast
+fällt aus Welle 2 und aus der Gästeliste am Einlass, sein QR-Code zeigt
+dort ab dann orange statt grün.
+
+Bei einem Abgesagten heißt derselbe Knopf **„Absage zurücknehmen"** und
+setzt ihn auf *offen* – er kann dann wieder über seinen Link zusagen.
+
+**Bezahlte Teilnahmen haben keinen Knopf**, dort steht „erst in Stripe
+erstatten". Da hängt Geld dran; die Erstattung gehört nach Stripe, danach
+lässt sich der Stand ändern.
+
+Wer es lieber auf der Kommandozeile macht, kann weiterhin:
+
+```bash
+curl -s -X POST 'https://thecircle.planyvo.com/api/admin/absage?key=…&email=gast@example.com'
+```
+
 **Sicherung.** Der gesamte Zustand liegt in `server/live-state.json`. Ein
 täglicher Cron in Plesk (**Geplante Aufgaben**) genügt:
 

@@ -184,6 +184,15 @@
   .stat.bez{background:var(--coral);border-color:var(--coral);color:#fff;font-weight:600}
   .stat.ab{opacity:.55}
   .stat.bounce{border-color:var(--coral);color:var(--coral)}
+  /* Absage von Hand - klein, grau, am Rand. Ein Knopf, der ein Register
+     aendert, soll nicht laut sein; die Rueckfrage haelt ihn auf. */
+  .absagen{display:block;margin-top:7px;background:none;border:0;padding:0;cursor:pointer;
+    font-family:var(--sans);font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);text-decoration:underline;text-underline-offset:3px}
+  .absagen:hover{color:var(--coral)}
+  .absagen.zurueck:hover{color:var(--blau)}
+  .absagen[disabled]{opacity:.4;cursor:default;text-decoration:none}
+  .stathinweis{display:block;margin-top:7px;font-size:9px;letter-spacing:.06em;color:var(--faint)}
   .mailmehr{margin-top:12px;background:none;border:1px solid var(--line-soft);border-radius:999px;color:var(--muted);
     font-family:var(--sans);font-size:9px;letter-spacing:.2em;text-transform:uppercase;padding:8px 18px;cursor:pointer}
   .mailmehr:hover{border-color:var(--blau);color:var(--ivory)}
@@ -1836,7 +1845,9 @@ function buehneZeichnen(d){
 }
 async function adminPost(pfad, rumpf){
   if(!KEY) return null;
-  try{ const r = await fetch(pfad + "?key=" + encodeURIComponent(KEY), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf || {}) });
+  /* Der Pfad darf schon eigene Werte tragen (…?gid=…) - der Schluessel haengt
+     sich dann mit & an, nicht mit einem zweiten Fragezeichen. */
+  try{ const r = await fetch(pfad + (pfad.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(KEY), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf || {}) });
     const d = await r.json(); if(!r.ok) alert(d.error || "Fehlgeschlagen"); return d; }
   catch(e){ alert("Server nicht erreichbar."); return null; }
 }
@@ -2433,6 +2444,18 @@ function gaesteRendern(){
     s.textContent = (STAND_LABEL[g.status] || g.status) +
       (g.mail.bounced ? " · unzustellbar" : "") + (g.abgemeldet ? " · abgemeldet" : "");
     stand.appendChild(s);
+    /* Absagen kommen per Mail, ueber Dylan oder am Telefon - fast nie ueber
+       den persoenlichen Link. Bis hierher war jede eine Zeile im Terminal. */
+    if(g.status === "bezahlt"){
+      txt(stand.appendChild(document.createElement("span")), "erst in Stripe erstatten").className = "stathinweis";
+    } else if(g.gid){
+      const ab = stand.appendChild(document.createElement("button"));
+      ab.type = "button";
+      ab.className = "absagen" + (g.status === "abgesagt" ? " zurueck" : "");
+      ab.dataset.gid = g.gid;
+      ab.dataset.zurueck = g.status === "abgesagt" ? "1" : "";
+      txt(ab, g.status === "abgesagt" ? "Absage zurücknehmen" : "Absage vermerken");
+    }
     tr.appendChild(stand);
     tb.appendChild(tr);
   }
@@ -2449,6 +2472,23 @@ function gaesteRendern(){
     " · mit Unternehmen, Rolle, Telefon und dem Stand jeder Mail" +
     (chip === "alle" && !suche ? "" : " · nur die gefilterten");
 }
+
+/* Der Knopf haengt an der Liste, nicht an jeder Zeile: die Tabelle wird bei
+   jedem Takt neu gebaut, einzelne Zuhoerer waeren dann jedes Mal weg. */
+$("#mailliste").addEventListener("click", async e => {
+  const knopf = e.target.closest(".absagen"); if(!knopf) return;
+  const zeile = knopf.closest("tr");
+  const name = (zeile && zeile.querySelector(".gname b") || {}).textContent || "Dieser Gast";
+  const zurueck = knopf.dataset.zurueck === "1";
+  const frage = zurueck
+    ? name + " wieder auf \u201eoffen\u201c setzen? Der Gast kann dann wieder zusagen."
+    : name + " als Absage vermerken?\n\nF\u00e4llt damit aus Welle 2 und aus der G\u00e4steliste am Einlass.";
+  if(!confirm(frage)) return;
+  knopf.disabled = true; txt(knopf, zurueck ? "wird zur\u00fcckgenommen \u2026" : "wird vermerkt \u2026");
+  const d = await adminPost("/api/admin/absage?gid=" + encodeURIComponent(knopf.dataset.gid) + (zurueck ? "&zurueck=1" : ""));
+  if(!d || !d.ok){ knopf.disabled = false; txt(knopf, zurueck ? "Absage zur\u00fccknehmen" : "Absage vermerken"); return; }
+  await laden();
+});
 
 /* ---------- Handlungsbedarf ----------
  * Die Umkehrung des Monitors: nicht "so steht es", sondern "das wartet auf

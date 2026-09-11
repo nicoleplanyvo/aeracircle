@@ -4518,7 +4518,10 @@ const server = http.createServer((req, res) => {
      * erstattet werden muss. */
     if (req.method === "POST" && url === "/api/admin/absage") {
       const mail = String(q.get("email") || "").toLowerCase().trim();
-      const inv = findInvite(q.get("t")) ||
+      /* Drei Wege zum selben Gast: Token (aus einem Link), gid (der Knopf in
+       * der Gaesteliste) oder die Adresse von Hand. Die gid trifft auch die
+       * Gaeste ohne Mailadresse - die ueber WhatsApp eingeladenen. */
+      const inv = findInvite(q.get("t")) || findByGid(q.get("gid")) ||
                   (mail ? Object.values(state.invites).find(i => (i.email || "").toLowerCase() === mail) : null);
       if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
       if (inv.status === "bezahlt") {
@@ -4682,6 +4685,10 @@ const server = http.createServer((req, res) => {
           if (!hasOwn(wellen, n)) wellen[n] = Object.assign({ sent: 0, delivered: 0, opened: 0, clicked: 0 }, inv.wellen[n]);
         }
         return {
+          /* Die oeffentliche Kennung, damit der Monitor eine Zeile eindeutig
+           * benennen kann - auch bei einem Gast ohne Adresse (WhatsApp). Der
+           * Token bleibt geheim und steht hier bewusst NICHT. */
+          gid: gid(inv),
           wellen,
           /* Von Hand per WhatsApp verschickt - je Welle ein Zeitpunkt.
            * Steht neben den Mailwellen, damit ein Gast ohne Adresse nicht
