@@ -245,6 +245,12 @@ const RECHNUNG_USTSATZ  = parseFloat(process.env.RECHNUNG_USTSATZ || "0") || 0;
 const RECHNUNG_HINWEIS  = process.env.RECHNUNG_HINWEIS || "";
 const RECHNUNG_PRAEFIX  = process.env.RECHNUNG_PRAEFIX || "CIRCLE-2026-";
 const RECHNUNG_KONTAKT  = process.env.RECHNUNG_KONTAKT || MAIL_FROM.replace(/^.*<|>.*$/g, "");
+/* Die Rechnung stellt die Agentur aus, das Geld liegt auf dem Konto der
+ * Veranstaltung - deshalb stehen Aussteller und Kontoinhaber getrennt.
+ * RECHNUNG_BANK wie die Anschrift mit | getrennt:
+ *   "Kreissparkasse Köln|IBAN DE.. .. ..|BIC ..." */
+const RECHNUNG_KONTOINHABER = process.env.RECHNUNG_KONTOINHABER || "";
+const RECHNUNG_BANK         = process.env.RECHNUNG_BANK || "";
 
 /* Ohne Aussteller und Anschrift ist es keine Rechnung, sondern ein Zettel. */
 const rechnungMoeglich = () => RECHNUNG_AKTIV && !!RECHNUNG_FIRMA && !!RECHNUNG_ANSCHRIFT;
@@ -2281,6 +2287,10 @@ function rechnungSenden(inv) {
     aussteller_anschrift: RECHNUNG_ANSCHRIFT.split("|").map(z => z.trim()).filter(Boolean).join(", "),
     aussteller_steuer: RECHNUNG_STEUER,
     aussteller_kontakt: RECHNUNG_KONTAKT,
+    /* Zahlungsempfaenger und Bankverbindung. Stehen im Fuss als feste
+     * Angabe - nicht als Aufforderung: bezahlt ist ueber Stripe schon. */
+    kontoinhaber: RECHNUNG_KONTOINHABER,
+    bankverbindung: RECHNUNG_BANK.split("|").map(z => z.trim()).filter(Boolean).join(" · "),
     empfaenger: [inv.name, inv.firma].filter(Boolean).join(", "),
     betrag_brutto: euroText(brutto),
     betrag_netto: euroText(netto),
@@ -2308,6 +2318,9 @@ function rechnungSenden(inv) {
       ? "Netto " + extra.betrag_netto + " · zzgl. " + extra.ust_satz + " USt " + extra.ust_betrag
       : RECHNUNG_HINWEIS,
     "Gesamtbetrag " + extra.betrag_brutto + " – bezahlt am " + extra.zahlung_datum + ".",
+    "",
+    RECHNUNG_KONTOINHABER ? "Zahlungsempfänger: " + RECHNUNG_KONTOINHABER : null,
+    extra.bankverbindung || null,
     "",
     "Fragen zur Rechnung: " + RECHNUNG_KONTAKT
   ].filter(Boolean).join("\n");
