@@ -1831,6 +1831,10 @@ function renderMail(inv, datei, extra) {
      * Server mit den persoenlichen Links - die Website ist eine andere. */
     website_url: WEBSITE_URL,
     header_img_url: assetUrl("circle-header.jpg"),
+    /* Dasselbe Kopfbild, aber mit der Wortmarke darin. Die Welle-2-Mail
+     * traegt die Marke im Bild statt darunter - eine zweite Marke auf Navy
+     * waere dieselbe Aussage ein zweites Mal. */
+    header_logo_url: assetUrl("circle-header-logo.jpg"),
     /* Standen bis eben als feste Adresse in den Vorlagen und blieben damit
      * als einzige ohne Cache-Kuerzel haengen. */
     header_std_url: assetUrl("circle-header-std.jpg"),
@@ -1962,7 +1966,8 @@ function textFassung(inv, welle) {
     "",
     welle === 0 ? "Alle Informationen: " + WEBSITE_URL
       : "Dein persönlicher Link: " + (welle === 2 ? appLink(inv.token) : inviteLink(inv.token)),
-    welle === 2 && inv.ticketNr ? "Deine Ticketnummer: " + inv.ticketNr : null,
+    /* Keine Nummer mehr in der Textfassung - sie steht auch in der Mail
+     * nicht mehr (Entscheidung Desi/Georg, 11.09.). */
     "",
     "Keine weiteren Mails: " + abmeldeLink(inv.token)
   ];

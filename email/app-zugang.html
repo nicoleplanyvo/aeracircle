@@ -20,9 +20,7 @@
                         NICHT {{link}} nehmen - das ist die Landing Page fuer die Zusage.
                         Diese Welle geht NUR an Gaeste mit Status zugesagt/bezahlt.
     {{qr_url}}          Bild des persoenlichen Check-in-Codes (PNG, absolute Adresse)
-    {{ticket_nr}}       Ticket-/Bieterkarten-Nummer (Spalte ticket_nr der Versandliste)
-    {{header_img_url}}  gehostetes Headerbild -> Datei: email/assets/circle-header.jpg (1200x520)
-    {{logo_url}}        offizielles Logo -> /assets/logo-neg.png (PNG! Gmail/Outlook zeigen SVG nicht)
+    {{header_logo_url}} Headerbild MIT Wortmarke -> email/assets/circle-header-logo.jpg (1200x520)
     {{partnerwand_navy_url}}  Partnerwand negativ weiss auf Navy -> email/assets/partnerwand-navy.jpg (1000x300)
     {{abmelden_url}}    Abmeldelink (Pflicht)
 -->
@@ -63,19 +61,15 @@
 
         <!-- S/W-Koeln-Header (Deck-Covershot) -->
         <tr><td>
-          <img src="{{header_img_url}}" width="600" alt="THE CIRCLE &ndash; &uuml;ber den D&auml;chern von K&ouml;ln"
+          <img src="{{header_logo_url}}" width="600" alt="THE CIRCLE &ndash; connecting generations"
                style="display:block;width:100%;height:auto;border:0;">
         </td></tr>
 
-        <!-- Spirale + Wortmarke -->
-        <tr><td align="center" style="padding:36px 40px 0 40px;">
-          <img src="{{logo_url}}" width="230" alt="THE CIRCLE &ndash; connecting generations" style="display:block;border:0;width:230px;max-width:60%;height:auto;">
-        </td></tr>
-
-        <tr><td style="padding:30px 64px 0 64px;"><div style="border-top:1px solid #33507f;font-size:0;line-height:0;">&nbsp;</div></td></tr>
+        <!-- Die Wortmarke steht im Kopfbild, nicht darunter: eine zweite
+             Marke auf Navy waere dieselbe Aussage ein zweites Mal. -->
 
         <!-- Zugang -->
-        <tr><td align="center" style="padding:32px 40px 0 40px;">
+        <tr><td align="center" style="padding:40px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#aeb9d2;text-transform:uppercase;">Nur f&uuml;r G&auml;ste im Kreis</div>
         </td></tr>
         <tr><td align="center" style="padding:16px 40px 0 40px;">
@@ -91,12 +85,6 @@
             Heute geht es nur um dich: Profil pr&uuml;fen, ein Bild aussuchen, App auf den Startbildschirm &mdash; zwei Minuten.
             Programm, Tischplan und die G&auml;ste des Abends schalten wir kurz vor dem 16. September frei.
           </div>
-        </td></tr>
-
-        <!-- Ticket-Nummer -->
-        <tr><td align="center" style="padding:26px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:4px;color:#7a8db3;text-transform:uppercase;">Dein Platz</div>
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:30px;letter-spacing:2px;color:#ff6b6c;padding-top:6px;">{{ticket_nr}}</div>
         </td></tr>
 
         <!-- Basis-Variante: OHNE Partner-Block. Partner-Gaeste bekommen
