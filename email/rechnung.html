@@ -10,10 +10,21 @@
   (siehe rechnungSenden). Genau einmal je Gast; die Nummer bleibt am Gast
   kleben, ein zweiter Anlauf schickt dieselbe Rechnung.
 
+  AUFBAU WIE EIN GESCHAEFTSBRIEF (Vorbild: die Rechnung von Ihre
+  Markenwerkstatt, 11.09.): Marke oben rechts, Anschriftenfeld links, die
+  Angaben des Ausstellers rechts daneben, Datum, Betreff, dann die
+  Positionstabelle mit Menge und Einzelpreis, Summen rechtsbuendig, unten
+  der Fuss mit Aussteller und Steuernummer. Wer eine Rechnung abheftet,
+  sucht die Dinge dort, wo sie auf jeder anderen Rechnung stehen.
+
   BEWUSST HELL und ohne Bildwerk: das hier ist ein steuerliches Dokument,
   keine Einladung. Es wird ausgedruckt, weitergeleitet und abgeheftet - eine
   bordeauxrote Flaeche mit Portraits waere an dieser Stelle albern und im
-  Ausdruck unlesbar. Die CI bleibt in der Schrift und der einen Linie.
+  Ausdruck unlesbar. Die CI traegt die Marke, die Schrift und eine einzige
+  Linie in Koralle.
+
+  DRUCK: @media print nimmt den grauen Grund weg und setzt das Blatt auf
+  A4-Breite - gedruckt entsteht ein sauberes Blatt ohne Kasten im Kasten.
 
   100 Euro sind eine Kleinbetragsrechnung nach Paragraf 33 UStDV (bis 250
   Euro brutto): Anschrift des Empfaengers und fortlaufende Nummer sind nicht
@@ -27,6 +38,8 @@
                    {{ust_satz}} {{ust_betrag}} {{steuer_hinweis}}
                    {{aussteller}} {{aussteller_anschrift}}
                    {{aussteller_steuer}} {{aussteller_kontakt}}
+                   {{logo_ink_url}}  Wortmarke in Navy fuer helle Belege
+                                     -> email/assets/logo-zentriert-ink.png
 -->
 <style>
   @media screen {
@@ -37,8 +50,9 @@
       src: url(https://thecircle.planyvo.com/assets/cinzel-600.woff2) format('woff2');
     }
   }
-  /* Diese Mail IST hell und soll es bleiben - ein Beleg, der im Nachtmodus
-     zu grauer Schrift auf dunklem Grund wird, ist im Ausdruck weg. */
+  /* Dieser Beleg IST hell und soll es bleiben - ein Dokument, das im
+     Nachtmodus zu grauer Schrift auf dunklem Grund wird, ist im Ausdruck
+     weg. */
   @media (prefers-color-scheme: dark) {
     body, .bg-aussen { background-color: #f4f2ef !important; }
     .bg-blatt { background-color: #ffffff !important; }
@@ -49,134 +63,221 @@
   [data-ogsb] .bg-blatt { background-color: #ffffff !important; }
   [data-ogsc] .t-dunkel { color: #122648 !important; }
   [data-ogsc] .t-grau   { color: #5b6474 !important; }
+
+  /* Gedruckt ist das ein Blatt, kein Kasten auf grauem Grund. */
+  @media print {
+    @page { size: A4; margin: 16mm 18mm; }
+    body, .bg-aussen { background: #ffffff !important; }
+    .bg-aussen > tr > td { padding: 0 !important; }
+    .bg-blatt { max-width: none !important; width: 100% !important; box-shadow: none !important; }
+    .nodruck { display: none !important; }
+  }
 </style>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f2ef;">
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Rechnung {{rechnung_nr}} &uuml;ber deinen Teilnahmebeitrag.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Rechnung {{rechnung_nr}} &uuml;ber deinen Teilnahmebeitrag.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f2ef" class="bg-aussen" style="background-color:#f4f2ef;">
     <tr><td align="center" style="padding:28px 12px;">
 
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" class="bg-blatt" style="max-width:600px;width:100%;background-color:#ffffff;">
+      <table role="presentation" width="660" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" class="bg-blatt" style="max-width:660px;width:100%;background-color:#ffffff;">
 
-        <!-- Kopf: Wortmarke und die eine Linie in Koralle. Mehr Gestaltung
-             braucht ein Beleg nicht. -->
-        <tr><td style="padding:34px 40px 0 40px;">
-          <div class="t-dunkel" style="font-family:'Circle Kapitalis',Georgia,'Times New Roman',serif;font-size:19px;letter-spacing:.20em;color:#122648;">
-            THE CIRCLE
-          </div>
-          <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#5b6474;padding-top:6px;">
-            connecting generations
-          </div>
+        <!-- Kopf: die Wortmarke oben rechts, wie das Logo auf jedem
+             Geschaeftsbrief. Darunter die eine Linie in Koralle - der
+             einzige Farbakzent, den ein Beleg vertraegt. -->
+        <tr><td align="right" style="padding:40px 44px 0 44px;">
+          <img src="{{logo_ink_url}}" width="190" alt="THE CIRCLE &ndash; connecting generations"
+               style="display:block;border:0;width:190px;max-width:52%;height:auto;margin-left:auto;">
         </td></tr>
-        <tr><td style="padding:18px 40px 0 40px;">
+        <tr><td style="padding:26px 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
             <td height="2" bgcolor="#ff6b6c" style="background-color:#ff6b6c;font-size:0;line-height:0;">&nbsp;</td>
           </tr></table>
         </td></tr>
 
-        <!-- Aussteller. Pflichtangabe, deshalb oben und nicht im Kleingedruckten. -->
-        <tr><td style="padding:22px 40px 0 40px;">
-          <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:11px;line-height:19px;color:#5b6474;">
-            {{aussteller}}<br>
-            {{aussteller_anschrift}}<br>
-            {{aussteller_steuer}}
-          </div>
-        </td></tr>
-
-        <!-- Titel und Rechnungsdaten -->
-        <tr><td style="padding:30px 40px 0 40px;">
-          <div class="t-dunkel" style="font-family:'Circle Kapitalis',Georgia,'Times New Roman',serif;font-size:26px;letter-spacing:.06em;color:#122648;">
-            Rechnung
-          </div>
-        </td></tr>
-        <tr><td style="padding:16px 40px 0 40px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                 style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:22px;">
+        <!-- Anschriftenfeld links, Aussteller rechts. Die kleine Zeile ueber
+             der Anschrift ist die Absenderzeile des Briefumschlags. -->
+        <tr><td style="padding:26px 44px 0 44px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
-              <td class="t-grau" width="46%" style="color:#5b6474;padding:3px 0;">Rechnungsnummer</td>
-              <td class="t-dunkel" align="right" style="color:#122648;font-weight:600;padding:3px 0;">{{rechnung_nr}}</td>
-            </tr>
-            <tr>
-              <td class="t-grau" style="color:#5b6474;padding:3px 0;">Rechnungsdatum</td>
-              <td class="t-dunkel" align="right" style="color:#122648;padding:3px 0;">{{rechnung_datum}}</td>
-            </tr>
-            <tr>
-              <td class="t-grau" style="color:#5b6474;padding:3px 0;">Rechnung an</td>
-              <td class="t-dunkel" align="right" style="color:#122648;padding:3px 0;">{{empfaenger}}</td>
+              <td width="54%" valign="top" style="padding-right:16px;">
+                <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:9px;letter-spacing:.10em;color:#8b93a3;padding-bottom:10px;border-bottom:1px solid #e2ddd6;">
+                  {{aussteller}} &middot; {{aussteller_anschrift}}
+                </div>
+                <div class="t-dunkel" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:13.5px;line-height:21px;color:#122648;padding-top:14px;">
+                  {{empfaenger}}
+                </div>
+              </td>
+              <td width="46%" valign="top">
+                <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:9px;letter-spacing:.20em;text-transform:uppercase;color:#8b93a3;padding-bottom:8px;">
+                  Veranstalter &amp; Rechnungssteller
+                </div>
+                <div class="t-dunkel" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;line-height:19px;color:#122648;">
+                  <b style="font-weight:600;">{{aussteller}}</b><br>
+                  {{aussteller_anschrift}}
+                </div>
+                <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;line-height:19px;color:#5b6474;padding-top:10px;">
+                  {{aussteller_kontakt}}<br>
+                  {{aussteller_steuer}}
+                </div>
+              </td>
             </tr>
           </table>
         </td></tr>
 
-        <!-- Die Leistung -->
-        <tr><td style="padding:26px 40px 0 40px;">
+        <!-- Datum rechts, wie im Geschaeftsbrief -->
+        <tr><td align="right" style="padding:26px 44px 0 44px;">
+          <span class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#5b6474;">Datum&nbsp;&nbsp;&nbsp;</span>
+          <span class="t-dunkel" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12px;font-weight:600;color:#122648;">{{rechnung_datum}}</span>
+        </td></tr>
+
+        <!-- Betreff: zwei Zeilen ohne das Wort "Betreff" -->
+        <tr><td style="padding:30px 44px 0 44px;">
+          <div class="t-dunkel" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:21px;color:#122648;">
+            THE CIRCLE No1 &ndash; connecting generations<br>
+            Teilnahmebeitrag &middot; Mittwoch, 16. September 2026, Playa Cologne
+          </div>
+        </td></tr>
+
+        <!-- Der Titel des Dokuments -->
+        <tr><td style="padding:28px 44px 0 44px;">
+          <div class="t-dunkel" style="font-family:'Circle Kapitalis',Georgia,'Times New Roman',serif;font-size:21px;letter-spacing:.06em;color:#122648;">
+            Rechnung {{rechnung_nr}}
+          </div>
+          <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;line-height:18px;color:#5b6474;padding-top:4px;">
+            Das Rechnungsdatum entspricht dem Leistungsdatum der Zahlung.
+          </div>
+        </td></tr>
+
+        <!-- Die Positionen -->
+        <tr><td style="padding:22px 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                 style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:21px;">
+                 style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12.5px;line-height:20px;">
             <tr>
-              <td colspan="2" height="1" bgcolor="#e2ddd6" style="background-color:#e2ddd6;font-size:0;line-height:0;">&nbsp;</td>
+              <td colspan="5" height="1" bgcolor="#122648" style="background-color:#122648;font-size:0;line-height:0;">&nbsp;</td>
             </tr>
             <tr>
-              <td class="t-dunkel" style="color:#122648;padding:16px 0 4px 0;">
-                <b>Teilnahme THE CIRCLE No1 &ndash; connecting generations</b>
+              <td class="t-dunkel" width="8%"  style="color:#122648;font-weight:600;padding:9px 0 9px 0;">Pos</td>
+              <td class="t-dunkel"             style="color:#122648;font-weight:600;padding:9px 0;">Bezeichnung</td>
+              <td class="t-dunkel" width="12%" align="right" style="color:#122648;font-weight:600;padding:9px 0;">Menge</td>
+              <td class="t-dunkel" width="20%" align="right" style="color:#122648;font-weight:600;padding:9px 0;">Einzelpreis</td>
+              <td class="t-dunkel" width="20%" align="right" style="color:#122648;font-weight:600;padding:9px 0;">Betrag</td>
+            </tr>
+            <tr>
+              <td colspan="5" height="1" bgcolor="#122648" style="background-color:#122648;font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+            <tr>
+              <td class="t-dunkel" valign="top" style="color:#122648;padding:14px 0 0 0;">1</td>
+              <td class="t-dunkel" valign="top" style="color:#122648;padding:14px 0 0 0;">
+                Teilnahme THE CIRCLE No1
+                <span class="t-grau" style="display:block;color:#5b6474;font-size:11.5px;line-height:18px;padding-top:4px;">
+                  Ein Platz, einschlie&szlig;lich Men&uuml; und Programm des Abends<br>
+                  Leistungsdatum {{leistungsdatum}} &middot; Playa Cologne, Junkersdorfer&nbsp;Str.&nbsp;1, 50933&nbsp;K&ouml;ln
+                </span>
               </td>
-              <td class="t-dunkel" align="right" valign="top" style="color:#122648;padding:16px 0 4px 0;white-space:nowrap;">{{betrag_netto}}</td>
+              <td class="t-dunkel" valign="top" align="right" style="color:#122648;padding:14px 0 0 0;">1</td>
+              <td class="t-dunkel" valign="top" align="right" style="color:#122648;padding:14px 0 0 0;white-space:nowrap;">{{betrag_netto}}</td>
+              <td class="t-dunkel" valign="top" align="right" style="color:#122648;padding:14px 0 0 0;white-space:nowrap;">{{betrag_netto}}</td>
             </tr>
             <tr>
-              <td class="t-grau" colspan="2" style="color:#5b6474;font-size:12px;line-height:19px;padding:0 0 16px 0;">
-                Leistungsdatum {{leistungsdatum}} &middot; Playa Cologne, Junkersdorfer&nbsp;Str.&nbsp;1, 50933&nbsp;K&ouml;ln<br>
-                1 Platz, einschlie&szlig;lich Men&uuml; und Programm des Abends
-              </td>
+              <td colspan="5" height="18" style="font-size:0;line-height:0;">&nbsp;</td>
             </tr>
             <tr>
-              <td colspan="2" height="1" bgcolor="#e2ddd6" style="background-color:#e2ddd6;font-size:0;line-height:0;">&nbsp;</td>
-            </tr>
-            {{#ust_betrag}}<tr>
-              <td class="t-grau" style="color:#5b6474;padding:14px 0 2px 0;">Umsatzsteuer {{ust_satz}}</td>
-              <td class="t-dunkel" align="right" style="color:#122648;padding:14px 0 2px 0;white-space:nowrap;">{{ust_betrag}}</td>
-            </tr>{{/ust_betrag}}
-            <tr>
-              <td class="t-dunkel" style="color:#122648;font-weight:600;padding:8px 0 0 0;">Gesamtbetrag</td>
-              <td class="t-dunkel" align="right" style="color:#122648;font-weight:600;font-size:16px;padding:8px 0 0 0;white-space:nowrap;">{{betrag_brutto}}</td>
+              <td colspan="5" height="1" bgcolor="#122648" style="background-color:#122648;font-size:0;line-height:0;">&nbsp;</td>
             </tr>
           </table>
         </td></tr>
 
-        <!-- Steuerhinweis, wenn keine Umsatzsteuer ausgewiesen wird.
-             Pflichtangabe: ohne Grund ist die Rechnung unvollstaendig. -->
-        {{#steuer_hinweis}}<tr><td style="padding:14px 40px 0 40px;">
-          <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12px;line-height:19px;color:#5b6474;">
-            {{steuer_hinweis}}
-          </div>
-        </td></tr>{{/steuer_hinweis}}
+        <!-- Die Summen, rechtsbuendig wie gewohnt -->
+        <tr><td style="padding:0 44px 0 44px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                 style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12.5px;line-height:20px;">
+            <tr>
+              <td width="52%">&nbsp;</td>
+              <td>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                       style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12.5px;line-height:20px;">
+                  <tr>
+                    <td class="t-dunkel" style="color:#122648;padding:10px 0 2px 0;">Nettobetrag</td>
+                    <td class="t-dunkel" align="right" style="color:#122648;padding:10px 0 2px 0;white-space:nowrap;">{{betrag_netto}}</td>
+                  </tr>
+                  {{#ust_betrag}}<tr>
+                    <td class="t-dunkel" style="color:#122648;padding:2px 0;">Umsatzsteuer {{ust_satz}}</td>
+                    <td class="t-dunkel" align="right" style="color:#122648;padding:2px 0;white-space:nowrap;">{{ust_betrag}}</td>
+                  </tr>{{/ust_betrag}}
+                  <tr>
+                    <td colspan="2" height="1" bgcolor="#122648" style="background-color:#122648;font-size:0;line-height:0;">&nbsp;</td>
+                  </tr>
+                  <tr>
+                    <td class="t-dunkel" style="color:#122648;font-weight:600;padding:8px 0 0 0;">Rechnungsbetrag</td>
+                    <td class="t-dunkel" align="right" style="color:#122648;font-weight:600;font-size:15px;padding:8px 0 0 0;white-space:nowrap;">{{betrag_brutto}}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
 
-        <!-- Zahlungsvermerk. Der wichtigste Satz fuer den Gast: er muss
-             nichts mehr tun. -->
-        <tr><td style="padding:24px 40px 0 40px;">
+        <!-- Der wichtigste Satz fuer den Gast: er muss nichts mehr tun.
+             An der Stelle, an der auf anderen Rechnungen "bitte ueberweisen"
+             steht - deshalb faellt er auf. -->
+        <tr><td style="padding:26px 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f7f5f2" style="background-color:#f7f5f2;">
-            <tr><td style="padding:14px 18px;font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:20px;">
+            <tr><td style="padding:14px 18px;font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12.5px;line-height:20px;">
               <span class="t-dunkel" style="color:#122648;">
-                Bezahlt am {{zahlung_datum}}. Dieser Betrag ist beglichen &ndash; es ist nichts mehr offen.
+                Bezahlt am {{zahlung_datum}}. Der Betrag ist beglichen &ndash; es ist nichts mehr offen und nichts zu &uuml;berweisen.
               </span>
             </td></tr>
           </table>
         </td></tr>
 
+        <!-- Steuerhinweis, wenn keine Umsatzsteuer ausgewiesen wird.
+             Pflichtangabe: ohne Grund ist die Rechnung unvollstaendig. -->
+        {{#steuer_hinweis}}<tr><td style="padding:14px 44px 0 44px;">
+          <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;line-height:19px;color:#5b6474;">
+            {{steuer_hinweis}}
+          </div>
+        </td></tr>{{/steuer_hinweis}}
+
         <!-- Anrede zum Schluss: die Rechnung ist die Sache, der Gruss die
              Beigabe - nicht umgekehrt. -->
-        <tr><td style="padding:26px 40px 0 40px;">
-          <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:22px;color:#5b6474;">
+        <tr><td style="padding:24px 44px 0 44px;">
+          <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12.5px;line-height:21px;color:#5b6474;">
             {{anrede}} {{vorname}}, wir freuen uns auf den Abend.
           </div>
         </td></tr>
 
-        <tr><td style="padding:24px 40px 34px 40px;">
+        <!-- Fuss: die Pflichtangaben noch einmal, wie unten auf jedem
+             Geschaeftsbrief. Wer die Rechnung ausdruckt und abheftet, hat
+             sie damit auch dann, wenn die Mail laengst weg ist. -->
+        <tr><td align="right" style="padding:34px 44px 0 44px;">
+          <span class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#8b93a3;">Seite 1/1</span>
+        </td></tr>
+        <tr><td style="padding:8px 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
             <td height="1" bgcolor="#e2ddd6" style="background-color:#e2ddd6;font-size:0;line-height:0;">&nbsp;</td>
           </tr></table>
-          <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:11px;line-height:18px;color:#5b6474;padding-top:14px;">
-            Fragen zur Rechnung: {{aussteller_kontakt}}<br>
-            {{aussteller}} &middot; {{aussteller_anschrift}}
-          </div>
+        </td></tr>
+        <tr><td style="padding:14px 44px 36px 44px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                 style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;line-height:17px;">
+            <tr>
+              <td class="t-dunkel" width="30%" valign="top" style="color:#122648;font-weight:600;padding:2px 0;">Rechnungssteller</td>
+              <td class="t-grau" valign="top" style="color:#5b6474;padding:2px 0;">{{aussteller}}, {{aussteller_anschrift}}</td>
+            </tr>
+            <tr>
+              <td class="t-dunkel" valign="top" style="color:#122648;font-weight:600;padding:2px 0;">Fragen zur Rechnung</td>
+              <td class="t-grau" valign="top" style="color:#5b6474;padding:2px 0;">{{aussteller_kontakt}}</td>
+            </tr>
+            <tr>
+              <td class="t-dunkel" valign="top" style="color:#122648;font-weight:600;padding:2px 0;">Steuer</td>
+              <td class="t-grau" valign="top" style="color:#5b6474;padding:2px 0;">{{aussteller_steuer}}</td>
+            </tr>
+            <tr>
+              <td class="t-dunkel" valign="top" style="color:#122648;font-weight:600;padding:2px 0;">Veranstaltung</td>
+              <td class="t-grau" valign="top" style="color:#5b6474;padding:2px 0;">THE CIRCLE No1 &middot; 16. September 2026 &middot; Playa Cologne, K&ouml;ln</td>
+            </tr>
+          </table>
         </td></tr>
 
       </table>

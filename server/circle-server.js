@@ -1842,6 +1842,9 @@ function renderMail(inv, datei, extra) {
     header_std_url: assetUrl("circle-header-std.jpg"),
     planyvo_logo_url: assetUrl("planyvo-neg.png"),
     logo_url: assetUrl("logo-zentriert-neg.png"),
+    /* Dieselbe Wortmarke in Navy - fuer helle Belege wie die Rechnung, wo
+     * eine weisse Marke auf weissem Papier nichts waere. */
+    logo_ink_url: assetUrl("logo-zentriert-ink.png"),
     partnerwand_url: assetUrl("partnerwand-bordeaux.jpg"),
     /* Dieselbe Wand auf Navy - fuer die Mails der Welle 2, die auf Navy
      * stehen. Ein JPG traegt seinen Grund mit; die Bordeaux-Datei saehe
