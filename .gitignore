@@ -3,3 +3,4 @@ node_modules/
 server/versand-log.json
 server/fotos/
 server/galerie/
+server/rechnungen/

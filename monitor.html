@@ -576,6 +576,7 @@
         <p class="fnote" id="rnNote">–</p>
         <div class="exportzeile">
           <button class="export" id="rnSenden" type="button" disabled>Keine Rechnung fällig</button>
+          <a class="export" id="rnMuster" href="#" target="_blank" rel="noopener">PDF-Muster ansehen</a>
           <span class="fussnote" style="margin:0" id="rnErgebnis"></span>
         </div>
         <p class="fnote" id="rnListe"></p>
@@ -1445,8 +1446,9 @@ async function rechnungenHolen(){
       return;
     }
     rnFaellig = d.anzahl || 0;
+    $("#rnMuster").href = "/api/admin/rechnung.pdf?key=" + encodeURIComponent(KEY);
     txt($("#rnNote"), "Ausgestellt von " + (d.aussteller || "?") + (d.ustsatz ? " \u00b7 " + d.ustsatz + "\u00a0% USt ausgewiesen" : " \u00b7 ohne USt") +
-        ". Jede neue Zahlung bekommt ihre Rechnung von selbst, wenige Sekunden nach der Best\u00e4tigung. Der Knopf holt nach, was davor bezahlt wurde.");
+        ". Jede neue Zahlung bekommt ihre Rechnung von selbst, wenige Sekunden nach der Best\u00e4tigung \u2013 als A4-PDF im Anhang. Der Knopf holt nach, was davor bezahlt wurde.");
     txt($("#rnSenden"), rnFaellig ? rnFaellig + (rnFaellig === 1 ? " f\u00e4llige Rechnung verschicken" : " f\u00e4llige Rechnungen verschicken") : "Keine Rechnung f\u00e4llig");
     $("#rnSenden").disabled = !rnFaellig;
     txt($("#rnListe"), rnFaellig ? "F\u00e4llig: " + (d.gaeste || []).map(g => g.name + " (" + g.betrag + ")").join(" \u00b7 ") : "");
@@ -2495,6 +2497,14 @@ function gaesteRendern(){
        den persoenlichen Link. Bis hierher war jede eine Zeile im Terminal. */
     if(g.status === "bezahlt"){
       txt(stand.appendChild(document.createElement("span")), "erst in Stripe erstatten").className = "stathinweis";
+      /* Die Rechnung dieses Gastes, genau wie verschickt - fuer Rueckfragen
+         und fuer die Buchhaltung. */
+      if(g.rechnung && g.gid){
+        const rl = stand.appendChild(document.createElement("a"));
+        rl.className = "absagen"; rl.target = "_blank"; rl.rel = "noopener";
+        rl.href = "/api/admin/rechnung.pdf?gid=" + encodeURIComponent(g.gid) + "&key=" + encodeURIComponent(KEY);
+        txt(rl, "Rechnung " + g.rechnung + (g.rechnungVerschickt ? "" : " · noch nicht zugestellt") + " (PDF)");
+      }
     } else if(g.gid){
       const ab = stand.appendChild(document.createElement("button"));
       ab.type = "button";

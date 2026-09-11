@@ -957,8 +957,31 @@ Gast bleibt; ein zweiter Anlauf schickt dieselbe Rechnung noch einmal.
 Das Blatt ist ein Geschäftsbrief in der CI von THE CIRCLE, ausgestellt von
 der Agentur: oben rechts die Rechnungsstellerin, unten im Fuß der
 Zahlungsempfänger mit Bankverbindung – als Angabe, nicht als Aufforderung,
-denn über Stripe ist beim Versand längst bezahlt. Ausgedruckt (Cmd+P) wird
-daraus ein A4-Blatt ohne grauen Rand.
+denn über Stripe ist beim Versand längst bezahlt. **Die Mail trägt die
+Rechnung zusätzlich als A4-PDF im Anhang** (`Rechnung-CIRCLE-2026-0001.pdf`),
+vom Server selbst gezeichnet – ohne Browser, ohne Bibliothek.
+
+**Richtige Rechnung, fortlaufende Nummer.** Mail, Text und PDF entstehen aus
+denselben Werten des Gastes (Name, Firma, gezahlter Betrag aus Stripe, Datum
+der Zahlung) und gehen an die E-Mail-Adresse, an die auch die Einladung ging.
+Die Nummer zählt der Server hoch (`rechnungZaehler` in `live-state.json`)
+und schreibt sie beim ersten Anlauf fest an den Gast; ein zweiter Anlauf
+verbraucht keine neue Nummer und ein Gast kann keine zweite Rechnung
+bekommen, solange die erste zugestellt ist. Lücken entstehen so nicht: eine
+Nummer wird erst vergeben, wenn das Blatt tatsächlich gebaut wird, und bleibt
+auch dann am Gast, wenn Lettermint gerade nicht antwortet.
+
+Jede ausgestellte Rechnung liegt zusätzlich als Datei in
+**`server/rechnungen/<Nummer>.pdf`** (nicht im Repo) – die Kopie für die
+Buchhaltung, bitte mit sichern. Im Monitor steht an jedem bezahlten Gast der
+Link *Rechnung … (PDF)*, der das Blatt genau so ausgibt, wie es verschickt
+wurde; *PDF-Muster ansehen* im Rechnungsblock zeigt das Layout mit
+erfundenem Gast, ohne eine Nummer zu verbrauchen. Von Hand:
+
+```
+https://thecircle.planyvo.com/api/admin/rechnung.pdf?key=KEY            # Muster
+https://thecircle.planyvo.com/api/admin/rechnung.pdf?key=KEY&gid=GID    # echte Rechnung eines Gastes
+```
 
 **Sicherung.** Der gesamte Zustand liegt in `server/live-state.json`. Ein
 täglicher Cron in Plesk (**Geplante Aufgaben**) genügt:

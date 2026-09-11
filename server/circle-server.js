@@ -1087,6 +1087,7 @@ function readBodyGross(req, res, cb) {
  * fremde Pakete). Schluessel einmal erzeugen und nie wechseln, sonst sind
  * alle Abonnements ungueltig:  node -e "console.log(require('./server/webpush').schluesselErzeugen())" */
 const webpush = require("./webpush");
+const { neuesPdf, A4 } = require("./pdf");           // Rechnung als A4-Blatt
 const VAPID = {
   publicKey: process.env.VAPID_PUBLIC || "",
   privateKey: process.env.VAPID_PRIVATE || "",
@@ -2025,6 +2026,9 @@ function lettermintSenden(mail, cb) {
   };
   if (MAIL_ROUTE) nutzlast.route = MAIL_ROUTE;
   if (MAIL_REPLY_TO) nutzlast.reply_to = [MAIL_REPLY_TO];
+  /* Anhaenge (z. B. die Rechnung als PDF): filename, content als Base64,
+   * content_type - so will es /v1/send. */
+  if (mail.anhaenge && mail.anhaenge.length) nutzlast.attachments = mail.anhaenge;
   /* Oeffnungen/Klicks explizit messen lassen - ohne diese Einstellung
    * haengt es am Konto-Default, und der Monitor bliebe ggf. stumm. */
   nutzlast.settings = { track_opens: true, track_clicks: true };
@@ -2258,10 +2262,11 @@ function rechnungNummer(inv) {
   return inv.rechnung.nr;
 }
 
-function rechnungSenden(inv) {
-  if (!LETTERMINT_TOKEN) return;
-  if (!rechnungFaellig(inv)) return;
-  const nr = rechnungNummer(inv);
+/* Alle Werte einer Rechnung an EINER Stelle - Mail, Text und PDF lesen
+ * dieselben Felder. So kann das Blatt nicht etwas anderes sagen als die
+ * Mail, in der es haengt. `nr` und `t` kommen von aussen, damit das Muster
+ * im Monitor keine echte Nummer verbraucht. */
+function rechnungWerte(inv, nr, t) {
   const brutto = (inv.zahlung && inv.zahlung.amount) || preisVon(inv);
   /* Bei ausgewiesener Steuer ist der gezahlte Betrag der BRUTTObetrag -
    * herausgerechnet, nicht aufgeschlagen. Der Gast hat 100 Euro gezahlt,
@@ -2270,13 +2275,13 @@ function rechnungSenden(inv) {
     ? Math.round(brutto / (1 + RECHNUNG_USTSATZ / 100))
     : brutto;
   const ust = brutto - netto;
-  const datum = new Date(inv.rechnung.t);
+  const datum = new Date(t);
   const dstr = d => String(d.getDate()).padStart(2, "0") + "." +
                     String(d.getMonth() + 1).padStart(2, "0") + "." + d.getFullYear();
-  const extra = {
+  return {
     rechnung_nr: nr,
     rechnung_datum: dstr(datum),
-    zahlung_datum: dstr(new Date((inv.zahlung && inv.zahlung.paidAt) || inv.rechnung.t)),
+    zahlung_datum: dstr(new Date((inv.zahlung && inv.zahlung.paidAt) || t)),
     aussteller: RECHNUNG_FIRMA,
     aussteller_anschrift: RECHNUNG_ANSCHRIFT.split("|").map(z => z.trim()).filter(Boolean).join(", "),
     aussteller_steuer: RECHNUNG_STEUER,
@@ -2293,16 +2298,135 @@ function rechnungSenden(inv) {
     /* Steht statt der Steuerzeile, wenn keine ausgewiesen wird - der Grund
      * MUSS auf der Rechnung stehen, sonst fehlt eine Pflichtangabe. */
     steuer_hinweis: RECHNUNG_USTSATZ > 0 ? "" : RECHNUNG_HINWEIS,
-    leistungsdatum: "16.09.2026"
+    leistungsdatum: "16.09.2026",
+    /* Fuer das PDF: der Empfaenger zeilenweise, Aussteller und Bank als Listen. */
+    empfaenger_zeilen: [inv.name, inv.firma].filter(Boolean),
+    aussteller_zeilen: RECHNUNG_ANSCHRIFT.split("|").map(z => z.trim()).filter(Boolean),
+    bank_zeilen: RECHNUNG_BANK.split("|").map(z => z.trim()).filter(Boolean),
+    anrede: inv.anrede || "Hallo",
+    vorname: (inv.name || "").split(" ")[0] || ""
   };
-  let html;
-  try { html = renderMail(inv, "rechnung.html", extra); }
-  catch (e) { console.error("Rechnung bricht: " + e.message); return; }
+}
+
+/* Die Rechnung als A4-Blatt - dieselbe Aufteilung wie die Mail, nur in
+ * Punkten statt Pixeln: Logo oben rechts, Korallenlinie, Empfaenger links,
+ * Rechnungsstellerin rechts, Titel, eine Position, Summen, der Satz
+ * "bezahlt", Fuss mit Pflichtangaben. Ursprung oben links, Rand 60 pt. */
+function rechnungPdf(w) {
+  const pdf = neuesPdf();
+  const NAVY = [18, 38, 72], GRAU = [91, 100, 116], HELL = [139, 147, 163],
+        LINIE = [226, 221, 214], KORALLE = [255, 107, 108], KASTEN = [247, 245, 242];
+  const L = 60, R = A4.b - 60, B = R - L, X2 = 330;
+  const lies = f => { try { return fs.readFileSync(path.join(ROOT, "email", "assets", f)); } catch (e) { return null; } };
+  const logo = lies("logo-zentriert-ink.jpg"), mw = lies("markenwerkstatt-logo.jpg");
+  const T = (x, y, s, o) => pdf.text(x, y, s, o);
+  const zeile = (y, c, x, b) => pdf.flaeche(x === undefined ? L : x, y, b || B, 0.6, c || LINIE);
+
+  if (logo) pdf.bild(logo, R - 150, 48, 150);
+  pdf.flaeche(L, 134, B, 1.5, KORALLE);
+
+  /* Links: Absenderzeile und Empfaenger, wie im Fensterumschlag. */
+  T(L, 158, [w.aussteller].concat(w.aussteller_zeilen).join(" · "), { groesse: 7, farbe: HELL });
+  zeile(169, LINIE, L, 240);
+  let y = 186;
+  for (const z of w.empfaenger_zeilen) { T(L, y, z, { groesse: 11 }); y += 15; }
+
+  /* Rechts: die Rechnungsstellerin - mit ihrem Logo, klein. */
+  T(X2, 158, "RECHNUNGSSTELLER", { groesse: 6.5, farbe: HELL, spatium: 1 });
+  let y2 = 170;
+  if (mw) y2 += pdf.bild(mw, X2, y2, 64) + 7;
+  T(X2, y2, w.aussteller, { groesse: 9.5, fett: true }); y2 += 13;
+  for (const z of w.aussteller_zeilen) { T(X2, y2, z, { groesse: 9 }); y2 += 12; }
+  y2 += 3;
+  T(X2, y2, w.aussteller_kontakt, { groesse: 8.5, farbe: GRAU }); y2 += 12;
+  T(X2, y2, w.aussteller_steuer, { groesse: 8.5, farbe: GRAU });
+
+  /* Datum, Betreff, Titel. */
+  T(R, 282, "Köln, " + w.rechnung_datum, { groesse: 9.5, rechts: true, farbe: GRAU });
+  T(L, 308, "BETREFF", { groesse: 6.5, farbe: HELL, spatium: 1 });
+  T(L, 320, "Teilnahme THE CIRCLE No1 · 16. September 2026 · Playa Cologne, Köln", { groesse: 10, fett: true });
+  T(L, 352, "RECHNUNG " + w.rechnung_nr, { groesse: 16, serif: true, spatium: 1.6 });
+  T(L, 374, "Rechnungsdatum gleich Zahlungsdatum · Leistungsdatum " + w.leistungsdatum, { groesse: 8.5, farbe: GRAU });
+
+  /* Die Position. */
+  const XB = L + 30, XM = 395, XE = 465;
+  zeile(396, NAVY);
+  const kopf = { groesse: 8, fett: true };
+  T(L, 404, "Pos", kopf); T(XB, 404, "Bezeichnung", kopf);
+  T(XM, 404, "Menge", Object.assign({ rechts: true }, kopf));
+  T(XE, 404, "Einzelpreis", Object.assign({ rechts: true }, kopf));
+  T(R, 404, "Betrag", Object.assign({ rechts: true }, kopf));
+  zeile(417, NAVY);
+  T(L, 428, "1", { groesse: 10 });
+  T(XB, 428, "Teilnahme THE CIRCLE No1", { groesse: 10 });
+  T(XB, 442, "Ein Platz, einschließlich Menü und Programm des Abends", { groesse: 8.5, farbe: GRAU });
+  T(XB, 454, "Leistungsdatum " + w.leistungsdatum + " · Playa Cologne, Junkersdorfer Str. 1, 50933 Köln", { groesse: 8.5, farbe: GRAU });
+  T(XM, 428, "1", { groesse: 10, rechts: true });
+  T(XE, 428, w.betrag_netto, { groesse: 10, rechts: true });
+  T(R, 428, w.betrag_netto, { groesse: 10, rechts: true });
+  zeile(474, NAVY);
+
+  /* Summen rechts. */
+  let ys = 486;
+  T(X2, ys, "Nettobetrag", { groesse: 10 }); T(R, ys, w.betrag_netto, { groesse: 10, rechts: true }); ys += 14;
+  if (w.ust_betrag) {
+    T(X2, ys, "Umsatzsteuer " + w.ust_satz, { groesse: 10 }); T(R, ys, w.ust_betrag, { groesse: 10, rechts: true }); ys += 14;
+  }
+  zeile(ys + 2, NAVY, X2, R - X2); ys += 10;
+  T(X2, ys, "Rechnungsbetrag", { groesse: 10, fett: true });
+  T(R, ys - 2, w.betrag_brutto, { groesse: 12.5, fett: true });
+  ys += 30;
+
+  /* Der wichtigste Satz: nichts mehr zu tun. */
+  pdf.flaeche(L, ys, B, 30, KASTEN);
+  T(L + 14, ys + 10, "Bezahlt am " + w.zahlung_datum + ". Der Betrag ist beglichen – es ist nichts mehr offen und nichts zu überweisen.", { groesse: 9.5 });
+  ys += 44;
+  if (w.steuer_hinweis) { T(L, ys, w.steuer_hinweis, { groesse: 8.5, farbe: GRAU }); ys += 18; }
+  T(L, ys + 6, w.anrede + " " + w.vorname + ", wir freuen uns auf den Abend.", { groesse: 10, farbe: GRAU });
+
+  /* Fuss. */
+  T(R, 726, "Seite 1/1", { groesse: 8, farbe: HELL, rechts: true });
+  zeile(738, LINIE);
+  let yf = 748;
+  const fuss = (k, v) => { T(L, yf, k, { groesse: 8, fett: true }); T(L + 110, yf, v, { groesse: 8, farbe: GRAU }); yf += 12; };
+  fuss("Rechnungssteller", w.aussteller + ", " + w.aussteller_anschrift);
+  if (w.kontoinhaber) fuss("Zahlungsempfänger", w.kontoinhaber);
+  if (w.bankverbindung) fuss("Bankverbindung", w.bankverbindung);
+  fuss("Fragen zur Rechnung", w.aussteller_kontakt);
+  fuss("Steuer", w.aussteller_steuer);
+  fuss("Veranstaltung", "THE CIRCLE No1 · 16. September 2026 · Playa Cologne, Köln");
+  return pdf.bytes();
+}
+
+/* Verschickte Rechnungen bleiben als Datei liegen - server/rechnungen/,
+ * neben live-state.json und wie diese nicht im Repo. Das ist die Kopie
+ * fuer die Buchhaltung; der Monitor kann sie jederzeit wieder ausgeben. */
+const RECHNUNG_ORDNER = path.join(__dirname, "rechnungen");
+function rechnungAblegen(nr, pdfBytes) {
+  try {
+    fs.mkdirSync(RECHNUNG_ORDNER, { recursive: true });
+    fs.writeFileSync(path.join(RECHNUNG_ORDNER, nr + ".pdf"), pdfBytes);
+  } catch (e) { console.error("Rechnung " + nr + " nicht abgelegt: " + e.message); }
+}
+
+function rechnungSenden(inv) {
+  if (!LETTERMINT_TOKEN) return;
+  if (!rechnungFaellig(inv)) return;
+  /* Zwei Ausloeser in derselben Sekunde (Zahlung + Nachhol-Knopf) duerfen
+   * nicht zwei Mails werden: solange ein Versand laeuft, wartet der andere. */
+  if (inv.rechnung && inv.rechnung.laeuft && Date.now() - inv.rechnung.laeuft < 60000) return;
+  const nr = rechnungNummer(inv);
+  inv.rechnung.laeuft = Date.now();
+  const extra = rechnungWerte(inv, nr, inv.rechnung.t);
+  let html, pdfBytes;
+  try { html = renderMail(inv, "rechnung.html", extra); pdfBytes = rechnungPdf(extra); }
+  catch (e) { inv.rechnung.laeuft = 0; console.error("Rechnung bricht: " + e.message); return; }
+  rechnungAblegen(nr, pdfBytes);
 
   const text = [
     (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
     "",
-    "anbei die Rechnung über deine Teilnahme an THE CIRCLE No1.",
+    "anbei die Rechnung über deine Teilnahme an THE CIRCLE No1 – als PDF im Anhang.",
     "",
     "Rechnung " + nr + " vom " + extra.rechnung_datum,
     RECHNUNG_FIRMA, extra.aussteller_anschrift,
@@ -2323,8 +2447,10 @@ function rechnungSenden(inv) {
     to: inv.email,
     subject: "Deine Rechnung zu THE CIRCLE No1 · " + nr,
     html, text,
+    anhaenge: [{ filename: "Rechnung-" + nr + ".pdf", content: pdfBytes.toString("base64"), content_type: "application/pdf" }],
     metadata: { token: inv.token, art: "rechnung", pool: inv.pool || "" }
   }, (err) => {
+    inv.rechnung.laeuft = 0;
     if (err) {
       /* Nummer BLEIBT - nur der Versandvermerk fehlt, der naechste Anlauf
        * schickt dieselbe Rechnung. */
@@ -4509,6 +4635,33 @@ const server = http.createServer((req, res) => {
       return json(res, 200, { ok: true, verschickt: dran.length, gaeste: liste });
     }
 
+    /* Eine Rechnung als PDF ansehen. Ohne gid: ein MUSTER mit erfundenem
+     * Gast und der Nummer, die als naechste dran waere - es wird KEINE
+     * Nummer verbraucht. Mit gid: die echte Rechnung dieses Gastes, genau
+     * wie sie verschickt wurde (gleiche Werte, gleiche Nummer). */
+    if (req.method === "GET" && url === "/api/admin/rechnung.pdf") {
+      if (!rechnungMoeglich()) return json(res, 503, { error: "Rechnungen sind nicht eingerichtet (deploy/rechnung.json)." });
+      let inv, nr, t;
+      if (q.get("gid")) {
+        inv = findByGid(q.get("gid"));
+        if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+        if (!inv.rechnung || !inv.rechnung.nr) return json(res, 404, { error: "Für diesen Gast wurde noch keine Rechnung ausgestellt." });
+        nr = inv.rechnung.nr; t = inv.rechnung.t;
+      } else {
+        inv = { name: "Erika Musterfrau", firma: "Musterfirma GmbH", anrede: "Liebe", typ: "ticket",
+                zahlung: { amount: preisVon({ typ: "ticket" }), paidAt: Date.now() } };
+        nr = RECHNUNG_PRAEFIX + String((state.rechnungZaehler || 0) + 1).padStart(4, "0") + "-MUSTER";
+        t = Date.now();
+      }
+      let bytes;
+      try { bytes = rechnungPdf(rechnungWerte(inv, nr, t)); }
+      catch (e) { return json(res, 500, { error: "PDF bricht: " + e.message }); }
+      res.writeHead(200, { "Content-Type": "application/pdf",
+                           "Content-Disposition": "inline; filename=\"Rechnung-" + nr + ".pdf\"",
+                           "Cache-Control": "no-store" });
+      return res.end(bytes);
+    }
+
     /* Jemanden von der Warteliste nachruecken lassen - wenn ein Bezahlgast
      * abgesagt hat oder ein Platz erstattet wurde. Der Gast steht danach
      * auf "zugesagt": der Platz gehoert ihm, die Zahlung fehlt noch. Die
@@ -4727,6 +4880,10 @@ const server = http.createServer((req, res) => {
           partner: inv.partner || "",
           status: inv.status,
           abgemeldet: inv.abgemeldet || 0,
+          /* Rechnungsnummer, sobald eine vergeben ist - der Monitor haengt
+           * daran den Link auf das PDF. */
+          rechnung: (inv.rechnung && inv.rechnung.nr) || "",
+          rechnungVerschickt: (inv.rechnung && inv.rechnung.verschickt) || 0,
           /* Die Angaben aus dem Zusageformular - der Monitor zeigt sie in
            * der Kuechenliste. Unvertraeglichkeiten sind Gesundheitsdaten:
            * sie stehen nur hinter dem Admin-Zugang, so wie Namen und
