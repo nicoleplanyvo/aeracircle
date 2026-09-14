@@ -2512,6 +2512,56 @@ function standWerte(e) {
     vorname: (e.kontaktName || "").split(" ")[0]
   };
 }
+/* Den Entwurf als DRAFT im planyvo-Dashboard anlegen - ueber die External
+ * API der Plattform (docs/API_EXTERNAL.md dort): erst die Company (der
+ * Gast bzw. seine Firma; 409 = gibt es schon, Antwort bringt die id mit),
+ * dann das Event mit Status DRAFT. Ohne PLANYVO_API_KEY passiert nichts,
+ * der Entwurf bleibt im Register und wird von Hand angelegt. Der Stand
+ * wartet hoechstens ein paar Sekunden; klappt es nicht, ist das ein Eintrag
+ * im Log, kein Fehler fuer den Gast. */
+const PLANYVO_API_KEY = process.env.PLANYVO_API_KEY || "";
+const PLANYVO_API_URL = (process.env.PLANYVO_API_URL || "https://dashboard.planyvo.com/api/v1/external").replace(/\/$/, "");
+function planyvoAnfrage(pfad, daten, cb) {
+  const u = new URL(PLANYVO_API_URL + pfad);
+  const body = Buffer.from(JSON.stringify(daten), "utf8");
+  const req = https.request({
+    hostname: u.hostname, path: u.pathname + u.search, method: "POST", timeout: 8000,
+    headers: { "X-API-Key": PLANYVO_API_KEY, "Content-Type": "application/json", "Content-Length": body.length, "Accept": "application/json" }
+  }, r => {
+    let raw = ""; r.on("data", c => raw += c);
+    r.on("end", () => { let d = null; try { d = JSON.parse(raw || "{}"); } catch (e) { d = {}; } cb(null, r.statusCode, d); });
+  });
+  req.on("timeout", () => req.destroy(new Error("planyvo antwortet nicht (Timeout)")));
+  req.on("error", cb);
+  req.end(body);
+}
+function planyvoEntwurfAnlegen(e, cb) {
+  if (!PLANYVO_API_KEY) return cb(null, null);
+  const w = standWerte(e);
+  const firma = e.firma || e.kontaktName;
+  planyvoAnfrage("/companies", { name: firma, adminEmail: e.kontaktMail,
+                                 description: "Vom Stand bei THE CIRCLE No1, " + new Date(e.t).toLocaleDateString("de-DE") + " · Kontakt " + e.kontaktName },
+  (err, code, d) => {
+    if (err) return cb(err);
+    const companyId = (code === 201 && d.data && d.data.id) || (code === 409 && d.companyId) || "";
+    if (!companyId) return cb(new Error("Company: HTTP " + code + " " + ((d && d.message) || "")));
+    const start = new Date(Date.UTC(e.jahr, e.monat, 1)).toISOString();
+    const beschreibung = [
+      w.event_typ + " · " + w.event_gaeste + " Gäste · " + w.event_stadt + (e.wer ? " · für " + e.wer : ""),
+      "Einladung: " + w.event_kanal + " · Ansprache per " + w.event_ton + " · Farbe " + e.farbe,
+      "Bausteine (" + w.bausteine_zahl + "): " + (w.bausteine || "keine"),
+      "Entwurf vom Stand bei THE CIRCLE No1 (" + w.dauer + " min) · Kontakt " + e.kontaktName + " <" + e.kontaktMail + ">"
+    ].join("\n");
+    planyvoAnfrage("/events", { companyId, name: e.name, description: beschreibung, startDate: start, endDate: start, status: "DRAFT" },
+    (err2, code2, d2) => {
+      if (err2) return cb(err2);
+      if (code2 !== 201 && code2 !== 200) return cb(new Error("Event: HTTP " + code2 + " " + ((d2 && d2.message) || "")));
+      const ev = (d2 && d2.data) || {};
+      cb(null, { companyId, eventId: ev.id || "", micrositeUrl: ev.micrositeUrl || "", t: Date.now() });
+    });
+  });
+}
+
 function standText(e) {
   const w = standWerte(e);
   return ["Hallo " + w.vorname + ",", "", "dein Event-Entwurf vom Stand bei THE CIRCLE No1:", "",
@@ -4788,11 +4838,12 @@ const server = http.createServer((req, res) => {
     if (req.method === "GET" && (url === "/api/admin/stand-entwuerfe" || url === "/api/admin/stand-entwuerfe.csv")) {
       const liste = (state.standEntwuerfe || []).slice().reverse();
       if (url.endsWith(".csv")) {
-        const zeilen = [["zeit", "kontakt", "email", "event", "typ", "monat", "gaeste", "stadt", "kanal", "ton", "farbe", "bausteine", "sekunden", "mail"]];
+        const zeilen = [["zeit", "kontakt", "firma", "email", "event", "typ", "monat", "gaeste", "stadt", "kanal", "ton", "farbe", "bausteine", "sekunden", "mail", "planyvo_event"]];
         for (const e of liste) {
           const w = standWerte(e);
-          zeilen.push([new Date(e.t).toLocaleString("de-DE", { timeZone: "Europe/Berlin" }), e.kontaktName, e.kontaktMail, e.name, w.event_typ,
-                       w.event_wann, e.gaeste, e.stadt, w.event_kanal, w.event_ton, e.farbe, w.bausteine, e.sekunden, e.mail ? "ja" : "nein"]);
+          zeilen.push([new Date(e.t).toLocaleString("de-DE", { timeZone: "Europe/Berlin" }), e.kontaktName, e.firma || "", e.kontaktMail, e.name, w.event_typ,
+                       w.event_wann, e.gaeste, e.stadt, w.event_kanal, w.event_ton, e.farbe, w.bausteine, e.sekunden, e.mail ? "ja" : "nein",
+                       (e.planyvo && e.planyvo.eventId) || ""]);
         }
         const csv = zeilen.map(z => z.map(v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"').join(";")).join("\r\n");
         res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="stand-entwuerfe.csv"' });
@@ -5224,9 +5275,9 @@ const server = http.createServer((req, res) => {
         gaeste: Math.max(1, Math.min(10000, parseInt(body.gaeste, 10) || 0)),
         stadt: s("stadt", 30), kanal: s("kanal", 12), farbe: s("farbe", 12), ton: s("ton", 4),
         bausteine: Array.isArray(body.bausteine) ? body.bausteine.map(b => cleanText(String(b), 20)).filter(Boolean).slice(0, 20) : [],
-        kontaktName: s("kontaktName", 60), kontaktMail: clean(String(body.kontaktMail || ""), 120).toLowerCase(),
+        kontaktName: s("kontaktName", 60), firma: s("firma", 80), kontaktMail: clean(String(body.kontaktMail || ""), 120).toLowerCase(),
         sekunden: Math.max(0, Math.min(3600, parseInt(body.sekunden, 10) || 0)),
-        mail: 0
+        mail: 0, planyvo: null
       };
       if (e.name.length < 2) return json(res, 400, { error: "Der Name des Events fehlt." });
       if (e.kontaktName.length < 2) return json(res, 400, { error: "Dein Name fehlt." });
@@ -5236,21 +5287,32 @@ const server = http.createServer((req, res) => {
       state.standEntwuerfe.push(e);
       dirty = true;
       logEvent("Stand", e.kontaktName, e.name + " · " + e.bausteine.length + " Bausteine · " + e.sekunden + " s");
-      /* Die Mail an den Gast: sein Entwurf, zum Weiterleiten an wen auch
-       * immer bei ihm entscheidet. Ohne Lettermint bleibt es beim Eintrag. */
-      if (!LETTERMINT_TOKEN) return json(res, 200, { ok: true, mail: false });
-      let html;
-      try { html = renderMail({ name: e.kontaktName, anrede: "Hallo", token: "stand" }, "stand-entwurf.html", standWerte(e)); }
-      catch (err) { console.error("Stand-Mail bricht: " + err.message); return json(res, 200, { ok: true, mail: false }); }
-      lettermintSenden({
-        to: e.kontaktMail,
-        subject: "Dein Event-Entwurf: " + e.name + " · planyvo",
-        html, text: standText(e),
-        metadata: { art: "stand-entwurf", id: e.id }
-      }, err => {
-        if (err) { console.error("Stand-Mail an " + e.kontaktMail + " fehlgeschlagen: " + err.message); return json(res, 200, { ok: true, mail: false }); }
-        e.mail = Date.now(); dirty = true;
-        json(res, 200, { ok: true, mail: true });
+      /* Erst der Entwurf im planyvo-Dashboard (wenn ein Schluessel da ist),
+       * dann die Mail an den Gast - die kann dann sagen, dass er schon liegt. */
+      planyvoEntwurfAnlegen(e, (pErr, p) => {
+        if (pErr) console.error("Stand: planyvo-Entwurf nicht angelegt: " + pErr.message);
+        else if (p) { e.planyvo = p; dirty = true; }
+        const angelegt = !!e.planyvo;
+        if (!LETTERMINT_TOKEN) return json(res, 200, { ok: true, mail: false, planyvo: angelegt });
+        let html;
+        const extra = Object.assign(standWerte(e), {
+          planyvo_logo_url: assetUrl("planyvo-logo.png"),
+          dashboard_hinweis: angelegt
+            ? "Dein Entwurf liegt schon im planyvo-Dashboard – wir schalten dir den Zugang frei und melden uns."
+            : "Wir legen den Entwurf im planyvo-Dashboard an und melden uns bei dir."
+        });
+        try { html = renderMail({ name: e.kontaktName, anrede: "Hallo", token: "stand" }, "stand-entwurf.html", extra); }
+        catch (err) { console.error("Stand-Mail bricht: " + err.message); return json(res, 200, { ok: true, mail: false, planyvo: angelegt }); }
+        lettermintSenden({
+          to: e.kontaktMail,
+          subject: "Dein Event-Entwurf: " + e.name + " · planyvo",
+          html, text: standText(e),
+          metadata: { art: "stand-entwurf", id: e.id }
+        }, err => {
+          if (err) { console.error("Stand-Mail an " + e.kontaktMail + " fehlgeschlagen: " + err.message); return json(res, 200, { ok: true, mail: false, planyvo: angelegt }); }
+          e.mail = Date.now(); dirty = true;
+          json(res, 200, { ok: true, mail: true, planyvo: angelegt });
+        });
       });
     });
   }

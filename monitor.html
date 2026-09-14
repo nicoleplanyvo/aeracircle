@@ -1487,7 +1487,7 @@ async function standHolen(){
     const n = d.anzahl || 0;
     txt($("#standNote"), n ? n + (n === 1 ? " Entwurf" : " Entwürfe") + " · Gäste bauen am Touchscreen ihr Event, der Entwurf geht als Mail an sie und steht hier für die Nachbereitung."
                            : "Noch kein Entwurf. Sobald am Stand jemand sein Event baut, steht es hier.");
-    txt($("#standListe"), (d.entwuerfe || []).slice(0, 5).map(e => e.kontaktName + " · " + e.name + " (" + e.werte.event_typ + ", " + e.gaeste + " Gäste, " + e.bausteine.length + " Bausteine)").join(" · "));
+    txt($("#standListe"), (d.entwuerfe || []).slice(0, 5).map(e => e.kontaktName + (e.firma ? " (" + e.firma + ")" : "") + " · " + e.name + " (" + e.werte.event_typ + ", " + e.gaeste + " Gäste, " + e.bausteine.length + " Bausteine" + (e.planyvo && e.planyvo.eventId ? ", im Dashboard" : "") + ")").join(" · "));
   }catch(e){ txt($("#standNote"), "Stand: Server nicht erreichbar."); }
 }
 

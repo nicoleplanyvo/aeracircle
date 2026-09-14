@@ -1029,9 +1029,14 @@ Seite für den planyvo-Stand: „Bau dein Event. In drei Minuten.“ Vier
 Schritte (Was, Wann, Bausteine, Look), rechts entsteht die App als
 Vorschau, am Ende Name und Mail. Der Entwurf geht als Mail an den Gast
 (`email/stand-entwurf.html`) und steht im Monitor unter *Einladung →
-Event-Entwürfe* mit CSV-Export. Angelegt wird das Event danach über das
-planyvo-Dashboard bzw. den MCP-Server – der Stand ist die Aufnahme, kein
-zweiter Baukasten. Ohne Berührung springt die Seite nach 90 s zum
+Event-Entwürfe* mit CSV-Export. Steht in Plesk ein **`PLANYVO_API_KEY`**
+(Agentur-Schlüssel aus dem planyvo-Dashboard, Zahnrad → API Keys), legt
+der Server den Entwurf zusätzlich sofort als **DRAFT im planyvo-Dashboard**
+an: erst die Company (Firma des Gastes oder sein Name, seine Adresse als
+Ansprechpartner), dann das Event mit Beschreibung aus den gewählten
+Bausteinen. Ohne Schlüssel bleibt es beim Eintrag im Monitor, und das Event
+wird von Hand bzw. über den MCP-Server angelegt. Der Stand ist die
+Aufnahme, kein zweiter Baukasten. Ohne Berührung springt die Seite nach 90 s zum
 Startbild zurück, nichts vom Vorgänger bleibt stehen. Auf dem Monitor am
 Stand: Browser im Vollbild (Chrome: F11, Kiosk-Modus `--kiosk`), Bildschirm-
 Ruhezustand aus, Adresse `/stand`. Eigene Bildschirmtastatur ist eingebaut.
