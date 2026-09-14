@@ -2572,6 +2572,7 @@ const APP_MODE = String(process.env.APP_MODE || "circle").toLowerCase() === "sta
  * Abend verraet, ist sie hier nicht drin - und damit dort nicht offen. */
 function standErlaubt(url) {
   if (url === "/stand" || url === "/stand.html" || url === "/baukasten") return true;
+  if (url === "/vorschau.js" || url.indexOf("/e/") === 0) return true;   // die App und die Vorschau des Gastes
   if (url === "/qr-text.png" || url === "/favicon.ico" || url === "/robots.txt") return true;
   if (url === "/api/live/health") return true;                     // damit Plesk etwas zum Anpingen hat
   if (url.startsWith("/assets/")) return true;                     // Logo, Schrift, Bilder der Mail
@@ -2595,13 +2596,26 @@ const STAND_MAIL_REPLY_TO = process.env.STAND_MAIL_REPLY_TO !== undefined ? proc
 const standStelle = (praep) => praep + " planyvo-Stand" + (STAND_ANLASS ? " bei " + STAND_ANLASS : "");
 const standHerkunft = (gross) => standStelle(gross ? "Vom" : "vom");
 const standLink = () => "https://www.planyvo.com/?stand=" + STAND_QUELLE;
+/* Die Vorschau des Gastes. Der Gast soll nach dem Stand nicht nur die
+ * Nachricht haben, dass er etwas gebaut hat - er soll es OEFFNEN koennen,
+ * auf dem eigenen Handy, und weiterschicken. Die Kennung ist zufaellig und
+ * nicht zu erraten; sie ist der ganze Schutz, denn auf der Seite steht
+ * nichts Persoenliches ausser dem, was er selbst eingetippt hat. */
+const vorschauLink = (e) => e && e.oeffentlich ? PUBLIC_URL + "/e/" + e.oeffentlich : "";
 
 /* --- Stand: die Werte eines Entwurfs fuer Mail und Liste --- */
 let standLetzter = 0;
 const STAND_TYPEN = { dinner: "Dinner & Gala", konferenz: "Konferenz", kunden: "Kundenevent", launch: "Produktlaunch", team: "Team- & Sommerfest", jubilaeum: "Jubiläum" };
-const STAND_BAUSTEINE = { savethedate: "Save the Date", einladung: "Einladung & Zusage", tickets: "Tickets & Bezahlung", hotel: "Hotel & Anreise",
-  programm: "Programm & Sessions", app: "Event-App", push: "Push-Nachrichten", einlass: "Einlass mit QR", tischplan: "Tischplan & Rotation",
-  wand: "Live-Wand", galerie: "Fotogalerie", feedback: "Feedback" };
+/* Dieselben Namen wie in /vorschau.js - hier fuer Mail und CSV. Steht ein
+ * Baustein nicht drin, landet der nackte Schluessel in der Mail des Gastes
+ * ("rueckblick"), und das liest sich wie ein Fehler. */
+const STAND_BAUSTEINE = { savethedate: "Save the Date", einladung: "Einladung & Zusage", tickets: "Tickets & Bezahlung",
+  anmeldung: "Anmeldung", hotel: "Hotel & Anreise", shuttle: "Shuttle & Parken", familie: "Begleitung & Kinder",
+  app: "Event-App", programm: "Programm", sessions: "Sessions & Tracks", speaker: "Speaker & Bühne",
+  raeume: "Räume & Wegweiser", menue: "Menü & Wünsche", einlass: "Einlass mit QR", tischplan: "Tischplan & Rotation",
+  netzwerk: "Teilnehmer & Kontakte", unterlagen: "Unterlagen & Folien", presse: "Presse & Medien", livestream: "Livestream",
+  push: "Push-Nachrichten", wand: "Live-Wand", rueckblick: "Rückblick", gaestebuch: "Gästebuch",
+  galerie: "Fotogalerie", feedback: "Feedback" };
 const STAND_KANAL = { mail: "Persönliche E-Mail", whatsapp: "WhatsApp", beides: "E-Mail und WhatsApp" };
 const STAND_MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 function standWerte(e) {
@@ -2618,7 +2632,9 @@ function standWerte(e) {
      * naechsten Stand die Mail angefasst werden. */
     stand_herkunft: standHerkunft(false), stand_herkunft_am: standStelle("am"), stand_anlass: STAND_ANLASS,
     stand_anlass_zusatz: STAND_ANLASS ? " · " + STAND_ANLASS : "",
-    stand_link: standLink()
+    stand_link: standLink(),
+    /* Der Link auf seine eigene Vorschau - das Ergebnis, nicht die Notiz. */
+    vorschau_url: vorschauLink(e)
   };
 }
 /* Den Entwurf als DRAFT im planyvo-Dashboard anlegen - ueber die External
@@ -2678,8 +2694,13 @@ function standText(e) {
     w.event_name + " · " + w.event_typ, w.event_wann + " · " + w.event_stadt + " · " + w.event_gaeste + " Gäste",
     "Einladung: " + w.event_kanal + " · Ansprache per " + w.event_ton, "",
     "Bausteine (" + w.bausteine_zahl + "): " + (w.bausteine || "keine"), "",
+    /* Der Link zuerst - er ist das Ergebnis. Eine Mail, die nur erzaehlt,
+     * dass jemand etwas gebaut hat, ist keine. */
+    w.vorschau_url ? "Deine App ansehen (am besten auf dem Handy):" : "",
+    w.vorschau_url || "",
+    w.vorschau_url ? "" : null,
     "Gebaut in " + w.dauer + " Minuten. Wir legen den Entwurf im planyvo-Dashboard an und melden uns.", "",
-    "planyvo · www.planyvo.com"].join("\n");
+    "planyvo · www.planyvo.com"].filter(z => z !== null).join("\n");
 }
 
 function zahlungBuchen(token, session) {
@@ -5514,11 +5535,21 @@ const server = http.createServer((req, res) => {
       res.end(mit);
     });
   }
-  /* QR fuer eine planyvo-Adresse (Dankebild am Stand). Nur planyvo.com -
-   * kein offener QR-Generator fuer beliebige Ziele. */
+  /* Die App des Standes - Bausteine, Ansichten, Zeichnen. Dieselbe Datei
+   * benutzen der Touchscreen und die Vorschau, die der Gast per Mail
+   * bekommt: Er soll am Stand nicht eine Zeichnung sehen und danach eine
+   * andere App. */
+  if (req.method === "GET" && url === "/vorschau.js") {
+    return serveFile(res, "vorschau.js", "application/javascript; charset=utf-8", { "Cache-Control": "public, max-age=300" });
+  }
+  /* QR fuer eine planyvo-Adresse oder fuer diesen Server (die Vorschau des
+   * Gastes auf dem Dankebild). Bewusst nur diese beiden - ein offener
+   * QR-Generator fuer beliebige Ziele haengt an einem oeffentlichen
+   * Bildschirm und waere ein Werkzeug fuer Fremde. */
   if (req.method === "GET" && url === "/qr-text.png") {
     const t = String(q.get("t") || "https://www.planyvo.com").slice(0, 200);
-    if (!/^https:\/\/(www\.)?planyvo\.com(\/|$)/.test(t)) return json(res, 400, { error: "nur planyvo.com" });
+    const eigen = PUBLIC_URL && t.indexOf(PUBLIC_URL + "/") === 0;
+    if (!eigen && !/^https:\/\/(www\.)?planyvo\.com(\/|$)/.test(t)) return json(res, 400, { error: "nur planyvo.com" });
     const png = qrPng(t, 8);
     res.writeHead(200, { "Content-Type": "image/png", "Content-Length": png.length, "Cache-Control": "public, max-age=86400" });
     return res.end(png);
@@ -5539,7 +5570,10 @@ const server = http.createServer((req, res) => {
       return json(res, 200, Object.assign({}, d, {
         logo: durch(d.logo),
         logoOriginal: d.logo || "",       // fuer die Nachbereitung: die echte Adresse
-        logos: (d.logos || []).map(durch)
+        logos: (d.logos || []).map(durch),
+        /* Dieselbe Umleitung fuer die Buehnenbilder. */
+        bilder: (d.bilder || []).map(durch),
+        bilderOriginal: d.bilder || []
       }));
     });
   }
@@ -5549,6 +5583,39 @@ const server = http.createServer((req, res) => {
     if (!rateLimit(req, res, "marke", 120, 60_000)) return;
     const ziel = String(q.get("u") || "").slice(0, 500);
     return bildDurchreichen(ziel, res);
+  }
+
+  /* --- Die Vorschau des Gastes: seine App, unter seinem eigenen Link ---
+   * Das Ergebnis vom Stand. Vorher bekam er eine Mail, die ihm sagte, dass
+   * er etwas gebaut hat, das er nirgends mehr ansehen konnte - jetzt
+   * oeffnet er den Link auf dem Handy, legt ihn auf den Startbildschirm
+   * und zeigt ihn weiter. Ohne Anmeldung: Es steht nichts darauf, was
+   * nicht er selbst eingetippt hat. */
+  if (req.method === "GET" && url.indexOf("/e/") === 0) {
+    return serveFile(res, "vorschau.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
+  }
+  if (req.method === "GET" && url === "/api/stand/vorschau") {
+    if (!rateLimit(req, res, "vorschau", 120, 60_000)) return;
+    const id = clean(q.get("id") || "", 24);
+    const e = (state.standEntwuerfe || []).find(x => x.oeffentlich && x.oeffentlich === id);
+    if (!e) return json(res, 404, { error: "Diesen Entwurf gibt es nicht (mehr)." });
+    /* Nur was auf den Bildschirm gehoert. Die Mailadresse des Gastes bleibt
+     * hier, auch wenn den Link nur er kennt: Er schickt ihn weiter. */
+    return json(res, 200, { ok: true, entwurf: {
+      typ: e.typ, name: e.name, wer: e.wer, monat: e.monat, jahr: e.jahr, gaeste: e.gaeste, stadt: e.stadt,
+      ton: e.ton, farbe: e.farbe, ciFarbe: e.ciFarbe, ciName: e.ciName, bausteine: e.bausteine,
+      schrift: e.schrift, stimmung: e.stimmung, logoFrei: !!e.logoFrei,
+      /* Buehnenbild wie das Logo ueber den eigenen Server. Aeltere Entwuerfe
+       * haben nur die schon umgeleitete Adresse - die geht direkt durch. */
+      bild: e.bildOriginal ? "/api/stand/bild?u=" + encodeURIComponent(e.bildOriginal)
+           : (e.bild && e.bild.indexOf("/api/stand/bild") === 0 ? e.bild : ""),
+      kontaktName: e.kontaktName, firma: e.firma,
+      /* Das Logo ueber den eigenen Server: Die Vorschau laeuft auf https,
+       * viele Firmenlogos liegen auf http oder sind gegen Hotlinking
+       * gesperrt - dann bliebe die Stelle leer. */
+      ciLogo: e.ciLogo ? "/api/stand/bild?u=" + encodeURIComponent(e.ciLogo) : "",
+      t: e.t, sekunden: e.sekunden
+    } });
   }
 
   if (req.method === "POST" && url === "/api/stand/entwurf") {
@@ -5568,9 +5635,18 @@ const server = http.createServer((req, res) => {
          * in welchem Look die App gedacht war. */
         website: s("website", 120), ciName: s("ciName", 60), ciLogo: s("ciLogo", 300),
         ciFarbe: /^#[0-9a-fA-F]{6}$/.test(String(body.ciFarbe || "")) ? String(body.ciFarbe).toLowerCase() : "",
+        /* Der Look: Schrift, Buehne und ob das Logo freigestellt steht. Das
+         * Buehnenbild wird als Adresse gespeichert, nicht als Datei - es
+         * liegt auf der Website des Gastes und gehoert ihm. */
+        schrift: s("schrift", 20), stimmung: s("stimmung", 20),
+        bild: s("bild", 400), bildOriginal: s("bildOriginal", 400), logoFrei: !!body.logoFrei,
         bausteine: Array.isArray(body.bausteine) ? body.bausteine.map(b => cleanText(String(b), 20)).filter(Boolean).slice(0, 20) : [],
         kontaktName: s("kontaktName", 60), firma: s("firma", 80), kontaktMail: clean(String(body.kontaktMail || ""), 120).toLowerCase(),
         sekunden: Math.max(0, Math.min(3600, parseInt(body.sekunden, 10) || 0)),
+        /* Die Adresse, unter der seine App danach steht. Zufaellig, damit
+         * sie niemand durchprobiert - sonst waere jeder Entwurf der Reihe
+         * nach lesbar. */
+        oeffentlich: crypto.randomBytes(6).toString("hex"),
         mail: 0, planyvo: null
       };
       if (e.name.length < 2) return json(res, 400, { error: "Der Name des Events fehlt." });
@@ -5595,7 +5671,7 @@ const server = http.createServer((req, res) => {
         if (pErr) console.error("Stand: planyvo-Entwurf nicht angelegt: " + pErr.message);
         else if (p) { e.planyvo = p; dirty = true; }
         const angelegt = !!e.planyvo;
-        if (!LETTERMINT_TOKEN) return json(res, 200, { ok: true, mail: false, planyvo: angelegt });
+        if (!LETTERMINT_TOKEN) return json(res, 200, { ok: true, mail: false, planyvo: angelegt, vorschau: vorschauLink(e) });
         let html;
         const extra = Object.assign(standWerte(e), {
           planyvo_logo_url: assetUrl("planyvo-logo.png"),
@@ -5604,7 +5680,7 @@ const server = http.createServer((req, res) => {
             : "Wir legen den Entwurf im planyvo-Dashboard an und melden uns bei dir."
         });
         try { html = renderMail({ name: e.kontaktName, anrede: "Hallo", token: "stand" }, "stand-entwurf.html", extra); }
-        catch (err) { console.error("Stand-Mail bricht: " + err.message); return json(res, 200, { ok: true, mail: false, planyvo: angelegt }); }
+        catch (err) { console.error("Stand-Mail bricht: " + err.message); return json(res, 200, { ok: true, mail: false, planyvo: angelegt, vorschau: vorschauLink(e) }); }
         lettermintSenden({
           to: e.kontaktMail,
           subject: "Dein Event-Entwurf: " + e.name + " · planyvo",
@@ -5613,9 +5689,9 @@ const server = http.createServer((req, res) => {
           from: STAND_MAIL_FROM, route: STAND_MAIL_ROUTE, replyTo: STAND_MAIL_REPLY_TO,
           metadata: { art: "stand-entwurf", id: e.id }
         }, err => {
-          if (err) { console.error("Stand-Mail an " + e.kontaktMail + " fehlgeschlagen: " + err.message); return json(res, 200, { ok: true, mail: false, planyvo: angelegt }); }
+          if (err) { console.error("Stand-Mail an " + e.kontaktMail + " fehlgeschlagen: " + err.message); return json(res, 200, { ok: true, mail: false, planyvo: angelegt, vorschau: vorschauLink(e) }); }
           e.mail = Date.now(); dirty = true;
-          json(res, 200, { ok: true, mail: true, planyvo: angelegt });
+          json(res, 200, { ok: true, mail: true, planyvo: angelegt, vorschau: vorschauLink(e) });
         });
       });
     });

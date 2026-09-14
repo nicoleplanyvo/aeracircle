@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Deine Event-App · planyvo</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#c15c42">
+<!--
+  DAS ERGEBNIS VOM STAND.
+
+  Der Gast hat am Touchscreen sein Event gebaut und bekommt per Mail einen
+  Link auf genau diese Seite: seine App, auf seinem Handy, in seiner Farbe,
+  mit seinem Logo - zum Ansehen, zum Weiterschicken, zum Auf-den-
+  Startbildschirm-Legen. Vorher stand in der Mail nur, DASS er etwas gebaut
+  hat; ansehen konnte er es nirgends mehr. Das war der Fehler.
+
+  Es ist dieselbe App wie im Telefon am Stand - derselbe Code (/vorschau.js),
+  nur ohne den Rahmen drumherum. Nichts hier ist eine Anmeldung: Auf der
+  Seite steht ausschliesslich, was der Gast selbst eingetippt hat, und die
+  Kennung in der Adresse ist zufaellig, damit niemand die Entwuerfe der
+  Reihe nach durchprobiert.
+-->
+<link rel="icon" href="/assets/planyvo-logo.png">
+<style>
+  @font-face{font-family:"Manrope";font-style:normal;font-weight:400 800;font-display:swap;src:url(/assets/manrope-stand.woff2) format("woff2")}
+  @font-face{font-family:"Material Symbols Outlined";font-style:normal;font-weight:100 700;font-display:block;src:url(/assets/material-symbols-stand.woff2) format("woff2")}
+  :root{
+    --terracotta:#c15c42; --honey:#e2a45f; --gold:#ffb347; --olive:#92b36b; --coral:#f28c7c;
+    --darkbrown:#3a2e2a; --lightcream:#faf5f0; --warmwhite:#fff4e6; --taupe:#d9c8b8;
+    --muted:#7a6a62; --line:rgba(58,46,42,.10); --accent:#c15c42;
+    --sans:"Manrope","Avenir Next","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{background:var(--lightcream);color:var(--darkbrown);font-family:var(--sans);
+    display:flex;flex-direction:column;overscroll-behavior:none}
+  button{font:inherit;color:inherit;cursor:pointer}
+  .ms{font-family:"Material Symbols Outlined";font-weight:400;font-style:normal;line-height:1;display:inline-block;
+    white-space:nowrap;-webkit-font-feature-settings:"liga";font-feature-settings:"liga";font-variation-settings:"FILL" 0,"wght" 400,"GRAD" 0,"opsz" 40}
+
+  /* Die App fuellt den Schirm. Auf dem Handy ist sie die ganze Seite, auf
+     einem grossen Schirm steht sie mittig in Telefonbreite - sonst laeuft
+     eine App-Oberflaeche ueber einen Monitor und sieht nach nichts aus. */
+  #app{flex:1;display:flex;flex-direction:column;width:100%;max-width:520px;margin:0 auto;
+    background:var(--lightcream);position:relative;overflow:hidden;font-family:var(--appfont,var(--sans))}
+  #app b,#app .pk-t,#app .titel{font-weight:var(--appfett,800);letter-spacing:var(--appsperr,-.02em)}
+  #laedt,#fehlt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+    padding:32px;text-align:center;color:var(--muted);font-weight:600}
+  #fehlt h1{font-size:22px;color:var(--darkbrown);margin:0}
+  #fehlt a{color:var(--terracotta);font-weight:800}
+  [hidden]{display:none!important}
+
+  /* --- Der Kopf --- */
+  .hero{color:#fff;padding:calc(28px + env(safe-area-inset-top)) 20px 22px;display:flex;flex-direction:column;gap:5px;
+    position:relative;overflow:hidden;background-size:cover;background-position:center}
+  .hero:not([style*="url"])::after{content:"";position:absolute;right:-14%;top:-38%;width:70%;padding-top:70%;
+    border-radius:50%;background:rgba(255,255,255,.12);pointer-events:none}
+  .mlogo{background:#fff;border-radius:10px;padding:7px 9px;align-self:flex-start;max-width:60%;margin-bottom:6px;
+    box-shadow:0 4px 14px rgba(0,0,0,.12)}
+  .mlogo.frei{background:none;box-shadow:none;padding:0;margin-bottom:10px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
+  .mlogo img{display:block;max-height:30px;max-width:100%;width:auto}
+  .mlogo.frei img{max-height:38px}
+  .marke{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;opacity:.9}
+  .titel{font-size:26px;line-height:1.12;font-weight:800}
+  .wann{font-size:12px;font-weight:600;opacity:.95;display:flex;align-items:center;gap:5px}
+  .wann .ms{font-size:15px}
+  .gruss{margin:12px 16px 0;background:#fff;border-radius:14px;padding:12px 14px;font-size:13px;font-weight:600;
+    box-shadow:0 4px 14px rgba(58,46,42,.06);display:flex;align-items:center;gap:8px}
+  .gruss .ms{color:var(--accent);font-size:20px}
+
+  /* --- Kacheln --- */
+  .kacheln{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 16px 0;align-content:start}
+  .kachel{background:#fff;border-radius:14px;padding:12px;font-size:13px;line-height:1.25;min-height:74px;min-width:0;overflow-wrap:anywhere;
+    display:flex;flex-direction:column;justify-content:flex-end;gap:6px;font-weight:700;
+    box-shadow:0 4px 14px rgba(58,46,42,.06);animation:rein .3s ease-out}
+  .kachel .ms{font-size:22px;color:var(--accent)}
+  .kachel.gross{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:flex-start;gap:10px;background:var(--darkbrown);color:#fff;min-height:58px}
+  .kachel.gross .ms{color:var(--gold)}
+  .homefuss{margin:14px 16px 0;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);font-weight:700}
+  .homefuss .ms{font-size:18px;color:var(--accent)}
+  .leer{color:var(--muted);text-align:center;font-size:13px;padding:28px 16px;line-height:1.5;font-weight:600}
+  @keyframes rein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* --- Ansichten --- */
+  [data-tap]{cursor:pointer}
+  .pbar{display:flex;align-items:center;gap:10px;background:var(--accent);color:#fff;
+    padding:calc(22px + env(safe-area-inset-top)) 16px 16px;font-size:15px;font-weight:800}
+  .pbar .ms{font-size:21px}
+  .inhalt{flex:1;padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;animation:rein .28s ease-out}
+  .pk{background:#fff;border-radius:16px;padding:15px;box-shadow:0 5px 18px rgba(58,46,42,.07)}
+  .pk-k{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:800}
+  .pk-t{font-size:20px;font-weight:800;line-height:1.15;margin-top:5px}
+  .pk-s{font-size:12px;color:var(--muted);font-weight:600;margin-top:5px;line-height:1.45}
+  .pbtn{width:100%;border:0;border-radius:15px;background:var(--accent);color:#fff;font-size:14px;font-weight:800;
+    padding:17px;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;
+    box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 32%,transparent)}
+  .pbtn.zweit{background:#fff;color:var(--darkbrown);box-shadow:0 4px 14px rgba(58,46,42,.08)}
+  .pbtn.fertig{background:var(--olive);box-shadow:0 8px 22px rgba(146,179,107,.32)}
+  .pbtn .ms{font-size:20px}
+  .pzeile{display:flex;gap:9px}.pzeile .pbtn{flex:1}
+  .pnote{font-size:12px;color:var(--muted);font-weight:600;line-height:1.5}
+  .pnote.fehlt{margin-top:auto;display:flex;align-items:center;gap:6px;color:var(--accent);font-weight:700}
+  .pnote.fehlt .ms{font-size:17px}
+  .pmitte{text-align:center;font-size:13px;color:var(--muted);font-weight:700}
+  .pliste{display:flex;flex-direction:column;gap:8px}
+  .pz{background:#fff;border-radius:13px;padding:12px;display:flex;align-items:center;gap:10px;
+    box-shadow:0 4px 14px rgba(58,46,42,.06);border:1.5px solid transparent}
+  .pz .ms{font-size:22px;color:var(--accent);flex:none}
+  .pz .tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .pz b{font-size:13px}
+  .pz small{font-size:11px;color:var(--muted);font-weight:600}
+  .pz .puhr{font-size:12px;font-weight:800;color:var(--accent);min-width:44px;flex:none}
+  .pz.an{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,#fff)}
+  .pz.voll{opacity:.5}
+  .pgruen{background:rgba(146,179,107,.16);border-radius:16px;padding:22px 14px;text-align:center;font-weight:800;
+    font-size:16px;color:#4d6a2f;display:flex;flex-direction:column;align-items:center;gap:6px;animation:rein .3s ease-out}
+  .pgruen .ms{font-size:44px;color:var(--olive);font-variation-settings:"FILL" 1,"wght" 500,"GRAD" 0,"opsz" 48}
+  .pgruen small{font-size:12px;color:var(--muted);font-weight:600;line-height:1.45}
+  .pqr{background:#fff;border-radius:16px;padding:12px;align-self:center;width:170px;height:170px;box-shadow:0 8px 24px rgba(58,46,42,.12)}
+  .pqr img{width:100%;height:100%;display:block}
+  .ptische{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .ptisch{background:#fff;border-radius:12px;padding:16px 4px;text-align:center;font-size:11px;font-weight:700;
+    color:var(--muted);box-shadow:0 4px 14px rgba(58,46,42,.06)}
+  .ptisch.dein{background:var(--accent);color:#fff}
+  .pzahl{font-size:62px;font-weight:800;color:var(--accent);text-align:center;line-height:1;letter-spacing:-.04em;margin-top:10px}
+  .psterne{display:flex;justify-content:center;gap:8px;margin:14px 0 4px}
+  .psterne .ms{font-size:38px;color:var(--taupe)}
+  .psterne .ms.an{color:var(--gold);font-variation-settings:"FILL" 1,"wght" 400,"GRAD" 0,"opsz" 40}
+  .pgal{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .pgal i{display:block;padding-top:100%;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--gold))}
+  .pgal i:nth-child(3n+2){background:linear-gradient(135deg,var(--darkbrown),var(--accent))}
+  .pgal i:nth-child(3n){background:linear-gradient(135deg,var(--honey),var(--coral))}
+  .pstream{background:var(--darkbrown);color:#fff;border-radius:16px;padding:26px 14px;text-align:center;
+    display:flex;flex-direction:column;align-items:center;gap:6px;font-size:15px;font-weight:800}
+  .pstream .ms{font-size:40px;color:var(--gold)}
+  .pstream small{font-size:11px;color:rgba(255,255,255,.7);font-weight:600}
+  .pstream.an .ms{color:#ff5a4f;animation:pulsrot 1.6s ease-in-out infinite}
+  @keyframes pulsrot{0%,100%{opacity:1}50%{opacity:.45}}
+  .pschreib{margin-top:8px;border:1.5px dashed var(--taupe);border-radius:12px;padding:14px;font-size:12px;color:#b3a59c;font-weight:600}
+
+  .tab{margin-top:auto;background:rgba(255,255,255,.92);border-top:1px solid var(--line);display:flex;
+    justify-content:space-around;padding:12px 0 calc(16px + env(safe-area-inset-bottom));
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+  .tab .ms{font-size:23px;color:#b3a59c;position:relative}
+  .tab .ms.an{color:var(--accent);font-variation-settings:"FILL" 1,"wght" 400,"GRAD" 0,"opsz" 24}
+  .tab .ms.an::after{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);width:5px;height:5px;
+    border-radius:50%;background:var(--accent)}
+
+  /* Der Streifen unter der App: Wem sie gehoert und was als Naechstes
+     passiert. Bewusst ausserhalb der App - sie selbst soll aussehen wie
+     seine, nicht wie unsere. */
+  #fuss{background:var(--warmwhite);border-top:1px solid var(--line);padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+    display:flex;align-items:center;gap:12px;max-width:520px;margin:0 auto;width:100%}
+  #fuss img{height:20px;width:auto;flex:none}
+  #fuss div{font-size:11px;color:var(--muted);font-weight:600;line-height:1.45}
+  #fuss a{color:var(--terracotta);font-weight:800;text-decoration:none}
+</style>
+</head>
+<body>
+
+<div id="laedt"><span class="ms" style="font-size:40px;color:var(--terracotta)">hourglass_top</span>Deine App wird geholt …</div>
+
+<div id="fehlt" hidden>
+  <span class="ms" style="font-size:44px;color:var(--taupe)">link_off</span>
+  <h1>Diesen Entwurf gibt es nicht mehr</h1>
+  <p>Der Link stimmt nicht oder der Entwurf wurde entfernt.<br>
+     Auf <a href="https://www.planyvo.com">planyvo.com</a> bauen wir ihn in drei Minuten neu.</p>
+</div>
+
+<div id="app" hidden></div>
+
+<div id="fuss" hidden>
+  <img src="/assets/planyvo-logo.png" alt="planyvo">
+  <div>Dein Entwurf vom Stand. Zum Weiterschicken – oder auf den Startbildschirm legen.<br>
+    <a href="https://www.planyvo.com" id="fussLink">Im Dashboard weiterbauen →</a></div>
+</div>
+
+<script src="/vorschau.js"></script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+/* Die Kennung steht im Pfad (/e/<id>), nicht in einem Parameter: So laesst
+   sich der Link weiterschicken, ohne dass ein Mailprogramm etwas abschneidet. */
+const ID = (location.pathname.split("/e/")[1] || "").split(/[/?#]/)[0];
+let E = null;
+const PH = PV.frisch();
+
+/* Ein Fingertipp in der App. Dieselbe Behandlung wie am Stand - es ist
+   derselbe Code. Nichts davon verlaesst das Geraet. */
+document.addEventListener("click", e => {
+  const z = e.target.closest("[data-tap]");
+  if (!z || !E) return;
+  if (PV.tippen(z, E, PH)) zeichnen();
+});
+
+function zeichnen(){
+  PV.stilSetzen($("#app"), E);
+  PV.zeichne([$("#app")], E, PH);
+}
+
+(async () => {
+  let d = null;
+  try { d = await (await fetch("/api/stand/vorschau?id=" + encodeURIComponent(ID))).json(); } catch (err) {}
+  $("#laedt").hidden = true;
+  if (!d || !d.ok || !d.entwurf) { $("#fehlt").hidden = false; return; }
+  E = d.entwurf;
+  /* Aeltere Entwuerfe kennen Schrift und Buehne noch nicht - dann gilt,
+     was auch am Stand die Vorgabe war. */
+  E.schrift = E.schrift || "modern";
+  E.stimmung = E.stimmung || "farbe";
+  E.bausteine = E.bausteine || [];
+  document.title = (E.name || "Deine Event-App") + " · planyvo";
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute("content", PV.farbeVon(E));
+  $("#app").hidden = false; $("#fuss").hidden = false;
+  zeichnen();
+})();
+</script>
+</body>
+</html>

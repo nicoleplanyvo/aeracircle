@@ -232,6 +232,49 @@ function logoAusHtml(html, basis) {
   return kandidaten.filter(k => k.url && !gesehen.has(k.url) && gesehen.add(k.url)).slice(0, 4);
 }
 
+/* Ein Logo ohne weissen Kasten drumherum. PNG und SVG koennen durchsichtig
+ * sein, JPEG nie - und ein JPEG-Logo auf einer Farbflaeche sieht immer aus
+ * wie ein aufgeklebter Zettel. Das entscheidet spaeter, ob die App das Logo
+ * frei auf die Farbe setzt oder auf eine weisse Karte. Geraten wird an der
+ * Endung: das Bild selbst liegt hier noch nicht vor, und ein zweiter Abruf
+ * je Kandidat waere am Stand drei Sekunden Wartezeit fuer eine Feinheit. */
+function durchsichtigKann(url) { return /\.(png|svg|webp|avif)(\?|#|$)/i.test(String(url || "")); }
+
+/* Bilder, die kein Logo sind: das Stimmungsbild der Seite. Der Gast am
+ * Stand soll seinen Hintergrund nicht aus einer fremden Bilddatenbank
+ * suchen muessen - das beste Bild fuer seine Marke steht auf seiner
+ * eigenen Website. Nur grosse Bilder: Icons und Zaehlpixel taugen nicht. */
+function bilderAusHtml(html, basis) {
+  const abs = h => { try { return new URL(entwirren(h), basis).href; } catch (e) { return ""; } };
+  const raus = /logo|icon|favicon|sprite|avatar|badge|pixel|spacer|placeholder|wortmarke/i;
+  const kandidaten = [];
+  const og = meta(html, "og:image"); if (og) kandidaten.push({ url: abs(og), punkte: 100 });
+  const tw = meta(html, "twitter:image"); if (tw) kandidaten.push({ url: abs(tw), punkte: 90 });
+  /* Grosse <img> im Fliesstext - Breite oder Hoehe im Tag, oder ein
+   * Dateiname, der nach Buehne klingt. */
+  const imgRe = /<img\b[^>]*>/gi; let m;
+  while ((m = imgRe.exec(html)) && kandidaten.length < 40) {
+    const tag = m[0];
+    const src = (tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i) || tag.match(/\bdata-src\s*=\s*["']([^"']+)["']/i) || [])[1];
+    if (!src || /^data:/i.test(src) || raus.test(src)) continue;
+    const w = +((tag.match(/\bwidth\s*=\s*["']?(\d+)/i) || [])[1] || 0);
+    const h = +((tag.match(/\bheight\s*=\s*["']?(\d+)/i) || [])[1] || 0);
+    const gross = w >= 600 || h >= 400 || /hero|header|banner|slider|stage|buehne|titel|cover/i.test(src + tag);
+    if (!gross) continue;
+    kandidaten.push({ url: abs(src), punkte: 40 + Math.min(30, Math.round(w / 40)) });
+  }
+  /* Hintergrundbilder aus dem Stil - viele Buehnen sind keine <img>. */
+  const bgRe = /background(?:-image)?\s*:\s*[^;"']*url\(\s*["']?([^"')]+)["']?\s*\)/gi;
+  while ((m = bgRe.exec(html)) && kandidaten.length < 60) {
+    if (/^data:/i.test(m[1]) || raus.test(m[1])) continue;
+    kandidaten.push({ url: abs(m[1]), punkte: 35 });
+  }
+  kandidaten.sort((a, b) => b.punkte - a.punkte);
+  const gesehen = new Set();
+  return kandidaten.filter(k => k.url && /^https?:/i.test(k.url) && !gesehen.has(k.url) && gesehen.add(k.url))
+                   .slice(0, 6).map(k => k.url);
+}
+
 /* Titelteile, die keine Marke sind. Deutsche Seiten stellen sie gern nach
  * vorn ("Startseite | Sion Kölsch") - wer blind den ersten Teil nimmt,
  * begruesst den Gast am Stand mit "Startseite". */
@@ -300,6 +343,7 @@ function marke(eingabe, fertig) {
 
     const name = nameAusHtml(html, adresse);
     const logos = logoAusHtml(html, adresse);
+    const bilder = bilderAusHtml(html, adresse);
     const quellen = [];
     const farben = new Map();
     const dazu = (m, gewicht) => { for (const [h, n] of m) farben.set(h, (farben.get(h) || 0) + n * gewicht); };
@@ -331,6 +375,11 @@ function marke(eingabe, fertig) {
         logo: logos.length ? logos[0].url : "",
         logoArt: logos.length ? logos[0].art : "",
         logos: logos.map(l => l.url),
+        /* Ob das Logo ohne weissen Kasten auf der Farbe stehen kann. */
+        logoFrei: logos.length ? durchsichtigKann(logos[0].url) : false,
+        logosFrei: logos.map(l => durchsichtigKann(l.url)),
+        /* Bilder von der eigenen Seite - die beste Buehne fuer die App. */
+        bilder,
         quellen: quellen.concat(css.length ? [css.length + " Stylesheet" + (css.length > 1 ? "s" : "")] : [])
       });
     };

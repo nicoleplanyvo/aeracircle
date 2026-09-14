@@ -13,7 +13,7 @@
   Merge-Variablen: {{vorname}} {{event_name}} {{event_typ}} {{event_wann}}
   {{event_stadt}} {{event_gaeste}} {{event_kanal}} {{event_ton}}
   {{bausteine}} {{bausteine_zahl}} {{dauer}} {{planyvo_logo_url}}
-  {{stand_herkunft}} {{stand_herkunft_am}} {{stand_link}} - der Anlass steht im
+  {{stand_herkunft}} {{stand_herkunft_am}} {{stand_link}} {{vorschau_url}} - der Anlass steht im
   Server (STAND_ANLASS), nie hier: dieselbe Vorlage gilt am naechsten Stand.
   {{#dashboard_hinweis}}{{dashboard_hinweis}}{{/dashboard_hinweis}}
 -->
@@ -62,9 +62,21 @@
             <b>Wie es weitergeht:</b> {{#dashboard_hinweis}}{{dashboard_hinweis}}{{/dashboard_hinweis}} Im Dashboard machst du selbst weiter &ndash; Texte, Bilder, Logo, G&auml;steliste &ndash; oder du l&auml;sst es uns machen. Kein Vertrag, kein Newsletter: ein Entwurf.
           </div>
 
+          <!-- Der Knopf fuehrt auf SEINE App, nicht auf unsere Website. Das ist
+               das Ergebnis vom Stand: aufmachen, ansehen, weiterschicken. -->
+          {{#vorschau_url}}
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
             <tr><td align="center" bgcolor="#c15c42" style="background-color:#c15c42;border-radius:14px;">
-              <a href="{{stand_link}}" style="display:inline-block;padding:14px 30px;font-family:Manrope,'Helvetica Neue',Arial,sans-serif;font-size:14px;color:#ffffff;font-weight:bold;text-decoration:none;">planyvo ansehen &rarr;</a>
+              <a href="{{vorschau_url}}" style="display:inline-block;padding:16px 32px;font-family:Manrope,'Helvetica Neue',Arial,sans-serif;font-size:15px;color:#ffffff;font-weight:bold;text-decoration:none;">Deine App ansehen &rarr;</a>
+            </td></tr>
+          </table>
+          <div style="font-size:12px;line-height:19px;color:#7a6a62;padding-top:12px;">
+            Am besten auf dem Handy. Der Link bleibt – du kannst ihn weiterschicken oder auf den Startbildschirm legen.
+          </div>
+          {{/vorschau_url}}
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:18px;">
+            <tr><td align="center" style="border:1px solid #efe6dd;border-radius:14px;">
+              <a href="{{stand_link}}" style="display:inline-block;padding:13px 28px;font-family:Manrope,'Helvetica Neue',Arial,sans-serif;font-size:14px;color:#3a2e2a;font-weight:bold;text-decoration:none;">planyvo ansehen &rarr;</a>
             </td></tr>
           </table>
         </td></tr>
