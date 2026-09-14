@@ -2028,16 +2028,21 @@ function whatsappText(inv) {
  * gegen /v1/send, Authentifizierung ueber den Header x-lettermint-token. */
 function lettermintSenden(mail, cb) {
   if (!LETTERMINT_TOKEN) return cb(new Error("LETTERMINT_TOKEN fehlt"));
+  /* Absender: normalerweise der Gastgeber (MAIL_FROM). Eine Sendung darf
+   * ihren eigenen mitbringen - der Stand gehoert planyvo, nicht dem Abend,
+   * auf dem er steht, und soll auch so beim Gast ankommen. */
   const nutzlast = {
-    from: MAIL_FROM,
+    from: mail.from || MAIL_FROM,
     to: [mail.to],
     subject: mail.subject,
     html: mail.html,
     text: mail.text,
     metadata: mail.metadata || {}
   };
-  if (MAIL_ROUTE) nutzlast.route = MAIL_ROUTE;
-  if (MAIL_REPLY_TO) nutzlast.reply_to = [MAIL_REPLY_TO];
+  const route = mail.route !== undefined ? mail.route : MAIL_ROUTE;
+  const antwortAn = mail.replyTo !== undefined ? mail.replyTo : MAIL_REPLY_TO;
+  if (route) nutzlast.route = route;
+  if (antwortAn) nutzlast.reply_to = [antwortAn];
   /* Anhaenge (z. B. die Rechnung als PDF): filename, content als Base64,
    * content_type - so will es /v1/send. */
   if (mail.anhaenge && mail.anhaenge.length) nutzlast.attachments = mail.anhaenge;
@@ -2541,6 +2546,56 @@ function bildDurchreichen(ziel, res, tiefe) {
   });
 }
 
+/* --- Der Stand gehoert nicht THE CIRCLE ---
+ * Der Touchscreen ist planyvos eigenes Stueck. Er steht diesmal bei
+ * THE CIRCLE No1, beim naechsten Mal woanders - deshalb steht der Anlass
+ * an genau EINER Stelle (STAND_ANLASS) und nirgends im HTML, in der Mail
+ * oder im Dashboard-Text. Und die Mail an den Gast geht unter planyvo
+ * hinaus, nicht unter dem Namen des Gastgebers: Der Gast hat mit planyvo
+ * gesprochen, nicht mit dem Abend.
+ *   STAND_ANLASS        "THE CIRCLE No1" - leer: der Stand nennt keinen Anlass
+ *   STAND_KICKER        Die Zeile ueber der Ueberschrift (sonst aus dem Anlass)
+ *   STAND_STADT         Vorbelegte Stadt (sonst Koeln)
+ *   STAND_QUELLE        ?stand=… im QR und im Link - damit planyvo sieht,
+ *                       von welchem Stand der Besuch kam
+ *   STAND_MAIL_FROM     Absender der Entwurfsmail (sonst MAIL_FROM)
+ *   STAND_MAIL_ROUTE    Lettermint-Route dazu (sonst MAIL_ROUTE)
+ *   STAND_MAIL_REPLY_TO Antwortadresse (sonst MAIL_REPLY_TO)
+ * Achtung beim Wechsel des Absenders: Die Domain muss in Lettermint
+ * eingerichtet sein, sonst lehnt /v1/send die Sendung ab. Vorher einmal
+ * POST /api/admin/stand-probe?an=… schicken. */
+/* Betriebsart. "circle" (Vorgabe) ist die Anwendung dieses Abends.
+ * "stand" ist der Touchscreen allein - siehe die Weiche im Server. */
+const APP_MODE = String(process.env.APP_MODE || "circle").toLowerCase() === "stand" ? "stand" : "circle";
+/* Was im Stand-Betrieb ueberhaupt beantwortet wird. Bewusst eine Liste und
+ * keine Ausschlussregel: Kommt spaeter eine Route dazu, die etwas ueber den
+ * Abend verraet, ist sie hier nicht drin - und damit dort nicht offen. */
+function standErlaubt(url) {
+  if (url === "/stand" || url === "/stand.html" || url === "/baukasten") return true;
+  if (url === "/qr-text.png" || url === "/favicon.ico" || url === "/robots.txt") return true;
+  if (url === "/api/live/health") return true;                     // damit Plesk etwas zum Anpingen hat
+  if (url.startsWith("/assets/")) return true;                     // Logo, Schrift, Bilder der Mail
+  if (url.startsWith("/api/stand/")) return true;
+  if (url.startsWith("/api/admin/stand")) return true;             // Entwuerfe lesen, Probemail
+  return false;
+}
+/* Die eigene Adresse des Standes (z. B. https://stand.planyvo.com). Gesetzt
+ * auf der Circle-Anwendung, leitet /stand dorthin weiter. */
+const STAND_URL = (process.env.STAND_URL || "").replace(/\/$/, "");
+const STAND_ANLASS = clean(process.env.STAND_ANLASS || "", 60);
+const STAND_STADT  = clean(process.env.STAND_STADT || "Köln", 30);
+const STAND_QUELLE = (process.env.STAND_QUELLE || "stand").replace(/[^a-z0-9-]/gi, "").slice(0, 24) || "stand";
+const STAND_KICKER = clean(process.env.STAND_KICKER || "", 80) ||
+  (STAND_ANLASS ? "Start-up des Abends · " + STAND_ANLASS : "Event-Software aus Köln");
+const STAND_MAIL_FROM     = process.env.STAND_MAIL_FROM || MAIL_FROM;
+const STAND_MAIL_ROUTE    = process.env.STAND_MAIL_ROUTE !== undefined ? process.env.STAND_MAIL_ROUTE : MAIL_ROUTE;
+const STAND_MAIL_REPLY_TO = process.env.STAND_MAIL_REPLY_TO !== undefined ? process.env.STAND_MAIL_REPLY_TO : MAIL_REPLY_TO;
+/* "vom Stand bei THE CIRCLE No1" bzw. schlicht "vom planyvo-Stand" -
+ * dieselbe Wendung in Mail, Text und Dashboard. */
+const standStelle = (praep) => praep + " planyvo-Stand" + (STAND_ANLASS ? " bei " + STAND_ANLASS : "");
+const standHerkunft = (gross) => standStelle(gross ? "Vom" : "vom");
+const standLink = () => "https://www.planyvo.com/?stand=" + STAND_QUELLE;
+
 /* --- Stand: die Werte eines Entwurfs fuer Mail und Liste --- */
 let standLetzter = 0;
 const STAND_TYPEN = { dinner: "Dinner & Gala", konferenz: "Konferenz", kunden: "Kundenevent", launch: "Produktlaunch", team: "Team- & Sommerfest", jubilaeum: "Jubiläum" };
@@ -2558,7 +2613,12 @@ function standWerte(e) {
     bausteine: e.bausteine.map(b => STAND_BAUSTEINE[b] || b).join(" · "),
     bausteine_zahl: String(e.bausteine.length),
     dauer: Math.floor(e.sekunden / 60) + ":" + String(e.sekunden % 60).padStart(2, "0"),
-    vorname: (e.kontaktName || "").split(" ")[0]
+    vorname: (e.kontaktName || "").split(" ")[0],
+    /* Der Anlass steht nur hier, nicht in der Vorlage - sonst muesste beim
+     * naechsten Stand die Mail angefasst werden. */
+    stand_herkunft: standHerkunft(false), stand_herkunft_am: standStelle("am"), stand_anlass: STAND_ANLASS,
+    stand_anlass_zusatz: STAND_ANLASS ? " · " + STAND_ANLASS : "",
+    stand_link: standLink()
   };
 }
 /* Den Entwurf als DRAFT im planyvo-Dashboard anlegen - ueber die External
@@ -2589,7 +2649,7 @@ function planyvoEntwurfAnlegen(e, cb) {
   const w = standWerte(e);
   const firma = e.firma || e.kontaktName;
   planyvoAnfrage("/companies", { name: firma, adminEmail: e.kontaktMail,
-                                 description: "Vom Stand bei THE CIRCLE No1, " + new Date(e.t).toLocaleDateString("de-DE") + " · Kontakt " + e.kontaktName },
+                                 description: standHerkunft(true) + ", " + new Date(e.t).toLocaleDateString("de-DE") + " · Kontakt " + e.kontaktName },
   (err, code, d) => {
     if (err) return cb(err);
     const companyId = (code === 201 && d.data && d.data.id) || (code === 409 && d.companyId) || "";
@@ -2600,7 +2660,7 @@ function planyvoEntwurfAnlegen(e, cb) {
       "Einladung: " + w.event_kanal + " · Ansprache per " + w.event_ton + " · " + w.event_look,
       "Bausteine (" + w.bausteine_zahl + "): " + (w.bausteine || "keine"),
       e.website ? "Website " + e.website + (e.ciLogo ? " · Logo: " + e.ciLogo : "") : "",
-      "Entwurf vom Stand bei THE CIRCLE No1 (" + w.dauer + " min) · Kontakt " + e.kontaktName + " <" + e.kontaktMail + ">"
+      "Entwurf " + standHerkunft(false) + " (" + w.dauer + " min) · Kontakt " + e.kontaktName + " <" + e.kontaktMail + ">"
     ].filter(Boolean).join("\n");
     planyvoAnfrage("/events", { companyId, name: e.name, description: beschreibung, startDate: start, endDate: start, status: "DRAFT" },
     (err2, code2, d2) => {
@@ -2614,7 +2674,7 @@ function planyvoEntwurfAnlegen(e, cb) {
 
 function standText(e) {
   const w = standWerte(e);
-  return ["Hallo " + w.vorname + ",", "", "dein Event-Entwurf vom Stand bei THE CIRCLE No1:", "",
+  return ["Hallo " + w.vorname + ",", "", "dein Event-Entwurf " + standHerkunft(false) + ":", "",
     w.event_name + " · " + w.event_typ, w.event_wann + " · " + w.event_stadt + " · " + w.event_gaeste + " Gäste",
     "Einladung: " + w.event_kanal + " · Ansprache per " + w.event_ton, "",
     "Bausteine (" + w.bausteine_zahl + "): " + (w.bausteine || "keine"), "",
@@ -2663,6 +2723,18 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
+  /* --- Betriebsart "stand": eigene Anwendung auf eigener Subdomain ---
+   * Derselbe Code, ein Schalter (APP_MODE=stand). Der Stand laeuft dann als
+   * zweite Plesk-Anwendung unter stand.planyvo.com: eigener Absender,
+   * eigener Zustand (live-state.json liegt neben der eigenen Kopie), eigene
+   * Adresse - und nichts von diesem Abend. "/" ist der Touchscreen; die App
+   * der Gaeste, Monitor, Wand, Einlass, Stripe und die Wellen sind hier gar
+   * nicht erst erreichbar. Was nicht antwortet, kann auch nichts verraten. */
+  if (APP_MODE === "stand" && !standErlaubt(url)) {
+    if (url === "/" || url === "/index.html") { res.writeHead(302, { Location: "/stand" }); return res.end(); }
+    return json(res, 404, { error: "Hier läuft nur der planyvo-Stand." });
+  }
+
   /* --- Live-API (aggregiert, für die App) --- */
 
   /* Die Zeiten des Abends, oeffentlich lesbar. Der Weg ueber den Stream ist
@@ -2697,7 +2769,13 @@ const server = http.createServer((req, res) => {
        * pruefen, ob die Mail-Variablen im Panel angekommen sind. */
       mail: !!LETTERMINT_TOKEN,
       mailWebhook: !!LETTERMINT_WEBHOOK_SECRET,
-      publicUrl: PUBLIC_URL
+      publicUrl: PUBLIC_URL,
+      /* Damit nach dem Aufsetzen der zweiten Anwendung von aussen pruefbar
+       * ist, dass sie im richtigen Betrieb und mit dem richtigen Absender
+       * laeuft - die Absenderzeile steht ohnehin in jeder Mail. */
+      modus: APP_MODE,
+      standAnlass: STAND_ANLASS || "",
+      standAbsender: STAND_MAIL_FROM
     });
   }
 
@@ -3810,7 +3888,8 @@ const server = http.createServer((req, res) => {
       if (neuInWelle || (warNeu && welle === "")) {
         const woher = welle !== "" ? " · Welle " + welle
                     : art ? " · " + ({ rechnung: "Rechnung", bestaetigung: "Bestätigung",
-                                       "rechnung-probe": "Rechnungsprobe", "stand-entwurf": "Stand" }[art] || art)
+                                       "rechnung-probe": "Rechnungsprobe", "stand-entwurf": "Stand",
+                                       "stand-probe": "Standprobe" }[art] || art)
                     : "";
         logEvent(LABEL[feld], inv.name, (inv.pool || "") + woher);
       }
@@ -4973,7 +5052,11 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="stand-entwuerfe.csv"' });
         return res.end("﻿" + csv);
       }
-      return json(res, 200, { ok: true, anzahl: liste.length, entwuerfe: liste.map(e => Object.assign({ werte: standWerte(e) }, e)) });
+      /* Ist der Stand umgezogen, liegen die Entwuerfe drueben - sonst zeigt
+       * der Monitor hier eine leere Liste und man sucht an der falschen
+       * Stelle nach dem Fehler. */
+      return json(res, 200, { ok: true, anzahl: liste.length, umgezogen: APP_MODE === "stand" ? "" : STAND_URL,
+                              entwuerfe: liste.map(e => Object.assign({ werte: standWerte(e) }, e)) });
     }
 
     /* Eine schon verschickte Rechnung ERNEUT schicken - berichtigt, mit
@@ -5034,6 +5117,43 @@ const server = http.createServer((req, res) => {
         if (err) return json(res, 502, { error: err.message });
         logEvent("Rechnungsprobe", wer, an);
         json(res, 200, { ok: true, an, nummer: m.nr, id: (antwort && antwort.id) || "" });
+      });
+      return;
+    }
+
+    /* Die Entwurfsmail vom Stand als PROBE an eine beliebige Adresse - mit
+     * einem erfundenen Entwurf. Legt nichts an, schickt nichts ans
+     * Dashboard. Vor allem dafuer da, den Absender zu pruefen: Wenn
+     * STAND_MAIL_FROM auf eine Domain zeigt, die in Lettermint nicht
+     * eingerichtet ist, sieht man es hier - und nicht abends am Stand,
+     * wenn ein Gast auf den Knopf tippt. */
+    if (req.method === "POST" && url === "/api/admin/stand-probe") {
+      if (!LETTERMINT_TOKEN) return json(res, 503, { error: "LETTERMINT_TOKEN fehlt in der App" });
+      const an = clean(q.get("an") || "", 120).toLowerCase();
+      if (!an || an.indexOf("@") < 1) return json(res, 400, { error: "an=adresse fehlt" });
+      const m = {
+        id: "probe", t: Date.now(), typ: "dinner", name: "Sommerfest 2027", wer: "Kunden und Partner",
+        monat: 5, jahr: 2027, gaeste: 120, stadt: STAND_STADT, kanal: "mail", farbe: "terracotta", ton: "du",
+        website: "www.planyvo.com", ciName: "planyvo", ciLogo: "", ciFarbe: "#c15c42",
+        bausteine: ["einladung", "app", "einlass", "tischplan"],
+        kontaktName: "Alex Muster", firma: "Musterfirma GmbH", kontaktMail: an, sekunden: 174
+      };
+      let html;
+      const extra = Object.assign(standWerte(m), {
+        planyvo_logo_url: assetUrl("planyvo-logo.png"),
+        dashboard_hinweis: "Das hier ist eine Probe – es liegt kein Entwurf im Dashboard."
+      });
+      try { html = renderMail({ name: m.kontaktName, anrede: "Hallo", token: "stand" }, "stand-entwurf.html", extra); }
+      catch (e) { return json(res, 500, { error: "Stand-Mail bricht: " + e.message }); }
+      lettermintSenden({
+        to: an, subject: "[Muster] Dein Event-Entwurf: " + m.name + " · planyvo",
+        html, text: standText(m),
+        from: STAND_MAIL_FROM, route: STAND_MAIL_ROUTE, replyTo: STAND_MAIL_REPLY_TO,
+        metadata: { art: "stand-probe" }
+      }, (err, antwort) => {
+        if (err) return json(res, 502, { error: err.message, absender: STAND_MAIL_FROM });
+        logEvent("Standprobe", wer, an);
+        json(res, 200, { ok: true, an, absender: STAND_MAIL_FROM, anlass: STAND_ANLASS || "(keiner)", id: (antwort && antwort.id) || "" });
       });
       return;
     }
@@ -5374,7 +5494,25 @@ const server = http.createServer((req, res) => {
    * (state.standEntwuerfe) und als Mail beim Gast; angelegt wird das Event
    * spaeter ueber die planyvo-Plattform, nicht hier. */
   if (req.method === "GET" && (url === "/stand" || url === "/stand.html" || url === "/baukasten")) {
-    return serveFile(res, "stand.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
+    /* Zieht der Stand auf seine eigene Subdomain um, bleibt die alte
+     * Adresse gueltig und zeigt dorthin - QR-Codes und Notizen aus der
+     * Vorbereitung laufen nicht ins Leere. */
+    if (APP_MODE !== "stand" && STAND_URL) {
+      res.writeHead(302, { Location: STAND_URL + "/stand" + (q.get("probe") === "1" ? "?probe=1" : "") });
+      return res.end();
+    }
+    /* Der Anlass kommt aus der Umgebung in die Seite, damit im HTML kein
+     * "THE CIRCLE No1" steht: derselbe Stand laeuft naechstes Mal woanders,
+     * ohne dass jemand die Datei anfasst. Faellt der Block weg, zeigt die
+     * Seite ihre eigenen (anlasslosen) Vorgaben. */
+    return fs.readFile(path.join(ROOT, "stand.html"), "utf8", (err, html) => {
+      if (err) { res.writeHead(404); return res.end("stand.html fehlt"); }
+      const konfig = JSON.stringify({ anlass: STAND_ANLASS, kicker: STAND_KICKER, stadt: STAND_STADT, link: standLink() })
+        .replace(/</g, "\\u003c");                                          // nie ein </script> im JSON
+      const mit = html.replace(/(<script id="standkonfig"[^>]*>)[\s\S]*?(<\/script>)/, (m, a, b) => a + konfig + b);
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+      res.end(mit);
+    });
   }
   /* QR fuer eine planyvo-Adresse (Dankebild am Stand). Nur planyvo.com -
    * kein offener QR-Generator fuer beliebige Ziele. */
@@ -5471,6 +5609,8 @@ const server = http.createServer((req, res) => {
           to: e.kontaktMail,
           subject: "Dein Event-Entwurf: " + e.name + " · planyvo",
           html, text: standText(e),
+          /* Unter planyvo, nicht unter dem Namen des Abends. */
+          from: STAND_MAIL_FROM, route: STAND_MAIL_ROUTE, replyTo: STAND_MAIL_REPLY_TO,
           metadata: { art: "stand-entwurf", id: e.id }
         }, err => {
           if (err) { console.error("Stand-Mail an " + e.kontaktMail + " fehlgeschlagen: " + err.message); return json(res, 200, { ok: true, mail: false, planyvo: angelegt }); }

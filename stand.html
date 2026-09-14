@@ -192,9 +192,11 @@
 <!-- 0 · Startbild -->
 <section class="screen on" id="start">
   <img class="logo" src="/assets/planyvo-logo.png" alt="planyvo">
-  <div class="pill"><span class="ms">auto_awesome</span>Start-up des Abends · THE CIRCLE No1</div>
+  <!-- Kicker und Lede kommen aus der Konfiguration (siehe unten): Der Stand
+       nennt den Anlass, an dem er steht - hier steht keiner fest. -->
+  <div class="pill"><span class="ms">auto_awesome</span><span id="startpill">Event-Software aus Köln</span></div>
   <h1>Deine Event-App.<br>In <span class="vo">3 Minuten</span> statt 5 Wochen.</h1>
-  <p class="lede">Einladung, Zusage, Tickets, App, Einlass, Tischplan – du wählst die Bausteine, planyvo baut die Event-App. Genau so ist die App entstanden, die du heute Abend in der Hand hast.</p>
+  <p class="lede" id="startlede">Einladung, Zusage, Tickets, App, Einlass, Tischplan – du wählst die Bausteine, planyvo baut die Event-App.</p>
   <button class="pulse" id="los"><span class="ms">touch_app</span>Antippen und loslegen</button>
   <div class="startfuss"><span><span class="ms">check_circle</span>Kein Konto nötig</span><span><span class="ms">check_circle</span>Nichts wird veröffentlicht</span><span><span class="ms">check_circle</span>Entwurf kommt per Mail</span></div>
 </section>
@@ -307,6 +309,12 @@
 <!-- Tastatur -->
 <div class="kbd" id="kbd"><div class="ziel" id="kbdZiel"></div><div id="kbdReihen"></div></div>
 
+<!-- Was diesen Stand vom naechsten unterscheidet - der Anlass, die Stadt,
+     der Link im QR. Der Server schreibt den Inhalt beim Ausliefern hinein
+     (STAND_ANLASS und Nachbarn); wird die Datei direkt geoeffnet, gelten
+     diese anlasslosen Vorgaben. Nichts davon gehoert in den Rest der Seite. -->
+<script id="standkonfig" type="application/json">{"anlass":"","kicker":"Event-Software aus Köln","stadt":"Köln","link":"https://www.planyvo.com/?stand=stand"}</script>
+
 <script>
 "use strict";
 const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
@@ -317,6 +325,12 @@ const txt = (el, s) => { if (el) el.textContent = s == null ? "" : String(s); re
    nichts an und schickt keine Mail. Zum Durchspielen vor dem Abend und
    zum Vorfuehren, ohne Karteileichen zu hinterlassen. */
 const PROBE = new URLSearchParams(location.search).get("probe") === "1";
+/* Der Anlass, an dem dieser Stand gerade steht - vom Server hineingeschrieben. */
+const STAND = (() => {
+  const vor = { anlass:"", kicker:"Event-Software aus Köln", stadt:"Köln", link:"https://www.planyvo.com/?stand=stand" };
+  try { return Object.assign(vor, JSON.parse(document.getElementById("standkonfig").textContent) || {}); }
+  catch (e) { return vor; }
+})();
 
 /* ---------- Der Entwurf ---------- */
 const TYPEN = [
@@ -327,7 +341,9 @@ const TYPEN = [
   { k:"team",      ico:"celebration",   t:"Team- & Sommerfest", s:"Familie willkommen" },
   { k:"jubilaeum", ico:"cake",          t:"Jubiläum",           s:"Ein Abend, der bleibt" }
 ];
-const STAEDTE = ["Köln","Düsseldorf","Berlin","Hamburg","München","Frankfurt","Woanders"];
+/* Die Stadt des Standes steht vorn - sie ist die haeufigste Antwort. */
+const STAEDTE = [STAND.stadt].concat(["Köln","Düsseldorf","Berlin","Hamburg","München","Frankfurt"]
+  .filter(s => s !== STAND.stadt)).slice(0, 6).concat("Woanders");
 const KANAELE = [
   { k:"mail",     ico:"mail",           t:"Persönliche E-Mail", s:"Jeder Gast bekommt seinen eigenen Link" },
   { k:"whatsapp", ico:"chat",           t:"WhatsApp",           s:"Link zum Weiterleiten" },
@@ -357,7 +373,7 @@ const MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August",
 let E, startZeit = 0;
 function neu(){
   const d = new Date(); d.setMonth(d.getMonth() + 1);
-  E = { typ:"", name:"", wer:"", monat:d.getMonth(), jahr:d.getFullYear(), gaeste:80, stadt:"Köln", kanal:"mail",
+  E = { typ:"", name:"", wer:"", monat:d.getMonth(), jahr:d.getFullYear(), gaeste:80, stadt:STAND.stadt, kanal:"mail",
         bausteine:["einladung","app","einlass"], farbe:"terracotta", ton:"du", kontaktName:"", firma:"", kontaktMail:"",
         /* Aus der Website des Gastes: eigene Farbe (Hex), Logo, Markenname. */
         website:"", ciFarbe:"", ciLogo:"", ciLogoOriginal:"", ciName:"" };
@@ -572,7 +588,7 @@ $("#senden").addEventListener("click", async () => {
       (antwort.mail ? "Die Zusammenfassung ist unterwegs an " + E.kontaktMail.trim() + ". " : "Die Gründer melden sich. ") +
       "Sie stehen den ganzen Abend hier – frag sie alles.";
   }
-  $("#qrBild").src = "/qr-text.png?t=" + encodeURIComponent("https://www.planyvo.com/?stand=circle");
+  $("#qrBild").src = "/qr-text.png?t=" + encodeURIComponent(STAND.link);
   schritt = 6; zeige("#danke"); idleStop();
   /* Das Dankebild bleibt kurz, dann ist der Stand wieder frei. */
   clearTimeout(dankeTimer); dankeTimer = setTimeout(() => { if (schritt === 6) $("#nochmal").click(); }, 45000);
@@ -647,6 +663,9 @@ function idleStop(){ clearInterval(idleTick); $("#idle").classList.remove("on");
 ["pointerdown","keydown"].forEach(ev => document.addEventListener(ev, () => { if (schritt > 0) { idleRest = IDLE_S; $("#idle").style.width = "0"; } }, { passive: true }));
 
 $("#probeband").hidden = !PROBE;
+/* Steht der Stand auf einer Veranstaltung, darf er das sagen - sonst nicht. */
+txt($("#startpill"), STAND.kicker);
+if (STAND.anlass) $("#startlede").textContent += " Genau so ist die App entstanden, die du heute Abend in der Hand hast.";
 alleFelder(); phoneZeichnen();
 </script>
 </body>

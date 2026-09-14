@@ -902,6 +902,101 @@ sind nicht im Repo.
 
 ---
 
+## 8 · Der Stand auf showoff.planyvo.com
+
+Der Touchscreen am planyvo-Stand gehört nicht zu diesem Abend – er gehört
+planyvo. Deshalb läuft er als **eigene Anwendung auf einer eigenen
+Subdomain**: eigener Absender, eigener Zustand, eigene Adresse. Von
+THE CIRCLE steht dort nichts mehr fest im Code; der Anlass ist eine
+Umgebungsvariable und beim nächsten Stand eine andere.
+
+Dieselben Dateien, ein Schalter: `APP_MODE=stand`. In dieser Betriebsart
+antwortet der Server nur noch auf den Stand und seine Schnittstellen –
+Gäste-App, Monitor, Wand, Einlass, Stripe und die Wellen sind dort gar
+nicht erst erreichbar.
+
+### 8.1 Subdomain und Code
+
+Plesk → beim Abo `planyvo.com` → **Subdomain hinzufügen** → `showoff`
+(angelegt am 14.09.). Danach wie in Schritt 1:
+
+- **SSL:** Subdomain → *SSL/TLS-Zertifikate* → Let's Encrypt, HTTP→HTTPS an
+- **Git:** Repository hinzufügen, Branch `claude/event-participant-app-k66kf2`,
+  Zielverzeichnis `/showoff` – **ein eigenes Verzeichnis**, nicht das von
+  `thecircle`. Zwei Node-Prozesse im selben Ordner würden sich beim
+  Schreiben von `live-state.json` gegenseitig überschreiben.
+- **Node.js:** Startdatei `server/circle-server.js`, Anwendungsmodus
+  `production`, kein `npm install`
+
+### 8.2 Umgebungsvariablen (nur diese)
+
+| Variable | Wert | wofür |
+|---|---|---|
+| `APP_MODE` | `stand` | schaltet auf den Stand-Betrieb |
+| `PUBLIC_URL` | `https://showoff.planyvo.com` | eigene Adresse |
+| `STAND_ANLASS` | `THE CIRCLE No1` | der Anlass, an dem der Stand gerade steht – **leer lassen, sobald er woanders steht** |
+| `STAND_QUELLE` | `showoff` | landet als `?stand=…` im QR-Code, damit planyvo sieht, woher der Besuch kam |
+| `STAND_STADT` | `Köln` | vorbelegte Stadt im Formular |
+| `STAND_MAIL_FROM` | `planyvo <hello@planyvo.com>` | Absender der Entwurfsmail |
+| `LETTERMINT_TOKEN` | derselbe wie beim Abend | Versand |
+| `ADMIN_TOKENS` | derselbe Eintrag wie beim Abend | um die Entwürfe zu lesen – mit demselben Schlüssel holt der CSV-Knopf im Monitor sie von dort |
+| `PLANYVO_API_KEY` | optional | legt jeden Entwurf direkt im Dashboard an |
+
+Nicht setzen: Stripe-Schlüssel, Webhook-Secrets, VAPID. Der Stand braucht
+nichts davon, und was nicht da ist, kann auch nicht verloren gehen.
+
+`STAND_KICKER` und `STAND_MAIL_ROUTE`/`STAND_MAIL_REPLY_TO` gibt es
+zusätzlich, falls die Zeile über der Überschrift oder die Lettermint-Route
+einmal abweichen soll. Ohne Angabe: aus dem Anlass abgeleitet bzw. wie beim
+Abend.
+
+### 8.3 Absender prüfen – **vor** dem Abend
+
+`hello@planyvo.com` muss in Lettermint als Absenderdomain eingerichtet sein,
+sonst lehnt der Versand die Mail ab und der Gast am Stand bekommt nichts.
+Einmal prüfen:
+
+```bash
+curl -X POST "https://showoff.planyvo.com/api/admin/stand-probe?key=DEIN_SCHLUESSEL&an=deine@adresse.de"
+```
+
+- `{"ok":true,…}` – die Mail ist unterwegs, Absender steht in der Antwort
+- `{"error":"Lettermint 4xx …"}` – Domain fehlt dort. Dann entweder in
+  Lettermint nachtragen oder `STAND_MAIL_FROM` auf den bisherigen Absender
+  zurücksetzen, bis das erledigt ist.
+
+Die Probe legt nichts an und verbraucht nichts. Kontrolle, dass alles
+angekommen ist:
+
+```bash
+curl -s https://showoff.planyvo.com/api/live/health
+# modus: "stand" · standAnlass: "THE CIRCLE No1" · standAbsender: "planyvo <…>"
+```
+
+### 8.4 Durchspielen ohne Spuren
+
+`https://showoff.planyvo.com/stand?probe=1` läuft genau wie der echte
+Stand – Website auslesen, Logo und Farbe ziehen, Telefonvorschau –, legt
+aber keinen Entwurf an und schickt keine Mail. Oben rechts steht ein Band
+„Probelauf". Für den Abend die Adresse **ohne** `?probe=1` öffnen.
+
+### 8.5 Die alte Adresse
+
+Auf der Circle-Anwendung `STAND_URL=https://showoff.planyvo.com` setzen:
+`thecircle.planyvo.com/stand` leitet dann dorthin weiter, damit nichts aus
+der Vorbereitung ins Leere läuft.
+
+### 8.6 Die Entwürfe abholen
+
+```bash
+curl -s "https://showoff.planyvo.com/api/admin/stand-entwuerfe.csv?key=DEIN_SCHLUESSEL" -o stand.csv
+```
+
+Sie liegen jetzt in der `live-state.json` der Stand-Anwendung, nicht mehr in
+der des Abends.
+
+---
+
 ## Betrieb
 
 **Änderungen ausrollen:** Plesk → Git → *Jetzt aktualisieren*, danach

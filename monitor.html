@@ -1484,6 +1484,16 @@ async function standHolen(){
     const r = await fetch("/api/admin/stand-entwuerfe?key=" + encodeURIComponent(KEY));
     const d = await r.json();
     if(!r.ok){ txt($("#standNote"), d.error || "Stand nicht erreichbar."); return; }
+    /* Der Stand laeuft auf seiner eigenen Subdomain - dann stehen die
+       Entwuerfe dort, nicht hier. Lieber den Weg zeigen als eine leere
+       Liste, die aussieht, als haette niemand etwas gebaut. */
+    if(d.umgezogen){
+      $("#standCsv").href = d.umgezogen + "/api/admin/stand-entwuerfe.csv?key=" + encodeURIComponent(KEY);
+      txt($("#standNote"), "Der Stand läuft auf " + d.umgezogen.replace(/^https?:\/\//, "") +
+          " – die Entwürfe liegen dort. Der CSV-Knopf holt sie von dort (nur mit demselben Schlüssel).");
+      txt($("#standListe"), "");
+      return;
+    }
     const n = d.anzahl || 0;
     txt($("#standNote"), n ? n + (n === 1 ? " Entwurf" : " Entwürfe") + " · Gäste bauen am Touchscreen ihr Event, der Entwurf geht als Mail an sie und steht hier für die Nachbereitung."
                            : "Noch kein Entwurf. Sobald am Stand jemand sein Event baut, steht es hier.");
