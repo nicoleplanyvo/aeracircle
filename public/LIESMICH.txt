@@ -1,0 +1,9 @@
+Dieser Ordner ist mit Absicht leer.
+
+Unter Plesk zeigt der Dokumentstamm (Document Root) hierher, nicht auf das
+Verzeichnis mit den HTML-Dateien. Sonst liefert der Webserver index.html,
+stand.html & Co. selbst aus und umgeht die Node-Anwendung - dann fehlen die
+persoenlichen Links, die Schnittstellen und der Stand liest keine Marke mehr
+von der Website des Gastes.
+
+Alles Sichtbare kommt aus server/circle-server.js. Hier gehoert nichts hinein.
