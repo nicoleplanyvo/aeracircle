@@ -20,14 +20,17 @@
  *    das Votum steht - das darf nie aus der Konserve kommen. Lieber ein
  *    leeres Feld als eine Zahl von vorhin.
  */
-const VERSION = "circle-2026-09-11a";
+const VERSION = "circle-2026-09-14a";
 const SCHALE  = "schale-" + VERSION;      // die Seite
 const STATIK  = "statik-" + VERSION;      // Bilder, Schriften
 
 /* Beim Einbau schon einmal holen, was den Start ausmacht. Mehr nicht:
    Ein Service Worker, der beim ersten Besuch das halbe Bildmaterial zieht,
    kostet genau dort Bandbreite, wo sie knapp ist. */
-const VORRAT = ["/", "/manifest.webmanifest", "/assets/icon-192.png"];
+/* Das Manifest NICHT vorab holen: Es traegt je Gast den Token in der
+   start_url (/manifest.webmanifest?t=...), eine tokenlose Kopie im Cache
+   waere genau die falsche. */
+const VORRAT = ["/", "/assets/icon-192.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(

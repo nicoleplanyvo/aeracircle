@@ -2865,6 +2865,32 @@ const server = http.createServer((req, res) => {
    * sieht nichts - auch keine Liste. Die Liste ist der Grund, warum die
    * Gaeste die App oeffnen, und genau deshalb darf sie nicht offen liegen. */
 
+  /* Den eigenen Zugang wiederfinden - fuer die App, die ohne Token startet
+   * (Startbildschirm-Kachel von vor dem 14.09., geloeschter Verlauf, neues
+   * Handy). E-Mail-Adresse UND Nachname muessen zu einem Gast im Kreis
+   * passen; dann bekommt die App seinen Token und laeuft weiter wie ueber
+   * den Link. Scharf begrenzt: zehn Versuche pro Stunde und Adresse des
+   * Anfragenden - das reicht fuer Tippfehler, nicht fuer Raten. */
+  if (req.method === "POST" && url === "/api/app/finden") {
+    if (!rateLimit(req, res, "finden", 10, 3_600_000)) return;
+    return readBody(req, res, body => {
+      const mail = clean(String(body.email || ""), 120).toLowerCase();
+      const nach = cleanText(String(body.nachname || ""), 40).toLowerCase();
+      if (!mail || !nach) return json(res, 400, { error: "E-Mail-Adresse und Nachname bitte." });
+      const norm = s => String(s || "").toLowerCase().replace(/ß/g, "ss").replace(/[äöü]/g, c => ({ ä: "ae", ö: "oe", ü: "ue" }[c])).replace(/[^a-z]/g, "");
+      const treffer = Object.values(state.invites).filter(i =>
+        (i.email || "").toLowerCase() === mail && imKreis(i) &&
+        norm(i.name).endsWith(norm(nach)) && norm(nach).length >= 2);
+      if (treffer.length !== 1) {
+        logEvent("Zugang gesucht", mail, treffer.length ? "mehrdeutig" : "kein Treffer");
+        return json(res, 404, { error: "Dazu finden wir keinen Gast im Kreis. Prüfe die Adresse, an die deine Einladung ging – oder öffne den Link aus der Mail „Dein Zugang zum Abend“." });
+      }
+      const inv = treffer[0];
+      logEvent("Zugang wiedergefunden", inv.name, inv.pool);
+      return json(res, 200, { ok: true, token: inv.token, vorname: (inv.name || "").split(" ")[0] });
+    });
+  }
+
   /* Ich selbst: Register-Daten plus Profil. Erster Aufruf der App. */
   if (req.method === "GET" && url === "/api/app/ich") {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
@@ -5317,7 +5343,21 @@ const server = http.createServer((req, res) => {
     });
   }
   if (req.method === "GET" && (url === "/" || url === "/index.html")) {
-    return serveFile(res, "index.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
+    /* Der Token gehoert schon im HTML in den Manifest-Link, nicht erst per
+     * JavaScript nach dem Laden: iOS liest <link rel=manifest> beim Laden
+     * der Seite. Das nachtraegliche Umschreiben kam zu spaet - die Kachel
+     * auf dem Startbildschirm startete mit "/" ohne Token, und weil die
+     * installierte App auf iOS einen EIGENEN Speicher hat, stand der Gast
+     * vor dem leeren Namensformular: "alle Daten weg" (14.09.). */
+    const inv = findInvite(q.get("t"));
+    if (!inv) return serveFile(res, "index.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
+    return fs.readFile(path.join(ROOT, "index.html"), "utf8", (err, html) => {
+      if (err) { res.writeHead(500); return res.end("index.html fehlt"); }
+      const mit = html.replace('<link rel="manifest" href="/manifest.webmanifest">',
+                               '<link rel="manifest" href="/manifest.webmanifest?t=' + encodeURIComponent(inv.token) + '">');
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+      res.end(mit);
+    });
   }
 
   /* --- Die App auf dem Startbildschirm --- */

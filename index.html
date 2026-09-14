@@ -1827,16 +1827,22 @@
   <img id="obLogo" class="brandlogo-z" alt="">
   <h1>THE CIRCLE</h1>
   <div class="sub">connecting generations</div>
+  <!-- Ohne persoenlichen Link gestartet (Kachel ohne Token, neues Handy,
+       geloeschter Verlauf): kein Namensformular mehr, das einen Gast ohne
+       Verbindung zum Register anlegt - sondern der Weg zurueck zum eigenen
+       Zugang. Adresse und Nachname genuegen, der Server kennt den Rest. -->
+  <p class="sub" style="margin-top:22px;max-width:320px;line-height:1.5;text-transform:none;letter-spacing:0;font-size:14px">Die App startet ohne deinen persönlichen Link. Sag uns, wer du bist – dann holen wir dein Profil.</p>
   <form id="obForm">
     <div>
-      <label for="obName">Wie dürfen wir dich nennen?</label>
-      <input id="obName" type="text" autocomplete="given-name" required maxlength="40" placeholder="Dein Name">
+      <label for="obMail">E-Mail-Adresse deiner Einladung</label>
+      <input id="obMail" type="email" autocomplete="email" inputmode="email" required maxlength="120" placeholder="name@firma.de">
     </div>
     <div>
-      <label for="obCompany">Unternehmen / Rolle <span style="opacity:.5;text-transform:none;letter-spacing:0">(optional)</span></label>
-      <input id="obCompany" type="text" autocomplete="organization" maxlength="60" placeholder="z. B. AERA · Founder">
+      <label for="obNachname">Dein Nachname</label>
+      <input id="obNachname" type="text" autocomplete="family-name" required maxlength="40" placeholder="Nachname">
     </div>
-    <button class="btn btn--solid btn--full" type="submit">In den Kreis eintreten</button>
+    <button class="btn btn--solid btn--full" type="submit" id="obKnopf">Mein Profil holen</button>
+    <p class="sub" id="obFehler" style="text-transform:none;letter-spacing:0;font-size:13px;line-height:1.5;color:var(--coral);min-height:1em"></p>
   </form>
 </div>
 
@@ -3908,14 +3914,21 @@ async function appStarten(t){
 }
 
 /* ================= ONBOARDING ================= */
-$("#obForm").addEventListener("submit", e=>{
+/* Zugang wiederfinden: Adresse + Nachname an den Server, zurueck kommt der
+   Token - und die App startet damit neu, genau wie ueber den Link. Von da
+   an liegt der Token im Speicher DIESER App (auch der installierten). */
+$("#obForm").addEventListener("submit", async e=>{
   e.preventDefault();
-  S.name = $("#obName").value.trim();
-  S.company = $("#obCompany").value.trim();
-  persist();
-  $("#onboarding").classList.add("hidden");
-  renderCard();
-  toast("Willkommen im Kreis, " + S.name.split(" ")[0] + ".");
+  const knopf = $("#obKnopf"), fehler = $("#obFehler");
+  knopf.disabled = true; knopf.textContent = "einen Moment …"; fehler.textContent = "";
+  try{
+    const r = await fetch("/api/app/finden", { method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ email: $("#obMail").value.trim(), nachname: $("#obNachname").value.trim() }) });
+    const d = await r.json();
+    if(!r.ok || !d.token){ fehler.textContent = d.error || "Das hat nicht geklappt – bitte noch einmal."; return; }
+    location.replace("/?t=" + encodeURIComponent(d.token));
+  }catch(err){ fehler.textContent = "Netz gerade weg – gleich noch einmal."; }
+  finally{ knopf.disabled = false; knopf.textContent = "Mein Profil holen"; }
 });
 if(S.name) $("#onboarding").classList.add("hidden");
 
