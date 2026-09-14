@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>planyvo · Bau dein Event</title>
+<!--
+  DER STAND: ein Touchscreen, kein Betreuer noetig.
+
+  Der Gast baut in drei Minuten sein eigenes Event - Typ, Termin, Bausteine,
+  Farbe - und sieht dabei rechts die App entstehen, die dabei herauskaeme.
+  Am Ende hinterlaesst er Name und Adresse; der Entwurf landet als Briefing
+  im Monitor (Einladung -> Stand) und geht als Mail an ihn. Angelegt wird
+  das Event danach ueber die Plattform (Dashboard / MCP), nicht hier: der
+  Stand ist Intake, kein zweiter Baukasten.
+
+  Regeln fuer einen Stand ohne Betreuer:
+  - Grosse Ziele (min. 64 px), keine Hover-Zustaende, kein Scrollen noetig.
+  - Eigene Bildschirmtastatur: Kiosk-Monitore haben oft keine, und die des
+    Systems verdeckt gern die Haelfte.
+  - Nach 90 s ohne Beruehrung zurueck zum Startbild - der Naechste faengt
+    frisch an, nichts vom Vorgaenger bleibt stehen.
+  - Kein Token, keine Anmeldung, nichts Persoenliches auf dem Bildschirm,
+    ausser dem, was der Gast gerade selbst eintippt.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0b1730; --navy:#122648; --navy2:#1a3260; --ivory:#f8f7f4; --muted:#aeb9d2;
+    --coral:#ff6b6c; --blau:#13a4ef; --sand:#d8d3c3; --gruen:#43685d; --line:rgba(248,247,244,.16);
+    --accent:#ff6b6c;
+    --serif:"Cinzel",Georgia,serif; --sans:"Montserrat","Avenir Next","Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{height:100%;margin:0;overflow:hidden}
+  body{background:var(--ink);color:var(--ivory);font-family:var(--sans);touch-action:manipulation}
+  button{font:inherit;color:inherit;cursor:pointer}
+
+  /* Buehne: 16:9 oder 9:16 - alles in vh/vw, damit der Monitor egal ist. */
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;padding:4vh 4vw}
+  .screen.on{display:flex}
+  .kicker{font-size:1.4vh;letter-spacing:.35em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:var(--serif);font-weight:500;font-size:5.2vh;line-height:1.15;margin:1vh 0 0;letter-spacing:.02em}
+  h2{font-family:var(--serif);font-weight:500;font-size:3.6vh;line-height:1.2;margin:.6vh 0 0}
+  .lede{font-size:2vh;line-height:1.5;color:var(--muted);max-width:60vw;margin:1vh 0 0}
+
+  /* Startbild */
+  #start{justify-content:center;align-items:center;text-align:center}
+  #start h1{font-size:8vh;max-width:80vw}
+  #start .lede{max-width:70vw;font-size:2.4vh;margin-top:2vh}
+  .planyvo{height:5vh;width:auto;color:var(--ivory);margin-bottom:4vh}
+  .pulse{margin-top:6vh;padding:3vh 6vw;border:2px solid var(--ivory);border-radius:999px;background:none;font-size:2.2vh;letter-spacing:.3em;text-transform:uppercase;animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(248,247,244,.0)}50%{box-shadow:0 0 0 2.4vh rgba(248,247,244,.10)}}
+  .startfuss{position:absolute;bottom:4vh;left:0;right:0;font-size:1.5vh;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+
+  /* Schrittseiten: links Fragen, rechts das Telefon */
+  .kopf{display:flex;align-items:flex-end;justify-content:space-between;gap:2vw}
+  .schritte{display:flex;gap:1vw}
+  .schritte i{display:block;width:5vw;height:.6vh;border-radius:99px;background:var(--line)}
+  .schritte i.an{background:var(--coral)}
+  .schritte i.da{background:var(--ivory)}
+  .body{flex:1;display:grid;grid-template-columns:1fr auto;gap:4vw;margin-top:3vh;min-height:0}
+  .fragen{display:flex;flex-direction:column;gap:2.4vh;min-height:0}
+  .fuss{display:flex;justify-content:space-between;align-items:center;gap:2vw;margin-top:2vh}
+  .btn{border:2px solid var(--ivory);background:none;border-radius:999px;padding:2.2vh 4vw;font-size:1.8vh;letter-spacing:.25em;text-transform:uppercase;min-height:7vh}
+  .btn.voll{background:var(--ivory);color:var(--ink);border-color:var(--ivory)}
+  .btn.leise{border-color:var(--line);color:var(--muted)}
+  .btn[disabled]{opacity:.35}
+
+  /* Chips - grosse Ziele */
+  .chips{display:flex;flex-wrap:wrap;gap:1.4vh}
+  .chip{border:2px solid var(--line);background:rgba(248,247,244,.04);border-radius:2vh;padding:2.2vh 2.4vw;font-size:2vh;min-height:8vh;min-width:12vw;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:.4vh}
+  .chip small{font-size:1.4vh;color:var(--muted);letter-spacing:.05em}
+  .chip.an{border-color:var(--ivory);background:rgba(248,247,244,.10)}
+  .chip .ico{font-size:2.6vh;line-height:1}
+
+  /* Bausteine */
+  .bausteine{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4vh;overflow:hidden}
+  .bausteine .chip{min-height:9.5vh;padding:1.6vh 1.4vw}
+  .bausteine .chip b{font-size:1.9vh;font-weight:600}
+  .bausteine .chip.an::after{content:"✓";position:absolute;right:1vw;top:1.2vh;font-size:2.2vh;color:var(--coral)}
+  .bausteine .chip{position:relative}
+
+  /* Eingaben */
+  .feld{display:flex;flex-direction:column;gap:.8vh}
+  .feld label{font-size:1.4vh;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
+  .eingabe{border:2px solid var(--line);background:rgba(248,247,244,.05);border-radius:2vh;padding:2vh 2vw;font-size:2.6vh;min-height:8vh;color:var(--ivory);font-family:var(--sans);width:100%;text-align:left}
+  .eingabe.leer{color:var(--muted)}
+  .eingabe.aktiv{border-color:var(--ivory)}
+  .zeile{display:flex;gap:1.4vw;align-items:stretch}
+  .zeile .feld{flex:1}
+
+  /* Zahlenwaehler (Datum, Gaeste) */
+  .pm{display:flex;align-items:center;gap:1vw;border:2px solid var(--line);border-radius:2vh;padding:1vh 1vw;min-height:8vh}
+  .pm button{width:7vh;height:6vh;border-radius:1.5vh;border:0;background:rgba(248,247,244,.10);font-size:3vh;line-height:1}
+  .pm b{flex:1;text-align:center;font-size:2.6vh;font-weight:600}
+  .pm small{display:block;font-size:1.3vh;color:var(--muted);font-weight:400;letter-spacing:.1em}
+
+  /* Farben */
+  .farben{display:flex;gap:1.6vh;flex-wrap:wrap}
+  .farbe{width:9vh;height:9vh;border-radius:50%;border:.5vh solid transparent;position:relative}
+  .farbe.an{border-color:var(--ivory)}
+  .farbe span{position:absolute;left:50%;top:105%;transform:translateX(-50%);font-size:1.3vh;color:var(--muted);white-space:nowrap;letter-spacing:.1em}
+
+  /* Das Telefon rechts */
+  .phone{align-self:center;justify-self:center;height:64vh;width:calc(64vh * 9 / 18.5);max-width:34vw;border-radius:5vh;border:.6vh solid #2a3a5e;background:#0e1d3a;box-shadow:0 3vh 8vh rgba(0,0,0,.5);overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .phone .kerbe{position:absolute;left:50%;top:1.2vh;transform:translateX(-50%);width:32%;height:2.2vh;border-radius:99px;background:#050b18}
+  .phone .app{flex:1;padding:5vh 1.6vw 2vh;display:flex;flex-direction:column;gap:1.4vh;background:linear-gradient(180deg,var(--navy) 0%,#0e1d3a 55%)}
+  .phone .marke{font-family:var(--serif);font-size:1.5vh;letter-spacing:.25em;text-transform:uppercase;text-align:center;color:var(--accent)}
+  .phone .titel{font-family:var(--serif);font-size:2.6vh;line-height:1.15;text-align:center;margin-top:.4vh;min-height:6vh}
+  .phone .wann{font-size:1.3vh;text-align:center;color:var(--muted);letter-spacing:.1em}
+  .phone .kacheln{display:grid;grid-template-columns:1fr 1fr;gap:1vh;margin-top:1vh}
+  .phone .kachel{border:1px solid rgba(248,247,244,.14);border-radius:1.6vh;padding:1.2vh 1vw;font-size:1.25vh;line-height:1.3;min-height:6.5vh;display:flex;flex-direction:column;justify-content:flex-end;gap:.4vh;background:rgba(248,247,244,.04);animation:rein .35s ease-out}
+  .phone .kachel i{font-style:normal;font-size:1.9vh}
+  .phone .kachel.gross{grid-column:1/-1;background:var(--accent);color:#1a0d10;border-color:transparent;font-weight:600}
+  @keyframes rein{from{opacity:0;transform:translateY(1vh)}to{opacity:1;transform:none}}
+  .phone .leer{color:var(--muted);text-align:center;font-size:1.3vh;padding:3vh 1vw;line-height:1.5}
+  .phone .balken{margin-top:auto;height:.6vh;border-radius:99px;background:rgba(248,247,244,.25);width:40%;align-self:center}
+
+  /* Ergebnis */
+  #ende .body{grid-template-columns:1fr auto}
+  .karte{border:2px solid var(--line);border-radius:3vh;padding:3vh 2.4vw;display:flex;flex-direction:column;gap:1.4vh;background:rgba(248,247,244,.04)}
+  .karte .k{font-size:1.3vh;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
+  .karte .v{font-size:2.2vh;line-height:1.4}
+  .zeit{font-family:var(--serif);font-size:6vh;line-height:1;color:var(--coral)}
+  .danke{justify-content:center;align-items:center;text-align:center}
+  .danke h1{font-size:6vh}
+  .qr{width:24vh;height:24vh;background:#fff;border-radius:2vh;padding:1.5vh;margin-top:3vh}
+  .qr img{width:100%;height:100%;display:block}
+
+  /* Tastatur */
+  .kbd{position:absolute;left:0;right:0;bottom:0;background:#08122a;border-top:1px solid var(--line);padding:1.4vh 2vw 2vh;display:none;flex-direction:column;gap:1vh;z-index:9}
+  .kbd.on{display:flex}
+  .kbd .reihe{display:flex;justify-content:center;gap:.8vh}
+  .kbd button{min-width:6.2vh;height:7vh;border-radius:1.2vh;border:0;background:rgba(248,247,244,.10);font-size:2.4vh;padding:0 1.2vh}
+  .kbd button.breit{min-width:12vh}.kbd button.leer{min-width:34vh}.kbd button.fertig{background:var(--ivory);color:var(--ink);min-width:14vh;font-size:1.7vh;letter-spacing:.2em;text-transform:uppercase}
+  .kbd button.aktivschalter{background:rgba(248,247,244,.22)}
+  .kbd .ziel{text-align:center;font-size:1.4vh;color:var(--muted);letter-spacing:.2em;text-transform:uppercase}
+
+  /* Idle-Balken oben: wie lange noch bis zum Neustart */
+  #idle{position:absolute;left:0;top:0;height:.5vh;background:var(--coral);width:0;transition:width 1s linear;opacity:0}
+  #idle.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="idle"></div>
+
+<!-- 0 · Startbild -->
+<section class="screen on" id="start">
+  <svg class="planyvo" viewBox="0 0 801.24 190.70" role="img" aria-label="planyvo"><path fill="currentColor" d="M68.11 32.54Q80.78 32.54 91.09 39.16Q101.41 45.78 107.36 58.08Q113.32 70.38 113.32 86.84Q113.32 103.3 107.36 115.69Q101.41 128.08 91.09 134.7Q80.78 141.32 68.11 141.32Q57.32 141.32 49.47 136.97Q41.62 132.62 37.08 125.24V190.7H0V33.86H37.08V48.62Q41.43 41.24 49.38 36.89Q57.32 32.54 68.11 32.54ZM56.38 64.89Q48.24 64.89 42.66 70.76Q37.08 76.62 37.08 86.84Q37.08 97.24 42.66 103.11Q48.24 108.97 56.38 108.97Q64.51 108.97 70.09 103.01Q75.68 97.05 75.68 86.84Q75.68 76.43 70.09 70.66Q64.51 64.89 56.38 64.89Z M166.08 0V140H129V0Z M226.22 32.54Q237.19 32.54 245.14 36.89Q253.08 41.24 257.43 48.62V33.86H294.51V140H257.43V125.24Q253.08 132.62 245.04 136.97Q237 141.32 226.22 141.32Q213.54 141.32 203.23 134.7Q192.92 128.08 186.96 115.69Q181 103.3 181 86.84Q181 70.38 186.96 58.08Q192.92 45.78 203.23 39.16Q213.54 32.54 226.22 32.54ZM238.14 64.89Q229.81 64.89 224.32 70.66Q218.84 76.43 218.84 86.84Q218.84 97.05 224.32 103.01Q229.81 108.97 238.14 108.97Q246.27 108.97 251.85 103.11Q257.43 97.24 257.43 86.84Q257.43 76.62 251.85 70.76Q246.27 64.89 238.14 64.89Z M426.35 78.14V140H389.27V83.05Q389.27 73.97 384.54 68.77Q379.81 63.57 371.86 63.57Q363.54 63.57 358.81 68.77Q354.08 73.97 354.08 83.05V140H317V33.86H354.08V49Q359 41.81 367.32 37.36Q375.65 32.92 386.43 32.92Q404.78 32.92 415.57 45.12Q426.35 57.32 426.35 78.14Z M561.81 33.86 494.46 190.51H454.16L479.51 135.46L436 33.86H477.24L499.57 94.03L521.14 33.86Z M623.78 105 643.65 33.86H683.19L646.68 140H600.51L564 33.86H603.54Z M690 86.84Q690 70.38 697.28 58.08Q704.57 45.78 717.15 39.16Q729.73 32.54 745.62 32.54Q761.51 32.54 774.09 39.16Q786.68 45.78 793.96 58.08Q801.24 70.38 801.24 86.84Q801.24 103.3 793.96 115.69Q786.68 128.08 774 134.7Q761.32 141.32 745.43 141.32Q729.54 141.32 716.96 134.7Q704.38 128.08 697.19 115.78Q690 103.49 690 86.84ZM763.59 86.84Q763.59 76.05 758.39 70.38Q753.19 64.7 745.62 64.7Q738.05 64.7 732.95 70.38Q727.84 76.05 727.84 86.84Q727.84 97.81 732.76 103.49Q737.68 109.16 745.43 109.16Q753.19 109.16 758.39 103.39Q763.59 97.62 763.59 86.84Z"/></svg>
+  <div class="kicker">Start-up des Abends · THE CIRCLE No1</div>
+  <h1>Bau dein Event.<br>In drei Minuten.</h1>
+  <p class="lede">Einladung, Zusage, Tickets, App, Einlass, Tischplan – du wählst die Bausteine, planyvo baut die Event-App. Genau so ist die App entstanden, die du heute Abend in der Hand hast.</p>
+  <button class="pulse" id="los">Antippen und loslegen</button>
+  <div class="startfuss">Kein Konto nötig · nichts wird veröffentlicht · Ergebnis kommt per Mail</div>
+</section>
+
+<!-- 1 · Was -->
+<section class="screen" data-schritt="1">
+  <div class="kopf"><div><div class="kicker">Schritt 1 von 4</div><h2>Was planst du?</h2></div><div class="schritte"><i></i><i></i><i></i><i></i></div></div>
+  <div class="body">
+    <div class="fragen">
+      <div class="chips" id="typen"></div>
+      <div class="feld"><label>Wie heißt dein Event?</label><button class="eingabe leer" data-feld="name" data-hinweis="z. B. Sommerfest 2027, Kundenabend, Jubiläum">Antippen und Namen eingeben</button></div>
+      <div class="feld"><label>Für wen? (optional)</label><button class="eingabe leer" data-feld="wer" data-hinweis="Kunden, Team, Partner, Mitglieder …">Kunden, Team, Partner …</button></div>
+    </div>
+    <div class="phone" data-phone></div>
+  </div>
+  <div class="fuss"><button class="btn leise" data-zurueck>Zurück</button><button class="btn voll" data-weiter disabled>Weiter</button></div>
+</section>
+
+<!-- 2 · Wann, wie viele -->
+<section class="screen" data-schritt="2">
+  <div class="kopf"><div><div class="kicker">Schritt 2 von 4</div><h2>Wann, wo, wie viele?</h2></div><div class="schritte"><i></i><i></i><i></i><i></i></div></div>
+  <div class="body">
+    <div class="fragen">
+      <div class="zeile">
+        <div class="feld"><label>Monat</label><div class="pm"><button data-pm="monat" data-d="-1">−</button><b id="pmMonat">Oktober<small>2026</small></b><button data-pm="monat" data-d="1">+</button></div></div>
+        <div class="feld"><label>Gäste</label><div class="pm"><button data-pm="gaeste" data-d="-1">−</button><b id="pmGaeste">80<small>Personen</small></b><button data-pm="gaeste" data-d="1">+</button></div></div>
+      </div>
+      <div class="feld"><label>Stadt</label><div class="chips" id="staedte"></div></div>
+      <div class="feld"><label>Wie lädst du ein?</label><div class="chips" id="kanal"></div></div>
+    </div>
+    <div class="phone" data-phone></div>
+  </div>
+  <div class="fuss"><button class="btn leise" data-zurueck>Zurück</button><button class="btn voll" data-weiter>Weiter</button></div>
+</section>
+
+<!-- 3 · Bausteine -->
+<section class="screen" data-schritt="3">
+  <div class="kopf"><div><div class="kicker">Schritt 3 von 4</div><h2>Welche Bausteine brauchst du?</h2></div><div class="schritte"><i></i><i></i><i></i><i></i></div></div>
+  <div class="body">
+    <div class="fragen"><div class="bausteine" id="bausteine"></div><p class="lede" style="max-width:none">Jeder Baustein ist fertig gebaut und getestet – heute Abend läuft er gerade für dich. Du wählst nur aus.</p></div>
+    <div class="phone" data-phone></div>
+  </div>
+  <div class="fuss"><button class="btn leise" data-zurueck>Zurück</button><button class="btn voll" data-weiter>Weiter</button></div>
+</section>
+
+<!-- 4 · Look -->
+<section class="screen" data-schritt="4">
+  <div class="kopf"><div><div class="kicker">Schritt 4 von 4</div><h2>Dein Look.</h2></div><div class="schritte"><i></i><i></i><i></i><i></i></div></div>
+  <div class="body">
+    <div class="fragen">
+      <div class="feld"><label>Akzentfarbe</label><div class="farben" id="farben"></div></div>
+      <div class="feld" style="margin-top:3vh"><label>Ton der Ansprache</label><div class="chips" id="ton"></div></div>
+      <p class="lede" style="max-width:none">Logo, Bilder und Schrift kommen später aus deinem Markenauftritt – im Dashboard per Drag &amp; Drop.</p>
+    </div>
+    <div class="phone" data-phone></div>
+  </div>
+  <div class="fuss"><button class="btn leise" data-zurueck>Zurück</button><button class="btn voll" data-weiter>Fertig – Event ansehen</button></div>
+</section>
+
+<!-- 5 · Ergebnis -->
+<section class="screen" id="ende">
+  <div class="kopf"><div><div class="kicker">Dein Event steht</div><h2 id="endeTitel">–</h2></div><div class="zeit" id="zeit">0:00</div></div>
+  <div class="body">
+    <div class="fragen">
+      <div class="karte" id="zusammen"></div>
+      <div class="zeile">
+        <div class="feld"><label>Dein Name</label><button class="eingabe leer" data-feld="kontaktName" data-hinweis="Vor- und Nachname">Antippen</button></div>
+        <div class="feld"><label>E-Mail für den Entwurf</label><button class="eingabe leer" data-feld="kontaktMail" data-hinweis="name@firma.de" data-mail="1">Antippen</button></div>
+      </div>
+      <p class="lede" style="max-width:none">Wir schicken dir den Entwurf als Mail und legen ihn im planyvo-Dashboard für dich an. Kein Newsletter, kein Vertrag – ein Entwurf.</p>
+    </div>
+    <div class="phone" data-phone></div>
+  </div>
+  <div class="fuss"><button class="btn leise" data-zurueck>Zurück</button><button class="btn voll" id="senden" disabled>Entwurf an mich schicken</button></div>
+</section>
+
+<!-- 6 · Danke -->
+<section class="screen danke" id="danke">
+  <div class="kicker">Entwurf gespeichert</div>
+  <h1 id="dankeTitel">Danke!</h1>
+  <p class="lede" id="dankeText">Der Entwurf ist unterwegs. Die Gründer stehen den ganzen Abend hier – frag sie alles.</p>
+  <div class="qr"><img id="qrBild" alt="QR-Code zu planyvo.com"></div>
+  <div class="kicker" style="margin-top:2vh">www.planyvo.com</div>
+  <button class="btn" id="nochmal" style="margin-top:4vh">Nächstes Event bauen</button>
+</section>
+
+<!-- Tastatur -->
+<div class="kbd" id="kbd"><div class="ziel" id="kbdZiel"></div><div id="kbdReihen"></div></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+
+/* ---------- Der Entwurf ---------- */
+const TYPEN = [
+  { k:"dinner",    ico:"🍽", t:"Dinner & Gala",     s:"Tische, Gänge, Programm" },
+  { k:"konferenz", ico:"🎤", t:"Konferenz",         s:"Sessions, Speaker, Räume" },
+  { k:"kunden",    ico:"🤝", t:"Kundenevent",       s:"Einladung mit Zusage" },
+  { k:"launch",    ico:"🚀", t:"Produktlaunch",     s:"Presse, Partner, Live" },
+  { k:"team",      ico:"🎉", t:"Team- & Sommerfest", s:"Familie willkommen" },
+  { k:"jubilaeum", ico:"🥂", t:"Jubiläum",          s:"Ein Abend, der bleibt" }
+];
+const STAEDTE = ["Köln","Düsseldorf","Berlin","Hamburg","München","Frankfurt","Woanders"];
+const KANAELE = [
+  { k:"mail",     t:"Persönliche E-Mail", s:"Jeder Gast bekommt seinen eigenen Link" },
+  { k:"whatsapp", t:"WhatsApp",           s:"Link zum Weiterleiten" },
+  { k:"beides",   t:"Beides",             s:"Mail zuerst, WhatsApp als Nachlauf" }
+];
+const BAUSTEINE = [
+  { k:"savethedate", ico:"📅", t:"Save the Date",        s:"Wochen vorher, ein Klick in den Kalender" },
+  { k:"einladung",   ico:"✉️", t:"Einladung & Zusage",   s:"Persönlich, mit Frist und Erinnerung" },
+  { k:"tickets",     ico:"💳", t:"Tickets & Bezahlung",  s:"Stripe, Rechnung automatisch" },
+  { k:"hotel",       ico:"🏨", t:"Hotel & Anreise",      s:"Zimmerkontingent, Shuttle" },
+  { k:"programm",    ico:"🗓", t:"Programm & Sessions",  s:"Mit Zeitplan und Räumen" },
+  { k:"app",         ico:"📱", t:"Event-App",            s:"Aufs Handy, ohne App-Store" },
+  { k:"push",        ico:"🔔", t:"Push-Nachrichten",     s:"„Der nächste Gang kommt“" },
+  { k:"einlass",     ico:"🎟", t:"Einlass mit QR",       s:"Scanner in der App, Abhakliste" },
+  { k:"tischplan",   ico:"🪑", t:"Tischplan & Rotation", s:"Wer sitzt wann bei wem" },
+  { k:"wand",        ico:"🖥", t:"Live-Wand",            s:"Bühne, Auktion, Stimmung" },
+  { k:"galerie",     ico:"📷", t:"Fotogalerie",          s:"Gäste laden hoch, alle sehen" },
+  { k:"feedback",    ico:"⭐", t:"Feedback",             s:"Ein Tippen am Ende des Abends" }
+];
+const FARBEN = [
+  { k:"koralle", c:"#ff6b6c", t:"Koralle" }, { k:"gold", c:"#d4a64a", t:"Gold" }, { k:"blau", c:"#13a4ef", t:"Blau" },
+  { k:"gruen", c:"#43685d", t:"Grün" }, { k:"rosa", c:"#f2cbd7", t:"Rosé" }, { k:"sand", c:"#d8d3c3", t:"Sand" }
+];
+const TOENE = [ { k:"du", t:"Du", s:"„Schön, dass du da bist“" }, { k:"sie", t:"Sie", s:"„Wir freuen uns auf Sie“" } ];
+const MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+
+let E, startZeit = 0;
+function neu(){
+  const d = new Date(); d.setMonth(d.getMonth() + 1);
+  E = { typ:"", name:"", wer:"", monat:d.getMonth(), jahr:d.getFullYear(), gaeste:80, stadt:"Köln", kanal:"mail",
+        bausteine:["einladung","app","einlass"], farbe:"koralle", ton:"du", kontaktName:"", kontaktMail:"" };
+}
+neu();
+
+/* ---------- Bildschirme ---------- */
+let schritt = 0;
+function zeige(id){
+  $$(".screen").forEach(s => s.classList.remove("on"));
+  const el = typeof id === "number" ? $('[data-schritt="' + id + '"]') : $(id);
+  el.classList.add("on");
+  tastaturZu();
+  $$(".schritte").forEach(sc => sc.querySelectorAll("i").forEach((i, n) => {
+    i.className = n + 1 < schritt ? "da" : (n + 1 === schritt ? "an" : "");
+  }));
+  phoneZeichnen();
+}
+$("#los").addEventListener("click", () => { neu(); startZeit = Date.now(); schritt = 1; alleFelder(); zeige(1); idleStart(); });
+$$("[data-weiter]").forEach(b => b.addEventListener("click", () => {
+  if (schritt < 4) { schritt++; zeige(schritt); }
+  else { schritt = 5; endeFuellen(); zeige("#ende"); }
+}));
+$$("[data-zurueck]").forEach(b => b.addEventListener("click", () => {
+  if (schritt <= 1) { schritt = 0; zeige("#start"); idleStop(); return; }
+  schritt--; zeige(schritt);
+}));
+$("#nochmal").addEventListener("click", () => { schritt = 0; neu(); alleFelder(); zeige("#start"); idleStop(); });
+
+/* ---------- Chips ---------- */
+function chips(ziel, liste, feld, mehrfach){
+  const box = $(ziel); box.innerHTML = "";
+  liste.forEach(o => {
+    const k = typeof o === "string" ? o : o.k;
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.dataset.k = k;
+    if (typeof o === "string") b.textContent = o;
+    else b.innerHTML = (o.ico ? '<span class="ico">' + o.ico + '</span>' : '') + '<b>' + o.t + '</b>' + (o.s ? '<small>' + o.s + '</small>' : '');
+    b.addEventListener("click", () => {
+      if (mehrfach) { const i = E[feld].indexOf(k); if (i >= 0) E[feld].splice(i, 1); else E[feld].push(k); }
+      else E[feld] = k;
+      chipsMalen(ziel, feld, mehrfach); pruefen(); phoneZeichnen();
+    });
+    box.appendChild(b);
+  });
+  chipsMalen(ziel, feld, mehrfach);
+}
+function chipsMalen(ziel, feld, mehrfach){
+  $$(ziel + " .chip").forEach(b => b.classList.toggle("an", mehrfach ? E[feld].includes(b.dataset.k) : E[feld] === b.dataset.k));
+}
+function farben(){
+  const box = $("#farben"); box.innerHTML = "";
+  FARBEN.forEach(f => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "farbe"; b.style.background = f.c; b.dataset.k = f.k;
+    b.innerHTML = "<span>" + f.t + "</span>";
+    b.addEventListener("click", () => { E.farbe = f.k; farbenMalen(); phoneZeichnen(); });
+    box.appendChild(b);
+  });
+  farbenMalen();
+}
+function farbenMalen(){ $$(".farbe").forEach(b => b.classList.toggle("an", b.dataset.k === E.farbe)); }
+function alleFelder(){
+  chips("#typen", TYPEN, "typ"); chips("#staedte", STAEDTE, "stadt"); chips("#kanal", KANAELE, "kanal");
+  chips("#bausteine", BAUSTEINE, "bausteine", true); chips("#ton", TOENE, "ton"); farben(); pmMalen();
+  $$("[data-feld]").forEach(b => feldMalen(b));
+  pruefen();
+}
+function pruefen(){
+  $('[data-schritt="1"] [data-weiter]').disabled = !(E.typ && E.name.trim().length >= 2);
+  const ok = E.kontaktName.trim().length >= 2 && /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(E.kontaktMail.trim());
+  $("#senden").disabled = !ok;
+}
+
+/* ---------- Plus/Minus ---------- */
+$$("[data-pm]").forEach(b => b.addEventListener("click", () => {
+  const d = Number(b.dataset.d);
+  if (b.dataset.pm === "monat") { E.monat += d; if (E.monat > 11) { E.monat = 0; E.jahr++; } if (E.monat < 0) { E.monat = 11; E.jahr--; } }
+  else { const stufe = E.gaeste >= 500 ? 100 : (E.gaeste >= 100 ? 20 : 10); E.gaeste = Math.max(10, Math.min(5000, E.gaeste + d * stufe)); }
+  pmMalen(); phoneZeichnen();
+}));
+function pmMalen(){
+  $("#pmMonat").innerHTML = MONATE[E.monat] + "<small>" + E.jahr + "</small>";
+  $("#pmGaeste").innerHTML = E.gaeste + "<small>Personen</small>";
+}
+
+/* ---------- Telefon ---------- */
+function farbeVon(k){ return (FARBEN.find(f => f.k === k) || FARBEN[0]).c; }
+function phoneZeichnen(){
+  document.documentElement.style.setProperty("--accent", farbeVon(E.farbe));
+  const typ = TYPEN.find(t => t.k === E.typ);
+  const name = E.name.trim() || (typ ? typ.t : "Dein Event");
+  const anrede = E.ton === "sie" ? "Wir freuen uns auf Sie" : "Schön, dass du dabei bist";
+  const gewaehlt = BAUSTEINE.filter(b => E.bausteine.includes(b.k));
+  const kacheln = gewaehlt.length
+    ? gewaehlt.map((b, i) => '<div class="kachel' + (i === 0 ? ' gross' : '') + '"><i>' + b.ico + '</i>' + b.t + '</div>').join("")
+    : '<div class="leer">Noch keine Bausteine – wähle links aus, und die App füllt sich.</div>';
+  const html = '<div class="kerbe"></div><div class="app">' +
+    '<div class="marke">' + (E.wer.trim() ? esc(E.wer.trim()) : "Einladung") + '</div>' +
+    '<div class="titel">' + esc(name) + '</div>' +
+    '<div class="wann">' + MONATE[E.monat] + ' ' + E.jahr + ' · ' + esc(E.stadt) + ' · ' + E.gaeste + ' Gäste</div>' +
+    '<div class="wann" style="margin-top:.6vh;color:var(--ivory)">' + anrede + '</div>' +
+    '<div class="kacheln">' + kacheln + '</div><div class="balken"></div></div>';
+  $$("[data-phone]").forEach(p => { if (p.innerHTML !== html) p.innerHTML = html; });
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ---------- Ergebnis ---------- */
+function endeFuellen(){
+  const typ = TYPEN.find(t => t.k === E.typ) || {};
+  const s = Math.round((Date.now() - startZeit) / 1000);
+  $("#zeit").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  $("#endeTitel").textContent = E.name.trim();
+  const b = BAUSTEINE.filter(x => E.bausteine.includes(x.k)).map(x => x.t);
+  $("#zusammen").innerHTML =
+    '<div><div class="k">Event</div><div class="v">' + esc(typ.t || "") + ' · ' + MONATE[E.monat] + ' ' + E.jahr + ' · ' + esc(E.stadt) + ' · ' + E.gaeste + ' Gäste</div></div>' +
+    '<div><div class="k">Einladung</div><div class="v">' + esc((KANAELE.find(k => k.k === E.kanal) || {}).t || "") + ' · Ansprache per ' + (E.ton === "sie" ? "Sie" : "Du") + '</div></div>' +
+    '<div><div class="k">' + b.length + ' Bausteine</div><div class="v">' + (b.length ? esc(b.join(" · ")) : "keine gewählt") + '</div></div>';
+  pruefen();
+}
+$("#senden").addEventListener("click", async () => {
+  const knopf = $("#senden"); knopf.disabled = true; knopf.textContent = "wird gespeichert …";
+  const sek = Math.round((Date.now() - startZeit) / 1000);
+  let ok = false, antwort = {};
+  try {
+    const r = await fetch("/api/stand/entwurf", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({}, E, { sekunden: sek })) });
+    antwort = await r.json(); ok = r.ok && antwort.ok;
+  } catch (e) { /* unten */ }
+  knopf.textContent = "Entwurf an mich schicken";
+  if (!ok) { knopf.disabled = false; alert(antwort.error || "Gerade nicht erreichbar – bitte noch einmal antippen."); return; }
+  $("#dankeTitel").textContent = "Danke, " + (E.kontaktName.trim().split(" ")[0] || "") + "!";
+  $("#dankeText").textContent = antwort.mail
+    ? "Dein Entwurf „" + E.name.trim() + "“ ist unterwegs an " + E.kontaktMail.trim() + ". Die Gründer stehen den ganzen Abend hier – frag sie alles."
+    : "Dein Entwurf „" + E.name.trim() + "“ ist gespeichert. Die Gründer melden sich – und stehen den ganzen Abend hier.";
+  $("#qrBild").src = "/qr-text.png?t=" + encodeURIComponent("https://www.planyvo.com/?stand=circle");
+  schritt = 6; zeige("#danke"); idleStop();
+  /* Das Dankebild bleibt kurz, dann ist der Stand wieder frei. */
+  clearTimeout(dankeTimer); dankeTimer = setTimeout(() => { if (schritt === 6) $("#nochmal").click(); }, 45000);
+});
+let dankeTimer = 0;
+
+/* ---------- Tastatur ---------- */
+const REIHEN = [
+  ["1","2","3","4","5","6","7","8","9","0","ß"],
+  ["q","w","e","r","t","z","u","i","o","p","ü"],
+  ["a","s","d","f","g","h","j","k","l","ö","ä"],
+  ["⇧","y","x","c","v","b","n","m",",",".","-","⌫"],
+  ["@",".de",".com","LEER","&","FERTIG"]
+];
+let kbdFeld = null, gross = true;
+function tastaturAuf(btn){
+  kbdFeld = btn; $$(".eingabe").forEach(e => e.classList.toggle("aktiv", e === btn));
+  $("#kbdZiel").textContent = btn.dataset.hinweis || "";
+  gross = !(E[btn.dataset.feld] || "").length || btn.dataset.mail !== "1" && /\s$/.test(E[btn.dataset.feld] || "");
+  if (btn.dataset.mail === "1") gross = false;
+  tastaturMalen(); $("#kbd").classList.add("on");
+}
+function tastaturZu(){ $("#kbd").classList.remove("on"); kbdFeld = null; $$(".eingabe").forEach(e => e.classList.remove("aktiv")); }
+function tastaturMalen(){
+  const box = $("#kbdReihen"); box.innerHTML = "";
+  REIHEN.forEach(r => {
+    const div = document.createElement("div"); div.className = "reihe";
+    r.forEach(t => {
+      const b = document.createElement("button"); b.type = "button";
+      if (t === "LEER") { b.className = "leer"; b.textContent = " "; b.dataset.t = " "; }
+      else if (t === "FERTIG") { b.className = "fertig"; b.textContent = "Fertig"; b.dataset.t = "FERTIG"; }
+      else if (t === "⌫") { b.className = "breit"; b.textContent = "⌫"; b.dataset.t = "BACK"; }
+      else if (t === "⇧") { b.className = "breit" + (gross ? " aktivschalter" : ""); b.textContent = "⇧"; b.dataset.t = "SHIFT"; }
+      else { const z = (gross && t.length === 1 && /[a-zäöü]/.test(t)) ? t.toUpperCase() : t; b.textContent = z; b.dataset.t = z; if (t.length > 1 && t[0] === ".") b.className = "breit"; }
+      div.appendChild(b);
+    });
+    box.appendChild(div);
+  });
+}
+$("#kbdReihen").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || !kbdFeld) return;
+  const f = kbdFeld.dataset.feld, t = b.dataset.t;
+  if (t === "FERTIG") { tastaturZu(); return; }
+  if (t === "SHIFT") { gross = !gross; tastaturMalen(); return; }
+  if (t === "BACK") E[f] = (E[f] || "").slice(0, -1);
+  else {
+    if ((E[f] || "").length >= (kbdFeld.dataset.mail === "1" ? 80 : 60)) return;
+    E[f] = (E[f] || "") + (kbdFeld.dataset.mail === "1" ? t.toLowerCase() : t);
+    /* Nach einem Buchstaben klein weiter, nach Leerzeichen wieder gross - wie ein Handy. */
+    if (kbdFeld.dataset.mail !== "1") { const neuGross = t === " " || !(E[f] || "").length; if (neuGross !== gross) { gross = neuGross; tastaturMalen(); } else if (gross && t.length === 1) { gross = false; tastaturMalen(); } }
+  }
+  feldMalen(kbdFeld); pruefen(); phoneZeichnen();
+});
+function feldMalen(btn){
+  const v = E[btn.dataset.feld] || "";
+  btn.textContent = v || btn.getAttribute("data-leer") || btn.dataset.hinweis && (btn.dataset.feld === "name" ? "Antippen und Namen eingeben" : (btn.dataset.feld === "wer" ? "Kunden, Team, Partner …" : "Antippen"));
+  btn.classList.toggle("leer", !v);
+}
+$$("[data-feld]").forEach(b => b.addEventListener("click", () => tastaturAuf(b)));
+
+/* ---------- Leerlauf: nach 90 s zurueck zum Start ---------- */
+const IDLE_S = 90; let idleRest = IDLE_S, idleTick = 0;
+function idleStart(){ idleRest = IDLE_S; $("#idle").classList.add("on"); clearInterval(idleTick); idleTick = setInterval(() => {
+  idleRest--; $("#idle").style.width = ((IDLE_S - idleRest) / IDLE_S * 100) + "%";
+  if (idleRest <= 0) { neu(); alleFelder(); schritt = 0; zeige("#start"); idleStop(); }
+}, 1000); }
+function idleStop(){ clearInterval(idleTick); $("#idle").classList.remove("on"); $("#idle").style.width = "0"; }
+["pointerdown","keydown"].forEach(ev => document.addEventListener(ev, () => { if (schritt > 0) { idleRest = IDLE_S; $("#idle").style.width = "0"; } }, { passive: true }));
+
+alleFelder(); phoneZeichnen();
+</script>
+</body>
+</html>

@@ -2493,6 +2493,35 @@ function rechnungSenden(inv) {
   });
 }
 
+/* --- Stand: die Werte eines Entwurfs fuer Mail und Liste --- */
+let standLetzter = 0;
+const STAND_TYPEN = { dinner: "Dinner & Gala", konferenz: "Konferenz", kunden: "Kundenevent", launch: "Produktlaunch", team: "Team- & Sommerfest", jubilaeum: "Jubiläum" };
+const STAND_BAUSTEINE = { savethedate: "Save the Date", einladung: "Einladung & Zusage", tickets: "Tickets & Bezahlung", hotel: "Hotel & Anreise",
+  programm: "Programm & Sessions", app: "Event-App", push: "Push-Nachrichten", einlass: "Einlass mit QR", tischplan: "Tischplan & Rotation",
+  wand: "Live-Wand", galerie: "Fotogalerie", feedback: "Feedback" };
+const STAND_KANAL = { mail: "Persönliche E-Mail", whatsapp: "WhatsApp", beides: "E-Mail und WhatsApp" };
+const STAND_MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+function standWerte(e) {
+  return {
+    event_name: e.name, event_typ: STAND_TYPEN[e.typ] || e.typ || "Event",
+    event_wann: STAND_MONATE[e.monat] + " " + e.jahr, event_stadt: e.stadt, event_gaeste: String(e.gaeste),
+    event_wer: e.wer, event_kanal: STAND_KANAL[e.kanal] || e.kanal, event_ton: e.ton === "sie" ? "Sie" : "Du",
+    bausteine: e.bausteine.map(b => STAND_BAUSTEINE[b] || b).join(" · "),
+    bausteine_zahl: String(e.bausteine.length),
+    dauer: Math.floor(e.sekunden / 60) + ":" + String(e.sekunden % 60).padStart(2, "0"),
+    vorname: (e.kontaktName || "").split(" ")[0]
+  };
+}
+function standText(e) {
+  const w = standWerte(e);
+  return ["Hallo " + w.vorname + ",", "", "dein Event-Entwurf vom Stand bei THE CIRCLE No1:", "",
+    w.event_name + " · " + w.event_typ, w.event_wann + " · " + w.event_stadt + " · " + w.event_gaeste + " Gäste",
+    "Einladung: " + w.event_kanal + " · Ansprache per " + w.event_ton, "",
+    "Bausteine (" + w.bausteine_zahl + "): " + (w.bausteine || "keine"), "",
+    "Gebaut in " + w.dauer + " Minuten. Wir legen den Entwurf im planyvo-Dashboard an und melden uns.", "",
+    "planyvo · www.planyvo.com"].join("\n");
+}
+
 function zahlungBuchen(token, session) {
   const inv = findInvite(token);
   if (!inv) return;
@@ -4754,6 +4783,24 @@ const server = http.createServer((req, res) => {
       return res.end(bytes);
     }
 
+    /* Die Entwuerfe vom Stand - als Liste fuer den Monitor oder als CSV
+     * fuer die Nachbereitung (wer will was, wann, mit welchen Bausteinen). */
+    if (req.method === "GET" && (url === "/api/admin/stand-entwuerfe" || url === "/api/admin/stand-entwuerfe.csv")) {
+      const liste = (state.standEntwuerfe || []).slice().reverse();
+      if (url.endsWith(".csv")) {
+        const zeilen = [["zeit", "kontakt", "email", "event", "typ", "monat", "gaeste", "stadt", "kanal", "ton", "farbe", "bausteine", "sekunden", "mail"]];
+        for (const e of liste) {
+          const w = standWerte(e);
+          zeilen.push([new Date(e.t).toLocaleString("de-DE", { timeZone: "Europe/Berlin" }), e.kontaktName, e.kontaktMail, e.name, w.event_typ,
+                       w.event_wann, e.gaeste, e.stadt, w.event_kanal, w.event_ton, e.farbe, w.bausteine, e.sekunden, e.mail ? "ja" : "nein"]);
+        }
+        const csv = zeilen.map(z => z.map(v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"').join(";")).join("\r\n");
+        res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="stand-entwuerfe.csv"' });
+        return res.end("﻿" + csv);
+      }
+      return json(res, 200, { ok: true, anzahl: liste.length, entwuerfe: liste.map(e => Object.assign({ werte: standWerte(e) }, e)) });
+    }
+
     /* Eine schon verschickte Rechnung ERNEUT schicken - berichtigt, mit
      * derselben Nummer. Der Fall: Der Gast reicht seine Rechnungsanschrift
      * nach (erst per gid am Gast eintragen, dann hier). Das Blatt traegt
@@ -5144,6 +5191,68 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === "GET" && (url === "/station" || url === "/station.html")) {
     return serveFile(res, "station.html", "text/html; charset=utf-8");
+  }
+
+  /* --- Der Stand: Touchscreen, auf dem Gaeste ihr eigenes Event bauen ---
+   * Oeffentlich und ohne Token: Es steht nichts Persoenliches darauf, ausser
+   * dem, was der Gast selbst eintippt. Der Entwurf landet im Register
+   * (state.standEntwuerfe) und als Mail beim Gast; angelegt wird das Event
+   * spaeter ueber die planyvo-Plattform, nicht hier. */
+  if (req.method === "GET" && (url === "/stand" || url === "/stand.html" || url === "/baukasten")) {
+    return serveFile(res, "stand.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
+  }
+  /* QR fuer eine planyvo-Adresse (Dankebild am Stand). Nur planyvo.com -
+   * kein offener QR-Generator fuer beliebige Ziele. */
+  if (req.method === "GET" && url === "/qr-text.png") {
+    const t = String(q.get("t") || "https://www.planyvo.com").slice(0, 200);
+    if (!/^https:\/\/(www\.)?planyvo\.com(\/|$)/.test(t)) return json(res, 400, { error: "nur planyvo.com" });
+    const png = qrPng(t, 8);
+    res.writeHead(200, { "Content-Type": "image/png", "Content-Length": png.length, "Cache-Control": "public, max-age=86400" });
+    return res.end(png);
+  }
+  if (req.method === "POST" && url === "/api/stand/entwurf") {
+    /* Ein Stand, ein Bildschirm - mehr als ein Entwurf alle zehn Sekunden
+     * ist kein Gast, sondern ein Skript. */
+    const jetzt = Date.now();
+    if (standLetzter && jetzt - standLetzter < 10000) return json(res, 429, { error: "Einen Moment – der letzte Entwurf wird noch gespeichert." });
+    return readBody(req, res, body => {
+      const s = (k, n) => cleanText(body[k] == null ? "" : String(body[k]), n);
+      const e = {
+        id: crypto.randomBytes(5).toString("hex"), t: jetzt,
+        typ: s("typ", 20), name: s("name", 60), wer: s("wer", 60),
+        monat: Math.max(0, Math.min(11, parseInt(body.monat, 10) || 0)), jahr: Math.max(2026, Math.min(2030, parseInt(body.jahr, 10) || 2026)),
+        gaeste: Math.max(1, Math.min(10000, parseInt(body.gaeste, 10) || 0)),
+        stadt: s("stadt", 30), kanal: s("kanal", 12), farbe: s("farbe", 12), ton: s("ton", 4),
+        bausteine: Array.isArray(body.bausteine) ? body.bausteine.map(b => cleanText(String(b), 20)).filter(Boolean).slice(0, 20) : [],
+        kontaktName: s("kontaktName", 60), kontaktMail: clean(String(body.kontaktMail || ""), 120).toLowerCase(),
+        sekunden: Math.max(0, Math.min(3600, parseInt(body.sekunden, 10) || 0)),
+        mail: 0
+      };
+      if (e.name.length < 2) return json(res, 400, { error: "Der Name des Events fehlt." });
+      if (e.kontaktName.length < 2) return json(res, 400, { error: "Dein Name fehlt." });
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(e.kontaktMail)) return json(res, 400, { error: "Die E-Mail-Adresse sieht nicht richtig aus." });
+      standLetzter = jetzt;
+      state.standEntwuerfe = state.standEntwuerfe || [];
+      state.standEntwuerfe.push(e);
+      dirty = true;
+      logEvent("Stand", e.kontaktName, e.name + " · " + e.bausteine.length + " Bausteine · " + e.sekunden + " s");
+      /* Die Mail an den Gast: sein Entwurf, zum Weiterleiten an wen auch
+       * immer bei ihm entscheidet. Ohne Lettermint bleibt es beim Eintrag. */
+      if (!LETTERMINT_TOKEN) return json(res, 200, { ok: true, mail: false });
+      let html;
+      try { html = renderMail({ name: e.kontaktName, anrede: "Hallo", token: "stand" }, "stand-entwurf.html", standWerte(e)); }
+      catch (err) { console.error("Stand-Mail bricht: " + err.message); return json(res, 200, { ok: true, mail: false }); }
+      lettermintSenden({
+        to: e.kontaktMail,
+        subject: "Dein Event-Entwurf: " + e.name + " · planyvo",
+        html, text: standText(e),
+        metadata: { art: "stand-entwurf", id: e.id }
+      }, err => {
+        if (err) { console.error("Stand-Mail an " + e.kontaktMail + " fehlgeschlagen: " + err.message); return json(res, 200, { ok: true, mail: false }); }
+        e.mail = Date.now(); dirty = true;
+        json(res, 200, { ok: true, mail: true });
+      });
+    });
   }
   if (req.method === "GET" && (url === "/" || url === "/index.html")) {
     return serveFile(res, "index.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });

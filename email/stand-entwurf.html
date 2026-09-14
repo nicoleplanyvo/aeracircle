@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dein Event-Entwurf · planyvo</title>
+<!--
+  DIE MAIL VOM STAND: Der Gast hat am Touchscreen bei THE CIRCLE No1 sein
+  Event gebaut - das hier ist sein Entwurf zum Weiterleiten. Navy wie die
+  Mails des Abends, planyvo als Absenderin, kein Verkaufstext: was er
+  gewaehlt hat, wie lange es gedauert hat, wie es weitergeht.
+
+  Merge-Variablen: {{vorname}} {{event_name}} {{event_typ}} {{event_wann}}
+  {{event_stadt}} {{event_gaeste}} {{event_kanal}} {{event_ton}}
+  {{bausteine}} {{bausteine_zahl}} {{dauer}} {{planyvo_logo_url}}
+-->
+<style>
+  body{margin:0;padding:0;background:#0b1730}
+  @media (max-width:640px){ .blatt{width:100% !important} .innen{padding:28px 22px !important} }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#0b1730;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0b1730" style="background-color:#0b1730;">
+    <tr><td align="center" style="padding:32px 12px;">
+      <table role="presentation" class="blatt" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+        <tr><td align="center" style="padding:0 0 26px 0;">
+          <img src="{{planyvo_logo_url}}" width="120" alt="planyvo" style="display:block;width:120px;height:auto;">
+        </td></tr>
+        <tr><td class="innen" style="padding:36px 40px;background-color:#122648;border-radius:18px;font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;color:#f8f7f4;">
+          <div style="font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#aeb9d2;">Dein Entwurf vom Stand · THE CIRCLE No1</div>
+          <div style="font-family:Cinzel,Georgia,serif;font-size:26px;line-height:32px;padding-top:12px;">{{event_name}}</div>
+          <div style="font-size:13px;line-height:20px;color:#aeb9d2;padding-top:4px;">{{event_typ}} &middot; {{event_wann}} &middot; {{event_stadt}} &middot; {{event_gaeste}} G&auml;ste</div>
+
+          <div style="font-size:14.5px;line-height:23px;padding-top:26px;">
+            Hallo {{vorname}},<br><br>
+            in <b>{{dauer}} Minuten</b> hast du eben dein Event gebaut. Das hier ist der Entwurf &ndash; leite ihn weiter an wen du willst, oder heb ihn dir auf.
+          </div>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;border-top:1px solid rgba(248,247,244,.16);">
+            <tr><td style="padding:14px 0 4px 0;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#aeb9d2;">Einladung</td></tr>
+            <tr><td style="font-size:14px;line-height:22px;">{{event_kanal}} &middot; Ansprache per {{event_ton}}</td></tr>
+            <tr><td style="padding:14px 0 4px 0;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#aeb9d2;">{{bausteine_zahl}} Bausteine</td></tr>
+            <tr><td style="font-size:14px;line-height:22px;">{{bausteine}}</td></tr>
+          </table>
+
+          <div style="font-size:14.5px;line-height:23px;padding-top:26px;">
+            <b>Wie es weitergeht:</b> Wir legen den Entwurf im planyvo-Dashboard an und melden uns bei dir. Dort machst du selbst weiter &ndash; Texte, Bilder, Logo, Gästeliste &ndash; oder du lässt es uns machen. Kein Vertrag, kein Newsletter: ein Entwurf.
+          </div>
+
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+            <tr><td align="center" bgcolor="#ff6b6c" style="background-color:#ff6b6c;border-radius:999px;">
+              <a href="https://www.planyvo.com/?stand=circle" style="display:inline-block;padding:14px 34px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#1a0d10;font-weight:bold;text-decoration:none;">planyvo ansehen</a>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td align="center" style="padding:24px 20px 0 20px;font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:11px;line-height:18px;color:#aeb9d2;">
+          Du bekommst diese eine Mail, weil du am Stand von planyvo bei THE CIRCLE No1 deine Adresse eingegeben hast. Mehr kommt nicht, es sei denn, du willst.<br>
+          planyvo &middot; Köln &middot; hello@planyvo.com
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

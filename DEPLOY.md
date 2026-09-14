@@ -1024,6 +1024,18 @@ curl -s -X POST 'https://thecircle.planyvo.com/api/admin/gast?key=KEY&gid=GID&re
 curl -s -X POST 'https://thecircle.planyvo.com/api/admin/rechnung-erneut?key=KEY&gid=GID'
 ```
 
+**Der Stand (Touchscreen).** `https://thecircle.planyvo.com/stand` ist die
+Seite für den planyvo-Stand: „Bau dein Event. In drei Minuten.“ Vier
+Schritte (Was, Wann, Bausteine, Look), rechts entsteht die App als
+Vorschau, am Ende Name und Mail. Der Entwurf geht als Mail an den Gast
+(`email/stand-entwurf.html`) und steht im Monitor unter *Einladung →
+Event-Entwürfe* mit CSV-Export. Angelegt wird das Event danach über das
+planyvo-Dashboard bzw. den MCP-Server – der Stand ist die Aufnahme, kein
+zweiter Baukasten. Ohne Berührung springt die Seite nach 90 s zum
+Startbild zurück, nichts vom Vorgänger bleibt stehen. Auf dem Monitor am
+Stand: Browser im Vollbild (Chrome: F11, Kiosk-Modus `--kiosk`), Bildschirm-
+Ruhezustand aus, Adresse `/stand`. Eigene Bildschirmtastatur ist eingebaut.
+
 **Sicherung.** Der gesamte Zustand liegt in `server/live-state.json`. Ein
 täglicher Cron in Plesk (**Geplante Aufgaben**) genügt:
 

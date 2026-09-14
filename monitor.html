@@ -583,6 +583,18 @@
         <p class="fnote" id="rnListe"></p>
       </div>
 
+      <!-- Der Stand: was Gaeste am Touchscreen gebaut haben. -->
+      <div class="panel" style="margin-bottom:8px" id="standpanel">
+        <span class="label">Stand · Entwürfe vom Touchscreen (/stand)</span>
+        <h2>Event-Entwürfe</h2>
+        <p class="fnote" id="standNote">–</p>
+        <div class="exportzeile">
+          <a class="export" id="standCsv" href="#">Entwürfe als CSV</a>
+          <a class="export" href="/stand" target="_blank" rel="noopener">Stand öffnen</a>
+        </div>
+        <p class="fnote" id="standListe"></p>
+      </div>
+
       <div class="panel">
         <span class="label">Register &amp; Lettermint · Live-Aktivität</span>
         <h2>Zuletzt passiert</h2>
@@ -1132,6 +1144,7 @@ async function laden(){
     fassungenRendern(d.fassungen || []);
     umsatzSetzen(d.gesamt);
     rechnungenHolen();
+    standHolen();
     feedRendern(d.feed || []);
     quelleSetzen(d);
     await gaesteHolen();
@@ -1463,6 +1476,21 @@ $("#rnSenden").addEventListener("click", async () => {
   if(d && d.ok){ txt($("#rnErgebnis"), d.verschickt + " unterwegs"); setTimeout(rechnungenHolen, 3000 + 600 * d.verschickt); }
   else { txt($("#rnErgebnis"), ""); $("#rnSenden").disabled = false; }
 });
+/* Die Entwuerfe vom Stand: Anzahl, die letzten fuenf, CSV. */
+async function standHolen(){
+  if(!KEY || !$("#standpanel")) return;
+  $("#standCsv").href = "/api/admin/stand-entwuerfe.csv?key=" + encodeURIComponent(KEY);
+  try{
+    const r = await fetch("/api/admin/stand-entwuerfe?key=" + encodeURIComponent(KEY));
+    const d = await r.json();
+    if(!r.ok){ txt($("#standNote"), d.error || "Stand nicht erreichbar."); return; }
+    const n = d.anzahl || 0;
+    txt($("#standNote"), n ? n + (n === 1 ? " Entwurf" : " Entwürfe") + " · Gäste bauen am Touchscreen ihr Event, der Entwurf geht als Mail an sie und steht hier für die Nachbereitung."
+                           : "Noch kein Entwurf. Sobald am Stand jemand sein Event baut, steht es hier.");
+    txt($("#standListe"), (d.entwuerfe || []).slice(0, 5).map(e => e.kontaktName + " · " + e.name + " (" + e.werte.event_typ + ", " + e.gaeste + " Gäste, " + e.bausteine.length + " Bausteine)").join(" · "));
+  }catch(e){ txt($("#standNote"), "Stand: Server nicht erreichbar."); }
+}
+
 /* Die Rechnungsmail mit Musterdaten an eine Adresse - so sieht man sie im
    eigenen Postfach, samt PDF. Verbraucht keine Nummer. */
 $("#rnProbe").addEventListener("click", async () => {
