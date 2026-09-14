@@ -5438,6 +5438,14 @@ const server = http.createServer((req, res) => {
       if (e.name.length < 2) return json(res, 400, { error: "Der Name des Events fehlt." });
       if (e.kontaktName.length < 2) return json(res, 400, { error: "Dein Name fehlt." });
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(e.kontaktMail)) return json(res, 400, { error: "Die E-Mail-Adresse sieht nicht richtig aus." });
+      /* Probelauf (/stand?probe=1): alles wie echt, aber nichts bleibt -
+       * kein Eintrag, keine Mail, kein Entwurf im Dashboard. Damit das Team
+       * den Stand durchspielen kann, ohne Karteileichen zu hinterlassen,
+       * und damit am Abend jemand vorfuehren kann, ohne Daten anzulegen. */
+      if (q.get("probe") === "1") {
+        logEvent("Stand · Probelauf", e.kontaktName, e.name + " · " + e.bausteine.length + " Bausteine");
+        return json(res, 200, { ok: true, probe: true, mail: false, planyvo: false });
+      }
       standLetzter = jetzt;
       state.standEntwuerfe = state.standEntwuerfe || [];
       state.standEntwuerfe.push(e);

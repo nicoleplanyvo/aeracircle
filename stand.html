@@ -179,10 +179,15 @@
   /* Idle-Balken oben: wie lange noch bis zum Neustart */
   #idle{position:absolute;left:0;top:0;height:.6vh;background:var(--honey);width:0;transition:width 1s linear;opacity:0;z-index:5}
   #idle.on{opacity:1}
+  #probeband{position:absolute;right:2vw;top:1.6vh;z-index:6;background:var(--darkbrown);color:#fff;
+    padding:.8vh 1.6vw;border-radius:999px;font-size:1.4vh;font-weight:800;letter-spacing:.04em}
 </style>
 </head>
 <body>
 <div id="idle"></div>
+<!-- Nur im Probelauf sichtbar: damit niemand am Abend versehentlich in
+     einem Modus vorfuehrt, der nichts speichert. -->
+<div id="probeband" hidden>Probelauf · nichts wird gespeichert</div>
 
 <!-- 0 · Startbild -->
 <section class="screen on" id="start">
@@ -308,6 +313,10 @@ const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySel
 /* Text setzen, ohne HTML zu bauen: Was hier hineinkommt, stammt teils von
    fremden Websites (Markenname, Farbe) - das gehoert nie in innerHTML. */
 const txt = (el, s) => { if (el) el.textContent = s == null ? "" : String(s); return el; };
+/* Probelauf: /stand?probe=1 laeuft genau wie der echte Stand, legt aber
+   nichts an und schickt keine Mail. Zum Durchspielen vor dem Abend und
+   zum Vorfuehren, ohne Karteileichen zu hinterlassen. */
+const PROBE = new URLSearchParams(location.search).get("probe") === "1";
 
 /* ---------- Der Entwurf ---------- */
 const TYPEN = [
@@ -546,17 +555,23 @@ $("#senden").addEventListener("click", async () => {
   const sek = Math.round((Date.now() - startZeit) / 1000);
   let ok = false, antwort = {};
   try {
-    const r = await fetch("/api/stand/entwurf", { method: "POST", headers: { "Content-Type": "application/json" },
+    const r = await fetch("/api/stand/entwurf" + (PROBE ? "?probe=1" : ""), { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(Object.assign({}, E, { sekunden: sek, ciLogo: E.ciLogoOriginal || E.ciLogo })) });
     antwort = await r.json(); ok = r.ok && antwort.ok;
   } catch (e) { /* unten */ }
   knopf.innerHTML = '<span class="ms">send</span>Entwurf an mich schicken';
   if (!ok) { knopf.disabled = false; alert(antwort.error || "Gerade nicht erreichbar – bitte noch einmal antippen."); return; }
   $("#dankeTitel").textContent = "Danke, " + (E.kontaktName.trim().split(" ")[0] || "") + "!";
-  $("#dankeKicker").textContent = antwort.planyvo ? "Entwurf im planyvo-Dashboard angelegt" : "Entwurf gespeichert";
-  $("#dankeText").textContent = (antwort.planyvo ? "„" + E.name.trim() + "“ liegt jetzt als Entwurf im planyvo-Dashboard. " : "„" + E.name.trim() + "“ ist gespeichert. ") +
-    (antwort.mail ? "Die Zusammenfassung ist unterwegs an " + E.kontaktMail.trim() + ". " : "Die Gründer melden sich. ") +
-    "Sie stehen den ganzen Abend hier – frag sie alles.";
+  if (antwort.probe) {
+    $("#dankeKicker").textContent = "Probelauf – nichts gespeichert";
+    $("#dankeText").textContent = "So sieht es für deine Gäste aus. „" + E.name.trim() +
+      "“ wurde nicht angelegt und es ist keine Mail rausgegangen. Für den echten Lauf die Seite ohne ?probe=1 öffnen.";
+  } else {
+    $("#dankeKicker").textContent = antwort.planyvo ? "Entwurf im planyvo-Dashboard angelegt" : "Entwurf gespeichert";
+    $("#dankeText").textContent = (antwort.planyvo ? "„" + E.name.trim() + "“ liegt jetzt als Entwurf im planyvo-Dashboard. " : "„" + E.name.trim() + "“ ist gespeichert. ") +
+      (antwort.mail ? "Die Zusammenfassung ist unterwegs an " + E.kontaktMail.trim() + ". " : "Die Gründer melden sich. ") +
+      "Sie stehen den ganzen Abend hier – frag sie alles.";
+  }
   $("#qrBild").src = "/qr-text.png?t=" + encodeURIComponent("https://www.planyvo.com/?stand=circle");
   schritt = 6; zeige("#danke"); idleStop();
   /* Das Dankebild bleibt kurz, dann ist der Stand wieder frei. */
@@ -631,6 +646,7 @@ function idleStart(){ idleRest = IDLE_S; $("#idle").classList.add("on"); clearIn
 function idleStop(){ clearInterval(idleTick); $("#idle").classList.remove("on"); $("#idle").style.width = "0"; }
 ["pointerdown","keydown"].forEach(ev => document.addEventListener(ev, () => { if (schritt > 0) { idleRest = IDLE_S; $("#idle").style.width = "0"; } }, { passive: true }));
 
+$("#probeband").hidden = !PROBE;
 alleFelder(); phoneZeichnen();
 </script>
 </body>
