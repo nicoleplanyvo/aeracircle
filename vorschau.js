@@ -99,10 +99,13 @@ function typBausteine(typ){ return TYP_BAUSTEINE[typ] || STANDARD; }
  * Geraet da. Benannt nach ihrer Wirkung, nicht nach ihrem Namen - "Georgia"
  * sagt einem Gast am Stand nichts, "Klassisch" schon. */
 const SCHRIFTEN = [
-  { k:"modern",    t:"Modern",    s:"klar, freundlich",  css:'"Manrope","Avenir Next",system-ui,sans-serif', sp:"-.02em", w:"800" },
-  { k:"klassisch", t:"Klassisch", s:"Serifen, Abend",    css:'Georgia,"Times New Roman",serif',              sp:"-.01em", w:"700" },
-  { k:"sachlich",  t:"Sachlich",  s:"nüchtern, Konferenz", css:'"Helvetica Neue",Helvetica,Arial,sans-serif', sp:"-.02em", w:"700" },
-  { k:"technisch", t:"Technisch", s:"Launch, Produkt",   css:'ui-monospace,Menlo,Consolas,monospace',        sp:"-.03em", w:"700" }
+  { k:"modern",    t:"Modern",    s:"klar, freundlich",    css:'"Manrope","Avenir Next",system-ui,sans-serif', sp:"-.02em", w:"800" },
+  { k:"klassisch", t:"Klassisch", s:"Serifen, Abend",      css:'Georgia,"Times New Roman",serif',              sp:"-.01em", w:"700" },
+  { k:"sachlich",  t:"Sachlich",  s:"nüchtern, Konferenz", css:'"Helvetica Neue",Helvetica,Arial,sans-serif',  sp:"-.02em", w:"700" },
+  /* Kein Monospace mehr an dieser Stelle: "Technisch" klang nach Launch,
+   * sah auf dem Handy aber aus wie ein Terminalfenster - Fliesstext in
+   * Schreibmaschine liest sich billig, egal wie gut die Marke ist. */
+  { k:"weich",     t:"Weich",     s:"rund, persönlich",    css:'"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif', sp:"-.01em", w:"700" }
 ];
 const NACH_SCHRIFT = {};
 SCHRIFTEN.forEach(s => { NACH_SCHRIFT[s.k] = s; });
@@ -433,10 +436,17 @@ function homeHtml(E){
 const TABS = [["home","home","Start"],["programm","event_note","Programm"],
               ["einlass","qr_code_2","Einlass"],["profil","person","Profil"]];
 
+/* Der Startbildschirm gehoert in einen BLAETTERBAREN Bereich. Ohne den
+ * drueckt das Fussleisten-Layout alles darueber zusammen, sobald die
+ * Kacheln nicht mehr auf den Schirm passen: Der Kopf verliert sein unteres
+ * Polster, "80 Gaeste" klebt an der Kante, und es sieht aus wie
+ * abgeschnitten - auf einem Handy mit Adressleiste schon bei fuenf
+ * Bausteinen. Nicht die Hoehe war das Problem, sondern dass nichts
+ * nachgeben durfte ausser dem Inhalt. */
 function inhaltHtml(E, PH){
-  if (PH.view === "home") return homeHtml(E);
+  if (PH.view === "home") return '<div class="blaettern">' + homeHtml(E) + '</div>';
   const f = ANSICHTEN[PH.view];
-  if (!f) { PH.view = "home"; return homeHtml(E); }
+  if (!f) { PH.view = "home"; return '<div class="blaettern">' + homeHtml(E) + '</div>'; }
   const r = f(E, PH);
   const fehlt = NACH_K[PH.view] && (E.bausteine || []).indexOf(PH.view) < 0;
   return '<div class="pbar"><span class="ms" data-tap="view:home">arrow_back</span>' + esc(r[0]) + '</div>' +

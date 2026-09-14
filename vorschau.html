@@ -51,6 +51,12 @@
   #fehlt a{color:var(--terracotta);font-weight:800}
   [hidden]{display:none!important}
 
+  /* Nur der Inhalt gibt nach - Kopfleiste und Fussleiste nie. Sonst
+     staucht das Layout alles zusammen, statt blaettern zu lassen. */
+  .blaettern{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .pbar,.tab{flex:none}
+  .hero,.gruss,.kacheln,.homefuss{flex:none}
+
   /* --- Der Kopf --- */
   .hero{color:#fff;padding:calc(28px + env(safe-area-inset-top)) 20px 22px;display:flex;flex-direction:column;gap:5px;
     position:relative;overflow:hidden;background-size:cover;background-position:center}
@@ -87,7 +93,7 @@
   .pbar{display:flex;align-items:center;gap:10px;background:var(--accent);color:#fff;
     padding:calc(22px + env(safe-area-inset-top)) 16px 16px;font-size:15px;font-weight:800}
   .pbar .ms{font-size:21px}
-  .inhalt{flex:1;padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;animation:rein .28s ease-out}
+  .inhalt{flex:1;min-height:0;padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:rein .28s ease-out}
   .pk{background:#fff;border-radius:16px;padding:15px;box-shadow:0 5px 18px rgba(58,46,42,.07)}
   .pk-k{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);font-weight:800}
   .pk-t{font-size:20px;font-weight:800;line-height:1.15;margin-top:5px}
@@ -156,11 +162,14 @@
   /* Der Streifen unter der App: Wem sie gehoert und was als Naechstes
      passiert. Bewusst ausserhalb der App - sie selbst soll aussehen wie
      seine, nicht wie unsere. */
-  #fuss{background:var(--warmwhite);border-top:1px solid var(--line);padding:14px 18px calc(14px + env(safe-area-inset-bottom));
-    display:flex;align-items:center;gap:12px;max-width:520px;margin:0 auto;width:100%}
-  #fuss img{height:20px;width:auto;flex:none}
-  #fuss div{font-size:11px;color:var(--muted);font-weight:600;line-height:1.45}
-  #fuss a{color:var(--terracotta);font-weight:800;text-decoration:none}
+  /* Der Streifen unter der App bleibt schmal: Jede Zeile hier fehlt der
+     App. Drei Zeilen waren auf einem Handy mit Adressleiste zu viel. */
+  #fuss{background:var(--warmwhite);border-top:1px solid var(--line);flex:none;
+    padding:9px 16px calc(9px + env(safe-area-inset-bottom));
+    display:flex;align-items:center;gap:10px;max-width:520px;margin:0 auto;width:100%}
+  #fuss img{height:15px;width:auto;flex:none}
+  #fuss div{font-size:10.5px;color:var(--muted);font-weight:600;line-height:1.35;min-width:0}
+  #fuss a{color:var(--terracotta);font-weight:800;text-decoration:none;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -178,7 +187,7 @@
 
 <div id="fuss" hidden>
   <img src="/assets/planyvo-logo.png" alt="planyvo">
-  <div>Dein Entwurf vom Stand. Zum Weiterschicken – oder auf den Startbildschirm legen.<br>
+  <div>Dein Entwurf vom Stand – zum Weiterschicken.
     <a href="https://www.planyvo.com" id="fussLink">Im Dashboard weiterbauen →</a></div>
 </div>
 
