@@ -3803,6 +3803,46 @@ const server = http.createServer((req, res) => {
      * Dieselbe Funktion wie der Import, damit es nur eine Regel gibt, wie
      * ein Gast entsteht (Token, Ticketnummer, Wiedererkennung). */
     if (req.method === "POST" && url === "/api/admin/gast") {
+      /* Mit gid: GENAU dieser Gast - ohne Wiedererkennen ueber Adresse oder
+       * Name+Pool. Das ist der Weg fuer Korrekturen: Eine neue Adresse legt
+       * so nie einen Doppelgaenger an (am 14.09. passiert, als eine
+       * Korrektur ohne pool= ueber den Import lief und der Gast als neuer
+       * Mensch im Pool "Allgemein" landete). Token, Nummer, Zusage und
+       * Zahlung bleiben; eine neue Adresse loescht die Bounce-Sperre. */
+      if (q.get("gid")) {
+        const inv = findByGid(q.get("gid"));
+        if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+        const email = clean(q.get("email") || "", 120).toLowerCase();
+        if (email && email.indexOf("@") < 1) return json(res, 400, { error: "email ohne @" });
+        if (email && email !== (inv.email || "").toLowerCase()) {
+          const andere = Object.values(state.invites).find(i => i !== inv && (i.email || "").toLowerCase() === email);
+          if (andere) return json(res, 409, { error: "Diese Adresse hat schon " + andere.name + " (" + gid(andere) + ")" });
+          inv.email = email;
+          if (inv.mail && inv.mail.bounced) inv.mail.bounced = 0;
+        }
+        const nm = cleanText(q.get("name") || "", 60);
+        if (nm) inv.name = nm;
+        if (q.get("typ") !== null) {
+          const t = clean(q.get("typ"), 20).toLowerCase();
+          if (t !== "ticket" && t !== "ehrengast") return json(res, 400, { error: "typ muss ticket oder ehrengast sein" });
+          inv.typ = t;
+        }
+        const TEXT = { pool: ["pool", 40], anrede: ["anrede", 12], firma: ["firma", 80], rolle: ["rolle", 80],
+                       partner: ["partner", 60], partner_logo: ["partnerLogo", 200] };
+        for (const f of Object.keys(TEXT)) {
+          if (q.get(f) === null) continue;                     // nicht dabei = bleibt
+          inv[TEXT[f][0]] = cleanText(q.get(f), TEXT[f][1]);
+        }
+        if (inv.pool === "") inv.pool = "Allgemein";
+        if (q.get("telefon") !== null) { inv.daten = inv.daten || {}; inv.daten.phone = cleanText(q.get("telefon"), 30); }
+        dirty = true;
+        logEvent("geaendert", inv.name, inv.pool);
+        return json(res, 200, {
+          ok: true, neu: 0, aktualisiert: 1,
+          gast: { name: inv.name, pool: inv.pool, typ: inv.typ, email: inv.email, gid: gid(inv),
+                  ticketNr: inv.ticketNr, status: inv.status, link: inviteLink(inv.token) }
+        });
+      }
       const name = cleanText(q.get("name") || "", 60);
       const email = clean(q.get("email") || "", 120).toLowerCase();
       if (!name) return json(res, 400, { error: "name fehlt" });
@@ -3832,6 +3872,30 @@ const server = http.createServer((req, res) => {
         gast: inv ? { name: inv.name, pool: inv.pool, typ: inv.typ, email: inv.email,
                       ticketNr: inv.ticketNr, status: inv.status, link: inviteLink(inv.token) } : null
       });
+    }
+
+    /* Einen Gast ENTFERNEN - nur einen, der noch nichts erlebt hat: keine
+     * Mail raus, keine Zusage, keine Zahlung, kein WhatsApp-Vermerk. Wer
+     * angeschrieben wurde oder reagiert hat, ist Geschichte und bleibt als
+     * Absage im Register; ihn zu loeschen hiesse, die Zahlen zu faelschen.
+     * Gedacht fuer Doppelgaenger und Tippfehler-Anlagen. */
+    if (req.method === "POST" && url === "/api/admin/gast-entfernen") {
+      const inv = findByGid(q.get("gid"));
+      if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+      const vlog = versandLogLesenGepuffert();
+      const grund =
+        inv.zahlung ? "hat bezahlt" :
+        (inv.status !== "offen" && inv.status !== "abgesagt") ? "steht auf " + inv.status :
+        (inv.mail && inv.mail.sent) ? "hat schon eine Mail bekommen" :
+        Object.values(inv.wellen || {}).some(w => w && w.sent) ? "hat schon eine Mail bekommen" :
+        (hasOwn(vlog, inv.token) && Object.keys(vlog[inv.token]).length) ? "steht im Versand-Log" :
+        Object.keys(inv.whatsapp || {}).length ? "wurde per WhatsApp angeschrieben" :
+        (inv.daten && Object.keys(inv.daten).some(k => k !== "phone")) ? "hat selbst Angaben gemacht" : "";
+      if (grund) return json(res, 409, { error: "Bleibt im Register: " + inv.name + " " + grund + ". Stattdessen als Absage vermerken." });
+      delete state.invites[inv.token];
+      dirty = true;
+      logEvent("entfernt", inv.name, inv.pool);
+      return json(res, 200, { ok: true, entfernt: inv.name, ticketNr: inv.ticketNr || "" });
     }
 
     /* Eine ganze Liste einspielen, waehrend die Wellen laufen - derselbe

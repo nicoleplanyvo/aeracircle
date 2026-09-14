@@ -936,6 +936,29 @@ den Partner nachträgt, verliert Firma, Rolle und Pool nicht. Ein Feld
 Firma. Angelegt wird der Gast mit Status *offen*; zugesagt ist er erst,
 wenn er über seinen Link zusagt.
 
+**Etwas an einem bestehenden Gast ändern – immer mit `gid`.** Die gid
+steht in der Gästeliste des Monitors (`/api/admin/gaeste`) an jedem Gast.
+Mit ihr trifft der Aufruf genau diesen einen Menschen, egal was in Adresse
+oder Name steht; Token, Link, Nummer, Zusage und Zahlung bleiben, eine neue
+Adresse löscht die Bounce-Sperre der alten:
+
+```bash
+curl -s -X POST 'https://thecircle.planyvo.com/api/admin/gast?key=…&gid=c3472f87dce4&email=max@example.de'
+```
+
+Ohne `gid` sucht der Aufruf über die Adresse und – bei neuer Adresse – über
+Name **und Pool**. Wer dann den Pool weglässt, legt einen zweiten Gast im
+Pool „Allgemein“ an. So ist am 14.09. ein Doppelgänger entstanden; deshalb
+für Korrekturen die gid.
+
+**Einen Gast entfernen** geht nur, solange er nichts erlebt hat – keine
+Mail, keine Zusage, keine Zahlung. Alles andere bleibt als Absage stehen,
+damit die Zahlen stimmen:
+
+```bash
+curl -s -X POST 'https://thecircle.planyvo.com/api/admin/gast-entfernen?key=…&gid=8438ceec00ca'
+```
+
 Dasselbe gilt für ganze Listen über `/api/admin/import`: Spalten, die die
 Liste nicht hat, bleiben unangetastet. Eine Liste ohne `pool`-Spalte wirft
 also niemanden mehr in den Pool „Allgemein".
