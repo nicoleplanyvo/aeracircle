@@ -3151,6 +3151,10 @@ async function ladeKreis(){
 }
 async function ladeAlles(){
   if(!APP.token) { renderGaeste(); return; }
+  /* Stufe "profil": Gaestebuch und Tischplan sind zu - der Server sagt dazu
+     423, und vier Anfragen ins Verschlossene braucht niemand. Beim Umschalten
+     auf "voll" laedt stufeSetzen alles nach. */
+  if(APP.stufe === "profil"){ ladeMeldungen(); return; }
   await Promise.all([ladeGaeste(), ladeKreis(), ladeTisch(0)]);
   /* Wurde am Einlass gescannt, steht es beim naechsten Abgleich im eigenen
      Eintrag - die Karte oben dreht sich dann von selbst um. */

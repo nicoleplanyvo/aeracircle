@@ -1032,6 +1032,17 @@ function phaseJetzt() {
   return "danach";
 }
 
+/* Was die Stufe "profil" zuhaelt, muss auch die Schnittstelle zuhalten -
+ * sonst ist "Programm, Tischplan und Gästebuch bleiben zu" nur eine Aussage
+ * ueber die Oberflaeche, und wer die Adresse kennt, liest trotzdem mit.
+ * Gibt true zurueck, wenn die Antwort schon geschickt wurde. */
+function nurProfil(res) {
+  if (appStufe() !== "profil") return false;
+  json(res, 423, { error: "Noch geschlossen", stufe: "profil",
+                   hinweis: "Programm, Tischplan und Gästebuch schalten wir kurz vor dem Abend frei." });
+  return true;
+}
+
 /* --- Stufe der App vor dem Abend: "profil" · "voll" ---
  * Der App-Zugang geht Tage vor dem Abend raus, aber noch nicht alles soll
  * zu sehen sein: Erst ergaenzt jeder sein Profil (Bild, Rolle, Kontakt-
@@ -3027,6 +3038,7 @@ const server = http.createServer((req, res) => {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    if (nurProfil(res)) return;
     const liste = Object.values(state.invites).filter(inv => imKreis(inv) && inv !== ich && gleicheRunde(inv, ich))
       .map(inv => listenEintrag(ich, inv))
       .sort((a, b) => (b.foto ? 1 : 0) - (a.foto ? 1 : 0) || (b.registriert ? 1 : 0) - (a.registriert ? 1 : 0) || a.name.localeCompare(b.name));
@@ -3038,6 +3050,7 @@ const server = http.createServer((req, res) => {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    if (nurProfil(res)) return;
     const inv = findByGid(q.get("wen"));
     /* Sich selbst gibt es hier nicht - sonst stuende unter dem eigenen
      * Profil ein "Verbinden"-Knopf. Liste und Verbinden sperren das
@@ -3153,6 +3166,7 @@ const server = http.createServer((req, res) => {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    if (nurProfil(res)) return;
     const inv = findByGid(q.get("wen"));
     if (!inv || !imKreis(inv) || inv === ich || !gleicheRunde(inv, ich)) return json(res, 404, { error: "unbekannt" });
     const g = kurzprofil(ich, inv);
@@ -3184,6 +3198,7 @@ const server = http.createServer((req, res) => {
     return readBody(req, res, body => {
       const ich = findInvite(body.t);
       if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+      if (nurProfil(res)) return;
       const andere = findByGid(body.wen);
       if (!andere || !imKreis(andere) || andere === ich || !gleicheRunde(andere, ich)) return json(res, 404, { error: "unbekannt" });
       const a = gid(ich), b = gid(andere);
@@ -3238,6 +3253,7 @@ const server = http.createServer((req, res) => {
     return readBody(req, res, body => {
       const ich = findInvite(body.t);
       if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+      if (nurProfil(res)) return;
       const andere = findByGid(body.wen);
       if (!andere || !gleicheRunde(andere, ich)) return json(res, 404, { error: "unbekannt" });
       const v = verbindung(gid(ich), gid(andere), rundeVon(ich));
@@ -3267,6 +3283,7 @@ const server = http.createServer((req, res) => {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    if (nurProfil(res)) return;
     const a = gid(ich);
     const verbunden = [], spaeter = [], anfragen = [], angefragt = [];
     for (const inv of Object.values(state.invites)) {
@@ -3387,6 +3404,7 @@ const server = http.createServer((req, res) => {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    if (nurProfil(res)) return;
     const t = tische();
     const gangNr = parseInt(q.get("gang"), 10) || t.gang || 1;
     const s = t.sitz[gid(ich)] || [];
@@ -3405,6 +3423,7 @@ const server = http.createServer((req, res) => {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
+    if (nurProfil(res)) return;
     const t = tische();
     const gangNr = parseInt(q.get("gang"), 10) || t.gang || 1;
     const g = gangNr - 1;
