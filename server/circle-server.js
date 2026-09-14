@@ -2299,8 +2299,18 @@ function rechnungWerte(inv, nr, t) {
      * MUSS auf der Rechnung stehen, sonst fehlt eine Pflichtangabe. */
     steuer_hinweis: RECHNUNG_USTSATZ > 0 ? "" : RECHNUNG_HINWEIS,
     leistungsdatum: "16.09.2026",
+    /* Rechnungsanschrift des Gastes, falls er eine nachgereicht hat
+     * (Zeilen mit | getrennt). Bei 100 Euro keine Pflicht, aber wer die
+     * Rechnung in seine Buchhaltung gibt, braucht sie oft. */
+    empfaenger_anschrift: String(inv.rechnungsanschrift || "").split("|").map(z => z.trim()).filter(Boolean).join(" · "),
+    /* Eine berichtigte Fassung sagt das auf dem Blatt: gleiche Nummer,
+     * ergaenzt um fehlende Angaben - so sieht es § 31 Abs. 5 UStDV vor. */
+    berichtigt_hinweis: (inv.rechnung && inv.rechnung.berichtigt)
+      ? "Berichtigte Fassung vom " + dstr(new Date(inv.rechnung.berichtigt)) +
+        " – ergänzt die Rechnung gleicher Nummer um die Rechnungsanschrift; Leistung, Betrag und Steuer unverändert."
+      : "",
     /* Fuer das PDF: der Empfaenger zeilenweise, Aussteller und Bank als Listen. */
-    empfaenger_zeilen: [inv.name, inv.firma].filter(Boolean),
+    empfaenger_zeilen: [inv.name, inv.firma].concat(String(inv.rechnungsanschrift || "").split("|").map(z => z.trim())).filter(Boolean),
     aussteller_zeilen: RECHNUNG_ANSCHRIFT.split("|").map(z => z.trim()).filter(Boolean),
     bank_zeilen: RECHNUNG_BANK.split("|").map(z => z.trim()).filter(Boolean),
     anrede: inv.anrede || "Hallo",
@@ -2347,6 +2357,7 @@ function rechnungPdf(w) {
   T(L, 320, "Teilnahme THE CIRCLE No1 · 16. September 2026 · Playa Cologne, Köln", { groesse: 10, fett: true });
   T(L, 352, "RECHNUNG " + w.rechnung_nr, { groesse: 16, serif: true, spatium: 1.6 });
   T(L, 374, "Rechnungsdatum gleich Zahlungsdatum · Leistungsdatum " + w.leistungsdatum, { groesse: 8.5, farbe: GRAU });
+  if (w.berichtigt_hinweis) T(L, 385, w.berichtigt_hinweis, { groesse: 7.5, farbe: GRAU });
 
   /* Die Position. */
   const XB = L + 30, XM = 395, XE = 465;
@@ -3847,7 +3858,8 @@ const server = http.createServer((req, res) => {
           inv.typ = t;
         }
         const TEXT = { pool: ["pool", 40], anrede: ["anrede", 12], firma: ["firma", 80], rolle: ["rolle", 80],
-                       partner: ["partner", 60], partner_logo: ["partnerLogo", 200] };
+                       partner: ["partner", 60], partner_logo: ["partnerLogo", 200],
+                       rechnungsanschrift: ["rechnungsanschrift", 160] };      // Zeilen mit |
         for (const f of Object.keys(TEXT)) {
           if (q.get(f) === null) continue;                     // nicht dabei = bleibt
           inv[TEXT[f][0]] = cleanText(q.get(f), TEXT[f][1]);
@@ -4742,6 +4754,44 @@ const server = http.createServer((req, res) => {
       return res.end(bytes);
     }
 
+    /* Eine schon verschickte Rechnung ERNEUT schicken - berichtigt, mit
+     * derselben Nummer. Der Fall: Der Gast reicht seine Rechnungsanschrift
+     * nach (erst per gid am Gast eintragen, dann hier). Das Blatt traegt
+     * dann den Vermerk "berichtigte Fassung"; das alte PDF bleibt als
+     * -v1 im Ordner liegen. Keine neue Nummer: dieselbe Leistung wird nicht
+     * zweimal berechnet, und § 31 Abs. 5 UStDV erlaubt genau diese
+     * Ergaenzung. */
+    if (req.method === "POST" && url === "/api/admin/rechnung-erneut") {
+      if (!rechnungMoeglich()) return json(res, 503, { error: "Rechnungen sind nicht eingerichtet (deploy/rechnung.json)." });
+      if (!LETTERMINT_TOKEN) return json(res, 503, { error: "LETTERMINT_TOKEN fehlt in der App" });
+      const inv = findByGid(q.get("gid"));
+      if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+      if (!inv.rechnung || !inv.rechnung.nr) return json(res, 409, { error: "Für diesen Gast gibt es noch keine Rechnung – die kommt über den Nachhol-Knopf." });
+      if (!inv.email) return json(res, 409, { error: "Gast ohne E-Mail-Adresse" });
+      const nr = inv.rechnung.nr;
+      inv.rechnung.berichtigt = Date.now();
+      let mail;
+      try { mail = rechnungMail(inv, nr, inv.rechnung.t); }
+      catch (e) { delete inv.rechnung.berichtigt; return json(res, 500, { error: "Rechnung bricht: " + e.message }); }
+      /* Die erste Fassung aufheben - eine Buchhaltung will beide sehen. */
+      try {
+        const alt = path.join(RECHNUNG_ORDNER, nr + ".pdf");
+        if (fs.existsSync(alt) && !fs.existsSync(path.join(RECHNUNG_ORDNER, nr + "-v1.pdf"))) fs.renameSync(alt, path.join(RECHNUNG_ORDNER, nr + "-v1.pdf"));
+      } catch (e) { /* dann eben nur die neue */ }
+      rechnungAblegen(nr, mail.pdf);
+      lettermintSenden({
+        to: inv.email, subject: mail.subject + " (berichtigte Fassung)", html: mail.html, text: mail.text, anhaenge: mail.anhaenge,
+        metadata: { token: inv.token, art: "rechnung", pool: inv.pool || "" }
+      }, (err) => {
+        if (err) return json(res, 502, { error: err.message });
+        inv.rechnung.verschickt = Date.now();
+        dirty = true;
+        logEvent("Rechnung berichtigt", wer, inv.name + " · " + nr);
+        json(res, 200, { ok: true, nummer: nr, an: inv.email, empfaenger: rechnungWerte(inv, nr, inv.rechnung.t).empfaenger_zeilen });
+      });
+      return;
+    }
+
     /* Die Rechnungsmail als PROBE an eine beliebige Adresse - mit dem
      * erfundenen Gast, Betreff mit "Muster", PDF im Anhang. Verbraucht keine
      * Nummer, schreibt nichts ins Register. Damit man sieht, wie die Mail
@@ -4988,6 +5038,7 @@ const server = http.createServer((req, res) => {
            * daran den Link auf das PDF. */
           rechnung: (inv.rechnung && inv.rechnung.nr) || "",
           rechnungVerschickt: (inv.rechnung && inv.rechnung.verschickt) || 0,
+          rechnungsanschrift: inv.rechnungsanschrift || "",
           /* Die Angaben aus dem Zusageformular - der Monitor zeigt sie in
            * der Kuechenliste. Unvertraeglichkeiten sind Gesundheitsdaten:
            * sie stehen nur hinter dem Admin-Zugang, so wie Namen und

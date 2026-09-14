@@ -1010,6 +1010,20 @@ https://thecircle.planyvo.com/api/admin/rechnung.pdf?key=KEY&gid=GID    # echte 
 curl -s -X POST 'https://thecircle.planyvo.com/api/admin/rechnung-probe?key=KEY&an=du@example.de'   # Probemail
 ```
 
+**Rechnungsanschrift nachreichen, Rechnung berichtigt schicken.** Bei
+100 € ist die Anschrift des Empfängers keine Pflicht, aber Firmen wollen
+sie für ihre Buchhaltung. Im Monitor steht an jedem bezahlten Gast
+*Anschrift nachtragen & erneut senden*: Anschrift eingeben (Zeilen mit `|`),
+dann geht dieselbe Rechnung mit derselben Nummer noch einmal raus, auf dem
+Blatt mit dem Vermerk „berichtigte Fassung … ergänzt um die
+Rechnungsanschrift“ – so, wie § 31 Abs. 5 UStDV das vorsieht. Das erste
+PDF bleibt als `<Nummer>-v1.pdf` liegen. Von Hand:
+
+```bash
+curl -s -X POST 'https://thecircle.planyvo.com/api/admin/gast?key=KEY&gid=GID&rechnungsanschrift=Dreischeibenhaus|40211%20D%C3%BCsseldorf'
+curl -s -X POST 'https://thecircle.planyvo.com/api/admin/rechnung-erneut?key=KEY&gid=GID'
+```
+
 **Sicherung.** Der gesamte Zustand liegt in `server/live-state.json`. Ein
 täglicher Cron in Plesk (**Geplante Aufgaben**) genügt:
 

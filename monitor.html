@@ -2518,6 +2518,11 @@ function gaesteRendern(){
         rl.className = "absagen"; rl.target = "_blank"; rl.rel = "noopener";
         rl.href = "/api/admin/rechnung.pdf?gid=" + encodeURIComponent(g.gid) + "&key=" + encodeURIComponent(KEY);
         txt(rl, "Rechnung " + g.rechnung + (g.rechnungVerschickt ? "" : " · noch nicht zugestellt") + " (PDF)");
+        /* Anschrift nachtragen und die Rechnung berichtigt noch einmal
+           schicken - derselbe Knopf, zwei Fragen. */
+        const re = stand.appendChild(document.createElement("button"));
+        re.type = "button"; re.className = "absagen rn-erneut"; re.dataset.gid = g.gid; re.dataset.anschrift = g.rechnungsanschrift || "";
+        txt(re, g.rechnungsanschrift ? "Rechnung erneut senden" : "Anschrift nachtragen & erneut senden");
       }
     } else if(g.gid){
       const ab = stand.appendChild(document.createElement("button"));
@@ -2547,6 +2552,20 @@ function gaesteRendern(){
 /* Der Knopf haengt an der Liste, nicht an jeder Zeile: die Tabelle wird bei
    jedem Takt neu gebaut, einzelne Zuhoerer waeren dann jedes Mal weg. */
 $("#mailliste").addEventListener("click", async e => {
+  const rn = e.target.closest(".rn-erneut");
+  if(rn){
+    const zeile = rn.closest("tr");
+    const name = (zeile && zeile.querySelector(".gname b") || {}).textContent || "Dieser Gast";
+    const anschrift = prompt("Rechnungsanschrift für " + name + " – Zeilen mit | trennen, leer lassen für keine:", rn.dataset.anschrift || "");
+    if(anschrift === null) return;
+    if(!confirm("Rechnung an " + name + " berichtigt noch einmal schicken? Gleiche Nummer, mit Vermerk „berichtigte Fassung“.")) return;
+    rn.disabled = true; txt(rn, "wird geschickt …");
+    const g1 = await adminPost("/api/admin/gast?gid=" + encodeURIComponent(rn.dataset.gid) + "&rechnungsanschrift=" + encodeURIComponent(anschrift.trim()));
+    const d = g1 && g1.ok ? await adminPost("/api/admin/rechnung-erneut?gid=" + encodeURIComponent(rn.dataset.gid)) : null;
+    if(d && d.ok) alert("Rechnung " + d.nummer + " ist erneut unterwegs an " + d.an + "\n\n" + (d.empfaenger || []).join("\n"));
+    await laden();
+    return;
+  }
   const knopf = e.target.closest(".absagen"); if(!knopf) return;
   const zeile = knopf.closest("tr");
   const name = (zeile && zeile.querySelector(".gname b") || {}).textContent || "Dieser Gast";
