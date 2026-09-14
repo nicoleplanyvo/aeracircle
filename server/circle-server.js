@@ -3785,7 +3785,15 @@ const server = http.createServer((req, res) => {
        * die zweite Welle konnte nichts mehr eintragen. */
       const welleRoh = String((daten.metadata && daten.metadata.welle) ??
                               (body.metadata && body.metadata.welle) ?? "");
-      const welle = /^[0-9]+$/.test(welleRoh) ? welleRoh : welleZuZeit(inv, zeit);
+      /* Rechnung, Bestaetigung, Stand-Entwurf: eigene Mails mit eigener
+       * "art" - die gehoeren in KEINE Welle. Ohne diese Trennung zaehlte
+       * jede zugestellte Rechnung als Oeffnung der Einladung, und die
+       * Quoten im Monitor stiegen ohne Zutun der Gaeste (14.09.: sieben
+       * Rechnungen erschienen als Welle-1-Zustellungen). */
+      const art = String((daten.metadata && daten.metadata.art) ??
+                         (body.metadata && body.metadata.art) ?? "");
+      const welle = /^[0-9]+$/.test(welleRoh) ? welleRoh
+                  : (art ? "" : welleZuZeit(inv, zeit));
 
       let neuInWelle = false;
       if (feld && welle !== ""){
@@ -3800,7 +3808,11 @@ const server = http.createServer((req, res) => {
       /* Ins Ereignis-Log gehoert, was in SEINER Welle neu ist - sonst
        * bliebe die zweite Welle im Feed unsichtbar. */
       if (neuInWelle || (warNeu && welle === "")) {
-        logEvent(LABEL[feld], inv.name, (inv.pool || "") + (welle !== "" ? " · Welle " + welle : ""));
+        const woher = welle !== "" ? " · Welle " + welle
+                    : art ? " · " + ({ rechnung: "Rechnung", bestaetigung: "Bestätigung",
+                                       "rechnung-probe": "Rechnungsprobe", "stand-entwurf": "Stand" }[art] || art)
+                    : "";
+        logEvent(LABEL[feld], inv.name, (inv.pool || "") + woher);
       }
       if (warNeu || neuInWelle) dirty = true;
 
