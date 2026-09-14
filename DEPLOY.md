@@ -1031,9 +1031,28 @@ curl -s -X POST 'https://thecircle.planyvo.com/api/admin/rechnung-erneut?key=KEY
 ```
 
 **Der Stand (Touchscreen).** `https://thecircle.planyvo.com/stand` ist die
-Seite für den planyvo-Stand: „Bau dein Event. In drei Minuten.“ Vier
+Seite für den planyvo-Stand: „Bau dein Event. In drei Minuten.” Vier
 Schritte (Was, Wann, Bausteine, Look), rechts entsteht die App als
-Vorschau, am Ende Name und Mail. Der Entwurf geht als Mail an den Gast
+Vorschau, am Ende Name und Mail.
+
+**Die Marke aus der Website.** In Schritt 1 gibt der Gast seine Adresse
+ein („deinefirma.de”), und der Server liest daraus Logo, Farbe und
+Markennamen: die Vorschau steht sofort in seinem Look. Gelesen werden
+`theme-color`, CSS-Variablen mit *brand/primary/accent* im Namen, Farben
+an Knöpfen und Kopfzeilen sowie bis zu drei Stylesheets; als Logo zählt
+zuerst ein `<img>` mit „logo” im Namen, dann das App-Symbol, dann das
+Vorschaubild. Die weiteren gefundenen Farben stehen in Schritt 4 zur
+Auswahl – die Heuristik trifft oft, aber nicht immer, und Antippen ist
+schneller als Diskutieren. Gefunden wird nichts bei Logos, die als SVG im
+Seitenquelltext stehen; dann bleibt es bei Farbe und Name.
+
+Die Adresse kommt von einem Fremden an einem öffentlichen Bildschirm,
+deshalb ist der Abruf eng geführt (`server/marke.js`): nur http und https,
+jede Zieladresse wird aufgelöst und gegen private Netze geprüft – auch nach
+jeder Weiterleitung –, sechs Sekunden Zeitlimit, 600 KB für die Seite,
+400 KB je Stylesheet. Logos laufen über `/api/stand/bild`, damit sie auch
+von http-Seiten und trotz Hotlink-Schutz erscheinen; dort gelten dieselben
+Regeln plus: nur Bilder, höchstens 2 MB. Der Entwurf geht als Mail an den Gast
 (`email/stand-entwurf.html`) und steht im Monitor unter *Einladung →
 Event-Entwürfe* mit CSV-Export. Steht in Plesk ein **`PLANYVO_API_KEY`**
 (Agentur-Schlüssel aus dem planyvo-Dashboard, Zahnrad → API Keys), legt

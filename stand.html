@@ -101,7 +101,8 @@
   .bausteine .chip{min-height:9.5vh;padding:1.5vh 1.4vw;flex-direction:row;align-items:center;gap:1.4vw}
   .bausteine .chip .ico{margin:0;width:6vh;height:6vh;border-radius:1.6vh;background:rgba(193,92,66,.10);display:flex;align-items:center;justify-content:center;flex:none;font-size:3.2vh}
   .bausteine .chip.an .ico{background:var(--terracotta);color:#fff}
-  .bausteine .chip .tx{display:flex;flex-direction:column;gap:.3vh}
+  .chip .tx{display:flex;flex-direction:column;gap:.3vh;min-width:0}
+  .chip.zeile{flex-direction:row;align-items:center;justify-content:flex-start;gap:1.4vw}
   .bausteine .chip b{font-size:1.9vh}
   .bausteine .chip.an::after{content:"check_circle";font-family:"Material Symbols Outlined";font-variation-settings:"FILL" 1,"wght" 400,"GRAD" 0,"opsz" 24;position:absolute;right:1vw;top:1.2vh;font-size:2.4vh;color:var(--terracotta)}
 
@@ -122,6 +123,9 @@
 
   /* Farben */
   .farben{display:flex;gap:2vh;flex-wrap:wrap;padding-bottom:3vh}
+  .farben.klein{gap:1.2vh;padding-bottom:0;margin-top:.8vh}
+  .farben.klein .farbe{width:5.5vh;height:5.5vh;border-width:.4vh}
+  .farben.klein .farbe span{display:none}
   .farbe{width:9vh;height:9vh;border-radius:50%;border:.6vh solid #fff;box-shadow:0 .6vh 2vh rgba(58,46,42,.15);position:relative}
   .farbe.an{box-shadow:0 0 0 .5vh var(--darkbrown),0 .6vh 2vh rgba(58,46,42,.2)}
   .farbe span{position:absolute;left:50%;top:108%;transform:translateX(-50%);font-size:1.3vh;color:var(--muted);white-space:nowrap;font-weight:700}
@@ -131,6 +135,8 @@
   .phone .kerbe{position:absolute;left:50%;top:1.2vh;transform:translateX(-50%);width:32%;height:2.2vh;border-radius:99px;background:#1d1512;z-index:2}
   .phone .app{flex:1;display:flex;flex-direction:column;background:var(--lightcream);border-radius:4.2vh;overflow:hidden}
   .phone .hero{background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb,var(--accent) 70%,#ffb347) 100%);color:#fff;padding:5vh 1.6vw 2.2vh;display:flex;flex-direction:column;gap:.6vh}
+  .phone .mlogo{background:#fff;border-radius:1.2vh;padding:.8vh 1vh;align-self:flex-start;max-width:60%;margin-bottom:.6vh;box-shadow:0 .4vh 1.4vh rgba(0,0,0,.12)}
+  .phone .mlogo img{display:block;max-height:3.4vh;max-width:100%;width:auto}
   .phone .marke{font-size:1.2vh;letter-spacing:.14em;text-transform:uppercase;font-weight:800;opacity:.9}
   .phone .titel{font-size:2.6vh;line-height:1.1;font-weight:800;letter-spacing:-.02em;min-height:5.6vh}
   .phone .wann{font-size:1.25vh;font-weight:600;opacity:.95;display:flex;align-items:center;gap:.5vh}
@@ -196,6 +202,17 @@
       <div class="chips" id="typen"></div>
       <div class="feld"><label>Wie heißt dein Event?</label><button class="eingabe leer" data-feld="name" data-hinweis="z. B. Sommerfest 2027, Kundenabend, Jubiläum">Antippen und Namen eingeben</button></div>
       <div class="feld"><label>Für wen? (optional)</label><button class="eingabe leer" data-feld="wer" data-hinweis="Kunden, Team, Partner, Mitglieder …">Kunden, Team, Partner …</button></div>
+      <!-- Die Marke aus der Website: Der Gast tippt seine Adresse, der
+           Server liest Logo und Farbe heraus, die Vorschau rechts steht
+           sofort in seinem Look. Das ist "White-Label ohne Aufpreis" als
+           Handgriff statt als Behauptung. -->
+      <div class="feld"><label>Deine Website – wir holen Logo und Farbe</label>
+        <div class="zeile">
+          <button class="eingabe leer" data-feld="website" data-hinweis="deinefirma.de" data-web="1" style="flex:1">deinefirma.de</button>
+          <button class="btn voll" id="ciHolen" type="button" style="min-width:12vw"><span class="ms">auto_awesome</span>Holen</button>
+        </div>
+        <p class="lede" id="ciNote" style="max-width:none;font-size:1.5vh;margin-top:.4vh"></p>
+      </div>
     </div>
     <div class="phone" data-phone></div>
   </div>
@@ -234,9 +251,19 @@
   <div class="kopf"><div><div class="kicker">Schritt 4 von 4</div><h2>Dein Look.</h2></div><div class="schritte"><i></i><i></i><i></i><i></i></div></div>
   <div class="body">
     <div class="fragen">
+      <div class="feld" id="markeKarte" hidden><label>Aus deiner Website</label>
+        <div class="chip an zeile" style="min-height:10vh">
+          <span class="ico" id="mkLogo" style="width:9vh;height:9vh;border-radius:1.6vh;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none">
+            <img id="mkLogoBild" alt="" style="max-width:85%;max-height:85%;display:none">
+            <span class="ms" id="mkLogoErsatz">domain</span>
+          </span>
+          <span class="tx"><b id="mkName">–</b><small id="mkQuelle"></small></span>
+        </div>
+      </div>
       <div class="feld"><label>Deine Farbe</label><div class="farben" id="farben"></div></div>
+      <div class="feld" id="ciMehr" hidden><label>Weitere Farben von deiner Website</label><div class="farben klein" id="ciFarben"></div></div>
       <div class="feld"><label>Ton der Ansprache</label><div class="chips" id="ton"></div></div>
-      <p class="lede" style="max-width:none">Logo, Bilder und Schrift kommen später aus deinem Markenauftritt – im Dashboard per Drag &amp; Drop. White-Label ohne Aufpreis.</p>
+      <p class="lede" style="max-width:none" id="lookNote">Logo, Bilder und Schrift kommen später aus deinem Markenauftritt – im Dashboard per Drag &amp; Drop. White-Label ohne Aufpreis.</p>
     </div>
     <div class="phone" data-phone></div>
   </div>
@@ -278,6 +305,9 @@
 <script>
 "use strict";
 const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+/* Text setzen, ohne HTML zu bauen: Was hier hineinkommt, stammt teils von
+   fremden Websites (Markenname, Farbe) - das gehoert nie in innerHTML. */
+const txt = (el, s) => { if (el) el.textContent = s == null ? "" : String(s); return el; };
 
 /* ---------- Der Entwurf ---------- */
 const TYPEN = [
@@ -319,8 +349,12 @@ let E, startZeit = 0;
 function neu(){
   const d = new Date(); d.setMonth(d.getMonth() + 1);
   E = { typ:"", name:"", wer:"", monat:d.getMonth(), jahr:d.getFullYear(), gaeste:80, stadt:"Köln", kanal:"mail",
-        bausteine:["einladung","app","einlass"], farbe:"terracotta", ton:"du", kontaktName:"", firma:"", kontaktMail:"" };
+        bausteine:["einladung","app","einlass"], farbe:"terracotta", ton:"du", kontaktName:"", firma:"", kontaktMail:"",
+        /* Aus der Website des Gastes: eigene Farbe (Hex), Logo, Markenname. */
+        website:"", ciFarbe:"", ciLogo:"", ciLogoOriginal:"", ciName:"" };
+  MARKE = null;
 }
+let MARKE = null;
 neu();
 
 /* ---------- Bildschirme ---------- */
@@ -369,7 +403,10 @@ function chipsMalen(ziel, feld, mehrfach){
 }
 function farben(){
   const box = $("#farben"); box.innerHTML = "";
-  FARBEN.forEach(f => {
+  /* Die Farbe aus der Website steht vorn und ist vorgewaehlt - sie ist
+     ja die richtige. Die Hausfarben bleiben als Ausweg daneben. */
+  const liste = (E.ciFarbe ? [{ k:"ci", c:E.ciFarbe, t:"Deine Farbe" }] : []).concat(FARBEN);
+  liste.forEach(f => {
     const b = document.createElement("button"); b.type = "button"; b.className = "farbe"; b.style.background = f.c; b.dataset.k = f.k;
     b.innerHTML = "<span>" + f.t + "</span>";
     b.addEventListener("click", () => { E.farbe = f.k; farbenMalen(); phoneZeichnen(); });
@@ -377,11 +414,12 @@ function farben(){
   });
   farbenMalen();
 }
-function farbenMalen(){ $$(".farbe").forEach(b => b.classList.toggle("an", b.dataset.k === E.farbe)); }
+function farbenMalen(){ $$("#farben .farbe").forEach(b => b.classList.toggle("an", b.dataset.k === E.farbe)); }
 function alleFelder(){
   chips("#typen", TYPEN, "typ"); chips("#staedte", STAEDTE, "stadt"); chips("#kanal", KANAELE, "kanal");
   chips("#bausteine", BAUSTEINE, "bausteine", true); chips("#ton", TOENE, "ton"); farben(); pmMalen();
   $$("[data-feld]").forEach(b => feldMalen(b));
+  markeKarte(); $("#ciMehr").hidden = true; txt($("#ciNote"), "");
   pruefen();
 }
 function pruefen(){
@@ -402,8 +440,70 @@ function pmMalen(){
   $("#pmGaeste").innerHTML = E.gaeste + "<small>Personen</small>";
 }
 
+/* ---------- Die Marke aus der Website ----------
+   Adresse eintippen, der Server liest Logo, Farbe und Namen heraus. Alles
+   ist ein Vorschlag: Die gefundenen Farben stehen als Punkte daneben, und
+   die sechs Hausfarben bleiben, wo sie waren. */
+async function ciLaden(){
+  const adr = (E.website || "").trim();
+  const note = $("#ciNote"), knopf = $("#ciHolen");
+  if(adr.length < 4){ txt(note, "Tipp deine Adresse ein, z. B. deinefirma.de"); return; }
+  /* Ohne Endung ist es keine Adresse - das sagen wir hier, statt den
+     Server raten zu lassen. */
+  if(!/\.[a-z]{2,}$/i.test(adr.replace(/\/+$/, ""))){ txt(note, "Da fehlt noch die Endung – etwa " + adr + ".de"); return; }
+  knopf.disabled = true; knopf.innerHTML = '<span class="ms">hourglass_top</span>sucht …';
+  txt(note, "Wir sehen uns " + adr + " an …");
+  let d = null;
+  try{ d = await (await fetch("/api/stand/marke?u=" + encodeURIComponent(adr))).json(); }catch(e){}
+  knopf.disabled = false; knopf.innerHTML = '<span class="ms">auto_awesome</span>Holen';
+  if(!d || !d.ok){
+    MARKE = null; $("#ciFarben").hidden = true;
+    txt(note, (d && d.grund ? d.grund + ". " : "") + "Kein Problem – wähl deine Farbe gleich selbst.");
+    return;
+  }
+  MARKE = d;
+  /* ciLogo zeigt am Stand ueber den eigenen Server (https, kein Hotlink-
+     Schutz); im Entwurf steht die echte Adresse - damit kann das Dashboard
+     spaeter etwas anfangen. */
+  E.ciFarbe = d.farbe || ""; E.ciLogo = d.logo || ""; E.ciLogoOriginal = d.logoOriginal || ""; E.ciName = d.name || "";
+  if(d.farbe) E.farbe = "ci";
+  /* Markenname als Vorgabe: "Für wen?" und die Firma am Ende - beides kann
+     der Gast überschreiben. Felder neu zeichnen, sonst steht der Wert nur
+     im Speicher und nicht auf dem Schirm. */
+  if(!E.wer.trim() && d.name) E.wer = d.name;
+  if(!E.firma.trim() && d.name) E.firma = d.name;
+  $$("[data-feld]").forEach(feldMalen);
+  txt(note, [d.name ? "Marke: " + d.name : "", d.logo ? "Logo gefunden" : "kein Logo gefunden",
+             d.farbe ? "Farbe " + d.farbe : "keine Farbe erkannt"].filter(Boolean).join(" · "));
+  /* Die weiteren gefundenen Farben zur Auswahl - oft ist die zweite die
+     richtige, und Antippen ist schneller als Diskutieren. */
+  const box = $("#ciFarben"); box.innerHTML = "";
+  $("#ciMehr").hidden = !(d.farben || []).length;
+  (d.farben || []).slice(0, 6).forEach(hex => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "farbe"; b.style.background = hex;
+    b.addEventListener("click", () => { E.ciFarbe = hex; E.farbe = "ci"; farben(); farbenMalen(); markeKarte(); phoneZeichnen(); });
+    box.appendChild(b);
+  });
+  farben(); farbenMalen(); markeKarte(); phoneZeichnen(); pruefen();
+}
+function markeKarte(){
+  const k = $("#markeKarte"); if(!k) return;
+  k.hidden = !MARKE;
+  txt($("#lookNote"), MARKE
+    ? "Logo und Farbe haben wir gerade von deiner Website geholt – im Dashboard tauschst du sie jederzeit. White-Label ohne Aufpreis."
+    : "Logo, Bilder und Schrift kommen später aus deinem Markenauftritt – im Dashboard per Drag & Drop. White-Label ohne Aufpreis.");
+  if(!MARKE) return;
+  txt($("#mkName"), MARKE.name || E.website);
+  txt($("#mkQuelle"), [MARKE.logoArt, MARKE.farbe ? "Farbe " + MARKE.farbe : ""].filter(Boolean).join(" · "));
+  const bild = $("#mkLogoBild"), ersatz = $("#mkLogoErsatz");
+  if(MARKE.logo){ bild.src = MARKE.logo; bild.style.display = ""; ersatz.style.display = "none";
+    bild.onerror = () => { bild.style.display = "none"; ersatz.style.display = ""; }; }
+  else { bild.style.display = "none"; ersatz.style.display = ""; }
+}
+$("#ciHolen").addEventListener("click", ciLaden);
+
 /* ---------- Telefon ---------- */
-function farbeVon(k){ return (FARBEN.find(f => f.k === k) || FARBEN[0]).c; }
+function farbeVon(k){ return k === "ci" && E.ciFarbe ? E.ciFarbe : (FARBEN.find(f => f.k === k) || FARBEN[0]).c; }
 function phoneZeichnen(){
   document.documentElement.style.setProperty("--accent", farbeVon(E.farbe));
   const typ = TYPEN.find(t => t.k === E.typ);
@@ -413,8 +513,11 @@ function phoneZeichnen(){
   const kacheln = gewaehlt.length
     ? gewaehlt.map((b, i) => '<div class="kachel' + (i === 0 ? ' gross' : '') + '"><span class="ms">' + b.ico + '</span>' + b.t + '</div>').join("")
     : '<div class="leer">Noch keine Bausteine – wähle links aus, und die App füllt sich.</div>';
+  /* Das Logo aus der Website: weiss hinterlegt, damit auch dunkle Marken
+     auf der Farbflaeche stehen koennen - so macht es jede Event-App. */
+  const logo = E.ciLogo ? '<div class="mlogo"><img src="' + esc(E.ciLogo) + '" alt="" onerror="this.parentNode.style.display=\'none\'"></div>' : "";
   const html = '<div class="kerbe"></div><div class="app">' +
-    '<div class="hero"><div class="marke">' + (E.wer.trim() ? esc(E.wer.trim()) : "Einladung") + '</div>' +
+    '<div class="hero">' + logo + '<div class="marke">' + (E.wer.trim() ? esc(E.wer.trim()) : "Einladung") + '</div>' +
     '<div class="titel">' + esc(name) + '</div>' +
     '<div class="wann"><span class="ms">calendar_month</span>' + MONATE[E.monat] + ' ' + E.jahr + ' · ' + esc(E.stadt) + '</div>' +
     '<div class="wann"><span class="ms">group</span>' + E.gaeste + ' Gäste</div></div>' +
@@ -444,7 +547,7 @@ $("#senden").addEventListener("click", async () => {
   let ok = false, antwort = {};
   try {
     const r = await fetch("/api/stand/entwurf", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.assign({}, E, { sekunden: sek })) });
+      body: JSON.stringify(Object.assign({}, E, { sekunden: sek, ciLogo: E.ciLogoOriginal || E.ciLogo })) });
     antwort = await r.json(); ok = r.ok && antwort.ok;
   } catch (e) { /* unten */ }
   knopf.innerHTML = '<span class="ms">send</span>Entwurf an mich schicken';
@@ -474,7 +577,7 @@ function tastaturAuf(btn){
   kbdFeld = btn; $$(".eingabe").forEach(e => e.classList.toggle("aktiv", e === btn));
   $("#kbdZiel").textContent = btn.dataset.hinweis || "";
   gross = !(E[btn.dataset.feld] || "").length || /\s$/.test(E[btn.dataset.feld] || "");
-  if (btn.dataset.mail === "1") gross = false;
+  if (btn.dataset.mail === "1" || btn.dataset.web === "1") gross = false;   // Adressen sind klein
   tastaturMalen(); $("#kbd").classList.add("on");
 }
 function tastaturZu(){ $("#kbd").classList.remove("on"); kbdFeld = null; $$(".eingabe").forEach(e => e.classList.remove("aktiv")); }
@@ -497,20 +600,23 @@ function tastaturMalen(){
 $("#kbdReihen").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b || !kbdFeld) return;
   const f = kbdFeld.dataset.feld, t = b.dataset.t;
-  if (t === "FERTIG") { tastaturZu(); return; }
+  const klein = kbdFeld.dataset.mail === "1" || kbdFeld.dataset.web === "1";
+  /* tastaturZu() vergisst das Feld - vorher merken, sonst laeuft das
+     Holen der Marke ins Leere. */
+  if (t === "FERTIG") { const web = kbdFeld.dataset.web === "1"; tastaturZu(); if (web) ciLaden(); return; }
   if (t === "SHIFT") { gross = !gross; tastaturMalen(); return; }
   if (t === "BACK") E[f] = (E[f] || "").slice(0, -1);
   else {
-    if ((E[f] || "").length >= (kbdFeld.dataset.mail === "1" ? 80 : 60)) return;
-    E[f] = (E[f] || "") + (kbdFeld.dataset.mail === "1" ? t.toLowerCase() : t);
+    if ((E[f] || "").length >= (klein ? 80 : 60)) return;
+    E[f] = (E[f] || "") + (klein ? t.toLowerCase() : t);
     /* Nach einem Buchstaben klein weiter, nach Leerzeichen wieder gross - wie ein Handy. */
-    if (kbdFeld.dataset.mail !== "1") { const neuGross = t === " " || !(E[f] || "").length; if (neuGross !== gross) { gross = neuGross; tastaturMalen(); } else if (gross && t.length === 1) { gross = false; tastaturMalen(); } }
+    if (!klein) { const neuGross = t === " " || !(E[f] || "").length; if (neuGross !== gross) { gross = neuGross; tastaturMalen(); } else if (gross && t.length === 1) { gross = false; tastaturMalen(); } }
   }
   feldMalen(kbdFeld); pruefen(); phoneZeichnen();
 });
 function feldMalen(btn){
   const v = E[btn.dataset.feld] || "";
-  const leer = { name: "Antippen und Namen eingeben", wer: "Kunden, Team, Partner …" }[btn.dataset.feld] || "Antippen";
+  const leer = { name: "Antippen und Namen eingeben", wer: "Kunden, Team, Partner …", website: "deinefirma.de" }[btn.dataset.feld] || "Antippen";
   btn.textContent = v || leer;
   btn.classList.toggle("leer", !v);
 }

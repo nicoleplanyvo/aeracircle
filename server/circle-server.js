@@ -1099,6 +1099,7 @@ function readBodyGross(req, res, cb) {
  * alle Abonnements ungueltig:  node -e "console.log(require('./server/webpush').schluesselErzeugen())" */
 const webpush = require("./webpush");
 const { neuesPdf, A4 } = require("./pdf");           // Rechnung als A4-Blatt
+const { marke } = require("./marke");                // Stand: CI aus der Website
 const VAPID = {
   publicKey: process.env.VAPID_PUBLIC || "",
   privateKey: process.env.VAPID_PRIVATE || "",
@@ -2504,6 +2505,42 @@ function rechnungSenden(inv) {
   });
 }
 
+/* Ein Bild von einer fremden Seite ausliefern - fuer die Logos am Stand.
+ * Dieselben Regeln wie in marke.js: nur oeffentliche Adressen, nur Bilder,
+ * hoechstens 2 MB, hartes Zeitlimit. Antwort wird nicht zwischengespeichert
+ * im Browser des Standes, aber eine Stunde im Netz - dieselbe Firma wird am
+ * Abend oefter eingegeben. */
+const { privat: adressePrivat } = require("./marke");
+function bildDurchreichen(ziel, res, tiefe) {
+  tiefe = tiefe || 0;
+  let u;
+  try { u = new URL(ziel); } catch (e) { res.writeHead(400); return res.end("keine Adresse"); }
+  if ((u.protocol !== "http:" && u.protocol !== "https:") || tiefe > 3) { res.writeHead(400); return res.end("nicht erlaubt"); }
+  require("dns").lookup(u.hostname, { all: true }, (err, adr) => {
+    if (err || !adr.length || adr.some(a => adressePrivat(a.address))) { res.writeHead(403); return res.end("nicht erlaubt"); }
+    const mod = u.protocol === "https:" ? https : http;
+    const r2 = mod.request({ hostname: u.hostname, port: u.port || undefined, path: u.pathname + u.search,
+      method: "GET", timeout: 6000,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; planyvo-Stand/1.0)", "Accept": "image/*,*/*" } }, a => {
+      if (a.statusCode >= 300 && a.statusCode < 400 && a.headers.location) {
+        a.resume();
+        let weiter; try { weiter = new URL(a.headers.location, u).href; } catch (e) { res.writeHead(502); return res.end("x"); }
+        return bildDurchreichen(weiter, res, tiefe + 1);
+      }
+      const typ = String(a.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+      if (a.statusCode !== 200 || !/^image\//.test(typ)) { a.resume(); res.writeHead(404); return res.end("kein Bild"); }
+      res.writeHead(200, { "Content-Type": typ, "Cache-Control": "public, max-age=3600",
+                           "Content-Security-Policy": "default-src 'none'", "X-Content-Type-Options": "nosniff" });
+      let n = 0;
+      a.on("data", c => { n += c.length; if (n > 2 * 1024 * 1024) { a.destroy(); res.end(); } });
+      a.pipe(res);
+    });
+    r2.on("timeout", () => r2.destroy());
+    r2.on("error", () => { if (!res.headersSent) { res.writeHead(502); res.end("nicht erreichbar"); } });
+    r2.end();
+  });
+}
+
 /* --- Stand: die Werte eines Entwurfs fuer Mail und Liste --- */
 let standLetzter = 0;
 const STAND_TYPEN = { dinner: "Dinner & Gala", konferenz: "Konferenz", kunden: "Kundenevent", launch: "Produktlaunch", team: "Team- & Sommerfest", jubilaeum: "Jubiläum" };
@@ -2517,6 +2554,7 @@ function standWerte(e) {
     event_name: e.name, event_typ: STAND_TYPEN[e.typ] || e.typ || "Event",
     event_wann: STAND_MONATE[e.monat] + " " + e.jahr, event_stadt: e.stadt, event_gaeste: String(e.gaeste),
     event_wer: e.wer, event_kanal: STAND_KANAL[e.kanal] || e.kanal, event_ton: e.ton === "sie" ? "Sie" : "Du",
+    event_look: e.ciFarbe ? "Deine Farbe " + e.ciFarbe + (e.website ? " (aus " + e.website + ")" : "") : (e.farbe || ""),
     bausteine: e.bausteine.map(b => STAND_BAUSTEINE[b] || b).join(" · "),
     bausteine_zahl: String(e.bausteine.length),
     dauer: Math.floor(e.sekunden / 60) + ":" + String(e.sekunden % 60).padStart(2, "0"),
@@ -2559,10 +2597,11 @@ function planyvoEntwurfAnlegen(e, cb) {
     const start = new Date(Date.UTC(e.jahr, e.monat, 1)).toISOString();
     const beschreibung = [
       w.event_typ + " · " + w.event_gaeste + " Gäste · " + w.event_stadt + (e.wer ? " · für " + e.wer : ""),
-      "Einladung: " + w.event_kanal + " · Ansprache per " + w.event_ton + " · Farbe " + e.farbe,
+      "Einladung: " + w.event_kanal + " · Ansprache per " + w.event_ton + " · " + w.event_look,
       "Bausteine (" + w.bausteine_zahl + "): " + (w.bausteine || "keine"),
+      e.website ? "Website " + e.website + (e.ciLogo ? " · Logo: " + e.ciLogo : "") : "",
       "Entwurf vom Stand bei THE CIRCLE No1 (" + w.dauer + " min) · Kontakt " + e.kontaktName + " <" + e.kontaktMail + ">"
-    ].join("\n");
+    ].filter(Boolean).join("\n");
     planyvoAnfrage("/events", { companyId, name: e.name, description: beschreibung, startDate: start, endDate: start, status: "DRAFT" },
     (err2, code2, d2) => {
       if (err2) return cb(err2);
@@ -5334,6 +5373,34 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "image/png", "Content-Length": png.length, "Cache-Control": "public, max-age=86400" });
     return res.end(png);
   }
+  /* Die Marke einer Website lesen - Logo, Farbe, Name. Der Gast am Stand
+   * tippt "seinefirma.de", und die Vorschau steht in seinen Farben. Streng
+   * begrenzt: Die Adresse kommt von einem Fremden an einem oeffentlichen
+   * Bildschirm (siehe server/marke.js). */
+  if (req.method === "GET" && url === "/api/stand/marke") {
+    if (!rateLimit(req, res, "marke", 40, 60_000)) return;
+    const wunsch = String(q.get("u") || "").slice(0, 200);
+    return marke(wunsch, (err, d) => {
+      if (err) return json(res, 200, { ok: false, grund: err.message });
+      /* Bilder ueber den eigenen Server holen: Der Stand laeuft auf https,
+       * viele Firmenlogos liegen auf http oder sind gegen Hotlinking
+       * gesperrt - dann bliebe die Stelle leer. */
+      const durch = u => u ? "/api/stand/bild?u=" + encodeURIComponent(u) : "";
+      return json(res, 200, Object.assign({}, d, {
+        logo: durch(d.logo),
+        logoOriginal: d.logo || "",       // fuer die Nachbereitung: die echte Adresse
+        logos: (d.logos || []).map(durch)
+      }));
+    });
+  }
+  /* Ein Bild von der Website des Gastes durchreichen - nur Bilder, nur
+   * klein, nur fuer den Stand. */
+  if (req.method === "GET" && url === "/api/stand/bild") {
+    if (!rateLimit(req, res, "marke", 120, 60_000)) return;
+    const ziel = String(q.get("u") || "").slice(0, 500);
+    return bildDurchreichen(ziel, res);
+  }
+
   if (req.method === "POST" && url === "/api/stand/entwurf") {
     /* Ein Stand, ein Bildschirm - mehr als ein Entwurf alle zehn Sekunden
      * ist kein Gast, sondern ein Skript. */
@@ -5347,6 +5414,10 @@ const server = http.createServer((req, res) => {
         monat: Math.max(0, Math.min(11, parseInt(body.monat, 10) || 0)), jahr: Math.max(2026, Math.min(2030, parseInt(body.jahr, 10) || 2026)),
         gaeste: Math.max(1, Math.min(10000, parseInt(body.gaeste, 10) || 0)),
         stadt: s("stadt", 30), kanal: s("kanal", 12), farbe: s("farbe", 12), ton: s("ton", 4),
+        /* Aus der Website des Gastes gelesen - so weiss die Nachbereitung,
+         * in welchem Look die App gedacht war. */
+        website: s("website", 120), ciName: s("ciName", 60), ciLogo: s("ciLogo", 300),
+        ciFarbe: /^#[0-9a-fA-F]{6}$/.test(String(body.ciFarbe || "")) ? String(body.ciFarbe).toLowerCase() : "",
         bausteine: Array.isArray(body.bausteine) ? body.bausteine.map(b => cleanText(String(b), 20)).filter(Boolean).slice(0, 20) : [],
         kontaktName: s("kontaktName", 60), firma: s("firma", 80), kontaktMail: clean(String(body.kontaktMail || ""), 120).toLowerCase(),
         sekunden: Math.max(0, Math.min(3600, parseInt(body.sekunden, 10) || 0)),
