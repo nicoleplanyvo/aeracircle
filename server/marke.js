@@ -25,12 +25,16 @@ const dns = require("dns");
 const zlib = require("zlib");
 const net = require("net");
 
-const ZEIT = 6000;            // Gesamtzeit je Anfrage
+const ZEIT = 8000;            // Gesamtzeit je Anfrage
 const MAX_HTML = 600 * 1024;  // mehr liest keine Heuristik sinnvoll
 const MAX_CSS = 400 * 1024;
 const MAX_CSS_DATEIEN = 3;
 const MAX_WEITERLEITUNGEN = 4;
-const UA = "Mozilla/5.0 (compatible; planyvo-Stand/1.0; +https://www.planyvo.com)";
+/* Ein gewoehnlicher Browser-Kopf. Mit einer eigenen Kennung antworten
+ * viele Firmenseiten mit 403 (Bot-Schutz vor der Startseite) - conrad-
+ * electronic.de zum Beispiel. Wir holen eine einzelne oeffentliche Seite,
+ * die jeder Besucher sieht, und das hoechstens ein paar Mal am Abend. */
+const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
 /* --- Adressen, die niemand von aussen abfragen darf --- */
 function privat(ip) {
@@ -228,16 +232,45 @@ function logoAusHtml(html, basis) {
   return kandidaten.filter(k => k.url && !gesehen.has(k.url) && gesehen.add(k.url)).slice(0, 4);
 }
 
+/* Titelteile, die keine Marke sind. Deutsche Seiten stellen sie gern nach
+ * vorn ("Startseite | Sion Kölsch") - wer blind den ersten Teil nimmt,
+ * begruesst den Gast am Stand mit "Startseite". */
+const LEERE_TITEL = /^(startseite|home|homepage|willkommen|herzlich willkommen|aktuelles|news|neuigkeiten|über uns|ueber uns|unternehmen|index|wartung|wartungsarbeiten|baustelle|coming soon|website|webseite|offizielle website)$/i;
+
+/* Seiten, die gar nicht die Firma zeigen, sondern einen Tuersteher davor:
+ * Bot-Pruefung, Cookie-Wand, Fehlerseite. Deren Farben und Titel sind die
+ * des Schutzdienstes - "Client Challenge" waere ein schlechter Markenname. */
+const TUERSTEHER = /^(client challenge|just a moment|attention required|access denied|zugriff verweigert|please wait|security check|checking your browser|error|fehler|403 forbidden|404|not found|bitte warten|cookie|datenschutzeinstellungen)/i;
+
 function nameAusHtml(html, basis) {
+  const ausDomain = () => { try { return new URL(basis).hostname.replace(/^www\./, "").split(".")[0]; } catch (e) { return ""; } };
   let n = meta(html, "og:site_name") || meta(html, "application-name");
-  if (!n) {
+  if (!n || LEERE_TITEL.test(n)) {
     const t = html.match(/<title[^>]*>([\s\S]{0,200}?)<\/title>/i);
-    n = t ? entwirren(t[1]) : "";
-    /* "Musterfirma GmbH - Ihr Partner fuer alles" -> "Musterfirma GmbH" */
-    n = n.split(/\s[|–—]\s|\s-\s|:\s/)[0].trim();
+    const roh = t ? entwirren(t[1]) : "";
+    const teile = roh.split(/\s[|–—·]\s|\s[-–]\s|:\s/).map(s => s.trim()).filter(Boolean);
+    const echte = teile.filter(s => !LEERE_TITEL.test(s));
+    if (!echte.length) n = "";
+    else if (echte.length === 1) n = echte[0];
+    else {
+      /* Mehrere Teile: der gewinnt, der nach der Domain klingt - bei
+       * "Startseite | Sion Kölsch" auf sion-koelsch.de ist das eindeutig.
+       * Sonst der kuerzeste: Marken sind kurz, Claims sind lang. */
+      const d = ausDomain().toLowerCase().replace(/[^a-z0-9]/g, "");
+      const passt = echte.filter(s => {
+        const k = s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        return k && d && (k.includes(d.slice(0, 6)) || d.includes(k.slice(0, 6)));
+      });
+      n = (passt.length ? passt : echte).sort((a, b) => a.length - b.length)[0];
+    }
   }
-  if (!n) { try { n = new URL(basis).hostname.replace(/^www\./, ""); } catch (e) { n = ""; } }
-  return n.slice(0, 60);
+  if (!n || LEERE_TITEL.test(n)) {
+    /* Letzter Ausweg: der Domainname, wenigstens gross geschrieben. */
+    const d = ausDomain();
+    n = d ? d.charAt(0).toUpperCase() + d.slice(1) : "";
+  }
+  /* "Sparkasse_de" und "meine--firma" sind Domainreste, keine Namen. */
+  return n.replace(/[_]+/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 60);
 }
 
 /* --- Der ganze Vorgang --- */
@@ -260,6 +293,11 @@ function marke(eingabe, fertig) {
     if (err) return fertig(err);
     if (!html || html.length < 40) return fertig(new Error("Die Seite gab nichts her"));
 
+    /* Steht ein Tuersteher davor, ist alles darauf seins, nicht das der
+     * Firma - dann lieber ehrlich nichts liefern. */
+    const titelRoh = (html.match(/<title[^>]*>([\s\S]{0,200}?)<\/title>/i) || [])[1] || "";
+    if (TUERSTEHER.test(entwirren(titelRoh))) return fertig(new Error("Die Seite lässt uns nicht hinein"));
+
     const name = nameAusHtml(html, adresse);
     const logos = logoAusHtml(html, adresse);
     const quellen = [];
@@ -276,6 +314,10 @@ function marke(eingabe, fertig) {
       try { const u = new URL(l.href, adresse); if (/^https?:$/.test(u.protocol)) css.push(u.href); } catch (e) {}
       if (css.length >= MAX_CSS_DATEIEN) break;
     }
+    /* Am Stand zaehlt die Sekunde: Steht die Farbe schon im HTML
+     * (theme-color), ist sie verlaesslicher als alles, was drei
+     * Stylesheets noch beitragen koennten - dann sofort antworten statt
+     * auf langsame Server zu warten. */
     let offen = css.length;
     const abschluss = () => {
       let beste = "", punkte = 0;
@@ -292,9 +334,11 @@ function marke(eingabe, fertig) {
         quellen: quellen.concat(css.length ? [css.length + " Stylesheet" + (css.length > 1 ? "s" : "")] : [])
       });
     };
-    if (!offen) return abschluss();
+    if (!offen || (tc && logos.length)) return abschluss();
     let fertigGemeldet = false;
-    const notbremse = setTimeout(() => { if (!fertigGemeldet) { fertigGemeldet = true; abschluss(); } }, ZEIT);
+    /* Drei Sekunden fuer die Stylesheets, mehr nicht: Was bis dahin da ist,
+     * zaehlt; der Rest kommt zu spaet fuer einen Menschen vor dem Schirm. */
+    const notbremse = setTimeout(() => { if (!fertigGemeldet) { fertigGemeldet = true; abschluss(); } }, 3000);
     for (const c of css) {
       holen(c, MAX_CSS, (e, text) => {
         if (!e && text) dazu(farbenAusText(text), 3);
