@@ -3263,6 +3263,59 @@ const server = http.createServer((req, res) => {
     });
   }
 
+  /* --- Der Aufsteller am Einlass ---
+   * EIN Code fuer alle Gaeste, im Gegensatz zum persoenlichen unter /qr/.
+   * Wer ihn scannt, landet auf "/?da=1"; die App weiss aus ihrem Speicher,
+   * wer sie geoeffnet hat, und meldet den Gast als "im Haus". Der Monitor
+   * verlinkte beides schon (Knopf "Zum Ausdrucken oeffnen", Bild
+   * /checkin-qr.svg) - nur gab es die Routen nicht: 404 an einer Stelle,
+   * die am Abend am Eingang gebraucht wird. */
+  if (req.method === "GET" && (url === "/checkin-qr.png" || url === "/checkin-qr.svg")) {
+    const ziel = PUBLIC_URL + "/?da=1";
+    if (url.endsWith(".svg")) {
+      res.writeHead(200, { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=3600" });
+      return res.end(qrSvg(ziel));
+    }
+    const png = qrPng(ziel, 12);
+    res.writeHead(200, { "Content-Type": "image/png", "Content-Length": png.length, "Cache-Control": "public, max-age=3600" });
+    return res.end(png);
+  }
+  /* Die Seite zum Ausdrucken: ein Blatt, ein Code, drei Zeilen Anleitung.
+   * Kein Admin-Schluessel noetig - es steht nichts darauf, was nicht ohnehin
+   * am Eingang haengt. */
+  if (req.method === "GET" && url === "/checkin") {
+    const h = '<!doctype html><html lang="de"><head><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<title>Check-in · THE CIRCLE</title><style>' +
+      '@page{size:A4;margin:14mm}' +
+      'body{margin:0;font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;color:#0f1c33;background:#f4f1ea;' +
+      'min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}' +
+      '.blatt{background:#fff;border-radius:18px;padding:44px 40px;max-width:520px;width:100%;text-align:center;' +
+      'box-shadow:0 18px 60px rgba(15,28,51,.12)}' +
+      '.marke{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#8a7f72;font-weight:700}' +
+      'h1{font-size:34px;margin:10px 0 4px;letter-spacing:-.02em}' +
+      '.unter{font-size:15px;color:#6b6257;margin:0 0 26px;line-height:1.5}' +
+      '.qr{width:300px;height:300px;margin:0 auto;display:block}' +
+      'ol{text-align:left;max-width:330px;margin:26px auto 0;padding-left:20px;font-size:14px;line-height:1.7;color:#4a4339}' +
+      '.fuss{margin-top:24px;font-size:12px;color:#8a7f72}' +
+      '.druck{margin-top:22px}' +
+      '.druck button{border:0;border-radius:12px;background:#0f1c33;color:#fff;font:inherit;font-weight:700;padding:13px 26px}' +
+      '@media print{body{background:#fff;padding:0}.blatt{box-shadow:none;padding:0;max-width:none}.druck{display:none}}' +
+      '</style></head><body><div class="blatt">' +
+      '<div class="marke">THE CIRCLE No1</div>' +
+      '<h1>Willkommen</h1>' +
+      '<p class="unter">Scanne den Code mit der Handykamera –<br>dann bist du angemeldet.</p>' +
+      '<img class="qr" src="/checkin-qr.png" alt="QR-Code für den Check-in">' +
+      '<ol><li>Kamera öffnen und auf den Code halten</li>' +
+      '<li>Auf den Hinweis tippen, der erscheint</li>' +
+      '<li>Fertig – die App meldet dich als da</li></ol>' +
+      '<p class="fuss">Wer die App noch nicht geöffnet hat, sieht dort den Weg zu seinem persönlichen Link.</p>' +
+      '<div class="druck"><button onclick="window.print()">Drucken</button></div>' +
+      '</div></body></html>';
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+    return res.end(h);
+  }
+
   if (req.method === "GET" && url.startsWith("/qr/")) {
     const t = decodeURIComponent(url.slice(4).replace(/\.(png|svg)$/, ""));
     const inv = findInvite(t);
@@ -4364,6 +4417,25 @@ const server = http.createServer((req, res) => {
      * gelesen, aber ignoriert, damit eine aeltere Liste nicht abbricht. Die Maske steht
      * damit vorher; am 14.09. kommen nur noch die Namen von Jonan hinein.
      * Ohne ?senden=1 ein Probelauf: wer gefunden wurde, wer nicht. */
+    /* Was steht gerade im Plan? Das CSV-Feld darunter ist eine EINGABE und
+     * deshalb immer leer - wer es ansieht, denkt, es sei nichts hinterlegt.
+     * Diese Antwort sagt, was wirklich im Register steht, und nennt jeden,
+     * der keinen Platz hat: Der sieht am Abend sonst nur einen Strich. */
+    if (req.method === "GET" && url === "/api/admin/tischplan") {
+      const t = tische();
+      const imKreisJetzt = Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === RUNDE);
+      const mitPlatz = imKreisJetzt.filter(i => (t.sitz[gid(i)] || []).some(n => n));
+      const ohne = imKreisJetzt.filter(i => !(t.sitz[gid(i)] || []).some(n => n)).map(i => i.name).sort();
+      /* Wie viele sitzen an welchem Tisch - je Gang, damit ein schiefer
+       * Import auffaellt, bevor die Gaeste davorstehen. */
+      const belegung = t.liste.map(x => ({
+        nr: x.nr, name: x.name || "",
+        gaenge: t.gaenge.map((_, g) => imKreisJetzt.filter(i => (t.sitz[gid(i)] || [])[g] === x.nr).length)
+      }));
+      return json(res, 200, { ok: true, gaenge: t.gaenge, gang: t.gang, tische: t.liste.length,
+                              imKreis: imKreisJetzt.length, mitPlatz: mitPlatz.length, ohnePlatz: ohne, belegung });
+    }
+
     if (req.method === "POST" && url === "/api/admin/tischplan") {
       let roh = "", zuGross = false;
       req.on("data", c => { roh += c; if (roh.length > 200_000 && !zuGross) { zuGross = true; zuGrossAbbruch(req, res); } });
