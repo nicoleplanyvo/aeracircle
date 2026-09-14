@@ -2409,6 +2409,48 @@ function rechnungAblegen(nr, pdfBytes) {
   } catch (e) { console.error("Rechnung " + nr + " nicht abgelegt: " + e.message); }
 }
 
+/* Die komplette Rechnungsmail fuer einen Gast: Betreff, HTML, Text und das
+ * PDF als Anhang - aus denselben Werten. Wirft, wenn die Vorlage fehlt. */
+function rechnungMail(inv, nr, t) {
+  const w = rechnungWerte(inv, nr, t);
+  const html = renderMail(inv, "rechnung.html", w);
+  const pdf = rechnungPdf(w);
+  const text = [
+    (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
+    "",
+    "anbei die Rechnung über deine Teilnahme an THE CIRCLE No1 – als PDF im Anhang.",
+    "",
+    "Rechnung " + nr + " vom " + w.rechnung_datum,
+    RECHNUNG_FIRMA, w.aussteller_anschrift,
+    RECHNUNG_STEUER, "",
+    "Teilnahme THE CIRCLE No1 · 16. September 2026 · Playa Cologne, Köln",
+    RECHNUNG_USTSATZ > 0
+      ? "Netto " + w.betrag_netto + " · zzgl. " + w.ust_satz + " USt " + w.ust_betrag
+      : RECHNUNG_HINWEIS,
+    "Gesamtbetrag " + w.betrag_brutto + " – bezahlt am " + w.zahlung_datum + ".",
+    "",
+    RECHNUNG_KONTOINHABER ? "Zahlungsempfänger: " + RECHNUNG_KONTOINHABER : null,
+    w.bankverbindung || null,
+    "",
+    "Fragen zur Rechnung: " + RECHNUNG_KONTAKT
+  ].filter(Boolean).join("\n");
+  return {
+    subject: "Deine Rechnung zu THE CIRCLE No1 · " + nr,
+    html, text, pdf,
+    anhaenge: [{ filename: "Rechnung-" + nr + ".pdf", content: pdf.toString("base64"), content_type: "application/pdf" }]
+  };
+}
+
+/* Der erfundene Gast fuer Muster - im PDF-Vorschau und in der Probemail.
+ * Traegt die Nummer, die als naechste dran waere, mit dem Zusatz MUSTER;
+ * der Zaehler bleibt unangetastet. */
+function rechnungMuster() {
+  const inv = { token: "muster", name: "Erika Musterfrau", firma: "Musterfirma GmbH", anrede: "Liebe", typ: "ticket",
+                zahlung: { amount: preisVon({ typ: "ticket" }), paidAt: Date.now() } };
+  const nr = RECHNUNG_PRAEFIX + String((state.rechnungZaehler || 0) + 1).padStart(4, "0") + "-MUSTER";
+  return { inv, nr, t: Date.now() };
+}
+
 function rechnungSenden(inv) {
   if (!LETTERMINT_TOKEN) return;
   if (!rechnungFaellig(inv)) return;
@@ -2417,37 +2459,14 @@ function rechnungSenden(inv) {
   if (inv.rechnung && inv.rechnung.laeuft && Date.now() - inv.rechnung.laeuft < 60000) return;
   const nr = rechnungNummer(inv);
   inv.rechnung.laeuft = Date.now();
-  const extra = rechnungWerte(inv, nr, inv.rechnung.t);
-  let html, pdfBytes;
-  try { html = renderMail(inv, "rechnung.html", extra); pdfBytes = rechnungPdf(extra); }
+  let mail;
+  try { mail = rechnungMail(inv, nr, inv.rechnung.t); }
   catch (e) { inv.rechnung.laeuft = 0; console.error("Rechnung bricht: " + e.message); return; }
-  rechnungAblegen(nr, pdfBytes);
-
-  const text = [
-    (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
-    "",
-    "anbei die Rechnung über deine Teilnahme an THE CIRCLE No1 – als PDF im Anhang.",
-    "",
-    "Rechnung " + nr + " vom " + extra.rechnung_datum,
-    RECHNUNG_FIRMA, extra.aussteller_anschrift,
-    RECHNUNG_STEUER, "",
-    "Teilnahme THE CIRCLE No1 · 16. September 2026 · Playa Cologne, Köln",
-    RECHNUNG_USTSATZ > 0
-      ? "Netto " + extra.betrag_netto + " · zzgl. " + extra.ust_satz + " USt " + extra.ust_betrag
-      : RECHNUNG_HINWEIS,
-    "Gesamtbetrag " + extra.betrag_brutto + " – bezahlt am " + extra.zahlung_datum + ".",
-    "",
-    RECHNUNG_KONTOINHABER ? "Zahlungsempfänger: " + RECHNUNG_KONTOINHABER : null,
-    extra.bankverbindung || null,
-    "",
-    "Fragen zur Rechnung: " + RECHNUNG_KONTAKT
-  ].filter(Boolean).join("\n");
+  rechnungAblegen(nr, mail.pdf);
 
   lettermintSenden({
     to: inv.email,
-    subject: "Deine Rechnung zu THE CIRCLE No1 · " + nr,
-    html, text,
-    anhaenge: [{ filename: "Rechnung-" + nr + ".pdf", content: pdfBytes.toString("base64"), content_type: "application/pdf" }],
+    subject: mail.subject, html: mail.html, text: mail.text, anhaenge: mail.anhaenge,
     metadata: { token: inv.token, art: "rechnung", pool: inv.pool || "" }
   }, (err) => {
     inv.rechnung.laeuft = 0;
@@ -4712,10 +4731,7 @@ const server = http.createServer((req, res) => {
         if (!inv.rechnung || !inv.rechnung.nr) return json(res, 404, { error: "Für diesen Gast wurde noch keine Rechnung ausgestellt." });
         nr = inv.rechnung.nr; t = inv.rechnung.t;
       } else {
-        inv = { name: "Erika Musterfrau", firma: "Musterfirma GmbH", anrede: "Liebe", typ: "ticket",
-                zahlung: { amount: preisVon({ typ: "ticket" }), paidAt: Date.now() } };
-        nr = RECHNUNG_PRAEFIX + String((state.rechnungZaehler || 0) + 1).padStart(4, "0") + "-MUSTER";
-        t = Date.now();
+        ({ inv, nr, t } = rechnungMuster());
       }
       let bytes;
       try { bytes = rechnungPdf(rechnungWerte(inv, nr, t)); }
@@ -4724,6 +4740,30 @@ const server = http.createServer((req, res) => {
                            "Content-Disposition": "inline; filename=\"Rechnung-" + nr + ".pdf\"",
                            "Cache-Control": "no-store" });
       return res.end(bytes);
+    }
+
+    /* Die Rechnungsmail als PROBE an eine beliebige Adresse - mit dem
+     * erfundenen Gast, Betreff mit "Muster", PDF im Anhang. Verbraucht keine
+     * Nummer, schreibt nichts ins Register. Damit man sieht, wie die Mail
+     * im eigenen Postfach ankommt, bevor die naechste Zahlung sie ausloest. */
+    if (req.method === "POST" && url === "/api/admin/rechnung-probe") {
+      if (!rechnungMoeglich()) return json(res, 503, { error: "Rechnungen sind nicht eingerichtet (deploy/rechnung.json)." });
+      if (!LETTERMINT_TOKEN) return json(res, 503, { error: "LETTERMINT_TOKEN fehlt in der App" });
+      const an = clean(q.get("an") || "", 120).toLowerCase();
+      if (!an || an.indexOf("@") < 1) return json(res, 400, { error: "an=adresse fehlt" });
+      const m = rechnungMuster();
+      let mail;
+      try { mail = rechnungMail(m.inv, m.nr, m.t); }
+      catch (e) { return json(res, 500, { error: "Rechnung bricht: " + e.message }); }
+      lettermintSenden({
+        to: an, subject: "[Muster] " + mail.subject, html: mail.html, text: mail.text, anhaenge: mail.anhaenge,
+        metadata: { art: "rechnung-probe" }
+      }, (err, antwort) => {
+        if (err) return json(res, 502, { error: err.message });
+        logEvent("Rechnungsprobe", wer, an);
+        json(res, 200, { ok: true, an, nummer: m.nr, id: (antwort && antwort.id) || "" });
+      });
+      return;
     }
 
     /* Jemanden von der Warteliste nachruecken lassen - wenn ein Bezahlgast

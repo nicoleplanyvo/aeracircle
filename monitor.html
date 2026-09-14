@@ -577,6 +577,7 @@
         <div class="exportzeile">
           <button class="export" id="rnSenden" type="button" disabled>Keine Rechnung fällig</button>
           <a class="export" id="rnMuster" href="#" target="_blank" rel="noopener">PDF-Muster ansehen</a>
+          <button class="export" id="rnProbe" type="button">Probemail an mich</button>
           <span class="fussnote" style="margin:0" id="rnErgebnis"></span>
         </div>
         <p class="fnote" id="rnListe"></p>
@@ -1461,6 +1462,19 @@ $("#rnSenden").addEventListener("click", async () => {
   const d = await adminPost("/api/admin/rechnungen?senden=1");
   if(d && d.ok){ txt($("#rnErgebnis"), d.verschickt + " unterwegs"); setTimeout(rechnungenHolen, 3000 + 600 * d.verschickt); }
   else { txt($("#rnErgebnis"), ""); $("#rnSenden").disabled = false; }
+});
+/* Die Rechnungsmail mit Musterdaten an eine Adresse - so sieht man sie im
+   eigenen Postfach, samt PDF. Verbraucht keine Nummer. */
+$("#rnProbe").addEventListener("click", async () => {
+  let an = "";
+  try { an = localStorage.getItem("circle.probemail") || ""; } catch(e){}
+  an = prompt("Probemail mit Musterrechnung an welche Adresse?", an);
+  if(!an || an.indexOf("@") < 1) return;
+  try { localStorage.setItem("circle.probemail", an); } catch(e){}
+  $("#rnProbe").disabled = true; txt($("#rnErgebnis"), "Probemail geht raus …");
+  const d = await adminPost("/api/admin/rechnung-probe?an=" + encodeURIComponent(an));
+  txt($("#rnErgebnis"), d && d.ok ? "Probemail an " + d.an + " unterwegs" : "");
+  $("#rnProbe").disabled = false;
 });
 
 /* ---------- Umsatz ---------- */

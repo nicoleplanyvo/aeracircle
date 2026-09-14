@@ -999,11 +999,15 @@ Jede ausgestellte Rechnung liegt zusätzlich als Datei in
 Buchhaltung, bitte mit sichern. Im Monitor steht an jedem bezahlten Gast der
 Link *Rechnung … (PDF)*, der das Blatt genau so ausgibt, wie es verschickt
 wurde; *PDF-Muster ansehen* im Rechnungsblock zeigt das Layout mit
-erfundenem Gast, ohne eine Nummer zu verbrauchen. Von Hand:
+erfundenem Gast, ohne eine Nummer zu verbrauchen. *Probemail an mich*
+schickt die komplette Rechnungsmail mit Musterdaten und PDF-Anhang an
+eine beliebige Adresse (Betreff mit „[Muster]“), ebenfalls ohne Nummer.
+Von Hand:
 
 ```
 https://thecircle.planyvo.com/api/admin/rechnung.pdf?key=KEY            # Muster
 https://thecircle.planyvo.com/api/admin/rechnung.pdf?key=KEY&gid=GID    # echte Rechnung eines Gastes
+curl -s -X POST 'https://thecircle.planyvo.com/api/admin/rechnung-probe?key=KEY&an=du@example.de'   # Probemail
 ```
 
 **Sicherung.** Der gesamte Zustand liegt in `server/live-state.json`. Ein
