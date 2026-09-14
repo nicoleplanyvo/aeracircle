@@ -3686,7 +3686,10 @@ $("#rgInstall").addEventListener("click", async ()=>{
 });
 $("#rgPush").addEventListener("click", async ()=>{ if(await pushErlauben()) $("#rgPushBlock").style.display = "none"; });
 $("#rgSchliessen").addEventListener("click", ()=>{ $("#registrierung").classList.add("hidden"); renderPushKnopf(); show("home"); renderAppHinweis(); });
-$("#profilBtn").addEventListener("click", ()=>{ if(APP.ich) registrierungStarten(APP.ich); });
+/* Ohne Zugang (Kachel ohne Token) fuehrt der Knopf zum Wiederfinden statt
+   ins Leere. */
+function profilBearbeiten(){ if(APP.ich) registrierungStarten(APP.ich); else $("#onboarding").classList.remove("hidden"); }
+$("#profilBtn").addEventListener("click", profilBearbeiten);
 
 /* ================= NACH DEM ABEND (Welle 4) =================
    Die Phase kommt vom Server (Datum in Koeln, oder von Hand aus dem
@@ -3737,7 +3740,7 @@ function renderProfilKarte(){
   $("#pkZeile").textContent = !ich.registriert ? "Noch nicht vervollständigt."
     : (zeile || "Unternehmen und Rolle fehlen noch.") + (ich.foto ? "" : " · Noch kein Bild.");
 }
-$("#pkBearbeiten").addEventListener("click", ()=>{ if(APP.ich) registrierungStarten(APP.ich); });
+$("#pkBearbeiten").addEventListener("click", profilBearbeiten);
 function datumSchoen(s){ const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || "")); return m ? m[3] + "." + m[2] + "." + m[1] : String(s || ""); }
 function renderDanach(){
   if(APP.phase !== "danach") return;
@@ -3930,7 +3933,11 @@ $("#obForm").addEventListener("submit", async e=>{
   }catch(err){ fehler.textContent = "Netz gerade weg – gleich noch einmal."; }
   finally{ knopf.disabled = false; knopf.textContent = "Mein Profil holen"; }
 });
-if(S.name) $("#onboarding").classList.add("hidden");
+/* Ein Name allein reicht nicht mehr: Das alte Namensformular hat auf
+   Kacheln ohne Token ein Scheinprofil hinterlassen, das nirgends hinfuehrt.
+   Ohne Token (und ohne Vorschau per ?name=) bleibt der Weg zum eigenen
+   Zugang offen. */
+if(S.name && (S.token || new URLSearchParams(location.search).get("name"))) $("#onboarding").classList.add("hidden");
 
 /* Persönlicher Link aus der Welle-2-Mail: /?t=TOKEN.
    Die App holt Name, Firma, Kontakt und Ernährung aus der Zusage vom Server –
