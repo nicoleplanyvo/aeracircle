@@ -3078,10 +3078,38 @@ const server = http.createServer((req, res) => {
     if (!inv) return res.end(seite("#ffd4d4", "Unbekannt", "Dieser Code gehört zu keinem Gast.", "Bitte in der Gästeliste nachsehen."));
     if (!heuteErwartet(inv)) return res.end(seite("#ffe9c9", inv.name, "Steht nicht auf der Gästeliste für heute.", "Status: " + inv.status));
     const schon = !!inv.da;
-    if (!schon) { inv.da = Date.now(); logEvent("da", inv.name, inv.pool); dirty = true; revHoch(); broadcast(); }
-    return res.end(seite("#d8f5dd", inv.name,
-      schon ? "War schon eingecheckt." : "Willkommen.",
-      inv.firma || ""));
+    /* Ein GET checkt NIEMANDEN mehr ein. Der persoenliche Code steckt als
+     * Bild in der Welle-2-Mail, und Mail-Scanner in Firmennetzen (Microsoft
+     * Defender u. a.) lesen QR-Codes aus und rufen die Adresse auf - am
+     * 14.09. standen so neun Gaeste "im Haus", zwei Tage vor dem Abend.
+     * Deshalb: Seite zeigen, Einchecken erst auf Tipp (POST). Scanner
+     * tippen nicht. Der Scanner im Monitor geht ohnehin ueber die Admin-API. */
+    if (schon) return res.end(seite("#d8f5dd", inv.name, "Ist schon eingecheckt.", inv.firma || ""));
+    return res.end(seite("#f8f7f4", inv.name, inv.firma || "Auf der Gästeliste.",
+      '<form method="post" action="/einlass" style="margin-top:18px"><input type="hidden" name="g" value="' + t.replace(/[^A-Za-z0-9_-]/g, "") + '">' +
+      '<button type="submit" style="font:inherit;font-size:20px;font-weight:600;padding:16px 36px;border:0;border-radius:999px;background:#122648;color:#fff">Einchecken</button></form>'));
+  }
+  /* Das Einchecken selbst - nur per POST, aus dem Knopf oben. */
+  if (req.method === "POST" && (url === "/einlass" || url.startsWith("/einlass?"))) {
+    let raw = "";
+    req.on("data", c => { raw += c; if (raw.length > 2000) req.destroy(); });
+    return req.on("end", () => {
+      const t = (new URLSearchParams(raw).get("g") || q.get("g") || "").replace(/[^A-Za-z0-9_-]/g, "");
+      const inv = findInvite(t);
+      const seite = (farbe, titel, zeile2, zeile3) =>
+        '<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>Einlass · THE CIRCLE</title><style>html,body{margin:0;height:100%;background:' + farbe + ';color:#0e1c39;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}' +
+        'div{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;gap:10px}' +
+        'b{font-size:clamp(30px,9vw,54px);line-height:1.05;font-weight:600}span{font-size:clamp(15px,4.4vw,20px);opacity:.75}small{font-size:13px;opacity:.6;margin-top:14px}a{color:inherit}</style></head><body><div>' +
+        "<b>" + titel + "</b><span>" + zeile2 + "</span>" + (zeile3 ? "<small>" + zeile3 + "</small>" : "") +
+        '<small><a href="/einlass">Nächsten Gast scannen</a></small></div></body></html>';
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+      if (!inv) return res.end(seite("#ffd4d4", "Unbekannt", "Dieser Code gehört zu keinem Gast.", ""));
+      if (!heuteErwartet(inv)) return res.end(seite("#ffe9c9", inv.name, "Steht nicht auf der Gästeliste für heute.", "Status: " + inv.status));
+      const schon = !!inv.da;
+      if (!schon) { inv.da = Date.now(); logEvent("da", inv.name, inv.pool); dirty = true; revHoch(); broadcast(); }
+      return res.end(seite("#d8f5dd", inv.name, schon ? "War schon eingecheckt." : "Willkommen.", inv.firma || ""));
+    });
   }
 
   if (req.method === "GET" && url.startsWith("/qr/")) {

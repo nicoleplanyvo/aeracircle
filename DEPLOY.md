@@ -727,12 +727,18 @@ Jeder Gast bekommt **mit Welle 2 seinen eigenen Code** in der Mail
 unter „Dein Check-in“ – am Einlass sucht niemand in seinen Mails.
 
 **Am Abend:** Ein Handy oder Tablet am Einlass, Kamera auf den Code. Der
-Code führt auf `…/einlass?g=TOKEN`; die Seite checkt den Gast ein und zeigt
-groß seinen Namen:
+Code führt auf `…/einlass?g=TOKEN`; die Seite zeigt groß den Namen und den
+Knopf **„Einchecken“** – erst der Tipp darauf checkt ein. Das Aufrufen der
+Adresse allein tut nichts mehr: Mail-Scanner in Firmennetzen (Microsoft
+Defender u. a.) lesen den QR-Code aus der Welle-2-Mail aus und rufen die
+Adresse auf – am 14.09. standen so neun Gäste zwei Tage vor dem Abend „im
+Haus“. Der Scanner im Monitor (Reiter *Einlass*) ist davon nicht betroffen,
+er läuft über die Admin-API.
 
 | Farbe | Bedeutung |
 |---|---|
-| Grün | Willkommen – oder „War schon eingecheckt“ |
+| Hell | Gast erkannt, Knopf „Einchecken“ |
+| Grün | Willkommen – oder „Ist schon eingecheckt“ |
 | Orange | Steht nicht auf der Gästeliste für heute (Status dabei) |
 | Rot | Code gehört zu keinem Gast |
 
