@@ -426,8 +426,12 @@ function homeHtml(E){
 
 /* Die Fussleiste. Immer dieselben vier - so wie in einer App, die man
  * kennt. Sie fuehren auch in Bausteine, die nicht gewaehlt sind; dann sagt
- * die Ansicht das (siehe unten), statt so zu tun, als gaebe es sie nicht. */
-const TABS = [["home","home"],["programm","event_note"],["einlass","qr_code"],["profil","person"]];
+ * die Ansicht das (siehe unten), statt so zu tun, als gaebe es sie nicht.
+ * Mit Beschriftung: Vier nackte Symbole sind ein Raetsel, und am Stand
+ * steht niemand daneben, der es aufloest. qr_code_2 statt qr_code - das
+ * gepunktete Eck des ersten sieht klein gerendert aus wie ein Fehler. */
+const TABS = [["home","home","Start"],["programm","event_note","Programm"],
+              ["einlass","qr_code_2","Einlass"],["profil","person","Profil"]];
 
 function inhaltHtml(E, PH){
   if (PH.view === "home") return homeHtml(E);
@@ -445,7 +449,10 @@ function inhaltHtml(E, PH){
  * bei jedem Tastendruck neu. */
 function zeichne(ziele, E, PH){
   const html = inhaltHtml(E, PH) +
-    '<div class="tab">' + TABS.map(t => '<span class="ms' + (PH.view === t[0] ? " an" : "") + '" data-tap="view:' + t[0] + '">' + t[1] + '</span>').join("") + '</div>';
+    '<div class="tab">' + TABS.map(t =>
+      '<span class="tabknopf' + (PH.view === t[0] ? " an" : "") + '" data-tap="view:' + t[0] + '">' +
+      '<i class="ms">' + t[1] + '</i><em>' + esc(t[2]) + '</em></span>').join("") +
+    '<u class="griff"></u></div>';
   ziele.forEach(z => { if (z.dataset.html !== html) { z.innerHTML = html; z.dataset.html = html; } });
 }
 

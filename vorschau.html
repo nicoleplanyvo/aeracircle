@@ -62,7 +62,7 @@
   .mlogo img{display:block;max-height:30px;max-width:100%;width:auto}
   .mlogo.frei img{max-height:38px}
   .marke{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;opacity:.9}
-  .titel{font-size:26px;line-height:1.12;font-weight:800}
+  .titel{font-size:26px;line-height:1.12;font-weight:800;margin-bottom:6px}
   .wann{font-size:12px;font-weight:600;opacity:.95;display:flex;align-items:center;gap:5px}
   .wann .ms{font-size:15px}
   .gruss{margin:12px 16px 0;background:#fff;border-radius:14px;padding:12px 14px;font-size:13px;font-weight:600;
@@ -139,13 +139,19 @@
   @keyframes pulsrot{0%,100%{opacity:1}50%{opacity:.45}}
   .pschreib{margin-top:8px;border:1.5px dashed var(--taupe);border-radius:12px;padding:14px;font-size:12px;color:#b3a59c;font-weight:600}
 
-  .tab{margin-top:auto;background:rgba(255,255,255,.92);border-top:1px solid var(--line);display:flex;
-    justify-content:space-around;padding:12px 0 calc(16px + env(safe-area-inset-bottom));
-    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-  .tab .ms{font-size:23px;color:#b3a59c;position:relative}
-  .tab .ms.an{color:var(--accent);font-variation-settings:"FILL" 1,"wght" 400,"GRAD" 0,"opsz" 24}
-  .tab .ms.an::after{content:"";position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);width:5px;height:5px;
-    border-radius:50%;background:var(--accent)}
+  /* Fussleiste mit Beschriftung und Griffleiste - vier nackte Symbole sind
+     ein Raetsel, und ein loser Punkt unter dem aktiven sieht aus wie ein
+     Fehler statt wie eine Markierung. */
+  .tab{margin-top:auto;background:rgba(255,255,255,.94);border-top:1px solid var(--line);display:flex;
+    justify-content:space-around;align-items:flex-start;padding:10px 8px calc(18px + env(safe-area-inset-bottom));
+    position:relative;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+  .tab .tabknopf{display:flex;flex-direction:column;align-items:center;gap:3px;color:#a4948a;flex:1;min-width:0}
+  .tab .ms{font-size:23px;font-variation-settings:"FILL" 0,"wght" 400,"GRAD" 0,"opsz" 24}
+  .tab em{font-style:normal;font-size:10px;font-weight:700;white-space:nowrap;max-width:100%;overflow:hidden}
+  .tab .tabknopf.an{color:var(--accent)}
+  .tab .tabknopf.an .ms{font-variation-settings:"FILL" 1,"wght" 500,"GRAD" 0,"opsz" 24}
+  .tab .griff{display:block;position:absolute;left:50%;bottom:calc(6px + env(safe-area-inset-bottom));
+    transform:translateX(-50%);width:26%;height:4px;border-radius:99px;background:rgba(58,46,42,.26)}
 
   /* Der Streifen unter der App: Wem sie gehoert und was als Naechstes
      passiert. Bewusst ausserhalb der App - sie selbst soll aussehen wie

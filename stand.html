@@ -187,7 +187,7 @@
   .phone .mlogo.frei img{max-height:4.2vh}
   .phone .mlogo img{display:block;max-height:3.4vh;max-width:100%;width:auto}
   .phone .marke{font-size:1.2vh;letter-spacing:.14em;text-transform:uppercase;font-weight:800;opacity:.9}
-  .phone .titel{font-size:2.6vh;line-height:1.1;font-weight:800;letter-spacing:-.02em;min-height:5.6vh}
+  .phone .titel{font-size:2.6vh;line-height:1.12;font-weight:800;letter-spacing:-.02em;margin-bottom:.8vh}
   .phone .wann{font-size:1.25vh;font-weight:600;opacity:.95;display:flex;align-items:center;gap:.5vh}
   .phone .wann .ms{font-size:1.6vh}
   .phone .gruss{margin:1.2vh 1.6vh 0;background:#fff;border-radius:1.6vh;padding:1.2vh 1.2vh;font-size:1.25vh;font-weight:600;color:var(--darkbrown);box-shadow:0 .4vh 1.4vh rgba(58,46,42,.06);display:flex;align-items:center;gap:.8vh}
@@ -206,11 +206,22 @@
   .phone .homefuss{margin:1.4vh 1.6vh 0;display:flex;align-items:center;gap:.7vh;font-size:1.1vh;color:var(--muted);font-weight:700}
   .phone .homefuss .ms{font-size:1.7vh;color:var(--accent)}
   .phone .leer{color:var(--muted);text-align:center;font-size:1.3vh;padding:3vh 1.4vh;line-height:1.5;font-weight:600}
-  .phone .tab{margin-top:auto;background:rgba(255,255,255,.92);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:1.2vh 0 1.8vh;
+  /* Die Fussleiste mit Beschriftung und Griffleiste unten - so sieht eine
+     App aus, die man kennt. Der erste Entwurf hatte nackte Symbole und
+     unter dem aktiven einen roten Punkt; der sass lose in der Luft und
+     sah aus wie ein Fehler, nicht wie eine Markierung. */
+  .phone .tab{margin-top:auto;background:rgba(255,255,255,.94);border-top:1px solid var(--line);display:flex;
+    justify-content:space-around;align-items:flex-start;padding:1.1vh .8vh 1.1vh;position:relative;
     -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-  .phone .tab .ms{font-size:2.2vh;color:#b3a59c;position:relative}
-  .phone .tab .ms.an{color:var(--accent);font-variation-settings:"FILL" 1,"wght" 400,"GRAD" 0,"opsz" 24}
-  .phone .tab .ms.an::after{content:"";position:absolute;left:50%;bottom:-.8vh;transform:translateX(-50%);width:.6vh;height:.6vh;border-radius:50%;background:var(--accent)}
+  .phone .tab .tabknopf{display:flex;flex-direction:column;align-items:center;gap:.35vh;color:#a4948a;flex:1;min-width:0}
+  .phone .tab .ms{font-size:2.2vh;font-variation-settings:"FILL" 0,"wght" 400,"GRAD" 0,"opsz" 24}
+  .phone .tab em{font-style:normal;font-size:.95vh;font-weight:700;letter-spacing:.01em;white-space:nowrap;max-width:100%;overflow:hidden}
+  .phone .tab .tabknopf.an{color:var(--accent)}
+  .phone .tab .tabknopf.an .ms{font-variation-settings:"FILL" 1,"wght" 500,"GRAD" 0,"opsz" 24}
+  /* Die Griffleiste, wie sie jedes Telefon unten zeigt. Ohne sie endet die
+     App mitten im Rahmen und wirkt abgeschnitten. */
+  .phone .tab .griff{display:block;position:absolute;left:50%;bottom:.5vh;transform:translateX(-50%);
+    width:26%;height:.45vh;border-radius:99px;background:rgba(58,46,42,.26)}
 
   /* --- Die Ansichten der Bausteine im Telefon ---
      Alles mit einem data-tap laesst sich antippen; das Ergebnis steht sofort
