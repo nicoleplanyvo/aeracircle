@@ -55,9 +55,21 @@
   [data-ogsb] body, [data-ogsb] .bg-aussen { background-color: #222222 !important; }
   [data-ogsb] .bg-karte { background-color: #741a33 !important; }
   [data-ogsc] .bg-karte td, [data-ogsc] .bg-karte div, [data-ogsc] .bg-karte span { color: inherit !important; }
+
+  /* --- Handy (Mathis, 14.09.): Auf 390 px sind 60 px Rand links und rechts
+     ein Drittel der Breite. Hier schmalere Raender, kleinere Grade und
+     weniger Sperrschrift - das Blatt selbst bleibt unveraendert. --- */
+  @media screen and (max-width: 480px) {
+    .h-rand { padding-left: 22px !important; padding-right: 22px !important; }
+    .h-xl   { font-size: 27px !important; line-height: 1.2 !important; }
+    .h-l    { font-size: 22px !important; line-height: 1.3 !important; }
+    .h-text { font-size: 16px !important; line-height: 1.55 !important; }
+    .h-sperr{ letter-spacing: 1.5px !important; font-size: 10px !important; line-height: 1.8 !important; }
+    .h-btn  { padding-left: 26px !important; padding-right: 26px !important; letter-spacing: 2.5px !important; }
+  }
 </style>
 </head>
-<body style="margin:0;padding:0;background-color:#222222;">
+<body style="margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;background-color:#222222;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Ein Abend im ausgewählten Kreis – dein Platz bei THE CIRCLE.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#222222" class="bg-aussen" style="background-color:#222222;">
@@ -75,20 +87,20 @@
         </td></tr>
 
         <!-- Einladung -->
-        <tr><td align="center" style="padding:32px 40px 0 40px;">
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:20px;line-height:1.5;color:#f8f7f4;">
+        <tr><td class="h-rand" align="center" style="padding:32px 40px 0 40px;">
+          <div class="h-text" style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:20px;line-height:1.5;color:#f8f7f4;">
             {{anrede}} {{vorname}},
           </div>
         </td></tr>
-        <tr><td align="center" style="padding:16px 40px 0 40px;">
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.25;color:#ff6b6c;text-transform:uppercase;">
+        <tr><td class="h-rand" align="center" style="padding:16px 40px 0 40px;">
+          <div class="h-xl" style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:37px;line-height:1.25;color:#ff6b6c;text-transform:uppercase;">
             Sei dabei.
           </div>
         </td></tr>
 
         <!-- Ein Satz zum Abend -->
-        <tr><td align="center" style="padding:22px 60px 0 60px;">
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:18px;line-height:1.75;color:#f2cbd7;">
+        <tr><td class="h-rand" align="center" style="padding:22px 60px 0 60px;">
+          <div class="h-text" style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:18px;line-height:1.75;color:#f2cbd7;">
             Ein Abend im ausgew&auml;hlten Kreis: G&auml;ste &uuml;ber Generationen hinweg,
             ein Men&uuml; in drei G&auml;ngen &mdash; und ein Werk von Max Leinfelder,
             das vor deinen Augen entsteht.
@@ -98,13 +110,13 @@
         <!-- THE CIRCLE No1 sitzt jetzt UEBER dem Datum statt ueber der
              Headline (Wunsch Desi) - in Koralle wie im Save the Date, damit es
              sich abhebt. -->
-        <tr><td align="center" style="padding:26px 40px 0 40px;">
+        <tr><td class="h-rand" align="center" style="padding:26px 40px 0 40px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:16px;letter-spacing:3px;color:#ff6b6c;text-transform:uppercase;">THE CIRCLE No1</div>
         </td></tr>
 
         <!-- Fakten -->
-        <tr><td align="center" style="padding:14px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:3px;color:#f8f7f4;text-transform:uppercase;line-height:2.2;">
+        <tr><td class="h-rand" align="center" style="padding:14px 40px 0 40px;">
+          <div class="h-sperr" style="font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:3px;color:#f8f7f4;text-transform:uppercase;line-height:2.2;">
             Mittwoch, 16. September 2026 &middot; um 18:00 Uhr<br>Playa Cologne<br>3-Gang-Men&uuml; inkl. Getr&auml;nke
           </div>
         </td></tr>
@@ -136,8 +148,8 @@
              Veranstalter). Partner-Gaeste bekommen einladung-ticket-partner.html
              mit dem Logo-Block. -->
 
-        <tr><td align="center" style="padding:26px 56px 0 56px;">
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#f8f7f4;">
+        <tr><td class="h-rand" align="center" style="padding:26px 56px 0 56px;">
+          <div class="h-text" style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:17px;line-height:1.7;color:#f8f7f4;">
             Teilnahme: 100&nbsp;Euro.
           </div>
         </td></tr>
@@ -145,7 +157,7 @@
         <!-- Rueckmeldefrist (Wunsch Desi, 19.08.). Das Datum steht NICHT hier,
              sondern kommt aus RSVP_DEADLINE im Server: es taucht in drei
              Vorlagen auf und darf nie auseinanderlaufen. -->
-        <tr><td align="center" style="padding:16px 56px 0 56px;">
+        <tr><td class="h-rand" align="center" style="padding:16px 56px 0 56px;">
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;line-height:1.65;color:#f2cbd7;">
             Die Pl&auml;tze sind limitiert.<br>
             Wir bitten um R&uuml;ckmeldung bis zum {{rueckmeldung_datum}}.
@@ -153,10 +165,10 @@
         </td></tr>
 
         <!-- CTA -->
-        <tr><td align="center" style="padding:30px 40px 8px 40px;">
+        <tr><td class="h-rand" align="center" style="padding:30px 40px 8px 40px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
             <td align="center" bgcolor="#ff6b6c" style="border-radius:999px;">
-              <a href="{{link}}#zusagen" target="_blank"
+              <a class="h-btn h-sperr" href="{{link}}#zusagen" target="_blank"
                  style="display:inline-block;padding:16px 44px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#331014;font-weight:bold;text-decoration:none;">Zusagen</a>
             </td>
           </tr></table>
@@ -167,50 +179,50 @@
              ausloest, waere gefaehrlich - Firmen-Mailscanner rufen Links beim
              Zustellen ab und wuerden Gaeste absagen, die nie geklickt haben.
              Auf der Seite entscheidet der Gast selbst mit einem Klick. -->
-        <tr><td align="center" style="padding:12px 40px 0 40px;">
+        <tr><td class="h-rand" align="center" style="padding:12px 40px 0 40px;">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
             <td align="center" style="border-radius:999px;border:1px solid #c998a4;">
-              <a href="{{link}}#zusagen" target="_blank"
+              <a class="h-btn h-sperr" href="{{link}}#zusagen" target="_blank"
                  style="display:inline-block;padding:14px 40px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:5px;text-transform:uppercase;color:#f2cbd7;text-decoration:none;">Leider nicht</a>
             </td>
           </tr></table>
         </td></tr>
-        <tr><td align="center" style="padding:6px 40px 0 40px;">
+        <tr><td class="h-rand" align="center" style="padding:6px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:2px;color:#c998a4;text-transform:uppercase;line-height:2;">Deine Zusage dauert eine Minute &middot; dein Link ist pers&ouml;nlich und einmalig</div>
         </td></tr>
 
         <!-- Deck-Zitat -->
-        <tr><td align="center" style="padding:32px 52px 0 52px;">
-          <div style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:18px;line-height:1.6;color:#f2cbd7;">
+        <tr><td class="h-rand" align="center" style="padding:32px 52px 0 52px;">
+          <div class="h-text" style="font-family:'Trajan Pro 3','Trajan Pro','Cinzel',Georgia,'Times New Roman',serif;font-style:italic;font-size:18px;line-height:1.6;color:#f2cbd7;">
             &bdquo;Der Rahmen ist besonders.<br>Der Kern ist Verbindung.&ldquo;
           </div>
         </td></tr>
 
 
         <!-- Partner des Abends, negativ weiss -->
-        <tr><td align="center" style="padding:34px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:16px;">Partner des Abends</div>
+        <tr><td class="h-rand" align="center" style="padding:34px 40px 0 40px;">
+          <div class="h-sperr" style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#f2cbd7;text-transform:uppercase;padding-bottom:16px;">Partner des Abends</div>
           <img src="{{partnerwand_url}}" width="440" alt="Partner: neuland.ai, Conrad, Dein Dach, DEKRA, jto, Merzenich, sion, SKS, fuchsrohrbach, SMARTVELO"
                style="display:block;width:100%;max-width:440px;height:auto;border:0;margin:0 auto;">
         </td></tr>
-        <tr><td style="padding:32px 64px 0 64px;"><div style="border-top:1px solid #94505f;font-size:0;line-height:0;">&nbsp;</div></td></tr>
+        <tr><td class="h-rand" style="padding:32px 64px 0 64px;"><div style="border-top:1px solid #94505f;font-size:0;line-height:0;">&nbsp;</div></td></tr>
 
         <!-- Footer -->
-        <tr><td align="center" style="padding:24px 40px 6px 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#c998a4;text-transform:uppercase;">Eine Veranstaltung von</div>
+        <tr><td class="h-rand" align="center" style="padding:24px 40px 6px 40px;">
+          <div class="h-sperr" style="font-family:Arial,Helvetica,sans-serif;font-size:9px;letter-spacing:3px;color:#c998a4;text-transform:uppercase;">Eine Veranstaltung von</div>
           <div style="font-family:'Trajan Pro 3','Trajan Pro','Circle Kapitalis','Cinzel',Georgia,'Times New Roman',serif;font-size:15px;letter-spacing:1px;color:#f2cbd7;padding-top:8px;text-transform:uppercase;">Ihre Markenwerkstatt &middot; AERA &middot; Public Cologne</div>
         </td></tr>
-        <tr><td align="center" style="padding:16px 40px 0 40px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:8px;letter-spacing:3px;color:#c998a4;text-transform:uppercase;padding-bottom:8px;">Digital von</div>
+        <tr><td class="h-rand" align="center" style="padding:16px 40px 0 40px;">
+          <div class="h-sperr" style="font-family:Arial,Helvetica,sans-serif;font-size:8px;letter-spacing:3px;color:#c998a4;text-transform:uppercase;padding-bottom:8px;">Digital von</div>
           <a href="https://www.planyvo.com" target="_blank" style="text-decoration:none;"><img src="{{planyvo_logo_url}}" width="88" alt="planyvo" style="display:block;border:0;width:88px;height:auto;margin:0 auto;opacity:.9;"></a>
         </td></tr>
-        <tr><td align="center" style="padding:14px 40px 0 40px;">
+        <tr><td class="h-rand" align="center" style="padding:14px 40px 0 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#c998a4;line-height:1.7;">
                         <a href="https://www.the-circle-cologne.de/impressum/" style="color:#c998a4;text-decoration:underline;">Impressum</a> &middot;
             <a href="https://www.the-circle-cologne.de/datenschutzerklaerung/" style="color:#c998a4;text-decoration:underline;">Datenschutz</a>
           </div>
         </td></tr>
-        <tr><td align="center" style="padding:8px 40px 32px 40px;">
+        <tr><td class="h-rand" align="center" style="padding:8px 40px 32px 40px;">
           <div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;color:#c998a4;line-height:1.9;">
             Diese Einladung ist pers&ouml;nlich und nicht &uuml;bertragbar.<br>
             <a href="{{abmelden_url}}" style="color:#c998a4;text-decoration:underline;">Keine E-Mails mehr zu THE CIRCLE erhalten</a>

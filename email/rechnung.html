@@ -82,9 +82,21 @@
     .bg-blatt { max-width: none !important; width: 100% !important; box-shadow: none !important; }
     .nodruck { display: none !important; }
   }
+
+  /* --- Handy (Mathis, 14.09.): Auf 390 px sind 60 px Rand links und rechts
+     ein Drittel der Breite. Hier schmalere Raender, kleinere Grade und
+     weniger Sperrschrift - das Blatt selbst bleibt unveraendert. --- */
+  @media screen and (max-width: 480px) {
+    .h-rand { padding-left: 22px !important; padding-right: 22px !important; }
+    .h-xl   { font-size: 27px !important; line-height: 1.2 !important; }
+    .h-l    { font-size: 22px !important; line-height: 1.3 !important; }
+    .h-text { font-size: 16px !important; line-height: 1.55 !important; }
+    .h-sperr{ letter-spacing: 1.5px !important; font-size: 10px !important; line-height: 1.8 !important; }
+    .h-btn  { padding-left: 26px !important; padding-right: 26px !important; letter-spacing: 2.5px !important; }
+  }
 </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f2ef;">
+<body style="margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;background-color:#f4f2ef;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Rechnung {{rechnung_nr}} &uuml;ber deinen Teilnahmebeitrag.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f2ef" class="bg-aussen" style="background-color:#f4f2ef;">
@@ -95,11 +107,11 @@
         <!-- Kopf: die Wortmarke oben rechts, wie das Logo auf jedem
              Geschaeftsbrief. Darunter die eine Linie in Koralle - der
              einzige Farbakzent, den ein Beleg vertraegt. -->
-        <tr><td align="right" style="padding:40px 44px 0 44px;">
+        <tr><td class="h-rand" align="right" style="padding:40px 44px 0 44px;">
           <img src="{{logo_ink_url}}" width="190" alt="THE CIRCLE &ndash; connecting generations"
                style="display:block;border:0;width:190px;max-width:52%;height:auto;margin-left:auto;">
         </td></tr>
-        <tr><td style="padding:26px 44px 0 44px;">
+        <tr><td class="h-rand" style="padding:26px 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
             <td height="2" bgcolor="#ff6b6c" style="background-color:#ff6b6c;font-size:0;line-height:0;">&nbsp;</td>
           </tr></table>
@@ -107,7 +119,7 @@
 
         <!-- Anschriftenfeld links, Aussteller rechts. Die kleine Zeile ueber
              der Anschrift ist die Absenderzeile des Briefumschlags. -->
-        <tr><td style="padding:26px 44px 0 44px;">
+        <tr><td class="h-rand" style="padding:26px 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
               <td width="54%" valign="top" style="padding-right:16px;">
@@ -144,13 +156,13 @@
         </td></tr>
 
         <!-- Datum rechts, wie im Geschaeftsbrief -->
-        <tr><td align="right" style="padding:26px 44px 0 44px;">
+        <tr><td class="h-rand" align="right" style="padding:26px 44px 0 44px;">
           <span class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#5b6474;">Datum&nbsp;&nbsp;&nbsp;</span>
           <span class="t-dunkel" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12px;font-weight:600;color:#122648;">{{rechnung_datum}}</span>
         </td></tr>
 
         <!-- Betreff: zwei Zeilen ohne das Wort "Betreff" -->
-        <tr><td style="padding:30px 44px 0 44px;">
+        <tr><td class="h-rand" style="padding:30px 44px 0 44px;">
           <div class="t-dunkel" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:21px;color:#122648;">
             THE CIRCLE No1 &ndash; connecting generations<br>
             Teilnahmebeitrag &middot; Mittwoch, 16. September 2026, Playa Cologne
@@ -158,8 +170,8 @@
         </td></tr>
 
         <!-- Der Titel des Dokuments -->
-        <tr><td style="padding:28px 44px 0 44px;">
-          <div class="t-dunkel" style="font-family:'Circle Kapitalis',Georgia,'Times New Roman',serif;font-size:21px;letter-spacing:.06em;color:#122648;">
+        <tr><td class="h-rand" style="padding:28px 44px 0 44px;">
+          <div class="t-dunkel h-l" style="font-family:'Circle Kapitalis',Georgia,'Times New Roman',serif;font-size:21px;letter-spacing:.06em;color:#122648;">
             Rechnung {{rechnung_nr}}
           </div>
           <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;line-height:18px;color:#5b6474;padding-top:4px;">
@@ -171,7 +183,7 @@
         </td></tr>
 
         <!-- Die Positionen -->
-        <tr><td style="padding:22px 44px 0 44px;">
+        <tr><td class="h-rand" style="padding:22px 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
                  style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12.5px;line-height:20px;">
             <tr>
@@ -210,7 +222,7 @@
         </td></tr>
 
         <!-- Die Summen, rechtsbuendig wie gewohnt -->
-        <tr><td style="padding:0 44px 0 44px;">
+        <tr><td class="h-rand" style="padding:0 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
                  style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12.5px;line-height:20px;">
             <tr>
@@ -242,7 +254,7 @@
         <!-- Der wichtigste Satz fuer den Gast: er muss nichts mehr tun.
              An der Stelle, an der auf anderen Rechnungen "bitte ueberweisen"
              steht - deshalb faellt er auf. -->
-        <tr><td style="padding:26px 44px 0 44px;">
+        <tr><td class="h-rand" style="padding:26px 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f7f5f2" style="background-color:#f7f5f2;">
             <tr><td style="padding:14px 18px;font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12.5px;line-height:20px;">
               <span class="t-dunkel" style="color:#122648;">
@@ -254,7 +266,7 @@
 
         <!-- Steuerhinweis, wenn keine Umsatzsteuer ausgewiesen wird.
              Pflichtangabe: ohne Grund ist die Rechnung unvollstaendig. -->
-        {{#steuer_hinweis}}<tr><td style="padding:14px 44px 0 44px;">
+        {{#steuer_hinweis}}<tr><td class="h-rand" style="padding:14px 44px 0 44px;">
           <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:11.5px;line-height:19px;color:#5b6474;">
             {{steuer_hinweis}}
           </div>
@@ -262,7 +274,7 @@
 
         <!-- Anrede zum Schluss: die Rechnung ist die Sache, der Gruss die
              Beigabe - nicht umgekehrt. -->
-        <tr><td style="padding:24px 44px 0 44px;">
+        <tr><td class="h-rand" style="padding:24px 44px 0 44px;">
           <div class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:12.5px;line-height:21px;color:#5b6474;">
             {{anrede}} {{vorname}}, wir freuen uns auf den Abend.<br>
             Diese Rechnung liegt der Mail auch als PDF bei (A4, f&uuml;r Ablage und Buchhaltung).
@@ -272,15 +284,15 @@
         <!-- Fuss: die Pflichtangaben noch einmal, wie unten auf jedem
              Geschaeftsbrief. Wer die Rechnung ausdruckt und abheftet, hat
              sie damit auch dann, wenn die Mail laengst weg ist. -->
-        <tr><td align="right" style="padding:34px 44px 0 44px;">
+        <tr><td class="h-rand" align="right" style="padding:34px 44px 0 44px;">
           <span class="t-grau" style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#8b93a3;">Seite 1/1</span>
         </td></tr>
-        <tr><td style="padding:8px 44px 0 44px;">
+        <tr><td class="h-rand" style="padding:8px 44px 0 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
             <td height="1" bgcolor="#e2ddd6" style="background-color:#e2ddd6;font-size:0;line-height:0;">&nbsp;</td>
           </tr></table>
         </td></tr>
-        <tr><td style="padding:14px 44px 36px 44px;">
+        <tr><td class="h-rand" style="padding:14px 44px 36px 44px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
                  style="font-family:Montserrat,'Helvetica Neue',Arial,sans-serif;font-size:10.5px;line-height:17px;">
             <tr>
