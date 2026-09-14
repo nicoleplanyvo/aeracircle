@@ -5575,8 +5575,13 @@ if (befehl === "welle") {
    * kann Stripe also nicht selbst pruefen - deshalb die Gesundheitsseite
    * des Servers fragen, der die Zahlungen tatsaechlich entgegennimmt. */
   let i = 0, ok = 0, fehler = 0;
-  const mitBezahlgaesten = fertig.some(m => m.inv.typ === "ticket");
-  if (!mitBezahlgaesten) return versandStarten();
+  /* Nur Bezahlgaeste, die noch NICHT bezahlt haben, brauchen ein
+   * funktionierendes Stripe. Welle 2 geht ausschliesslich an bezahlte
+   * Tickets - dort ist die Probe sinnlos und brach den Versand ab, weil
+   * der Server fuer einen bezahlten Gast "bereitsBezahlt" statt einer
+   * Checkout-Adresse antwortet (14.09.). */
+  const unbezahlt = fertig.filter(m => m.inv.typ === "ticket" && m.inv.status !== "bezahlt");
+  if (!unbezahlt.length) return versandStarten();
 
   https.get(PUBLIC_URL + "/api/live/health", { timeout: 10000 }, r => {
     let roh = "";
@@ -5584,7 +5589,7 @@ if (befehl === "welle") {
     r.on("end", () => {
       let g = {};
       try { g = JSON.parse(roh); } catch (e) { /* unten abgefangen */ }
-      const zahl = fertig.filter(m => m.inv.typ === "ticket").length;
+      const zahl = unbezahlt.length;
       if (!g.stripe || g.stripeModus !== "live" || !g.stripeWebhook) {
         console.error("\nABBRUCH: " + zahl + " Bezahlgäste in dieser Welle, aber der Server unter");
         console.error(PUBLIC_URL + " kann keine Zahlungen annehmen:");
@@ -5599,7 +5604,7 @@ if (befehl === "welle") {
        * wirklich eine Checkout-Sitzung anlegen - sie wird nie geoeffnet und
        * verfaellt von selbst. Genau dieser Fall (Konto pausiert, keine
        * Zahlungsart fuer Euro) waere sonst erst beim ersten Gast aufgefallen. */
-      const probeGast = fertig.find(m => m.inv.typ === "ticket").inv;
+      const probeGast = unbezahlt[0].inv;
       const daten = JSON.stringify({ t: probeGast.token });
       const anfrage = https.request(PUBLIC_URL + "/api/invite/checkout", {
         method: "POST", timeout: 15000,
