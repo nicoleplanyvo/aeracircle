@@ -2586,8 +2586,12 @@ const STAND_URL = (process.env.STAND_URL || "").replace(/\/$/, "");
 const STAND_ANLASS = clean(process.env.STAND_ANLASS || "", 60);
 const STAND_STADT  = clean(process.env.STAND_STADT || "Köln", 30);
 const STAND_QUELLE = (process.env.STAND_QUELLE || "stand").replace(/[^a-z0-9-]/gi, "").slice(0, 24) || "stand";
+/* Ohne Anlass und ohne eigene Angabe steht hier NICHTS. Ein Platzhalter an
+ * dieser Stelle wird zur Behauptung, sobald ihn jemand liest - meiner hiess
+ * "Event-Software aus Köln" und stimmte nicht. Lieber keine Zeile als eine
+ * erfundene. */
 const STAND_KICKER = clean(process.env.STAND_KICKER || "", 80) ||
-  (STAND_ANLASS ? "Start-up des Abends · " + STAND_ANLASS : "Event-Software aus Köln");
+  (STAND_ANLASS ? "Start-up des Abends · " + STAND_ANLASS : "");
 const STAND_MAIL_FROM     = process.env.STAND_MAIL_FROM || MAIL_FROM;
 const STAND_MAIL_ROUTE    = process.env.STAND_MAIL_ROUTE !== undefined ? process.env.STAND_MAIL_ROUTE : MAIL_ROUTE;
 const STAND_MAIL_REPLY_TO = process.env.STAND_MAIL_REPLY_TO !== undefined ? process.env.STAND_MAIL_REPLY_TO : MAIL_REPLY_TO;

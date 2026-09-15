@@ -340,7 +340,7 @@
   <img class="logo" src="/assets/planyvo-logo.png" alt="planyvo">
   <!-- Kicker und Lede kommen aus der Konfiguration (siehe unten): Der Stand
        nennt den Anlass, an dem er steht - hier steht keiner fest. -->
-  <div class="pill"><span class="ms">auto_awesome</span><span id="startpill">Event-Software aus Köln</span></div>
+  <div class="pill" id="startpille" hidden><span class="ms">auto_awesome</span><span id="startpill"></span></div>
   <h1>Deine Event-App.<br>In <span class="vo">3 Minuten</span> statt 5 Wochen.</h1>
   <p class="lede" id="startlede">Einladung, Zusage, Tickets, App, Einlass, Tischplan – du wählst die Bausteine, planyvo baut die Event-App.</p>
   <button class="pulse" id="los"><span class="ms">touch_app</span>Antippen und loslegen</button>
@@ -496,7 +496,7 @@
      der Link im QR. Der Server schreibt den Inhalt beim Ausliefern hinein
      (STAND_ANLASS und Nachbarn); wird die Datei direkt geoeffnet, gelten
      diese anlasslosen Vorgaben. Nichts davon gehoert in den Rest der Seite. -->
-<script id="standkonfig" type="application/json">{"anlass":"","kicker":"Event-Software aus Köln","stadt":"Köln","link":"https://www.planyvo.com/?stand=stand"}</script>
+<script id="standkonfig" type="application/json">{"anlass":"","kicker":"","stadt":"Köln","link":"https://www.planyvo.com/?stand=stand"}</script>
 
 <!-- Die App selbst: Bausteine, Ansichten, Zeichnen. Dieselbe Datei laeuft
      spaeter unter dem Vorschaulink, den der Gast per Mail bekommt. -->
@@ -514,7 +514,7 @@ const txt = (el, s) => { if (el) el.textContent = s == null ? "" : String(s); re
 const PROBE = new URLSearchParams(location.search).get("probe") === "1";
 /* Der Anlass, an dem dieser Stand gerade steht - vom Server hineingeschrieben. */
 const STAND = (() => {
-  const vor = { anlass:"", kicker:"Event-Software aus Köln", stadt:"Köln", link:"https://www.planyvo.com/?stand=stand" };
+  const vor = { anlass:"", kicker:"", stadt:"Köln", link:"https://www.planyvo.com/?stand=stand" };
   try { return Object.assign(vor, JSON.parse(document.getElementById("standkonfig").textContent) || {}); }
   catch (e) { return vor; }
 })();
@@ -943,7 +943,10 @@ function idleStop(){ clearInterval(idleTick); $("#idle").classList.remove("on");
 
 $("#probeband").hidden = !PROBE;
 /* Steht der Stand auf einer Veranstaltung, darf er das sagen - sonst nicht. */
+/* Keine Zeile ist besser als eine erfundene: Die Pille erscheint nur,
+   wenn wirklich etwas darin steht. */
 txt($("#startpill"), STAND.kicker);
+$("#startpille").hidden = !STAND.kicker;
 if (STAND.anlass) $("#startlede").textContent += " Genau so ist die App entstanden, die du heute Abend in der Hand hast.";
 alleFelder(); phoneZeichnen();
 </script>
