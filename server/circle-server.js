@@ -5618,10 +5618,16 @@ const server = http.createServer((req, res) => {
    * Gastes auf dem Dankebild). Bewusst nur diese beiden - ein offener
    * QR-Generator fuer beliebige Ziele haengt an einem oeffentlichen
    * Bildschirm und waere ein Werkzeug fuer Fremde. */
-  if (req.method === "GET" && url === "/qr-text.png") {
+  if (req.method === "GET" && (url === "/qr-text.png" || url === "/qr-text.svg")) {
     const t = String(q.get("t") || "https://www.planyvo.com").slice(0, 200);
     const eigen = PUBLIC_URL && t.indexOf(PUBLIC_URL + "/") === 0;
     if (!eigen && !/^https:\/\/(www\.)?planyvo\.com(\/|$)/.test(t)) return json(res, 400, { error: "nur planyvo.com" });
+    /* Als SVG fuer den Druck: Ein Rollup ist 50 cm breit, ein PNG mit acht
+     * Punkten je Modul waere dort ein Pixelhaufen. */
+    if (url.endsWith(".svg")) {
+      res.writeHead(200, { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=86400" });
+      return res.end(qrSvg(t));
+    }
     const png = qrPng(t, 8);
     res.writeHead(200, { "Content-Type": "image/png", "Content-Length": png.length, "Cache-Control": "public, max-age=86400" });
     return res.end(png);
