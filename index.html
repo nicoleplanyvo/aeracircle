@@ -906,6 +906,19 @@
   .rg-fest{color:var(--ivory);font-weight:500}
   .rg-bild{display:block;text-align:center;cursor:pointer;margin:10px 0 6px}
   .rg-bild .btn{display:inline-block}
+  /* Der Ausschnitt. Was im Kreis steht, ist genau das, was gespeichert
+     wird - deshalb wird hier nicht ein Rahmen ueber ein Bild gelegt,
+     sondern der fertige Ausschnitt gezeichnet. */
+  .rg-crop{margin:6px 0 12px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .rg-crop-feld{position:relative;width:240px;height:240px;border-radius:50%;overflow:hidden;
+    background:#0b1424;touch-action:none;cursor:grab}
+  .rg-crop-feld:active{cursor:grabbing}
+  .rg-crop-feld canvas{width:100%;height:100%;display:block}
+  .rg-crop-rand{position:absolute;inset:0;border-radius:50%;pointer-events:none;
+    border:2px solid rgba(255,255,255,.55);box-shadow:0 0 0 1px rgba(0,0,0,.35) inset}
+  .rg-crop-zoom{display:flex;align-items:center;gap:10px;width:240px;font-size:12px;color:var(--muted)}
+  .rg-crop-zoom input{flex:1;accent-color:var(--coral)}
+  .rg-crop-knoepfe{display:flex;gap:10px}
   .rg-wahl{display:flex;flex-direction:column;gap:10px;margin-top:6px}
   .rg-karte{
     display:block;border:1px solid var(--line-soft);padding:16px 18px 16px 48px;position:relative;cursor:pointer;
@@ -1873,6 +1886,25 @@
       <input id="rgDatei" type="file" accept="image/*" hidden>
     </label>
     <p class="fnote" id="rgBildNote" style="text-align:center"></p>
+    <!-- Den Ausschnitt selbst waehlen. Vorher schnitt die App hart aus der
+         Mitte - bei einem Hochformat vom Handy faellt dabei regelmaessig
+         der Kopf weg, und der Gast kann nichts dagegen tun (Moritz
+         Wellerdick, 15.09.). Was hier im Kreis steht, ist genau das, was
+         gespeichert wird. -->
+    <div id="rgCrop" class="rg-crop" hidden>
+      <div class="rg-crop-feld" id="rgCropFeld">
+        <canvas id="rgCropBild" width="560" height="560"></canvas>
+        <div class="rg-crop-rand"></div>
+      </div>
+      <label class="rg-crop-zoom"><span>Größe</span>
+        <input id="rgZoom" type="range" min="100" max="300" value="100" step="1">
+      </label>
+      <p class="fnote" style="text-align:center;margin:2px 0 0">Zieh das Bild zurecht.</p>
+      <div class="rg-crop-knoepfe">
+        <button type="button" class="btn" id="rgCropAb">Abbrechen</button>
+        <button type="button" class="btn btn--solid" id="rgCropOk">Übernehmen</button>
+      </div>
+    </div>
     <div class="rg-feld"><label>Name</label><div class="rg-fest" id="rgName">–</div></div>
     <div class="rg-feld"><label for="rgFirma">Unternehmen</label><input id="rgFirma" type="text" maxlength="80" autocomplete="organization"></div>
     <div class="rg-feld"><label for="rgRolle">Rolle</label><input id="rgRolle" type="text" maxlength="80" autocomplete="organization-title" placeholder="z. B. Geschäftsführerin"></div>
@@ -3607,26 +3639,106 @@ function registrierungStarten(ich){
    Ausrichtung aus EXIF angewandt, EXIF selbst dabei verworfen. Der Server
    bekommt nie das Original - 100 iPhone-Fotos waeren sonst zweistellige
    Megabyte je Listenaufruf im Veranstaltungs-WLAN. */
-async function bildVerkleinern(file){
-  let bmp;
-  try{ bmp = await createImageBitmap(file, { imageOrientation:"from-image" }); }
+async function bildLesen(file){
+  try{ return await createImageBitmap(file, { imageOrientation:"from-image" }); }
   catch(e){
-    bmp = await new Promise((ok, nein) => { const im = new Image(); im.onload = ()=>ok(im); im.onerror = nein; im.src = URL.createObjectURL(file); });
+    return await new Promise((ok, nein) => { const im = new Image(); im.onload = ()=>ok(im); im.onerror = nein; im.src = URL.createObjectURL(file); });
   }
-  const quelle = Math.min(bmp.width, bmp.height);
-  const sx = (bmp.width - quelle) / 2, sy = (bmp.height - quelle) / 2;
-  const mach = (gr, q) => { const c = document.createElement("canvas"); c.width = c.height = gr; c.getContext("2d").drawImage(bmp, sx, sy, quelle, quelle, 0, 0, gr, gr); return c.toDataURL("image/jpeg", q); };
+}
+/* Aus Bild + Ausschnitt zwei Groessen rechnen. Der Server bekommt nie das
+   Original - 100 iPhone-Fotos waeren sonst zweistellige Megabyte je
+   Listenaufruf im Veranstaltungs-WLAN. EXIF-Ausrichtung ist beim Lesen
+   angewandt, EXIF selbst dabei verworfen. */
+function bildSchneiden(bmp, sx, sy, quelle){
+  const mach = (gr, q) => { const c = document.createElement("canvas"); c.width = c.height = gr;
+    const g = c.getContext("2d"); g.imageSmoothingQuality = "high";
+    g.drawImage(bmp, sx, sy, quelle, quelle, 0, 0, gr, gr); return c.toDataURL("image/jpeg", q); };
   return { foto: mach(512, .82), mini: mach(96, .8) };
 }
+
+/* --- Den Ausschnitt selbst waehlen ---
+   Vorher schnitt die App hart aus der Mitte. Bei einem Hochformat vom
+   Handy - also fast jedem Portraet - faellt dabei der Kopf weg, und der
+   Gast konnte nichts dagegen tun. Jetzt zieht er das Bild zurecht, und was
+   im Kreis steht, ist genau das, was gespeichert wird. */
+const CROP = { bmp:null, zoom:1, mx:0, my:0 };   // mx,my = Mittelpunkt in Bildpunkten
+function cropMalen(){
+  const c = $("#rgCropBild"), g = c.getContext("2d");
+  const b = CROP.bmp; if(!b) return;
+  const quelle = Math.min(b.width, b.height) / CROP.zoom;
+  /* Der Ausschnitt darf nie ueber den Bildrand hinauslaufen - sonst stehen
+     graue Streifen im Kreis. */
+  CROP.mx = Math.min(b.width - quelle/2, Math.max(quelle/2, CROP.mx));
+  CROP.my = Math.min(b.height - quelle/2, Math.max(quelle/2, CROP.my));
+  g.fillStyle = "#0b1424"; g.fillRect(0, 0, c.width, c.height);
+  g.imageSmoothingQuality = "high";
+  g.drawImage(b, CROP.mx - quelle/2, CROP.my - quelle/2, quelle, quelle, 0, 0, c.width, c.height);
+}
+function cropOeffnen(bmp){
+  CROP.bmp = bmp; CROP.zoom = 1;
+  CROP.mx = bmp.width / 2;
+  /* Bei einem Hochformat sitzt der Kopf fast immer im oberen Drittel -
+     deshalb startet der Ausschnitt dort und nicht in der Mitte. Wer das
+     nicht will, zieht ihn hin, wo er ihn haben moechte; die meisten
+     muessen so gar nichts mehr tun. */
+  const quelle0 = Math.min(bmp.width, bmp.height);
+  CROP.my = bmp.height > bmp.width ? Math.max(quelle0 / 2, bmp.height * 0.38) : bmp.height / 2;
+  $("#rgZoom").value = 100;
+  $("#rgCrop").hidden = false;
+  cropMalen();
+  $("#rgCrop").scrollIntoView({ block:"nearest", behavior:"smooth" });
+}
+function cropSchliessen(){ $("#rgCrop").hidden = true; CROP.bmp = null; }
+$("#rgZoom").addEventListener("input", e => { CROP.zoom = (+e.target.value || 100) / 100; cropMalen(); });
+/* Ziehen mit einem Finger, Groesse mit zwei - und der Regler fuer alle,
+   bei denen Gesten nicht ankommen (Maus, Trackpad, aeltere Browser). */
+(function(){
+  const feld = $("#rgCropFeld");
+  let zeiger = new Map(), letzteSpanne = 0;
+  const proPunkt = () => (Math.min(CROP.bmp.width, CROP.bmp.height) / CROP.zoom) / feld.clientWidth;
+  feld.addEventListener("pointerdown", e => { if(!CROP.bmp) return; feld.setPointerCapture(e.pointerId); zeiger.set(e.pointerId, e); letzteSpanne = 0; });
+  feld.addEventListener("pointermove", e => {
+    if(!CROP.bmp || !zeiger.has(e.pointerId)) return;
+    const alt = zeiger.get(e.pointerId); zeiger.set(e.pointerId, e);
+    const p = [...zeiger.values()];
+    if(p.length >= 2){
+      const spanne = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
+      if(letzteSpanne){
+        CROP.zoom = Math.min(3, Math.max(1, CROP.zoom * (spanne / letzteSpanne)));
+        $("#rgZoom").value = Math.round(CROP.zoom * 100);
+      }
+      letzteSpanne = spanne;
+    }else{
+      const f = proPunkt();
+      CROP.mx -= (e.clientX - alt.clientX) * f;
+      CROP.my -= (e.clientY - alt.clientY) * f;
+    }
+    cropMalen();
+  });
+  const los = e => { zeiger.delete(e.pointerId); if(zeiger.size < 2) letzteSpanne = 0; };
+  ["pointerup","pointercancel","pointerleave"].forEach(n => feld.addEventListener(n, los));
+})();
+$("#rgCropAb").addEventListener("click", () => { cropSchliessen(); $("#rgBildNote").textContent = ""; });
+$("#rgCropOk").addEventListener("click", () => {
+  const b = CROP.bmp; if(!b) return;
+  const quelle = Math.min(b.width, b.height) / CROP.zoom;
+  rgBild = bildSchneiden(b, CROP.mx - quelle/2, CROP.my - quelle/2, quelle);
+  rgBildLoeschen = false;
+  const v = $("#rgVorschau"); v.style.backgroundImage = "url(" + rgBild.foto + ")"; v.textContent = "";
+  $("#rgBildWeg").style.display = "";
+  $("#rgBildNote").textContent = ""; $("#rgBildKnopf").textContent = "Anderes Bild";
+  cropSchliessen();
+});
 $("#rgDatei").addEventListener("change", async e => {
   const f = e.target.files && e.target.files[0]; if(!f) return;
   $("#rgBildNote").textContent = "Einen Moment …";
   try{
-    rgBild = await bildVerkleinern(f); rgBildLoeschen = false;
-    const v = $("#rgVorschau"); v.style.backgroundImage = "url(" + rgBild.foto + ")"; v.textContent = "";
-    $("#rgBildWeg").style.display = "";
-    $("#rgBildNote").textContent = ""; $("#rgBildKnopf").textContent = "Anderes Bild";
-  }catch(err){ rgBild = null; $("#rgBildNote").textContent = "Das Bild ließ sich nicht lesen – probier ein anderes."; }
+    cropOeffnen(await bildLesen(f));
+    $("#rgBildNote").textContent = "";
+  }catch(err){ cropSchliessen(); $("#rgBildNote").textContent = "Das Bild ließ sich nicht lesen – probier ein anderes."; }
+  /* Damit dieselbe Datei noch einmal gewaehlt werden kann (nach Abbrechen
+     meldet der Browser sonst keine Aenderung). */
+  e.target.value = "";
 });
 $("#rgFertig").addEventListener("click", async ()=>{
   if(!$("#rgFoto").checked){
