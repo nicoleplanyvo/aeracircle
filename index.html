@@ -910,6 +910,9 @@
      wird - deshalb wird hier nicht ein Rahmen ueber ein Bild gelegt,
      sondern der fertige Ausschnitt gezeichnet. */
   .rg-crop{margin:6px 0 12px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  /* display:flex schlaegt sonst das hidden-Attribut - der leere Kreis stand
+     dann unter dem Knopf, bevor ueberhaupt ein Bild gewaehlt war. */
+  .rg-crop[hidden]{display:none}
   .rg-crop-feld{position:relative;width:240px;height:240px;border-radius:50%;overflow:hidden;
     background:#0b1424;touch-action:none;cursor:grab}
   .rg-crop-feld:active{cursor:grabbing}
@@ -1885,6 +1888,11 @@
       <span class="btn" id="rgBildKnopf">Bild wählen</span>
       <input id="rgDatei" type="file" accept="image/*" hidden>
     </label>
+    <!-- Wer schon ein Bild hat, kommt sonst nur ueber "neu waehlen" an den
+         Ausschnitt - auch wenn er nur ein Stueck schieben will. -->
+    <div style="text-align:center;margin:-2px 0 6px">
+      <button type="button" class="btn leise" id="rgCropNeu" style="display:none">Ausschnitt ändern</button>
+    </div>
     <p class="fnote" id="rgBildNote" style="text-align:center"></p>
     <!-- Den Ausschnitt selbst waehlen. Vorher schnitt die App hart aus der
          Mitte - bei einem Hochformat vom Handy faellt dabei regelmaessig
@@ -1899,7 +1907,7 @@
       <label class="rg-crop-zoom"><span>Größe</span>
         <input id="rgZoom" type="range" min="100" max="300" value="100" step="1">
       </label>
-      <p class="fnote" style="text-align:center;margin:2px 0 0">Zieh das Bild zurecht.</p>
+      <p class="fnote" style="text-align:center;margin:2px 0 0" id="rgCropNote">Zieh das Bild zurecht.</p>
       <div class="rg-crop-knoepfe">
         <button type="button" class="btn" id="rgCropAb">Abbrechen</button>
         <button type="button" class="btn btn--solid" id="rgCropOk">Übernehmen</button>
@@ -3594,7 +3602,9 @@ let rgBild = null, rgBildLoeschen = false;   // { foto, mini } als Data-URLs
 $("#rgBildWeg").addEventListener("click", ()=>{
   rgBild = null; rgBildLoeschen = true;
   const v = $("#rgVorschau"); v.style.backgroundImage = ""; v.textContent = initialen(APP.ich ? APP.ich.name : "");
-  $("#rgBildWeg").style.display = "none"; $("#rgBildKnopf").textContent = "Bild wählen";
+  $("#rgBildWeg").style.display = "none"; $("#rgCropNeu").style.display = "none";
+  $("#rgBildKnopf").textContent = "Bild wählen";
+  try{ localStorage.removeItem("circle.rohbild"); }catch(e){}
 });
 function rgSchritt(name){
   $$("#registrierung .rg-step").forEach(s => s.classList.toggle("on", s.dataset.rg === name));
@@ -3631,14 +3641,12 @@ function registrierungStarten(ich){
   $$("input[name=rgSichtbar]").forEach(r => { r.checked = r.value === wahl; });
   $("#rgSucht").value = ich.sucht || "";
   $("#rgBildWeg").style.display = ich.foto ? "" : "none";
+  $("#rgCropNeu").style.display = ich.foto ? "" : "none";
   $("#rgLoeschen").style.display = ich.registriert ? "" : "none";
   rgSchritt("profil");
   $("#registrierung").classList.remove("hidden");
 }
-/* Bild: im Browser auf zwei Groessen rechnen, quadratisch beschnitten,
-   Ausrichtung aus EXIF angewandt, EXIF selbst dabei verworfen. Der Server
-   bekommt nie das Original - 100 iPhone-Fotos waeren sonst zweistellige
-   Megabyte je Listenaufruf im Veranstaltungs-WLAN. */
+/* Bild einlesen, Ausrichtung aus EXIF angewandt, EXIF selbst verworfen. */
 async function bildLesen(file){
   try{ return await createImageBitmap(file, { imageOrientation:"from-image" }); }
   catch(e){
@@ -3674,7 +3682,29 @@ function cropMalen(){
   g.imageSmoothingQuality = "high";
   g.drawImage(b, CROP.mx - quelle/2, CROP.my - quelle/2, quelle, quelle, 0, 0, c.width, c.height);
 }
-function cropOeffnen(bmp){
+/* Das Original bleibt auf dem Geraet - dann laesst sich der Ausschnitt
+   spaeter noch einmal anders legen, ohne das Bild neu zu suchen. Auf 1200
+   verkleinert: Eine iPhone-Aufnahme in voller Groesse sprengt den Speicher
+   des Browsers, und mehr braucht ein 512er Ausschnitt nie. Klappt es nicht
+   (privater Modus, voller Speicher), arbeitet die App mit dem gespeicherten
+   Ausschnitt weiter - dann geht enger, aber nicht weiter. */
+function rohMerken(bmp){
+  try{
+    const lang = Math.max(bmp.width, bmp.height), f = lang > 1200 ? 1200 / lang : 1;
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * f); c.height = Math.round(bmp.height * f);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    localStorage.setItem("circle.rohbild", c.toDataURL("image/jpeg", .82));
+  }catch(e){ try{ localStorage.removeItem("circle.rohbild"); }catch(e2){} }
+}
+function rohHolen(){ try{ return localStorage.getItem("circle.rohbild") || ""; }catch(e){ return ""; } }
+function bildVonUrl(u){
+  return new Promise((ok, nein) => { const im = new Image(); im.onload = () => ok(im); im.onerror = nein; im.src = u; });
+}
+function cropOeffnen(bmp, nurAusschnitt){
+  $("#rgCropNote").textContent = nurAusschnitt
+    ? "Zieh das Bild zurecht. Es liegt nur der gespeicherte Ausschnitt vor – für mehr Spielraum wähl das Bild neu."
+    : "Zieh das Bild zurecht.";
   CROP.bmp = bmp; CROP.zoom = 1;
   CROP.mx = bmp.width / 2;
   /* Bei einem Hochformat sitzt der Kopf fast immer im oberen Drittel -
@@ -3727,13 +3757,30 @@ $("#rgCropOk").addEventListener("click", () => {
   const v = $("#rgVorschau"); v.style.backgroundImage = "url(" + rgBild.foto + ")"; v.textContent = "";
   $("#rgBildWeg").style.display = "";
   $("#rgBildNote").textContent = ""; $("#rgBildKnopf").textContent = "Anderes Bild";
+  $("#rgCropNeu").style.display = "";
   cropSchliessen();
+});
+/* Den Ausschnitt eines Bildes aendern, das schon da ist. Am liebsten vom
+   Original auf dem Geraet; sonst vom gespeicherten Ausschnitt - dann kann
+   der Gast noch enger gehen, aber nicht weiter, und der Hinweis im Feld
+   sagt das auch. */
+$("#rgCropNeu").addEventListener("click", async () => {
+  const roh = rohHolen();
+  const quelle = roh || (rgBild && rgBild.foto) || (APP.ich && APP.ich.foto) || "";
+  if(!quelle){ $("#rgBildNote").textContent = "Wähl zuerst ein Bild."; return; }
+  $("#rgBildNote").textContent = "Einen Moment …";
+  try{
+    cropOeffnen(await bildVonUrl(quelle), !roh);
+    $("#rgBildNote").textContent = "";
+  }catch(err){ $("#rgBildNote").textContent = "Das Bild ließ sich nicht laden – wähl es neu."; }
 });
 $("#rgDatei").addEventListener("change", async e => {
   const f = e.target.files && e.target.files[0]; if(!f) return;
   $("#rgBildNote").textContent = "Einen Moment …";
   try{
-    cropOeffnen(await bildLesen(f));
+    const bmp = await bildLesen(f);
+    rohMerken(bmp);
+    cropOeffnen(bmp);
     $("#rgBildNote").textContent = "";
   }catch(err){ cropSchliessen(); $("#rgBildNote").textContent = "Das Bild ließ sich nicht lesen – probier ein anderes."; }
   /* Damit dieselbe Datei noch einmal gewaehlt werden kann (nach Abbrechen
