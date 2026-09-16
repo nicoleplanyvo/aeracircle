@@ -3441,33 +3441,26 @@ $("#signalWeg").addEventListener("click", ()=>{
   $("#signalBanner").classList.remove("show");
 });
 
-/* ---- Ich bin da ---- */
-/* Der Check-in laeuft am Einlass ueber einen QR-Code (ein Aufsteller,
-   derselbe Code fuer alle). Wer ihn scannt, landet auf "/?da=1"; die App
-   weiss aus dem Speicher, wer sie geoeffnet hat, und meldet ihn an.
-   Deshalb kein "Ich bin da"-Knopf mehr: Es soll genau einen Weg geben,
-   und der beginnt am Einlass. */
-async function ichBinDa(){
-  if(!APP.token){ collect("ankommen", "Angekommen – der erste Strich im Kreis."); return; }
-  if(APP.ich && APP.ich.da){ toast("Du bist schon eingecheckt."); return; }
-  try{
-    await appPost("/api/app/da", {});
-    if(APP.ich) APP.ich.da = Date.now();
-    renderStatus(); renderQrKarte();
-    collect("ankommen", "Willkommen, " + ((APP.ich && APP.ich.vorname) || "schön dass du da bist") + " – dein Abend beginnt.");
-  }
-  catch(e){ toast("Ging gerade nicht – gleich nochmal."); }
-}
-/* Aus dem QR-Code am Einlass: einmal einchecken, dann die Spur aus der
-   Adresszeile nehmen - ein zweites Laden soll nicht wieder auslösen. */
+/* ---- Ich bin da ----
+   Kein Selbst-Check-in mehr. Der Gast wird am Einlass eingecheckt: das
+   Team scannt seinen persoenlichen QR-Code, oder jemand setzt ihn im
+   Monitor auf der Liste. Ein Aufsteller-Code, den der Gast selbst
+   scannt, war ein dritter Weg - und einer, der schon am Nachmittag
+   ausgeloest wurde, wenn die Adresse noch im Verlauf lag.
+
+   Den Strich im Kreis kostet das niemanden: Sobald der Server "da"
+   meldet, setzt ihn die App selbst (siehe ladeAlles, S.moments.ankommen).
+   Der Server weist /api/app/da ohnehin ab; hier fragt die App gar nicht
+   erst nach. */
 function qrCheckin(){
   const q = new URLSearchParams(location.search);
   if(q.get("da") !== "1") return;
+  /* Die Spur trotzdem aus der Adresszeile nehmen - sonst steht sie beim
+     naechsten Laden wieder da. */
   q.delete("da");
   const rest = q.toString();
   history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
-  if(!APP.token){ toast("Öffne zuerst deinen persönlichen Link aus der Mail."); return; }
-  ichBinDa();
+  toast("Zeig deinen QR-Code am Einlass – das Team checkt dich ein.");
 }
 
 /* ---- Push ---- */

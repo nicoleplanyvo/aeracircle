@@ -3604,15 +3604,21 @@ const server = http.createServer((req, res) => {
                             anzahl: alle.length, seiten: Math.ceil(alle.length / GR) });
   }
 
-  /* "Ich bin da." Der erste Moment, in dem der Gast die App benutzt. */
+  /* "Ich bin da" aus der App: abgeschaltet.
+   * Der Check-in gehoert an den Einlass - entweder der Scanner (/einlass,
+   * persoenlicher QR des Gastes) oder die Liste im Monitor. Kein Gast
+   * meldet sich selbst als anwesend: Wer den Aufsteller-Code schon im
+   * Verlauf hat, stand sonst mittags als "im Haus" im Zaehler, Stunden
+   * vor dem ersten echten Gast - und die Zahl an der Tuer ist genau das,
+   * worauf sich der Einlass verlaesst.
+   *
+   * Die Route bleibt stehen und antwortet klar, statt zu verschwinden:
+   * Aeltere Fassungen der App liegen im Zwischenspeicher der Handys und
+   * rufen sie weiter auf. Ein 404 saehe dort wie ein Netzfehler aus. */
   if (req.method === "POST" && url === "/api/app/da") {
     if (!rateLimit(req, res, "app", LIMIT_APP[0], LIMIT_APP[1])) return;
-    return readBody(req, res, body => {
-      const inv = findInvite(body.t);
-      if (!inv || !imKreis(inv)) return json(res, 403, { error: "kein Zugang" });
-      if (!inv.da) { inv.da = Date.now(); logEvent("da", inv.name, inv.pool); dirty = true; revHoch(); broadcast(); }
-      return json(res, 200, { ok: true, da: inv.da });
-    });
+    return json(res, 403, { error: "Der Check-in läuft über den Einlass",
+                            hinweis: "Zeig am Einlass deinen QR-Code – das Team checkt dich ein." });
   }
 
   /* Mein Tisch: je Gang der Tisch, und fuer den laufenden Gang die
