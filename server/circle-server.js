@@ -857,6 +857,27 @@ const gleicheRunde = (a, b) => rundeVon(a) === rundeVon(b);
  * in "X von Y im Haus". */
 const heuteErwartet = inv => imKreis(inv) && (rundeVon(inv) === RUNDE || inv.demo);
 
+/* ---------- Zugang fuer die Akkreditierung ----------
+ * Wer am Einlass steht, braucht die Gaesteliste und den Haken "ist da" -
+ * sonst nichts. Der Admin-Schluessel kann dagegen alles: Mails an neunzig
+ * Gaeste, Gaeste aendern, die Auktion steuern. Den gibt man niemandem in
+ * die Hand, der nur Namen abhaken soll.
+ *
+ * Also ein eigener Schluessel, mit genau zwei Rechten: Liste lesen, Haken
+ * setzen und wieder wegnehmen. Er liegt im Zustand statt in den Variablen
+ * der Umgebung - damit er sich am Abend erneuern laesst, ohne dass jemand
+ * an die Serverkonfiguration muss. Ein Handy, das im Gedraenge liegen
+ * bleibt, ist dann eine Minute Arbeit und kein Problem. */
+function einlassKey() {
+  if (!state.einlassKey) { state.einlassKey = crypto.randomBytes(16).toString("hex"); dirty = true; }
+  return state.einlassKey;
+}
+function einlassOk(k) {
+  if (!k) return false;
+  const a = Buffer.from(String(k)), b = Buffer.from(einlassKey());
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 /* Profil-Anteil, der zum Gast dazukommt, wenn er die App registriert.
  * Vorher existiert er nicht - "noch nicht registriert" ist ein gueltiger,
  * sichtbarer Zustand in der Liste. */
@@ -3267,6 +3288,53 @@ const server = http.createServer((req, res) => {
       '<form method="post" action="/einlass" style="margin-top:18px"><input type="hidden" name="g" value="' + t.replace(/[^A-Za-z0-9_-]/g, "") + '">' +
       '<button type="submit" style="font:inherit;font-size:20px;font-weight:600;padding:16px 36px;border:0;border-radius:999px;background:#122648;color:#fff">Einchecken</button></form>'));
   }
+  /* --- Akkreditierung: Gaesteliste und Haken, sonst nichts ---
+   * Die Seite selbst ist offen, wie /einlass. Was sie zeigt, haengt am
+   * Schluessel: ohne gueltigen k= liefert die Schnittstelle nichts. */
+  if (req.method === "GET" && (url === "/akkreditierung" || url.startsWith("/akkreditierung?"))) {
+    return serveFile(res, "akkreditierung.html", "text/html; charset=utf-8");
+  }
+
+  /* Die Liste fuer den Einlass. Bewusst schmal: Name, Firma, Nummer, Tisch,
+   * Haken. Keine Adressen, keine Telefonnummern, keine Unvertraeglichkeiten -
+   * das Tablet am Einlass geht durch viele Haende, und nichts davon braucht
+   * jemand, der Namen abhakt. */
+  if (req.method === "GET" && url.startsWith("/api/einlass/liste")) {
+    if (!rateLimit(req, res, "einlass", 600, 60_000)) return;
+    if (!einlassOk(q.get("k"))) return json(res, 401, { error: "kein Zugang" });
+    const t = tische();
+    const liste = Object.values(state.invites)
+      .filter(heuteErwartet)
+      .map(inv => ({
+        gid: gid(inv), name: inv.name || "", firma: inv.firma || "",
+        nr: inv.ticketNr || "", pool: inv.pool || "",
+        tisch: (t.sitz[gid(inv)] || []).find(n => n) || 0,
+        da: inv.da || 0
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "de"));
+    return json(res, 200, { ok: true, gaeste: liste,
+                            im: liste.length, daZahl: liste.filter(x => x.da).length,
+                            tischName: Object.fromEntries(t.liste.map(x => [x.nr, x.name || ""])) });
+  }
+
+  /* Haken setzen oder wieder wegnehmen. Dasselbe wie der Scanner, nur von
+   * Hand - fuer den Gast, der seinen Code nicht findet, und fuer den
+   * Fehlgriff, den jemand zurueckholen muss. */
+  if (req.method === "POST" && url.startsWith("/api/einlass/da")) {
+    if (!rateLimit(req, res, "einlass", 600, 60_000)) return;
+    if (!einlassOk(q.get("k"))) return json(res, 401, { error: "kein Zugang" });
+    return readBody(req, res, body => {
+      const inv = findByGid(body.gid);
+      if (!inv || !heuteErwartet(inv)) return json(res, 404, { error: "Gast nicht gefunden" });
+      const soll = !!body.da;
+      if (soll === !!inv.da) return json(res, 200, { ok: true, da: inv.da || 0, schon: true });
+      inv.da = soll ? Date.now() : 0;
+      logEvent(soll ? "da" : "da zurückgenommen", inv.name, "Einlass");
+      dirty = true; revHoch(); broadcast();
+      return json(res, 200, { ok: true, da: inv.da || 0 });
+    });
+  }
+
   /* Das Einchecken selbst - nur per POST, aus dem Knopf oben. */
   if (req.method === "POST" && (url === "/einlass" || url.startsWith("/einlass?"))) {
     let raw = "";
@@ -3298,7 +3366,12 @@ const server = http.createServer((req, res) => {
    * /checkin-qr.svg) - nur gab es die Routen nicht: 404 an einer Stelle,
    * die am Abend am Eingang gebraucht wird. */
   if (req.method === "GET" && (url === "/checkin-qr.png" || url === "/checkin-qr.svg")) {
-    const ziel = PUBLIC_URL + "/?da=1";
+    /* Fuehrte frueher auf "/?da=1" und checkte damit ein. Das kann der
+     * Aufsteller nicht mehr - "da" setzt nur noch der Einlass. Jetzt zeigt
+     * er auf die App selbst: fuer den Gast, der seinen persoenlichen Link
+     * nicht mehr findet. Die Startseite fragt ihn nach Adresse und
+     * Nachnamen und holt sein Profil. */
+    const ziel = PUBLIC_URL + "/";
     if (url.endsWith(".svg")) {
       res.writeHead(200, { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=3600" });
       return res.end(qrSvg(ziel));
@@ -3331,12 +3404,13 @@ const server = http.createServer((req, res) => {
       '</style></head><body><div class="blatt">' +
       '<div class="marke">THE CIRCLE No1</div>' +
       '<h1>Willkommen</h1>' +
-      '<p class="unter">Scanne den Code mit der Handykamera –<br>dann bist du angemeldet.</p>' +
-      '<img class="qr" src="/checkin-qr.png" alt="QR-Code für den Check-in">' +
-      '<ol><li>Kamera öffnen und auf den Code halten</li>' +
-      '<li>Auf den Hinweis tippen, der erscheint</li>' +
-      '<li>Fertig – die App meldet dich als da</li></ol>' +
-      '<p class="fuss">Wer die App noch nicht geöffnet hat, sieht dort den Weg zu seinem persönlichen Link.</p>' +
+      '<p class="unter">Halte deinen persönlichen QR-Code bereit –<br>er steht in deiner Einladungsmail und in der App.</p>' +
+      '<ol><li>QR-Code aus der Mail oder der App öffnen</li>' +
+      '<li>Dem Team am Einlass zeigen</li>' +
+      '<li>Fertig – wir haken dich ab</li></ol>' +
+      '<p class="unter" style="margin:30px 0 14px">Code nicht zur Hand? Diesen hier scannen –<br>die App holt dein Profil über Adresse und Nachnamen.</p>' +
+      '<img class="qr" src="/checkin-qr.png" alt="QR-Code zur App">' +
+      '<p class="fuss">Eingecheckt wirst du vom Team, nicht vom eigenen Handy.</p>' +
       '<div class="druck"><button onclick="window.print()">Drucken</button></div>' +
       '</div></body></html>';
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
@@ -4927,6 +5001,17 @@ const server = http.createServer((req, res) => {
         sendung.laeuft = false; dirty = true;
         logEvent("Sendung fertig", wer, art + " · Push " + sendung.push.gesendet + " · Mail " + sendung.mail.gesendet);
       });
+    }
+    /* Der Zugang fuers Einlass-Tablet. GET zeigt ihn, POST erneuert ihn -
+     * wer den alten Link hat, ist damit sofort draussen. */
+    if (url === "/api/admin/einlass-key") {
+      if (req.method === "POST") {
+        state.einlassKey = crypto.randomBytes(16).toString("hex");
+        dirty = true;
+        logEvent("Einlass-Zugang", wer, "erneuert");
+      }
+      const k = einlassKey();
+      return json(res, 200, { ok: true, key: k, link: PUBLIC_URL + "/akkreditierung?k=" + k });
     }
     if (req.method === "GET" && url === "/api/admin/sendungen") {
       return json(res, 200, { ok: true, sendungen: state.sendungen || [] });

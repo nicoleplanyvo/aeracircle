@@ -691,14 +691,13 @@
       <span class="fussnote" style="margin:0">Nach einer Probe: Sterne, Investieren, Interesse und Applaus zurück auf null. Titelvorschläge und Verbindungen bleiben.</span>
     </div>
 
-    <!-- Der Check-in am Abend: ein Aufsteller mit diesem Code am Einlass.
-         Wer ihn scannt, ist eingecheckt - die App weiss aus dem Speicher,
-         wer sie geoeffnet hat. -->
-    <span class="label" style="display:block;margin-top:22px">Check-in am Einlass</span>
-    <p class="fnote">Ein QR-Code für alle. Ausdrucken, an den Einlass stellen: Wer ihn mit dem Handy scannt, wird als „im Haus“ geführt. Wer die App noch nicht geöffnet hat, liest den Hinweis auf seinen persönlichen Link.</p>
+    <!-- Der Einlass am Abend. "da" setzt nur das Team: entweder mit dem
+         Scanner (persoenlicher QR des Gastes) oder von Hand auf der Liste.
+         Kein Gast meldet sich selbst an. -->
+    <p class="fnote" style="margin-top:18px">Der Aushang für den Einlass: erklärt den Gästen, dass sie ihren persönlichen Code bereithalten. Sein QR führt in die App – für alle, die ihren Link nicht mehr finden.</p>
     <div class="exportzeile">
       <button class="export" id="qrZeigen" type="button">QR-Code zeigen</button>
-      <a class="export" href="/checkin" target="_blank" rel="noopener">Zum Ausdrucken öffnen</a>
+      <a class="export" href="/checkin" target="_blank" rel="noopener">Aushang zum Ausdrucken</a>
     </div>
     <div id="qrKasten" style="display:none;margin-top:10px;text-align:center"></div>
     <div id="demoGaeste" style="margin-top:8px"></div>
@@ -894,6 +893,18 @@
     </div>
     <div class="ez-liste" id="ezListe"></div>
     <p class="fnote" id="ezNote"></p>
+
+    <!-- Dieselbe Liste fuer das Einlass-Tablet, aber mit eigenem Zugang.
+         Dieser Monitor haengt am Admin-Schluessel, und der kann alles:
+         Mails an neunzig Gaeste, Gaeste aendern, die Auktion steuern. Den
+         gibt man nicht an die Tuer. -->
+    <span class="label" style="display:block;margin-top:24px">Zugang fürs Einlass-Tablet</span>
+    <p class="fnote">Eine eigene Seite mit Gästeliste, Suche, Haken und Scanner – und sonst nichts. Keine Nachrichten, keine Änderungen an Gästen, keine Regie. Dieser Link darf weitergegeben werden. Geht ein Gerät verloren, hier einen neuen erzeugen; der alte ist damit sofort tot, auch auf Geräten, die gerade offen sind.</p>
+    <div class="exportzeile">
+      <button class="export" id="akkZeigen" type="button">Zugang zeigen</button>
+      <button class="export" id="akkNeu" type="button">Neuen Zugang erzeugen</button>
+    </div>
+    <div id="akkKasten" style="display:none;margin-top:10px"></div>
   </div>
 
   <!-- 6f · Nach dem Abend. Der eine Sendekanal (Push und Mail), die News,
@@ -2022,16 +2033,54 @@ try{
   esB.onmessage = () => { clearTimeout(bt); bt = setTimeout(buehneHolen, 800); };
 }catch(e){}
 
+/* ---------- Zugang fuers Einlass-Tablet ----------
+   Ein eigener Schluessel, der nur die Gaesteliste lesen und Haken setzen
+   darf. Wird angezeigt, nicht versteckt: Er soll weitergegeben werden. */
+async function akkZeichnen(d){
+  const k = $("#akkKasten");
+  k.innerHTML = "";
+  const feld = document.createElement("input");
+  feld.type = "text"; feld.readOnly = true; feld.value = d.link;
+  feld.style.cssText = "width:100%;font:inherit;font-size:13px;padding:10px 12px;border-radius:10px;border:1px solid var(--linie,#3a3f4a);background:transparent;color:inherit";
+  feld.addEventListener("focus", () => feld.select());
+  const reihe = document.createElement("div");
+  reihe.className = "exportzeile"; reihe.style.marginTop = "8px";
+  const kopieren = document.createElement("button");
+  kopieren.className = "export"; kopieren.type = "button"; kopieren.textContent = "Link kopieren";
+  kopieren.addEventListener("click", async () => {
+    try{ await navigator.clipboard.writeText(d.link); kopieren.textContent = "Kopiert ✓"; }
+    catch(e){ feld.select(); kopieren.textContent = "Von Hand kopieren"; }
+    setTimeout(() => kopieren.textContent = "Link kopieren", 2000);
+  });
+  const oeffnen = document.createElement("a");
+  oeffnen.className = "export"; oeffnen.href = d.link; oeffnen.target = "_blank"; oeffnen.rel = "noopener";
+  oeffnen.textContent = "Öffnen";
+  reihe.append(kopieren, oeffnen);
+  k.append(feld, reihe);
+  k.style.display = "block";
+}
+$("#akkZeigen").addEventListener("click", async () => {
+  const k = $("#akkKasten");
+  if(k.style.display !== "none"){ k.style.display = "none"; return; }
+  const d = await adminGet("/api/admin/einlass-key");
+  if(d) akkZeichnen(d);
+});
+$("#akkNeu").addEventListener("click", async () => {
+  if(!confirm("Neuen Zugang erzeugen? Der alte Link hört sofort auf zu funktionieren – auch auf Geräten, die gerade offen sind.")) return;
+  const d = await adminPost("/api/admin/einlass-key", {});
+  if(d) akkZeichnen(d);
+});
+
 /* ---------- QR-Code fuer den Check-in ---------- */
 $("#qrZeigen").addEventListener("click", () => {
   const k = $("#qrKasten");
   if(k.style.display !== "none"){ k.style.display = "none"; return; }
   k.innerHTML = "";
   const img = document.createElement("img");
-  img.src = "/checkin-qr.png"; img.alt = "QR-Code für den Check-in";
+  img.src = "/checkin-qr.png"; img.alt = "QR-Code zur App";
   img.style.cssText = "width:200px;height:200px;background:#fff;padding:10px;display:inline-block";
   const p = document.createElement("p"); p.className = "fnote"; p.style.marginTop = "8px";
-  p.textContent = location.origin + "/?da=1";
+  p.textContent = location.origin + "/";
   k.appendChild(img); k.appendChild(p); k.style.display = "block";
 });
 
