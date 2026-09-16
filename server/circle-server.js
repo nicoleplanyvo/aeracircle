@@ -4907,10 +4907,10 @@ const server = http.createServer((req, res) => {
                 let html, txt;
                 try {
                   /* Erst escapen, dann die Absaetze setzen: {{text_html}} wird roh
-                     * eingesetzt, also muss ein "Falk & Cie" hier zu "Falk &amp; Cie"
-                     * werden - sonst steht ein nacktes & im HTML. Die <br> kommen
-                     * danach und bleiben dadurch echtes HTML. */
-                    html = renderMail(inv, "nachricht.html", { titel, text_html: esc(text).replace(/\n/g, "<br>"), cta_text: ctaText, cta_url: PUBLIC_URL + appUrl });
+                   * eingesetzt, also muss ein "Falk & Cie" hier zu "Falk &amp; Cie"
+                   * werden - sonst steht ein nacktes & im HTML. Die <br> kommen
+                   * danach und bleiben dadurch echtes HTML. */
+                  html = renderMail(inv, "nachricht.html", { titel, text_html: esc(text).replace(/\n/g, "<br>"), cta_text: ctaText, cta_url: PUBLIC_URL + appUrl });
                   txt = inv.anrede + " " + (inv.name || "").split(" ")[0] + ",\n\n" + titel + "\n\n" + text + "\n\n" + ctaText + ": " + PUBLIC_URL + appUrl + "\n";
                 } catch (e) { sendung.mail.fehler++; return ok(); }
                 lettermintSenden({ to: inv.email, subject: titel, html, text: txt }, err => { if (err) sendung.mail.fehler++; else sendung.mail.gesendet++; setTimeout(ok, 200); });
