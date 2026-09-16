@@ -3229,7 +3229,7 @@ function meldungZeile(m){
   const x = document.createElement("div"); const b = document.createElement("b"); const s = document.createElement("span");
   if(m.art === "wechsel"){
     b.textContent = "Tischwechsel · " + (m.text || "");
-    s.textContent = m.tisch ? "Dein Tisch: " + m.tisch + (m.tischName ? " · " + m.tischName : "") : "Dein Tisch steht im Tischplan.";
+    s.textContent = m.tisch ? "Dein Tisch: " + tischTitel(m.tisch, m.tischName) : "Dein Tisch steht im Tischplan.";
     if(m.gang) d.addEventListener("click", ()=>{ meldZu(); show("tisch"); ladeTisch(m.gang); });
   } else { b.textContent = m.text || ""; s.textContent = "Ansage"; }
   x.appendChild(b); x.appendChild(s); d.appendChild(t); d.appendChild(x);
@@ -3433,13 +3433,21 @@ async function ladeTisch(gang){
   try{ APP.tisch = await appGet("/api/app/tisch" + (gang ? "?gang=" + gang : "")); cacheSet("tisch", APP.tisch); renderTisch(); }
   catch(e){ const c = cacheGet("tisch"); if(c && !APP.tisch){ APP.tisch = c.v; renderTisch(); } }
 }
+/* Die Tische heissen nach den Partnern, und so stehen sie auch auf den
+   Schildern im Raum. Eine Nummer daneben hilft niemandem beim Suchen -
+   "Sion" findet man, "Tisch 7" muss man erst uebersetzen. Die Nummer
+   bleibt nur die Rueckfallebene fuer einen Tisch ohne Namen. */
+function tischTitel(nr, name){
+  return name || (nr ? "Tisch " + nr : "–");
+}
 function renderTisch(){
   const t = APP.tisch; if(!t) return;
   const hatPlan = t.meine.some(m => m.tisch);
   $("#tischGangLabel").textContent = t.gang ? t.gaenge[t.angezeigt - 1] + " · Gang " + t.angezeigt : "Dein Platz";
-  $("#tischNr").textContent = t.tisch ? "Tisch " + t.tisch : "–";
   const eig = t.meine[t.angezeigt - 1] || {};
-  $("#tischName").textContent = eig.tischName || "";
+  $("#tischNr").textContent = tischTitel(t.tisch, eig.tischName);
+  /* Der Name steht jetzt oben - die zweite Zeile waere seine Wiederholung. */
+  $("#tischName").textContent = "";
   const hin = $("#tischHinweis");
   hin.textContent = !hatPlan ? "Die Tischordnung kommt kurz vor dem Abend – dann steht hier dein Platz." :
     (!t.gang ? "Vor dem ersten Gang: dein Platz für die Vorspeise." : (t.nachbarn.length ? (t.nachbarn.length === 1 ? t.nachbarn[0].name.split(" ")[0] + " sitzt mit dir am Tisch." : "Diese " + t.nachbarn.length + " sitzen mit dir am Tisch – die Anordnung ist nicht die Sitzordnung.") + " Antippen für Name und Unternehmen." : "Dein Tisch – die anderen kommen gleich dazu."));
@@ -3450,8 +3458,8 @@ function renderTisch(){
      entspricht - so sieht die Karte aus wie das Schild auf dem Tisch. */
   { const m = document.createElement("div"); m.className = "tischmitte";
     const logo = partnerLogo(eig.tischName);
-    if(logo){ const im = document.createElement("img"); im.src = logo.src; im.alt = eig.tischName; m.appendChild(im); const sp = document.createElement("span"); sp.textContent = "Tisch " + t.tisch + " · " + eig.tischName; m.appendChild(sp); }
-    else { const b = document.createElement("b"); b.textContent = t.tisch ? "Tisch " + t.tisch : "–"; m.appendChild(b); if(eig.tischName){ const sp = document.createElement("span"); sp.textContent = eig.tischName; m.appendChild(sp); } }
+    if(logo){ const im = document.createElement("img"); im.src = logo.src; im.alt = eig.tischName; m.appendChild(im); const sp = document.createElement("span"); sp.textContent = eig.tischName; m.appendChild(sp); }
+    else { const b = document.createElement("b"); b.textContent = tischTitel(t.tisch, eig.tischName); m.appendChild(b); }
     rund.appendChild(m); }
   const leute = [{ id:"", name:APP.ich ? APP.ich.name : "Du", foto:APP.ich ? APP.ich.foto : "", ich:true, registriert:true }].concat(t.nachbarn);
   /* Zwei Reihen wie an der Tafel: links, rechts, links, rechts. Bis acht
@@ -3476,8 +3484,7 @@ function renderTisch(){
   t.meine.forEach(m => {
     const d = document.createElement("div"); if(m.gang === t.gang) d.className = "jetzt";
     const s = document.createElement("span"); s.textContent = m.gang + ". Gang · " + m.name;
-    const b = document.createElement("b"); b.textContent = m.tisch ? "Tisch " + m.tisch : "–";
-    if(m.tischName){ const sm = document.createElement("small"); sm.textContent = m.tischName; b.appendChild(sm); }
+    const b = document.createElement("b"); b.textContent = tischTitel(m.tisch, m.tischName);
     d.appendChild(s); d.appendChild(b); d.addEventListener("click", ()=>ladeTisch(m.gang)); mt.appendChild(d);
   });
   renderGangMenue(t);
@@ -3491,7 +3498,7 @@ async function ladePlan(gang){
   const pl = $("#planListe"); pl.innerHTML = "";
   p.tische.forEach(t => {
     const d = document.createElement("div"); d.className = "plantisch";
-    const b = document.createElement("b"); b.textContent = "Tisch " + t.nr; if(t.name){ const s = document.createElement("small"); s.textContent = t.name; b.appendChild(s); }
+    const b = document.createElement("b"); b.textContent = tischTitel(t.nr, t.name);
     /* Erst die Gesichter, dann die Namen. Antippen oeffnet das Kurzprofil. */
     const av = document.createElement("div"); av.className = "planavatare";
     t.gaeste.forEach(g => { const a = avatarEl({ name:g.name, foto:g.foto, registriert:true, ich:g.ich }, "mini"); a.title = g.ich ? "Du" : g.name; if(!g.ich) a.addEventListener("click", ()=>gastOeffnen(g.id)); av.appendChild(a); });
@@ -3522,7 +3529,7 @@ function signalZeigen(s){
   if(false){
     $("#signalLabel").textContent = "Tischwechsel · " + s.text;
     const text = ()=>{ const m = APP.tisch && APP.tisch.meine[s.gang - 1];
-      $("#signalText").textContent = m && m.tisch ? "Dein Tisch: " + m.tisch + (m.tischName ? " · " + m.tischName : "") : "Dein nächster Gang beginnt."; };
+      $("#signalText").textContent = m && m.tisch ? "Dein Tisch: " + tischTitel(m.tisch, m.tischName) : "Dein nächster Gang beginnt."; };
     text();
     knopf.style.display = ""; knopf.onclick = ()=>{ show("tisch"); ladeTisch(s.gang); };
     /* Der Plan kann juenger sein als die App: erst nachladen, dann den

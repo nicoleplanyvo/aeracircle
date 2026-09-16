@@ -2022,7 +2022,7 @@ $("#sitzSetzen").addEventListener("click", async () => {
   const wer = $("#sitzWer").value.trim(), gang = parseInt($("#sitzGang").value, 10), tisch = parseInt($("#sitzTisch").value, 10) || 0;
   if(!wer || !gang) return;
   const d = await adminPost("/api/admin/sitz", { name: wer, email: wer, gang, tisch });
-  if(d && d.ok){ txt($("#planNote"), d.name + " · Gang " + gang + " · Tisch " + tisch); $("#sitzWer").value = ""; ohnePlatzHolen(); }
+  if(d && d.ok){ txt($("#planNote"), d.name + " · Gang " + gang + " · " + (tischNameVon(tisch) || "Tisch " + tisch)); $("#sitzWer").value = ""; ohnePlatzHolen(); }
 });
 async function ohnePlatzHolen(){
   if(!KEY) return;
@@ -2033,6 +2033,11 @@ async function ohnePlatzHolen(){
 /* Was gerade im Plan steht. Das CSV-Feld darueber ist eine Eingabe und
    bleibt leer - ohne diese Zeile sieht der Abschnitt aus, als waere nie
    etwas importiert worden. */
+/* Die Tischnamen aus dem zuletzt geladenen Plan - damit eine Rueckmeldung
+   "Sion" sagen kann und nicht "Tisch 7". Die Nummer bleibt die
+   Rueckfallebene fuer einen Tisch, der noch keinen Namen hat. */
+let TISCHNAMEN = {};
+function tischNameVon(nr){ return TISCHNAMEN[nr] || ""; }
 async function planStandHolen(){
   if(!KEY || !$("#planStand")) return;
   try{
@@ -2041,6 +2046,7 @@ async function planStandHolen(){
     if(!r.ok || !d.ok){ txt($("#planStand"), ""); return; }
     if(!d.mitPlatz){ txt($("#planStand"), "Noch kein Plan hinterlegt – CSV unten einsetzen."); $("#planStand").style.color = "var(--coral)"; return; }
     $("#planStand").style.color = "var(--olive)";
+    TISCHNAMEN = Object.fromEntries((d.belegung || []).map(t => [t.nr, t.name || ""]));
     const voll = d.belegung.filter(t => t.gaenge.some(n => n))
                            .map(t => (t.name || "Tisch " + t.nr) + " " + t.gaenge.join("/")).join(" · ");
     txt($("#planStand"), "Hinterlegt: " + d.mitPlatz + " von " + d.imKreis + " Gästen haben einen Platz · "

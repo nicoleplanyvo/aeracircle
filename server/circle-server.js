@@ -4700,7 +4700,11 @@ const server = http.createServer((req, res) => {
             const nachbarn = nr ? tischnachbarn(inv, gang).map(n => n.name.split(" ")[0]) : [];
             const wer3 = nachbarn.slice(0, 3).join(", ") + (nachbarn.length > 3 ? " und " + (nachbarn.length - 3) + " weitere" : "");
             return { titel: gangName + " – Tischwechsel",
-                     text: nr ? "Dein nächster Gang: Tisch " + nr + (tischName(nr) ? " · " + tischName(nr) : "") + (wer3 ? " – mit " + wer3 + "." : ".")
+                     /* Der Tisch heisst nach dem Partner, und so steht es auch
+                      * auf dem Schild im Raum. Die Nummer nur, wenn ein Tisch
+                      * keinen Namen traegt - sonst sucht der Gast ein Schild,
+                      * das es nicht gibt. */
+                     text: nr ? "Dein nächster Gang: " + (tischName(nr) || "Tisch " + nr) + (wer3 ? " – mit " + wer3 + "." : ".")
                               : "Der nächste Gang beginnt – schau in der App nach deinem Tisch.",
                      url: "/?t=" + inv.token + "#tisch" };
           }, { trotzAppfrei: !!body.trotzAppfrei }).then(e => {

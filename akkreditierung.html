@@ -211,12 +211,11 @@ function zeichnen(){
     const pl = document.createElement("div");
     pl.className = "platz";
     if(g.tisch){
-      /* Die Partnertische heissen wie die Partnerfirmen. Steht beides
-         nebeneinander, liest man "neuland.ai · Tisch 6 · neuland.ai" -
-         also den Namen nur, wenn er etwas Neues sagt. */
+      /* Die Tische heissen nach den Partnern, so wie die Schilder im Raum.
+         Die Nummer steht nirgends auf einem Schild und hilft hier keinem -
+         sie bleibt nur die Rueckfallebene fuer einen Tisch ohne Namen. */
       const tn = TISCHNAME[g.tisch] || "";
-      const doppelt = tn && flach(tn) === flach(g.firma);
-      pl.textContent = "Tisch " + g.tisch + (tn && !doppelt ? " · " + tn : "") + (g.nr ? "   " + g.nr : "");
+      pl.textContent = (tn || "Tisch " + g.tisch) + (g.nr ? "   " + g.nr : "");
     } else {
       pl.classList.add("ohne");
       pl.textContent = "kein Tischplatz" + (g.nr ? "   " + g.nr : "");
