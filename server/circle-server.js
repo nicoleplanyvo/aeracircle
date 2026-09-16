@@ -567,6 +567,20 @@ const clean = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f<>&"\'
  * den Lauf fuer alle anderen blockieren. */
 const cleanText = (s, n) => String(s == null ? "" : s).replace(/[\u0000-\u001f<>{}]/g, "").trim().slice(0, n);
 
+/* Wie cleanText, aber der Zeilenumbruch bleibt stehen.
+ * Fuer Fliesstext, den jemand in ein mehrzeiliges Feld tippt: cleanText
+ * wirft ALLE Steuerzeichen weg, \u000a gehoert dazu. Eine Nachricht aus
+ * dem Monitor kam dadurch als ein einziger Block an - die Mail-Vorlage
+ * macht zwar text.replace(/\n/g, "<br>"), aber da war schon nichts mehr
+ * zu ersetzen. Also: 0x00-0x09 und 0x0b-0x1f raus, 0x0a bleibt.
+ * Drei oder mehr Umbrueche werden zu zweien, damit eine versehentlich
+ * leere Zeile die Mail nicht auseinanderreisst. */
+const cleanAbsatz = (s, n) => String(s == null ? "" : s)
+  .replace(/\r\n?/g, "\n")
+  .replace(/[\u0000-\u0009\u000b-\u001f<>{}]/g, "")
+  .replace(/\n{3,}/g, "\n\n")
+  .trim().slice(0, n);
+
 /* Schluessel-Sicherheit: state.invites/state.guests sind normale Objekte.
  * Ein Zugriff mit "__proto__"/"constructor"/"toString" liefert sonst geerbte
  * Werte (Object.prototype etc.) statt undefined -> der Handler stuerzt ab und
@@ -1892,7 +1906,16 @@ function renderMail(inv, datei, extra) {
   const offen = [...new Set((roh.match(/\{\{[a-z_]+\}\}/g) || [])
     .filter(p => !hasOwn(werte, p.slice(2, -2))))];
   if (offen.length) throw new Error(datei + ": unbekannte Platzhalter " + offen.join(", "));
-  return roh.replace(/\{\{([a-z_]+)\}\}/g, (ganz, schluessel) => esc(werte[schluessel]));
+  /* Ein Platzhalter auf _html traegt fertiges HTML und wird NICHT escaped -
+   * sonst stuende im Mailfenster ein sichtbares &lt;br&gt; statt eines
+   * Absatzes. Wer so einen Wert uebergibt, ist selbst fuers Escapen
+   * zustaendig; heute ist das genau einer ({{text_html}} in nachricht.html),
+   * und der kommt aus cleanAbsatz, wo spitze und geschweifte Klammern schon
+   * entfernt sind - im HTML kann also nichts ausser <br> landen. */
+  return roh.replace(/\{\{([a-z_]+)\}\}/g, (ganz, schluessel) =>
+    schluessel.endsWith("_html")
+      ? String(werte[schluessel] == null ? "" : werte[schluessel])
+      : esc(werte[schluessel]));
 }
 
 /* Reine Textfassung als Rueckfallebene: Mail-Clients ohne HTML und
@@ -4841,7 +4864,7 @@ const server = http.createServer((req, res) => {
      * Hintergrund; das Protokoll steht in state.sendungen. */
     if (req.method === "POST" && url === "/api/admin/senden") {
       return readBody(req, res, async body => {
-        const art = clean(body.art, 30) || "nachricht", titel = cleanText(body.titel, 120), text = cleanText(body.text, 1200);
+        const art = clean(body.art, 30) || "nachricht", titel = cleanText(body.titel, 120), text = cleanAbsatz(body.text, 1200);
         const kanal = ["push", "mail", "beide", "luecke"].includes(body.kanal) ? body.kanal : "beide";
         const zielPfad = String(body.url || "/").replace(/[^\w\/#?=&.-]/g, "").slice(0, 120) || "/";
         const ctaText = cleanText(body.ctaText, 40) || "In der App ansehen";
@@ -4883,7 +4906,11 @@ const server = http.createServer((req, res) => {
               await new Promise(ok => {
                 let html, txt;
                 try {
-                  html = renderMail(inv, "nachricht.html", { titel, text_html: text.replace(/\n/g, "<br>"), cta_text: ctaText, cta_url: PUBLIC_URL + appUrl });
+                  /* Erst escapen, dann die Absaetze setzen: {{text_html}} wird roh
+                     * eingesetzt, also muss ein "Falk & Cie" hier zu "Falk &amp; Cie"
+                     * werden - sonst steht ein nacktes & im HTML. Die <br> kommen
+                     * danach und bleiben dadurch echtes HTML. */
+                    html = renderMail(inv, "nachricht.html", { titel, text_html: esc(text).replace(/\n/g, "<br>"), cta_text: ctaText, cta_url: PUBLIC_URL + appUrl });
                   txt = inv.anrede + " " + (inv.name || "").split(" ")[0] + ",\n\n" + titel + "\n\n" + text + "\n\n" + ctaText + ": " + PUBLIC_URL + appUrl + "\n";
                 } catch (e) { sendung.mail.fehler++; return ok(); }
                 lettermintSenden({ to: inv.email, subject: titel, html, text: txt }, err => { if (err) sendung.mail.fehler++; else sendung.mail.gesendet++; setTimeout(ok, 200); });
