@@ -3386,10 +3386,17 @@ async function verbindenAktion(id, aktion){
   finally{ laufend.delete(k); }
 }
 /* Die Visitenkarte soll im Adressbuch landen, nicht im Download-Ordner.
-   Drei Wege in dieser Reihenfolge: das Teilen-Menue des Handys (dort steht
-   "Zu Kontakten hinzufuegen"), sonst die Karte vom Server mit dem richtigen
-   Dateityp - die oeffnet das Handy direkt als Kontakt -, und erst wenn
-   beides nicht geht, der Download. */
+   Drei Wege, in dieser Reihenfolge:
+
+   1. Die Karte vom Server, mit text/vcard und "inline" ausgeliefert - so
+      zeigt das Handy sie als Kontakt mit "Neuen Kontakt sichern". Als
+      echter Link-Klick, NICHT als window.open: In einer installierten App
+      (standalone) laesst iOS window.open haeufig stillschweigend fallen,
+      und der Gast steht mit einem Knopf da, der nichts tut. Ein <a>, das
+      aus dem Antippen heraus geklickt wird, geht durch.
+   2. Das Teilen-Blatt des Handys. Es bietet zwar kein "Zu Kontakten
+      hinzufuegen" an, aber AirDrop und Mail - besser als nichts.
+   3. Der Download, wenn beides nicht geht. */
 async function kontaktSpeichern(g){
   const nm = g.name.trim().split(" "); const nach = nm.length > 1 ? nm.pop() : ""; const vor = nm.join(" ");
   const esc = v => String(v || "").replace(/([\;,])/g, "\\$1").replace(/[\r\n]+/g, " ");
@@ -3408,7 +3415,10 @@ async function kontaktSpeichern(g){
      Kontaktkarte, mit "Neuen Kontakt sichern". Das ist der Weg, den man
      hier will; das Teilen-Blatt ist die Rueckfallebene fuer alles andere. */
   if(APP.token && g.id){
-    window.open("/api/app/vcf?t=" + encodeURIComponent(APP.token) + "&wen=" + encodeURIComponent(g.id), "_blank", "noopener");
+    const ziel = "/api/app/vcf?t=" + encodeURIComponent(APP.token) + "&wen=" + encodeURIComponent(g.id);
+    const a = document.createElement("a");
+    a.href = ziel; a.target = "_blank"; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
     toast("Karte geöffnet – „Neuen Kontakt sichern“ tippen.");
     return;
   }
