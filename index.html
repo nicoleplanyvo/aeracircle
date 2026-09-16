@@ -2156,6 +2156,76 @@ function toast(msg){
   toast._h = setTimeout(()=>t.classList.remove("show"), 2400);
 }
 function buzz(ms){ if(navigator.vibrate && !reduceMotion) navigator.vibrate(ms) }
+
+/* ---- Die Glocke ----
+ * Klingelt, wenn jemand sich verbinden moechte oder eine Anfrage
+ * angenommen hat. Im Raum steht der Gast im Gespraech, das Handy in der
+ * Tasche - eine Vibration allein geht dabei unter, ein Ton nicht.
+ *
+ * Synthetisiert statt abgespielt: Eine Tondatei muesste ueber ein Netz
+ * kommen, das an diesem Abend unter neunzig Handys ohnehin knapp ist,
+ * und genau im falschen Moment ist sie noch nicht da. Drei Sinustoene
+ * mit einem schnellen Anschlag und langem Ausklang - die Obertoene
+ * absichtlich nicht ganz harmonisch, sonst klingt es nach Klavier und
+ * nicht nach Glocke.
+ *
+ * Leise: 0.18 ist im Raum hoerbar und stoert den Tisch nebenan nicht.
+ * Browser lassen Ton erst nach einer Geste des Nutzers zu - der
+ * AudioContext entsteht deshalb beim ersten Tippen irgendwo in der App
+ * und wird danach nur noch aufgeweckt. */
+let tonKontext = null;
+function tonWecken(){
+  try{
+    if(!tonKontext){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return null;
+      tonKontext = new AC();
+    }
+    if(tonKontext.state === "suspended") tonKontext.resume();
+    return tonKontext;
+  }catch(e){ return null; }
+}
+document.addEventListener("pointerdown", tonWecken, { once:false, passive:true });
+
+function glockeKlingt(){
+  /* NICHT an reduceMotion haengen: "Bewegung reduzieren" ist eine Bitte um
+     weniger Animation, nicht um Stille - das steuert am Handy der
+     Klingelschalter, und den beachtet Web Audio von selbst.
+     Waehrend eines app-freien Fensters bleibt es still: Da soll der Raum
+     nach vorn hoeren und nicht auf neunzig Handys. */
+  if(typeof appfreiFenster === "function" && appfreiFenster()) return;
+  const ctx = tonWecken();
+  if(!ctx || ctx.state !== "running") return;
+  try{
+    const t0 = ctx.currentTime;
+    const summe = ctx.createGain();
+    summe.gain.value = 0.18;
+    summe.connect(ctx.destination);
+    /* Grundton und zwei Obertoene; die Faktoren 2.76 und 5.4 sind die,
+       die eine Glocke von einer Stimmgabel unterscheiden. */
+    [[880, 1], [880 * 2.76, .5], [880 * 5.4, .22]].forEach(([hz, laut], i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(laut, t0 + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.5 - i * 0.35);
+      o.connect(g); g.connect(summe);
+      o.start(t0); o.stop(t0 + 1.6);
+    });
+    /* Der zweite Schlag macht daraus ein Klingeln statt eines Pings. */
+    const t1 = t0 + 0.17;
+    [[880, .6], [880 * 2.76, .3]].forEach(([hz, laut]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t1);
+      g.gain.exponentialRampToValueAtTime(laut, t1 + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t1 + 1.3);
+      o.connect(g); g.connect(summe);
+      o.start(t1); o.stop(t1 + 1.4);
+    });
+  }catch(e){ /* Ton ist die Zugabe, nicht die Nachricht - Toast und
+                Vibration stehen ohnehin. */ }
+}
 function setupCanvas(cv){
   const dpr = Math.min(devicePixelRatio || 1, 2);
   let w = cv.clientWidth, h = cv.clientHeight;
@@ -3127,8 +3197,20 @@ function renderKreis(){
   /* Neue Anfrage seit dem letzten Stand: Glocke, ein Satz, ein Brummen.
      Beim ersten Laden nicht - was schon da war, ist keine Neuigkeit. */
   const ids = new Set(k.anfragen.map(g => g.id));
-  if(APP.anfragenBekannt) k.anfragen.forEach(g => { if(!APP.anfragenBekannt.has(g.id)){ toast(g.name + " möchte sich mit dir verbinden."); buzz([30, 40, 30]); } });
+  let klingeln = false;
+  if(APP.anfragenBekannt) k.anfragen.forEach(g => {
+    if(!APP.anfragenBekannt.has(g.id)){ toast(g.name + " möchte sich mit dir verbinden."); klingeln = true; }
+  });
   APP.anfragenBekannt = ids;
+  /* Und andersherum: jemand hat MEINE Anfrage angenommen. Das stand bisher
+     nirgends - die Zeile wanderte still von "Angefragt" nach "Verbunden",
+     und wer nicht gerade auf den Kreis sah, merkte es nicht. */
+  const verbIds = new Set(k.verbunden.map(g => g.id));
+  if(APP.verbundenBekannt) k.verbunden.forEach(g => {
+    if(!APP.verbundenBekannt.has(g.id)){ toast(g.name.split(" ")[0] + " hat angenommen – ihr seid verbunden."); klingeln = true; }
+  });
+  APP.verbundenBekannt = verbIds;
+  if(klingeln){ buzz([30, 40, 30]); glockeKlingt(); }
   renderGlocke(); if($("#meldSheet").classList.contains("show")) renderMeldungen();
   if(n && !S.moments.verbindung) collect("verbindung", "Verbunden – ein Strich mehr im Kreis.");
   renderTeilenVorschau();
