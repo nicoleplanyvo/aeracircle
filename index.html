@@ -3386,17 +3386,22 @@ async function verbindenAktion(id, aktion){
   finally{ laufend.delete(k); }
 }
 /* Die Visitenkarte soll im Adressbuch landen, nicht im Download-Ordner.
-   Drei Wege, in dieser Reihenfolge:
+   Auf dem iPhone haengt der richtige Weg davon ab, WO die App laeuft:
 
-   1. Die Karte vom Server, mit text/vcard und "inline" ausgeliefert - so
-      zeigt das Handy sie als Kontakt mit "Neuen Kontakt sichern". Als
-      echter Link-Klick, NICHT als window.open: In einer installierten App
-      (standalone) laesst iOS window.open haeufig stillschweigend fallen,
-      und der Gast steht mit einem Knopf da, der nichts tut. Ein <a>, das
-      aus dem Antippen heraus geklickt wird, geht durch.
-   2. Das Teilen-Blatt des Handys. Es bietet zwar kein "Zu Kontakten
-      hinzufuegen" an, aber AirDrop und Mail - besser als nichts.
-   3. Der Download, wenn beides nicht geht. */
+   Im Browser oeffnet ein Klick auf die .vcf sie direkt als Kontaktkarte,
+   mit "Neuen Kontakt sichern". Das ist der kuerzeste Weg, also der erste.
+   Wichtig dabei: ohne target="_blank". Mit _blank landet die Datei im
+   In-App-Browser, und der zeigt eine vCard nicht als Kontakt, sondern als
+   leere weisse Seite - genau das ist am 16.09. passiert.
+
+   In der installierten App (Startbildschirm) gibt es diesen Weg nicht:
+   window.open faellt still, und eine Navigation wuerde die App verlassen,
+   ohne Zurueck-Knopf. Dort ist das Teilen-Blatt der Weg - in seiner
+   unteren Aktionsliste steht "Zu Kontakten hinzufuegen". Das ist ein
+   Tippen mehr, als schoen waere, aber iOS gibt einer Webapp keinen
+   direkten Zugang zum Adressbuch.
+
+   Bleibt beides aus: der Download. */
 async function kontaktSpeichern(g){
   const nm = g.name.trim().split(" "); const nach = nm.length > 1 ? nm.pop() : ""; const vor = nm.join(" ");
   const esc = v => String(v || "").replace(/([\;,])/g, "\\$1").replace(/[\r\n]+/g, " ");
@@ -3414,17 +3419,32 @@ async function kontaktSpeichern(g){
      .vcf mit dem richtigen Dateityp geoeffnet zeigt Safari dagegen als
      Kontaktkarte, mit "Neuen Kontakt sichern". Das ist der Weg, den man
      hier will; das Teilen-Blatt ist die Rueckfallebene fuer alles andere. */
-  if(APP.token && g.id){
-    const ziel = "/api/app/vcf?t=" + encodeURIComponent(APP.token) + "&wen=" + encodeURIComponent(g.id);
+  const inApp = istStandalone();
+  if(!inApp && APP.token && g.id){
     const a = document.createElement("a");
-    a.href = ziel; a.target = "_blank"; a.rel = "noopener";
+    a.href = "/api/app/vcf?t=" + encodeURIComponent(APP.token) + "&wen=" + encodeURIComponent(g.id);
     document.body.appendChild(a); a.click(); a.remove();
     toast("Karte geöffnet – „Neuen Kontakt sichern“ tippen.");
     return;
   }
   try{
-    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:g.name }); return; }
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      await navigator.share({ files:[file], title:g.name });
+      /* Der Hinweis danach, nicht davor: Waehrend das Blatt offen ist,
+         sieht ihn niemand. Wer es wegwischt, weiss beim naechsten Mal,
+         wo die Aktion steckt. */
+      toast("Im Teilen-Menü unten: „Zu Kontakten hinzufügen“.");
+      return;
+    }
   }catch(e){ if(e && e.name === "AbortError") return; }
+  /* Kein Teilen-Blatt vorhanden - dann doch die Karte vom Server. */
+  if(APP.token && g.id){
+    const a = document.createElement("a");
+    a.href = "/api/app/vcf?t=" + encodeURIComponent(APP.token) + "&wen=" + encodeURIComponent(g.id);
+    document.body.appendChild(a); a.click(); a.remove();
+    toast("Karte geöffnet – „Neuen Kontakt sichern“ tippen.");
+    return;
+  }
   const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   toast("Karte erzeugt – falls nichts passiert: " + [g.email, g.telefon].filter(Boolean).join(" · "));
 }
