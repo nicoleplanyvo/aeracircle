@@ -2459,10 +2459,21 @@ function inWindow(g){
   const n = nowLive();
   return n >= eventTime(g.from) && n < eventTime(g.to);
 }
+/* Der Handschalter schlaegt die Uhr: "auf" oeffnet sofort, "zu" haelt zu,
+   leer folgt dem Fenster. Vorne steht ein Mensch, der weiss, wann die
+   Frage dran ist - die Uhrzeit in der Tabelle ist nur die Vermutung von
+   gestern. */
+function gateOffen(name){
+  const hand = (CONFIG.gateHand || {})[name];
+  if(hand === "auf") return true;
+  if(hand === "zu") return false;
+  const g = CONFIG.gates[name];
+  return g ? inWindow(g) : false;
+}
 function renderGates(){
   $$("[data-gate]").forEach(el=>{
-    const g = CONFIG.gates[el.dataset.gate];
-    if(g) el.classList.toggle("locked", !inWindow(g));
+    const name = el.dataset.gate;
+    if(CONFIG.gates[name] || (CONFIG.gateHand || {})[name]) el.classList.toggle("locked", !gateOffen(name));
   });
   renderAppfrei();
 }
@@ -2787,6 +2798,7 @@ function zeitenUebernehmen(z){
   uhrAbgleichen(z.jetztMs);
   if(Array.isArray(z.appfrei)) CONFIG.appfrei = z.appfrei.filter(f => !f.aus);
   if(z.gates && typeof z.gates === "object") CONFIG.gates = z.gates;
+  if(z.gateHand && typeof z.gateHand === "object") CONFIG.gateHand = z.gateHand;
   /* Der Ablauf kommt vom Server: Verschiebt jemand im Monitor "alles ab
      jetzt +15", zeigt die App nicht mehr "Jetzt: Impuls", waehrend vorne
      noch die Vorspeise laeuft. */
@@ -3307,14 +3319,20 @@ async function kontaktSpeichern(g){
     "END:VCARD"].filter(Boolean).join("\r\n") + "\r\n";
   const name = (g.name.replace(/[^\wäöüÄÖÜß -]/g, "").trim() || "Kontakt") + ".vcf";
   const file = new File([vc], name, { type:"text/vcard" });
-  try{
-    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:g.name }); return; }
-  }catch(e){ if(e && e.name === "AbortError") return; }
+  /* Die Karte vom Server ZUERST. navigator.share() mit einer Datei oeffnet
+     auf dem iPhone das allgemeine Teilen-Blatt - AirDrop, WhatsApp, Mail -
+     und genau "Zu Kontakten hinzufuegen" steht dort nicht drin. Die
+     .vcf mit dem richtigen Dateityp geoeffnet zeigt Safari dagegen als
+     Kontaktkarte, mit "Neuen Kontakt sichern". Das ist der Weg, den man
+     hier will; das Teilen-Blatt ist die Rueckfallebene fuer alles andere. */
   if(APP.token && g.id){
     window.open("/api/app/vcf?t=" + encodeURIComponent(APP.token) + "&wen=" + encodeURIComponent(g.id), "_blank", "noopener");
     toast("Karte geöffnet – „Neuen Kontakt sichern“ tippen.");
     return;
   }
+  try{
+    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:g.name }); return; }
+  }catch(e){ if(e && e.name === "AbortError") return; }
   const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   toast("Karte erzeugt – falls nichts passiert: " + [g.email, g.telefon].filter(Boolean).join(" · "));
 }

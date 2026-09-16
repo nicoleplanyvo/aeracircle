@@ -780,6 +780,27 @@
       <button class="rg-knopf klein" id="pushSchalter" type="button">Push freigeben</button>
     </div>
 
+    <!-- Die beiden Live-Bereiche von Hand. Sie folgen sonst der Uhr
+         (planyvo ab dem ersten Gang, das Werk ab 22:45) - aber vorne steht
+         ein Mensch, der weiss, wann die Frage wirklich dran ist. -->
+    <span class="label rg-label">Live-Bereiche in der App · gilt sofort für alle</span>
+    <div class="rg-hinweis" id="gateAv8">
+      <div><b>planyvo bewerten</b><span id="gateAv8Stand">–</span></div>
+      <div class="exportzeile" style="flex:none">
+        <button class="rg-knopf klein" type="button" data-gate="av8" data-soll="auf">Freischalten</button>
+        <button class="rg-knopf klein" type="button" data-gate="av8" data-soll="zu">Schließen</button>
+        <button class="rg-knopf klein" type="button" data-gate="av8" data-soll="">Nach Uhrzeit</button>
+      </div>
+    </div>
+    <div class="rg-hinweis" id="gateAuktion" style="margin-top:8px">
+      <div><b>Werk benennen</b><span id="gateAuktionStand">–</span></div>
+      <div class="exportzeile" style="flex:none">
+        <button class="rg-knopf klein" type="button" data-gate="auktion" data-soll="auf">Freischalten</button>
+        <button class="rg-knopf klein" type="button" data-gate="auktion" data-soll="zu">Schließen</button>
+        <button class="rg-knopf klein" type="button" data-gate="auktion" data-soll="">Nach Uhrzeit</button>
+      </div>
+    </div>
+
     <span class="label rg-label">Tischwechsel · erscheint sofort in jeder offenen App</span>
     <div class="rg-reihe" id="wechselKnoepfe"></div>
     <div class="jetztbox" id="signalbox" style="margin-top:12px">
@@ -830,7 +851,7 @@
     <div class="exportzeile" id="wandModi">
       <button class="export" data-modus="auto" type="button">Automatik</button>
       <button class="export" data-modus="ruhe" type="button">Ruhe</button>
-      <button class="export" data-modus="av8" type="button">Start-up</button>
+      <button class="export" data-modus="av8" type="button">planyvo</button>
       <button class="export" data-modus="auktion" type="button">Auktion</button>
       <button class="export" data-modus="kreis" type="button">Der Kreis</button>
       <button class="export" data-modus="aus" type="button">Schwarz</button>
@@ -1771,6 +1792,7 @@ function zeitenZeichnen(z){
       ? "seit " + new Date(z.jetzt.seit).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"})
       : "");
   knopf.textContent = an ? "Wieder freigeben" : "Jetzt ohne App";
+  gatesZeichnen(z);
   regieZeichnen();
 
   const tb = $("#zliste");
@@ -2333,6 +2355,37 @@ async function zeitenHolen(){
     if(d.ok && d.zeiten) zeitenZeichnen(d.zeiten);
   }catch(e){}
 }
+
+/* ---------- Die beiden Live-Bereiche ----------
+   Zeigt, was gerade gilt, und warum: "offen, weil von Hand" liest sich
+   anders als "offen, weil 19:00 durch ist" - am Abend muss man das auf
+   einen Blick unterscheiden koennen, sonst dreht man am falschen Knopf. */
+function inFensterJetzt(g, koeln){
+  if(!g || !koeln) return false;
+  return koeln >= g.from && koeln < g.to;
+}
+function gatesZeichnen(z){
+  const koeln = (appStand && appStand.koeln) || "";
+  const hand = (z && z.gateHand) || {};
+  const gates = (z && z.gates) || {};
+  for(const [name, id] of [["av8", "gateAv8"], ["auktion", "gateAuktion"]]){
+    const kasten = $("#" + id); if(!kasten) continue;
+    const h = hand[name] || "", g = gates[name];
+    const nachUhr = inFensterJetzt(g, koeln);
+    const offen = h === "auf" ? true : (h === "zu" ? false : nachUhr);
+    kasten.classList.toggle("an", offen);
+    const grund = h === "auf" ? "von Hand freigeschaltet"
+                : h === "zu" ? "von Hand geschlossen"
+                : (g ? "nach Uhrzeit · " + g.from + "–" + g.to : "kein Fenster hinterlegt");
+    txt($("#" + id + "Stand"), (offen ? "Offen" : "Zu") + " · " + grund);
+    kasten.querySelectorAll("button[data-gate]").forEach(b => b.classList.toggle("an", (b.dataset.soll || "") === h));
+  }
+}
+document.querySelectorAll("button[data-gate]").forEach(b => b.addEventListener("click", async () => {
+  const soll = b.dataset.soll || "";
+  await zeitenSchreiben({ gateHand: { [b.dataset.gate]: soll } },
+    soll === "auf" ? "Freigeschaltet" : soll === "zu" ? "Geschlossen" : "Folgt wieder der Uhrzeit");
+}));
 
 async function zeitenSchreiben(rumpf, note){
   if(!KEY){ txt($("#znote"), "Kein Zugang – Link ohne key."); return; }

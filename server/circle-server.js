@@ -297,6 +297,11 @@ const ZEITEN_STANDARD = {
     av8:     { from: "19:00", to: "23:00" },
     auktion: { from: "22:45", to: "23:00" }
   },
+  /* Handschalter je Fenster: "" folgt der Uhr, "auf" oeffnet sofort,
+   * "zu" haelt zu. Der Abend haelt sich nicht an Tabellen - zeigt die
+   * Moderation fuenf Minuten frueher auf die Frage, darf die App nicht
+   * noch zu sein; wird es spaeter, soll sie nicht von selbst aufgehen. */
+  gateHand: { av8: "", auktion: "" },
   /* null = kein Handschalter. Sonst { was, hinweis, seit } */
   jetzt: null,
   /* Der Ablauf. Steht auch in der App als Notvorrat; was hier steht, gilt.
@@ -376,6 +381,9 @@ if (!Array.isArray(state.zeiten.appfrei)) {
 }
 if (!state.zeiten.gates || typeof state.zeiten.gates !== "object") {
   state.zeiten.gates = JSON.parse(JSON.stringify(ZEITEN_STANDARD.gates));
+}
+if (!state.zeiten.gateHand || typeof state.zeiten.gateHand !== "object") {
+  state.zeiten.gateHand = JSON.parse(JSON.stringify(ZEITEN_STANDARD.gateHand));
 }
 if (!("jetzt" in state.zeiten)) state.zeiten.jetzt = null;
 if (!Array.isArray(state.zeiten.timeline) || !state.zeiten.timeline.length) {
@@ -1688,7 +1696,7 @@ function rechtsSeite(art) {
     '<li><b>Profil in der App</b> &ndash; Unternehmen, Rolle, ein Satz &uuml;ber dich, wonach du suchst, LinkedIn, <b>Profilbild</b>. Das Bild sehen alle G&auml;ste dieses Abends in der Teilnehmerliste und im Tischplan; es liegt auf unserem Server unter einer nicht erratbaren Adresse. Grundlage: Einwilligung, Art. 6 Abs. 1 a DSGVO. Widerruf jederzeit &uuml;ber &bdquo;Profil und Bild l&ouml;schen&ldquo; in der App.</li>' +
     '<li><b>Kontaktfreigabe</b> &ndash; E-Mail, Telefon und LinkedIn werden nur dann an einen anderen Gast weitergegeben, wenn ihr euch beidseitig verbunden habt <b>und</b> du die Weitergabe in der App erlaubt hast. Beides kannst du jederzeit &auml;ndern.</li>' +
     '<li><b>Verbindungen und Notizen</b> &ndash; wer sich mit wem verbunden hat, sehen nur die beiden Beteiligten; der Veranstalter sieht nur die Anzahl. Notizen sieht nur, wer sie schreibt.</li>' +
-    '<li><b>Anwesenheit, Tisch, Live-Funktionen</b> &ndash; &bdquo;Ich bin da&ldquo;, Tischzuordnung, R&uuml;ckmeldungen zu AV8 (Votum, Sterne, Interesse), Gebote und Sch&auml;tzspiel. Interesse und Gebote werden mit deinem Namen an die jeweils Betroffenen (Gr&uuml;nder, Auktionator) weitergegeben. Grundlage: Art. 6 Abs. 1 b bzw. a DSGVO.</li>' +
+    '<li><b>Anwesenheit, Tisch, Live-Funktionen</b> &ndash; Anwesenheit (wird am Einlass vom Team erfasst), Tischzuordnung, R&uuml;ckmeldungen zu planyvo (Votum, Sterne, Interesse), Gebote und Sch&auml;tzspiel. Interesse und Gebote werden mit deinem Namen an die jeweils Betroffenen (Gr&uuml;nder, Auktionator) weitergegeben. Grundlage: Art. 6 Abs. 1 b bzw. a DSGVO.</li>' +
     '<li><b>Benachrichtigungen</b> &ndash; wenn du sie erlaubst, speichern wir die Push-Adresse deines Ger&auml;ts (Apple/Google). Inhalte werden verschl&uuml;sselt &uuml;bertragen. Abschalten jederzeit in den Ger&auml;teeinstellungen.</li>' +
     '<li><b>Technik</b> &ndash; Server-Protokolle (IP-Adresse, Zeitpunkt) f&uuml;r Betrieb und Sicherheit, Art. 6 Abs. 1 f DSGVO; lokale Speicherung deines Zugangs auf deinem Ger&auml;t.</li></ul>' +
     '<h2>Empf&auml;nger</h2><p>Stripe (Zahlung), Lettermint (E-Mail-Versand), Apple/Google (Push), Catering (nur Ern&auml;hrungsangaben), unser Hosting-Anbieter. Keine Weitergabe an Dritte zu Werbezwecken.</p>' +
@@ -4469,6 +4477,19 @@ const server = http.createServer((req, res) => {
             g[clean(k, 40)] = { from: String(w.from), to: String(w.to) };
           }
           neu.gates = g;
+        }
+        /* Die Handschalter: "" folgt der Uhr, "auf" und "zu" uebersteuern
+         * sie. Nur bekannte Fenster, damit ein Tippfehler im Monitor nicht
+         * still einen dritten Schalter anlegt, den nirgends jemand liest. */
+        if (body.gateHand && typeof body.gateHand === "object") {
+          const h = Object.assign({}, neu.gateHand);
+          for (const k of Object.keys(body.gateHand)) {
+            if (!Object.prototype.hasOwnProperty.call(neu.gates || {}, k)) { fehler.push("gateHand." + k + ": unbekanntes Fenster"); continue; }
+            const v = String(body.gateHand[k] || "");
+            if (v !== "" && v !== "auf" && v !== "zu") { fehler.push("gateHand." + k + ": " + v); continue; }
+            h[k] = v;
+          }
+          neu.gateHand = h;
         }
 
         if (Array.isArray(body.timeline)) {

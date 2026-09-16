@@ -83,7 +83,7 @@
 </section>
 
 <section class="buehne" id="av8">
-  <span class="label">AV8 · Feedback aus dem Raum</span>
+  <span class="label">planyvo · Feedback aus dem Raum</span>
   <div class="mittel" style="margin-top:2vh">Würdest du investieren?</div>
   <div id="av8zu">
     <div class="gross" style="margin-top:6vh" id="av8Anzahl">0</div>
@@ -186,7 +186,7 @@ function zeigen(){
   $("#ruheRaum").textContent = fmt(k.da); $("#ruheVerb").textContent = fmt(k.verbunden);
   const satz = (D.wand && D.wand.satz) || (SIG ? (SIG.art === "wechsel" ? "Tischwechsel · " + SIG.text : SIG.text) : "");
   $("#ruheSatz").textContent = satz;
-  /* AV8 */
+  /* planyvo */
   const v = D.votes || {ja:0,vielleicht:0,nein:0}, ges = v.ja + v.vielleicht + v.nein;
   const auf = !!(D.wand && D.wand.enthuellt) && ges >= 15;
   $("#av8Anzahl").textContent = fmt(ges);
