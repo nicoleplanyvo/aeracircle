@@ -398,4 +398,34 @@ function marke(eingabe, fertig) {
   holen(start.href, MAX_HTML, nachHtml);
 }
 
-module.exports = { marke, privat, markenfarbe, hsl };
+/* --- Linkvorschau: was eine Seite ueber sich selbst sagt (Open Graph).
+ *     Fuer einen Link im News-Beitrag - LinkedIn, ein Artikel, ein Video.
+ *     Dieselben Grenzen wie bei der Marke: nur oeffentliche Adressen, Zeit-
+ *     und Groessenlimit. Was fehlt, bleibt leer; die App zeigt dann nur
+ *     Titel und Quelle. --- */
+function vorschauAusHtml(html, adresse) {
+  let u; try { u = new URL(adresse); } catch (e) { u = null; }
+  const titelTag = (html.match(/<title[^>]*>([^<]*)<\/title>/i) || [])[1] || "";
+  const titel = meta(html, "og:title") || meta(html, "twitter:title") || entwirren(titelTag).trim();
+  const text = meta(html, "og:description") || meta(html, "twitter:description") || meta(html, "description");
+  let bild = meta(html, "og:image:secure_url") || meta(html, "og:image") || meta(html, "twitter:image");
+  if (bild && u) { try { bild = new URL(bild, u).href; } catch (e) { bild = ""; } }
+  if (bild && !/^https:\/\//.test(bild)) bild = "";   // kein http-Bild in einer https-App (Mixed Content)
+  const quelle = meta(html, "og:site_name") || (u ? u.hostname.replace(/^www\./, "") : "");
+  /* LinkedIn nennt als Titel den ganzen Beitragstext, mit Zeilenumbruechen.
+   * Also: Whitespace glaetten, bei rund 110 Zeichen am Wort abschneiden -
+   * und die Beschreibung weglassen, wenn sie nur den Titel wiederholt. */
+  let t = titel.replace(/\s+/g, " ").trim();
+  if (t.length > 110) { const s = t.lastIndexOf(" ", 110); t = t.slice(0, s > 60 ? s : 110) + " …"; }
+  let b = text.replace(/\s+/g, " ").trim();
+  if (b && t && b.startsWith(t.replace(/ …$/, "").slice(0, 40))) b = "";
+  return { titel: t, text: b.slice(0, 240), bild: bild.slice(0, 600), quelle: quelle.slice(0, 60) };
+}
+function vorschau(adresse, fertig) {
+  holen(String(adresse || ""), MAX_HTML, (err, html, endAdresse) => {
+    if (err) return fertig(err);
+    fertig(null, vorschauAusHtml(html, endAdresse || adresse));
+  });
+}
+
+module.exports = { marke, privat, markenfarbe, hsl, vorschau, vorschauAusHtml };

@@ -977,11 +977,13 @@
     <div id="sendungen" style="margin-top:10px"></div>
 
     <span class="label" style="display:block;margin-top:26px">News</span>
-    <p class="fnote">Steht in der App unter „News“ – nach dem Abend an der Stelle von „Live“. Entwurf bleibt unsichtbar, bis du veröffentlichst.</p>
+    <p class="fnote">Steht in der App unter „News“ – nach dem Abend an der Stelle von „Live“. Entwurf bleibt unsichtbar, bis du veröffentlichst.
+      Ein Link bekommt automatisch eine Vorschau (Bild, Titel, Quelle von der verlinkten Seite); ein eigenes Bild schlägt das der Seite.</p>
     <div class="mailtools">
       <input id="nwTitel" type="text" placeholder="Titel" maxlength="120">
       <input id="nwLink" type="text" placeholder="Link (optional, https://…)" maxlength="300" style="max-width:260px">
       <input id="nwLinkText" type="text" placeholder="Linktext" maxlength="60" style="max-width:160px">
+      <input id="nwBild" type="text" placeholder="Eigenes Vorschaubild (https://…, optional)" maxlength="600" style="max-width:300px">
       <select id="nwSichtbar"><option value="alle">Für alle Runden</option><option value="runde">Nur diese Runde</option></select>
     </div>
     <textarea id="nwText" class="plancsv" rows="4" placeholder="Der Beitrag …" maxlength="2000"></textarea>
@@ -2283,10 +2285,18 @@ function newsZeichnen(){
   const w = $("#newsListe"); w.innerHTML = "";
   newsStand.forEach(n => {
     const z = document.createElement("div"); z.className = "newszeile";
-    const b = document.createElement("b"); b.textContent = (n.veroeffentlicht ? "● " : "○ ") + (n.titel || "(ohne Titel)") + " · " + wann(n.t) + (n.sichtbar !== "alle" ? " · nur " + n.sichtbar : "");
+    /* Stand der Linkvorschau in einem Wort: Quelle + ob ein Bild da ist. */
+    const vs = n.vorschau, vor = !n.link ? "" : vs && !vs.fehler ? " · Vorschau: " + (vs.quelle || "Seite") + ((n.bild || vs.bild) ? " mit Bild" : " ohne Bild") : " · Vorschau fehlt" + (vs && vs.fehler ? " (" + vs.fehler + ")" : "");
+    const b = document.createElement("b"); b.textContent = (n.veroeffentlicht ? "● " : "○ ") + (n.titel || "(ohne Titel)") + " · " + wann(n.t) + (n.sichtbar !== "alle" ? " · nur " + n.sichtbar : "") + vor;
     z.appendChild(b);
     const e = document.createElement("button"); e.className = "export"; e.type = "button"; e.textContent = "Bearbeiten";
-    e.addEventListener("click", () => { newsId = n.id; $("#nwTitel").value = n.titel || ""; $("#nwText").value = n.text || ""; $("#nwLink").value = n.link || ""; $("#nwLinkText").value = n.linkText || ""; $("#nwSichtbar").value = n.sichtbar === "alle" ? "alle" : "runde"; $("#nwNeu").style.display = ""; txt($("#nwNote"), "Bearbeite: " + n.titel); });
+    e.addEventListener("click", () => { newsId = n.id; $("#nwTitel").value = n.titel || ""; $("#nwText").value = n.text || ""; $("#nwLink").value = n.link || ""; $("#nwLinkText").value = n.linkText || ""; $("#nwBild").value = n.bild || ""; $("#nwSichtbar").value = n.sichtbar === "alle" ? "alle" : "runde"; $("#nwNeu").style.display = ""; txt($("#nwNote"), "Bearbeite: " + n.titel); });
+    if(n.link){
+      const r = document.createElement("button"); r.className = "export"; r.type = "button"; r.textContent = "Vorschau neu laden";
+      r.addEventListener("click", async () => { r.disabled = true; const d = await adminPost("/api/admin/news", { id: n.id, vorschauNeu: true }); r.disabled = false;
+        const vv = d && d.news && d.news.vorschau; txt($("#nwNote"), vv && !vv.fehler ? "Vorschau geladen: " + (vv.titel || vv.quelle) + (vv.bild ? " · mit Bild" : " · ohne Bild") : "Keine Vorschau: " + (vv && vv.fehler || "die Seite gibt nichts her")); nachHolen(); });
+      z.appendChild(r);
+    }
     const v = document.createElement("button"); v.className = "export"; v.type = "button"; v.textContent = n.veroeffentlicht ? "Zurückziehen" : "Veröffentlichen";
     v.addEventListener("click", async () => { await adminPost("/api/admin/news", { id: n.id, veroeffentlicht: !n.veroeffentlicht }); nachHolen(); });
     const l = document.createElement("button"); l.className = "export"; l.type = "button"; l.textContent = "Löschen";
@@ -2295,15 +2305,22 @@ function newsZeichnen(){
   });
 }
 async function newsSpeichern(veroeffentlicht){
-  const rumpf = { id: newsId || undefined, titel: $("#nwTitel").value.trim(), text: $("#nwText").value.trim(), link: $("#nwLink").value.trim(), linkText: $("#nwLinkText").value.trim(), sichtbar: $("#nwSichtbar").value === "alle" ? "alle" : (appStand && appStand.runde) || "no1" };
+  const rumpf = { id: newsId || undefined, titel: $("#nwTitel").value.trim(), text: $("#nwText").value.trim(), link: $("#nwLink").value.trim(), linkText: $("#nwLinkText").value.trim(), bild: $("#nwBild").value.trim(), sichtbar: $("#nwSichtbar").value === "alle" ? "alle" : (appStand && appStand.runde) || "no1" };
   if(!rumpf.titel || !rumpf.text){ txt($("#nwNote"), "Titel und Text fehlen."); return; }
   if(veroeffentlicht !== undefined) rumpf.veroeffentlicht = veroeffentlicht;
+  if(rumpf.link) txt($("#nwNote"), "Speichert und holt die Linkvorschau …");
   const d = await adminPost("/api/admin/news", rumpf);
-  if(d && d.ok){ txt($("#nwNote"), veroeffentlicht ? "Veröffentlicht – steht jetzt in der App." : "Als Entwurf gespeichert."); newsId = ""; $("#nwTitel").value = ""; $("#nwText").value = ""; $("#nwLink").value = ""; $("#nwLinkText").value = ""; $("#nwNeu").style.display = "none"; nachHolen(); }
+  if(d && d.ok){
+    const v = d.news && d.news.vorschau;
+    const vor = !rumpf.link ? "" : v && !v.fehler ? " Vorschau: " + (v.quelle || "Seite") + ((d.news.bild || v.bild) ? " mit Bild." : " ohne Bild.") : " Keine Vorschau von der Seite – nur Linktext.";
+    txt($("#nwNote"), (veroeffentlicht ? "Veröffentlicht – steht jetzt in der App." : "Als Entwurf gespeichert.") + vor);
+    newsId = ""; newsFelderLeeren(); nachHolen();
+  }
 }
+function newsFelderLeeren(){ ["nwTitel","nwText","nwLink","nwLinkText","nwBild"].forEach(id => $("#" + id).value = ""); $("#nwNeu").style.display = "none"; }
 $("#nwEntwurf").addEventListener("click", () => newsSpeichern(undefined));
 $("#nwVeroeff").addEventListener("click", () => newsSpeichern(true));
-$("#nwNeu").addEventListener("click", () => { newsId = ""; $("#nwTitel").value = ""; $("#nwText").value = ""; $("#nwLink").value = ""; $("#nwLinkText").value = ""; $("#nwNeu").style.display = "none"; txt($("#nwNote"), ""); });
+$("#nwNeu").addEventListener("click", () => { newsId = ""; newsFelderLeeren(); txt($("#nwNote"), ""); });
 
 /* Galerie */
 function galerieZeichnen(g){

@@ -1142,7 +1142,7 @@ function readBodyGross(req, res, cb) {
  * alle Abonnements ungueltig:  node -e "console.log(require('./server/webpush').schluesselErzeugen())" */
 const webpush = require("./webpush");
 const { neuesPdf, A4 } = require("./pdf");           // Rechnung als A4-Blatt
-const { marke } = require("./marke");                // Stand: CI aus der Website
+const { marke, vorschau: linkVorschau } = require("./marke");   // Stand: CI aus der Website; News: Linkvorschau
 const VAPID = {
   publicKey: process.env.VAPID_PUBLIC || "",
   privateKey: process.env.VAPID_PRIVATE || "",
@@ -3667,7 +3667,10 @@ const server = http.createServer((req, res) => {
     const ich = findInvite(q.get("t"));
     if (!ich || !imKreis(ich)) return json(res, 403, { error: "kein Zugang" });
     const liste = (state.news || []).filter(n => n.veroeffentlicht && (n.sichtbar === "alle" || n.sichtbar === rundeVon(ich)))
-      .sort((a, b) => b.t - a.t).map(n => ({ id: n.id, t: n.t, titel: n.titel, text: n.text, link: n.link || "", linkText: n.linkText || "", bild: n.bild || "" }));
+      .sort((a, b) => b.t - a.t).map(n => ({ id: n.id, t: n.t, titel: n.titel, text: n.text, link: n.link || "", linkText: n.linkText || "", bild: n.bild || "",
+        /* Die Vorschau, wie die Seite sie liefert - das eigene Bild (n.bild) geht vor. */
+        vorschau: n.vorschau && !n.vorschau.fehler ? { titel: n.vorschau.titel || "", text: n.vorschau.text || "", bild: n.bild || n.vorschau.bild || "", quelle: n.vorschau.quelle || "" }
+                : (n.link ? { titel: "", text: "", bild: n.bild || "", quelle: (() => { try { return new URL(n.link).hostname.replace(/^www\./, ""); } catch (e) { return ""; } })() } : null) }));
     return json(res, 200, { ok: true, news: liste });
   }
 
@@ -4776,18 +4779,30 @@ const server = http.createServer((req, res) => {
       return json(res, 200, { ok: true, news: (state.news || []).sort((a, b) => b.t - a.t) });
     }
     if (req.method === "POST" && url === "/api/admin/news") {
-      return readBody(req, res, body => {
+      return readBody(req, res, async body => {
         if (!state.news) state.news = [];
         if (body.loeschen && body.id) { state.news = state.news.filter(n => n.id !== body.id); dirty = true; return json(res, 200, { ok: true }); }
         let n = body.id ? state.news.find(x => x.id === body.id) : null;
         if (!n) { n = { id: crypto.randomBytes(6).toString("hex"), t: Date.now(), autor: wer }; state.news.push(n); }
         if (body.titel !== undefined) n.titel = cleanText(body.titel, 120);
-        if (body.text !== undefined) n.text = cleanText(body.text, 2000);
+        if (body.text !== undefined) n.text = cleanAbsatz(body.text, 2000);
+        const linkVorher = n.link || "";
         if (body.link !== undefined) n.link = String(body.link || "").slice(0, 300).replace(/[<>"']/g, "");
         if (body.linkText !== undefined) n.linkText = cleanText(body.linkText, 60);
+        /* Eigenes Vorschaubild: schlaegt das von der Seite. Leer = wieder das der Seite. */
+        if (body.bild !== undefined) n.bild = /^https:\/\//.test(String(body.bild || "")) ? String(body.bild).slice(0, 600).replace(/[<>"'\s]/g, "") : "";
         if (body.sichtbar !== undefined) n.sichtbar = body.sichtbar === "alle" ? "alle" : (clean(body.sichtbar, 20) || RUNDE);
         if (body.veroeffentlicht !== undefined) { n.veroeffentlicht = !!body.veroeffentlicht; if (n.veroeffentlicht && !n.seit) n.seit = Date.now(); }
         if (!n.sichtbar) n.sichtbar = "alle";
+        /* Linkvorschau: Titel, Bild und Quelle von der verlinkten Seite. Wird
+         * geholt, wenn der Link neu ist oder der Monitor es ausdruecklich
+         * will - nicht bei jedem Speichern, die Seite aendert sich ja nicht.
+         * Haengt die Seite, antworten wir nach spaetestens acht Sekunden ohne. */
+        const linkNeu = n.link && /^https?:\/\//.test(n.link) && (n.link !== linkVorher || body.vorschauNeu || !n.vorschau);
+        if (!n.link) n.vorschau = null;
+        else if (linkNeu) {
+          n.vorschau = await new Promise(ok => linkVorschau(n.link, (err, v) => ok(err ? { fehler: err.message } : v)));
+        }
         dirty = true;
         return json(res, 200, { ok: true, news: n });
       });
