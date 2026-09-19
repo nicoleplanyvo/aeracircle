@@ -92,7 +92,7 @@
 <script>
 const KEY = new URLSearchParams(location.search).get("key") || "";
 const $ = s => document.querySelector(s);
-if(!KEY){ $("#warn").style.display = "block"; }
+if(!KEY){ fetch("/api/me", { cache:"no-store" }).then(r => r.json()).then(d => { if(!d.angemeldet) $("#warn").style.display = "block"; }).catch(() => { $("#warn").style.display = "block"; }); }
 $("#zurueck").href = "/monitor" + (KEY ? "?key=" + encodeURIComponent(KEY) : "");
 
 let warte = [];          // {file, el}

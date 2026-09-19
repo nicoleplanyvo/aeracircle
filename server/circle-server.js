@@ -97,6 +97,93 @@ function adminName(key) {
   return null;
 }
 
+/* ---------- Anmeldung: Nutzer mit Passwort statt Schluessel im Link ----------
+ * Bei No1 hatte jede Person einen eigenen Link mit ?key=. Der Link wanderte
+ * per WhatsApp, stand in Screenshots und liess sich nicht "abmelden". Jetzt:
+ * Nutzer mit Name, Passwort und Rolle, angemeldet ueber ein signiertes
+ * Cookie. Die Schluessel aus ADMIN_TOKENS bleiben als Notzugang gueltig
+ * (Rolle Veranstalter) - damit legt man den ersten Nutzer an.
+ *
+ * Rollen:
+ *   veranstalter  alles - senden, Regie, Zahlungen, Nutzer, Runden
+ *   team          Gaeste pflegen, Tische, Links, Fotos - kein Versand an alle,
+ *                 keine Regie, keine Zahlungen
+ *   einlass       nur die Akkreditierung (Liste und Haken)
+ * Was eine Rolle NICHT darf, prueft der Server je Route - der Monitor blendet
+ * nur aus, was ohnehin abgelehnt wuerde. */
+const ROLLEN = ["veranstalter", "team", "einlass"];
+function nutzerAlle() { if (!state.nutzer) state.nutzer = {}; return state.nutzer; }
+function nutzerOhneGeheimnis(n) {
+  return { id: n.id, name: n.name, email: n.email || "", rolle: n.rolle, aktiv: n.aktiv !== false,
+           erstellt: n.erstellt || 0, zuletzt: n.zuletzt || 0, von: n.von || "" };
+}
+function passwortHash(pw, salz) { return crypto.scryptSync(String(pw), salz, 32).toString("hex"); }
+function passwortSetzen(n, pw) { n.salz = crypto.randomBytes(16).toString("hex"); n.hash = passwortHash(pw, n.salz); n.pwSeit = Date.now(); }
+function passwortStimmt(n, pw) {
+  if (!n.hash || !n.salz) return false;
+  const a = Buffer.from(passwortHash(pw, n.salz), "hex"), b = Buffer.from(n.hash, "hex");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function nutzerFinden(kennung) {
+  const k = String(kennung || "").trim().toLowerCase();
+  if (!k) return null;
+  return Object.values(nutzerAlle()).find(n => n.name.toLowerCase() === k || (n.email || "").toLowerCase() === k) || null;
+}
+/* Das Geheimnis fuer die Cookie-Signatur liegt im Zustand: ein Neustart
+ * meldet niemanden ab, und niemand muss eine weitere Variable setzen. */
+function sessionGeheim() {
+  if (!state.sessionGeheim) { state.sessionGeheim = crypto.randomBytes(32).toString("hex"); dirty = true; }
+  return state.sessionGeheim;
+}
+const SESSION_TAGE = 30;
+function sessionSignatur(teil) { return crypto.createHmac("sha256", sessionGeheim()).update(teil).digest("hex"); }
+function sessionCookie(n) {
+  const teil = n.id + "." + (Date.now() + SESSION_TAGE * 864e5) + "." + (n.pwSeit || 0);
+  return teil + "." + sessionSignatur(teil);
+}
+function cookieWert(req, name) {
+  const roh = String(req.headers.cookie || "");
+  for (const p of roh.split(";")) {
+    const i = p.indexOf("=");
+    if (i > 0 && p.slice(0, i).trim() === name) return decodeURIComponent(p.slice(i + 1).trim());
+  }
+  return "";
+}
+/* Wer steckt hinter dem Cookie? Null, wenn keins, abgelaufen, gefaelscht,
+ * Nutzer geloescht/deaktiviert oder Passwort seither geaendert. */
+function sessionNutzer(req) {
+  const c = cookieWert(req, "pv_session");
+  const t = c.split(".");
+  if (t.length !== 4) return null;
+  const [id, exp, pwSeit, sig] = t;
+  const soll = sessionSignatur(id + "." + exp + "." + pwSeit);
+  const a = Buffer.from(sig), b = Buffer.from(soll);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  if (+exp < Date.now()) return null;
+  const n = nutzerAlle()[id];
+  if (!n || n.aktiv === false) return null;
+  if (String(n.pwSeit || 0) !== pwSeit) return null;
+  return n;
+}
+function cookieKopf(wert, maxAge) {
+  return "pv_session=" + wert + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + maxAge
+       + (PUBLIC_URL.startsWith("https://") ? "; Secure" : "");
+}
+/* Welche Admin-Routen eine Rolle nicht aufrufen darf. Veranstalter: alles.
+ * Einlass: nur die Einlassliste (siehe /api/einlass) - im Monitor nichts. */
+const TEAM_GESPERRT = /^\/api\/admin\/(senden|push-|phase|zeiten|app-stufe|signal|wand|av8|zuschlag|gebot|rechnung|erloes|einlass-key|nutzer|runden|zaehler-null|mailstatus-reset|webhook-log|demo|testgast|stand-|zuschlag|tipps)/;
+function rolleDarf(rolle, url, method) {
+  if (rolle === "veranstalter") return true;
+  const pfad = url.split("?")[0];
+  if (rolle === "team") {
+    if (!TEAM_GESPERRT.test(pfad)) return true;
+    /* Lesen darf das Team fast alles - die Zahlen stehen ohnehin auf dem Schirm. */
+    return method === "GET" && /^\/api\/admin\/(zeiten|phase|app-stufe|einlass-key|runden|tipps|erloes|rechnungen)$/.test(pfad);
+  }
+  if (rolle === "einlass") return /^\/api\/admin\/(einlass|live)$/.test(pfad);
+  return false;
+}
+
 
 /* ---------- QR-Code fuer den Check-in am Einlass ----------
  * Jeder Gast bekommt mit Welle 2 seinen eigenen Code. Am Einlass wird er
@@ -717,7 +804,9 @@ function stdLink(token) { return PUBLIC_URL + "/std?t=" + token; }
  * VTIMEZONE-Definition mit in der Datei - sonst raet Outlook.
  * Komma und Semikolon muessen in TEXT-Feldern escaped werden (RFC 5545). */
 function icsText(s) { return String(s).replace(/([,;\\])/g, "\\$1"); }
-const TERMIN_ICS = [
+function terminIcs(rundeId) {
+  const rt = rundeText(rundeId);
+  return [
   "BEGIN:VCALENDAR",
   "VERSION:2.0",
   "PRODID:-//planyvo//THE CIRCLE//DE",
@@ -741,17 +830,18 @@ const TERMIN_ICS = [
   "END:STANDARD",
   "END:VTIMEZONE",
   "BEGIN:VEVENT",
-  "UID:the-circle-no1-2026-09-16@the-circle-cologne.de",
-  "DTSTAMP:20260819T120000Z",
-  "DTSTART;TZID=Europe/Berlin:20260916T180000",
-  "DTEND;TZID=Europe/Berlin:20260916T230000",
-  "SUMMARY:THE CIRCLE No1 - connecting generations",
-  "LOCATION:" + icsText("Playa Cologne, Junkersdorfer Str. 1, 50933 Köln"),
-  "DESCRIPTION:" + icsText("Ein Abend im ausgewählten Kreis. Beginn 18:00 Uhr."),
+  "UID:the-circle-" + rt.id + "-" + rt.datum + "@the-circle-cologne.de",
+  "DTSTAMP:" + rt.datum.replace(/-/g, "") + "T120000Z",
+  "DTSTART;TZID=Europe/Berlin:" + rt.datum.replace(/-/g, "") + "T" + rt.beginn.replace(":", "") + "00",
+  "DTEND;TZID=Europe/Berlin:" + rt.datum.replace(/-/g, "") + "T230000",
+  "SUMMARY:" + icsText(rt.name + " - connecting generations"),
+  "LOCATION:" + icsText(rt.ort + ", " + rt.adresse),
+  "DESCRIPTION:" + icsText("Ein Abend im ausgewählten Kreis. Beginn " + rt.beginn + " Uhr."),
   "URL:" + WEBSITE_URL,
   "END:VEVENT",
   "END:VCALENDAR"
-].join("\r\n") + "\r\n";
+  ].join("\r\n") + "\r\n";
+}
 
 /* Satz ueber dem CTA der Ehrengast-Mail. Hat ein Partner eingeladen, waere
  * "Einladung des Hauses" ein Widerspruch zum Partner-Block darueber. */
@@ -852,8 +942,42 @@ function appLuecke(runde) {
  * die Verbindungen von No1 gehen niemanden aus No2 etwas an, und umgekehrt.
  * Jeder Gast traegt seine Runde; wer zu einer spaeteren wiederkommt, bekommt
  * dafuer einen neuen Eintrag mit neuem Link und sieht dort deren Kreis.
- * RUNDE ist die Runde, in die neue Importe fallen. */
-const RUNDE = process.env.RUNDE || "no1";
+ * RUNDE ist die Runde, in die neue Importe fallen. Sie steht im Zustand
+ * (state.rundeAktiv) und wird im Monitor umgeschaltet - die Variable aus der
+ * Umgebung gilt nur noch, solange der Zustand keine kennt.
+ *
+ * Jede Runde traegt Datum, Beginn, Einlass und Ort: daraus kommen die Phase
+ * (vor · abend · danach), die app-freien Fenster, die Platzhalter in den
+ * Mails und die Zeilen auf der Startseite der App. */
+const RUNDEN_STANDARD = { no1: { id: "no1", name: "THE CIRCLE No1", datum: "2026-09-16", beginn: "18:00", einlass: "17:30",
+                                 ort: "Playa Cologne", adresse: "Junkersdorfer Str. 1, 50933 Köln", erstellt: 0 } };
+function runden() {
+  if (!state.runden || typeof state.runden !== "object" || !Object.keys(state.runden).length) state.runden = JSON.parse(JSON.stringify(RUNDEN_STANDARD));
+  return state.runden;
+}
+let RUNDE = state.rundeAktiv || process.env.RUNDE || "no1";
+if (!runden()[RUNDE]) RUNDE = Object.keys(runden())[0];
+function rundeInfo(id) { return runden()[id || RUNDE] || runden()[RUNDE] || RUNDEN_STANDARD.no1; }
+function rundeSetzen(id) {
+  if (!runden()[id]) return false;
+  RUNDE = id; state.rundeAktiv = id;
+  /* Handschalter gehoeren zum Abend, nicht zur naechsten Runde. */
+  state.phaseHand = ""; state.appStufe = ""; state.pushFrei = false; state.signal = null;
+  if (state.zeiten) { state.zeiten.jetzt = null; state.zeiten.gateHand = JSON.parse(JSON.stringify(ZEITEN_STANDARD.gateHand)); }
+  dirty = true;
+  return true;
+}
+/* Datum und Ort in den Formen, die Mails und App brauchen. */
+function rundeText(id) {
+  const r = rundeInfo(id);
+  const [j, m, t] = String(r.datum || "").split("-");
+  const MON = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+  const d = new Date(r.datum + "T12:00:00Z");
+  const wt = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"][d.getUTCDay()] || "";
+  return { name: r.name || "", datum: r.datum, datum_kurz: t + "." + m + "." + j, datum_lang: (+t) + ". " + (MON[+m - 1] || "") + " " + j,
+           wochentag: wt, beginn: r.beginn || "", einlass: r.einlass || "", ort: r.ort || "", adresse: r.adresse || "", id: r.id };
+}
+const eventDatum = () => rundeInfo().datum;
 const rundeVon = inv => inv.runde || "no1";
 const gleicheRunde = (a, b) => rundeVon(a) === rundeVon(b);
 /* Wer an der Tuer erwartet wird. Einlass-Seite, Abhakliste und Scanner
@@ -983,13 +1107,17 @@ function kurzprofil(ich, inv) {
 const TISCHE_STANDARD = ["DeinDach", "Conrad", "jto", "fuchsrohrbach", "Merzenich", "neuland.ai", "Sion", "SKS", "SMARTVÉLO", "DEKRA"];
 const tischNorm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "").replace(/^tisch/, "");
 function tische() {
-  if (!state.tische) state.tische = {
+  /* Je Runde ein eigener Plan. Der Plan von No1 (state.tische) wandert beim
+   * ersten Aufruf unter seinen Rundennamen - die Sitzplaetze bleiben. */
+  if (!state.tischeJe) state.tischeJe = {};
+  if (state.tische && !state.tischeJe.no1) { state.tischeJe.no1 = state.tische; delete state.tische; dirty = true; }
+  if (!state.tischeJe[RUNDE]) state.tischeJe[RUNDE] = {
     gaenge: ["Vorspeise", "Hauptspeise"],
     gang: 0,                     // 1-basiert; 0 = noch kein Gang
     liste: [],                   // [{ nr, name }]
     sitz: {}                     // gid -> [tischNr je Gang]
   };
-  const t = state.tische;
+  const t = state.tischeJe[RUNDE];
   /* Das Dessert kommt ohne Wechsel an den Tisch. Ein frueher angelegter
    * Zustand kennt noch drei Gaenge - solange niemand einen Plan importiert
    * hat, wird er auf zwei gekuerzt. Steht schon ein Plan drin, bleibt er:
@@ -1041,7 +1169,7 @@ function tischnachbarn(ich, gangNr) {
  * Die App entscheidet selbst, wann sie das Blatt zeigt. Der Server braucht
  * dieselbe Antwort fuer Push: Eine Nachricht, die im Impuls rausgeht, holt
  * niemand zurueck. Deshalb die Fenster hier noch einmal auswerten. */
-const EVENT_DATE = "2026-09-16";
+/* EVENT_DATE war eine Konstante - jetzt das Datum der aktiven Runde. */
 /* Uhrzeit in Koeln, egal in welcher Zone der Server laeuft. Ein Server auf
  * UTC haette den Push-Stopp zwei Stunden zu spaet greifen lassen - mitten
  * in Iens Impuls. */
@@ -1055,7 +1183,7 @@ function appfreiJetzt() {
   const z = state.zeiten || {};
   if (z.jetzt) return z.jetzt;
   const { hhmm, datum: heute } = berlinJetzt();
-  if (heute !== EVENT_DATE) return null;
+  if (heute !== eventDatum()) return null;
   return (z.appfrei || []).find(f => !f.aus && hhmm >= f.from && hhmm < f.to) || null;
 }
 
@@ -1066,10 +1194,10 @@ function appfreiJetzt() {
 function phaseJetzt() {
   if (state.phaseHand) return state.phaseHand;
   const { datum, hhmm } = berlinJetzt();
-  if (datum < EVENT_DATE) return "vor";
-  if (datum === EVENT_DATE) return "abend";
+  if (datum < eventDatum()) return "vor";
+  if (datum === eventDatum()) return "abend";
   /* Bis 02:00 am Folgetag gilt noch der Abend. */
-  const folgetag = new Date(EVENT_DATE + "T12:00:00Z"); folgetag.setUTCDate(folgetag.getUTCDate() + 1);
+  const folgetag = new Date(eventDatum() + "T12:00:00Z"); folgetag.setUTCDate(folgetag.getUTCDate() + 1);
   const f = folgetag.toISOString().slice(0, 10);
   if (datum === f && hhmm < "02:00") return "abend";
   return "danach";
@@ -1630,7 +1758,7 @@ const WELLEN = {
      * Die Unterscheidung ticket/ehrengast greift erst ab Welle 1. */
     gilt: inv => inv.status !== "abgesagt",
     vorlage: inv => "save-the-date.html",
-    betreff: inv => "Save the Date · THE CIRCLE No1, 16. September 2026"
+    betreff: inv => "Save the Date · " + rundeText(rundeVon(inv)).name + ", " + rundeText(rundeVon(inv)).datum_lang
   },
   1: {
     name: "Welle 1 · Einladung",
@@ -1643,7 +1771,7 @@ const WELLEN = {
     vorlage: inv => inv.typ === "ehrengast"
       ? ((inv.partner && inv.partnerLogo) ? "einladung-ehrengast-partner.html" : "einladung-ehrengast.html")
       : "einladung-ticket.html",
-    betreff: inv => "Deine Einladung zu THE CIRCLE No1"
+    betreff: inv => "Deine Einladung zu " + rundeText(rundeVon(inv)).name
   },
   2: {
     name: "Welle 2 · App-Zugang",
@@ -1654,7 +1782,7 @@ const WELLEN = {
     gilt: inv => inv.typ === "ehrengast" ? inv.status === "zugesagt" || inv.status === "bezahlt"
                                          : inv.status === "bezahlt",
     vorlage: inv => (inv.partner && inv.partnerLogo) ? "app-zugang-partner.html" : "app-zugang.html",
-    betreff: inv => "THE CIRCLE No1 · Dein Zugang zum Abend"
+    betreff: inv => rundeText(rundeVon(inv)).name + " · Dein Zugang zum Abend"
   }
 };
 
@@ -1738,7 +1866,7 @@ function abmeldeSeite(art, token) {
     '<img class="logo" src="/assets/logo-zentriert-neg.png" alt="THE CIRCLE">' +
     inhalt +
     '<div class="hr"></div>' +
-    '<div class="foot">16. September 2026 · Playa · Köln</div>' +
+    '<div class="foot">' + rundeText().datum_lang + ' · ' + rundeText().ort + '</div>' +
     '</div></body></html>';
 }
 
@@ -1865,7 +1993,12 @@ function esc(s) {
 
 /* Alle Platzhalter einer Vorlage fuer genau einen Gast fuellen. */
 function renderMail(inv, datei, extra) {
+  /* Datum und Ort kommen aus der Runde des Gastes - eine Mail an einen
+   * No2-Gast nennt den Abend von No2, auch wenn No1 noch im Zustand liegt. */
+  const rt = rundeText(rundeVon(inv));
   const werte = {
+    runde_name: rt.name, datum_kurz: rt.datum_kurz, datum_lang: rt.datum_lang, wochentag: rt.wochentag,
+    beginn: rt.beginn, einlass_ab: rt.einlass, ort: rt.ort, adresse: rt.adresse,
     anrede: inv.anrede || "Hallo",
     name: inv.name || "",
     vorname: (inv.name || "").split(" ")[0],
@@ -2000,8 +2133,8 @@ function bestaetigungAbschicken(inv) {
     "",
     "du bist im Kreis.",
     "",
-    "16. September 2026, um 18:00 Uhr",
-    "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
+    rundeText(rundeVon(inv)).datum_lang + ", um " + rundeText(rundeVon(inv)).beginn + " Uhr",
+    rundeText(rundeVon(inv)).ort + ", " + rundeText(rundeVon(inv)).adresse,
     inv.typ === "ticket" ? "Beitrag: " + (preisVon(inv) / 100).toFixed(2).replace(".", ",") + " Euro, bezahlt" : null,
     "",
     "Termin in den Kalender: " + PUBLIC_URL + "/termin.ics",
@@ -2012,8 +2145,8 @@ function bestaetigungAbschicken(inv) {
 
   lettermintSenden({
     to: inv.email,
-    subject: inv.typ === "ticket" ? "Dein Platz bei THE CIRCLE No1 ist gesichert"
-                                  : "Deine Zusage zu THE CIRCLE No1",
+    subject: inv.typ === "ticket" ? "Dein Platz bei " + rundeText(rundeVon(inv)).name + " ist gesichert"
+                                  : "Deine Zusage zu " + rundeText(rundeVon(inv)).name,
     html, text,
     abmeldeUrl: abmeldeLink(inv.token),
     metadata: { token: inv.token, art: "bestaetigung", pool: inv.pool || "" }
@@ -2035,8 +2168,8 @@ function textFassung(inv, welle) {
   const zeilen = [
     (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
     "",
-    "THE CIRCLE No1 - connecting generations",
-    "16. September 2026, um 18:00 Uhr, Playa in der Kölner Südstadt",
+    rundeText(rundeVon(inv)).name + " - connecting generations",
+    rundeText(rundeVon(inv)).datum_lang + ", um " + rundeText(rundeVon(inv)).beginn + " Uhr, " + rundeText(rundeVon(inv)).ort,
     "",
     welle === 0 ? "Alle Informationen: " + WEBSITE_URL
       : "Dein persönlicher Link: " + (welle === 2 ? appLink(inv.token) : inviteLink(inv.token)),
@@ -2060,13 +2193,13 @@ function whatsappText(inv) {
   return [
     (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
     "",
-    "du bist eingeladen zu THE CIRCLE No1 – connecting generations.",
+    "du bist eingeladen zu " + rundeText(rundeVon(inv)).name + " – connecting generations.",
     "",
     "Ein Abend im ausgewählten Kreis: Gäste über Generationen hinweg, " +
       "ein Menü in drei Gängen – und ein Werk von Max Leinfelder, das vor deinen Augen entsteht.",
     "",
-    "16. September 2026, um 18:00 Uhr",
-    "Playa Cologne, Junkersdorfer Str. 1, 50933 Köln",
+    rundeText(rundeVon(inv)).datum_lang + ", um " + rundeText(rundeVon(inv)).beginn + " Uhr",
+    rundeText(rundeVon(inv)).ort + ", " + rundeText(rundeVon(inv)).adresse,
     partnerZeile,
     "",
     "Die Plätze sind limitiert. Wir bitten um Rückmeldung bis zum " + rsvpFrist(inv) + ".",
@@ -2266,7 +2399,7 @@ function createCheckout(inv, cb) {
     cancel_url: inviteLink(inv.token),
     metadata: { token: inv.token, pool: inv.pool, name: inv.name },
     payment_intent_data: {
-      description: "THE CIRCLE N°1 · 16.09.2026 · " + inv.name,
+      description: rundeText(rundeVon(inv)).name + " · " + rundeText(rundeVon(inv)).datum_kurz + " · " + inv.name,
       metadata: { token: inv.token, pool: inv.pool }
     },
     line_items: {
@@ -2276,8 +2409,8 @@ function createCheckout(inv, cb) {
           currency: "eur",
           unit_amount: preisVon(inv),
           product_data: {
-            name: "THE CIRCLE N°1 – 16. September 2026",
-            description: "Persönliche Einladung · 1 Platz · Playa Cologne"
+            name: rundeText(rundeVon(inv)).name + " – " + rundeText(rundeVon(inv)).datum_lang,
+            description: "Persönliche Einladung · 1 Platz · " + rundeText(rundeVon(inv)).ort
           }
         }
       }
@@ -2367,7 +2500,9 @@ function rechnungWerte(inv, nr, t) {
     /* Steht statt der Steuerzeile, wenn keine ausgewiesen wird - der Grund
      * MUSS auf der Rechnung stehen, sonst fehlt eine Pflichtangabe. */
     steuer_hinweis: RECHNUNG_USTSATZ > 0 ? "" : RECHNUNG_HINWEIS,
-    leistungsdatum: "16.09.2026",
+    leistungsdatum: rundeText(rundeVon(inv)).datum_kurz,
+    veranstaltung: rundeText(rundeVon(inv)).name + " · " + rundeText(rundeVon(inv)).datum_lang + " · " + rundeText(rundeVon(inv)).ort,
+    veranstaltung_kurz: rundeText(rundeVon(inv)).name, ort_adresse: rundeText(rundeVon(inv)).ort + ", " + rundeText(rundeVon(inv)).adresse,
     /* Rechnungsanschrift des Gastes, falls er eine nachgereicht hat
      * (Zeilen mit | getrennt). Bei 100 Euro keine Pflicht, aber wer die
      * Rechnung in seine Buchhaltung gibt, braucht sie oft. */
@@ -2423,7 +2558,7 @@ function rechnungPdf(w) {
   /* Datum, Betreff, Titel. */
   T(R, 282, "Köln, " + w.rechnung_datum, { groesse: 9.5, rechts: true, farbe: GRAU });
   T(L, 308, "BETREFF", { groesse: 6.5, farbe: HELL, spatium: 1 });
-  T(L, 320, "Teilnahme THE CIRCLE No1 · 16. September 2026 · Playa Cologne, Köln", { groesse: 10, fett: true });
+  T(L, 320, "Teilnahme " + w.veranstaltung, { groesse: 10, fett: true });
   T(L, 352, "RECHNUNG " + w.rechnung_nr, { groesse: 16, serif: true, spatium: 1.6 });
   T(L, 374, "Rechnungsdatum gleich Zahlungsdatum · Leistungsdatum " + w.leistungsdatum, { groesse: 8.5, farbe: GRAU });
   if (w.berichtigt_hinweis) T(L, 385, w.berichtigt_hinweis, { groesse: 7.5, farbe: GRAU });
@@ -2438,9 +2573,9 @@ function rechnungPdf(w) {
   T(R, 404, "Betrag", Object.assign({ rechts: true }, kopf));
   zeile(417, NAVY);
   T(L, 428, "1", { groesse: 10 });
-  T(XB, 428, "Teilnahme THE CIRCLE No1", { groesse: 10 });
+  T(XB, 428, "Teilnahme " + w.veranstaltung_kurz, { groesse: 10 });
   T(XB, 442, "Ein Platz, einschließlich Menü und Programm des Abends", { groesse: 8.5, farbe: GRAU });
-  T(XB, 454, "Leistungsdatum " + w.leistungsdatum + " · Playa Cologne, Junkersdorfer Str. 1, 50933 Köln", { groesse: 8.5, farbe: GRAU });
+  T(XB, 454, "Leistungsdatum " + w.leistungsdatum + " · " + w.ort_adresse, { groesse: 8.5, farbe: GRAU });
   T(XM, 428, "1", { groesse: 10, rechts: true });
   T(XE, 428, w.betrag_netto, { groesse: 10, rechts: true });
   T(R, 428, w.betrag_netto, { groesse: 10, rechts: true });
@@ -2474,7 +2609,7 @@ function rechnungPdf(w) {
   if (w.bankverbindung) fuss("Bankverbindung", w.bankverbindung);
   fuss("Fragen zur Rechnung", w.aussteller_kontakt);
   fuss("Steuer", w.aussteller_steuer);
-  fuss("Veranstaltung", "THE CIRCLE No1 · 16. September 2026 · Playa Cologne, Köln");
+  fuss("Veranstaltung", w.veranstaltung);
   return pdf.bytes();
 }
 
@@ -2498,12 +2633,12 @@ function rechnungMail(inv, nr, t) {
   const text = [
     (inv.anrede || "Hallo") + " " + ((inv.name || "").split(" ")[0] || "") + ",",
     "",
-    "anbei die Rechnung über deine Teilnahme an THE CIRCLE No1 – als PDF im Anhang.",
+    "anbei die Rechnung über deine Teilnahme an " + w.veranstaltung_kurz + " – als PDF im Anhang.",
     "",
     "Rechnung " + nr + " vom " + w.rechnung_datum,
     RECHNUNG_FIRMA, w.aussteller_anschrift,
     RECHNUNG_STEUER, "",
-    "Teilnahme THE CIRCLE No1 · 16. September 2026 · Playa Cologne, Köln",
+    "Teilnahme " + w.veranstaltung,
     RECHNUNG_USTSATZ > 0
       ? "Netto " + w.betrag_netto + " · zzgl. " + w.ust_satz + " USt " + w.ust_betrag
       : RECHNUNG_HINWEIS,
@@ -2821,7 +2956,7 @@ const server = http.createServer((req, res) => {
    * veralteten Zeiten aus der App-Datei. */
   if (req.method === "GET" && url === "/api/live/zeiten") {
     return json(res, 200, { ok: true, zeiten: Object.assign({}, state.zeiten,
-      { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt(), phase: phaseJetzt(), stufe: appStufe() }) });
+      { jetztMs: Date.now(), tz: "Europe/Berlin", appfreiJetzt: appfreiJetzt(), phase: phaseJetzt(), stufe: appStufe(), runde: rundeText() }) });
   }
 
   /* Health verraet keine Geheimnisse, aber ob der Monitor-Schutz greift –
@@ -3309,7 +3444,7 @@ const server = http.createServer((req, res) => {
    * jemand, der Namen abhakt. */
   if (req.method === "GET" && url.startsWith("/api/einlass/liste")) {
     if (!rateLimit(req, res, "einlass", 600, 60_000)) return;
-    if (!einlassOk(q.get("k"))) return json(res, 401, { error: "kein Zugang" });
+    if (!einlassOk(q.get("k")) && !sessionNutzer(req)) return json(res, 401, { error: "kein Zugang" });
     const t = tische();
     const liste = Object.values(state.invites)
       .filter(heuteErwartet)
@@ -3330,7 +3465,7 @@ const server = http.createServer((req, res) => {
    * Fehlgriff, den jemand zurueckholen muss. */
   if (req.method === "POST" && url.startsWith("/api/einlass/da")) {
     if (!rateLimit(req, res, "einlass", 600, 60_000)) return;
-    if (!einlassOk(q.get("k"))) return json(res, 401, { error: "kein Zugang" });
+    if (!einlassOk(q.get("k")) && !sessionNutzer(req)) return json(res, 401, { error: "kein Zugang" });
     return readBody(req, res, body => {
       const inv = findByGid(body.gid);
       if (!inv || !heuteErwartet(inv)) return json(res, 404, { error: "Gast nicht gefunden" });
@@ -3480,7 +3615,7 @@ const server = http.createServer((req, res) => {
       g.email ? "EMAIL;TYPE=INTERNET:" + esc(g.email) : "",
       g.telefon ? "TEL;TYPE=CELL:" + esc(g.telefon) : "",
       g.linkedin ? "URL:https://" + esc(g.linkedin) : "",
-      "NOTE:" + esc("THE CIRCLE No1 · 16.09.2026 · Playa Cologne" + (g.notiz ? " – " + g.notiz : "")),
+      "NOTE:" + esc(rundeText(rundeVon(ich)).name + " · " + rundeText(rundeVon(ich)).datum_kurz + " · " + rundeText(rundeVon(ich)).ort + (g.notiz ? " – " + g.notiz : "")),
       "END:VCARD"].filter(Boolean);
     const datei = (g.name || "kontakt").replace(/[^\w\u00C0-\u024F -]/g, "").trim() || "kontakt";
     res.writeHead(200, {
@@ -4143,6 +4278,36 @@ const server = http.createServer((req, res) => {
    * GESPERRT statt geoeffnet: ein vergessenes oder falsch geschriebenes
    * ADMIN_TOKENS darf nicht dazu fuehren, dass die Gaesteliste offen im Netz
    * steht. Lieber ein toter Monitor als ein offenes Register. */
+  /* --- Anmeldung ---
+   * Name oder E-Mail plus Passwort. Zehn Versuche je Adresse und Viertelstunde,
+   * damit sich ein Passwort nicht durchprobieren laesst. Die Antwort verraet
+   * nicht, ob der Name oder das Passwort falsch war. */
+  if (req.method === "POST" && url === "/api/login") {
+    if (!rateLimit(req, res, "login", 10, 15 * 60_000)) return;
+    return readBody(req, res, body => {
+      const n = nutzerFinden(body.name);
+      if (!n || n.aktiv === false || !passwortStimmt(n, String(body.passwort || ""))) {
+        return json(res, 401, { error: "Name oder Passwort stimmt nicht." });
+      }
+      n.zuletzt = Date.now(); dirty = true;
+      logEvent("angemeldet", n.name, n.rolle);
+      res.setHeader("Set-Cookie", cookieKopf(sessionCookie(n), SESSION_TAGE * 86400));
+      return json(res, 200, { ok: true, nutzer: nutzerOhneGeheimnis(n) });
+    });
+  }
+  if (req.method === "POST" && url === "/api/logout") {
+    res.setHeader("Set-Cookie", cookieKopf("", 0));
+    return json(res, 200, { ok: true });
+  }
+  /* Wer bin ich? Fuer den Monitor beim Laden - und fuer die Akkreditierung,
+   * die ohne Schluessel im Link auskommen soll. */
+  if (req.method === "GET" && url === "/api/me") {
+    const schl = adminName(q.get("key"));
+    if (schl) return json(res, 200, { ok: true, angemeldet: true, nutzer: { id: "", name: schl, rolle: "veranstalter", schluessel: true }, nutzerAngelegt: Object.keys(nutzerAlle()).length });
+    const n = sessionNutzer(req);
+    return json(res, 200, { ok: true, angemeldet: !!n, nutzer: n ? nutzerOhneGeheimnis(n) : null, nutzerAngelegt: Object.keys(nutzerAlle()).length });
+  }
+
   if (url.startsWith("/api/admin/")) {
     if (!ADMIN_TOKENS.size) {
       return json(res, 503, {
@@ -4150,8 +4315,103 @@ const server = http.createServer((req, res) => {
                "Aus Datenschutzgründen bleibt der Zugang gesperrt."
       });
     }
-    const wer = adminName(q.get("key"));
+    /* Zwei Wege hinein: der Schluessel im Link (Veranstalter, Notzugang) oder
+     * die Anmeldung mit Passwort. Danach zaehlt nur noch die Rolle. */
+    let wer = adminName(q.get("key")), rolle = wer ? "veranstalter" : null, ich = null;
+    if (!wer) { ich = sessionNutzer(req); if (ich) { wer = ich.name; rolle = ich.rolle; } }
     if (!wer) return json(res, 401, { error: "kein Zugriff" });
+    if (!rolleDarf(rolle, url, req.method)) return json(res, 403, { error: "Das darf nur ein Veranstalter." });
+
+    /* --- Nutzer: anlegen, Rolle aendern, Passwort setzen, deaktivieren --- */
+    if (req.method === "GET" && url === "/api/admin/nutzer") {
+      return json(res, 200, { ok: true, nutzer: Object.values(nutzerAlle()).map(nutzerOhneGeheimnis).sort((a, b) => a.name.localeCompare(b.name)), rollen: ROLLEN });
+    }
+    if (req.method === "POST" && url === "/api/admin/nutzer") {
+      return readBody(req, res, body => {
+        const alle = nutzerAlle();
+        let n = body.id ? alle[String(body.id)] : null;
+        if (body.id && !n) return json(res, 404, { error: "Nutzer nicht gefunden" });
+        const name = cleanText(body.name, 60), email = clean(body.email || "", 120).toLowerCase();
+        if (!n && !name) return json(res, 400, { error: "Name fehlt" });
+        const doppelt = name && Object.values(alle).find(x => x !== n && x.name.toLowerCase() === name.toLowerCase());
+        if (doppelt) return json(res, 409, { error: "Den Namen gibt es schon" });
+        if (email && email.indexOf("@") < 1) return json(res, 400, { error: "E-Mail ohne @" });
+        if (body.rolle !== undefined && !ROLLEN.includes(body.rolle)) return json(res, 400, { error: "Rolle: " + ROLLEN.join(", ") });
+        let startPasswort = "";
+        if (!n) {
+          n = { id: crypto.randomBytes(6).toString("hex"), name, email, rolle: body.rolle || "team", aktiv: true, erstellt: Date.now(), von: wer };
+          alle[n.id] = n;
+          startPasswort = String(body.passwort || "") || crypto.randomBytes(6).toString("base64url");
+          passwortSetzen(n, startPasswort);
+          logEvent("Nutzer angelegt", n.name, n.rolle + " · von " + wer);
+        } else {
+          if (name) n.name = name;
+          if (body.email !== undefined) n.email = email;
+          if (body.rolle !== undefined) n.rolle = body.rolle;
+          if (body.aktiv !== undefined) n.aktiv = !!body.aktiv;
+          if (body.passwort) { startPasswort = String(body.passwort); passwortSetzen(n, startPasswort); }
+          if (body.loeschen) { delete alle[n.id]; logEvent("Nutzer gelöscht", n.name, "von " + wer); dirty = true; return json(res, 200, { ok: true }); }
+          logEvent("Nutzer geändert", n.name, n.rolle + (n.aktiv === false ? " · deaktiviert" : "") + " · von " + wer);
+        }
+        /* Der letzte aktive Veranstalter bleibt - sonst sperrt man sich aus. */
+        const veranstalter = Object.values(alle).filter(x => x.rolle === "veranstalter" && x.aktiv !== false);
+        if (!veranstalter.length && ich && !q.get("key")) return json(res, 409, { error: "Mindestens ein aktiver Veranstalter muss bleiben." });
+        dirty = true;
+        return json(res, 200, { ok: true, nutzer: nutzerOhneGeheimnis(n), startPasswort });
+      });
+    }
+    /* Eigenes Passwort aendern - nur angemeldet, nicht per Schluessel. */
+    if (req.method === "POST" && url === "/api/admin/passwort") {
+      return readBody(req, res, body => {
+        if (!ich) return json(res, 400, { error: "Nur für angemeldete Nutzer" });
+        if (!passwortStimmt(ich, String(body.alt || ""))) return json(res, 401, { error: "Altes Passwort stimmt nicht" });
+        if (String(body.neu || "").length < 8) return json(res, 400, { error: "Mindestens 8 Zeichen" });
+        passwortSetzen(ich, String(body.neu)); dirty = true;
+        res.setHeader("Set-Cookie", cookieKopf(sessionCookie(ich), SESSION_TAGE * 86400));
+        return json(res, 200, { ok: true });
+      });
+    }
+
+    /* --- Runden: anlegen, aendern, aktiv schalten --- */
+    if (req.method === "GET" && url === "/api/admin/runden") {
+      const liste = Object.values(runden()).map(r => Object.assign({}, r, {
+        gaeste: Object.values(state.invites).filter(i => rundeVon(i) === r.id).length,
+        imKreis: Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === r.id).length
+      })).sort((a, b) => String(a.datum).localeCompare(String(b.datum)));
+      return json(res, 200, { ok: true, aktiv: RUNDE, runden: liste, text: rundeText() });
+    }
+    if (req.method === "POST" && url === "/api/admin/runden") {
+      return readBody(req, res, body => {
+        const alle = runden();
+        let r = body.id ? alle[clean(body.id, 20)] : null;
+        if (body.id && !r) return json(res, 404, { error: "Runde nicht gefunden" });
+        const datum = String(body.datum || "").trim();
+        if (datum && !/^\d{4}-\d{2}-\d{2}$/.test(datum)) return json(res, 400, { error: "Datum als JJJJ-MM-TT" });
+        const zeit = s => { s = String(s || "").trim(); return /^\d{2}:\d{2}$/.test(s) ? s : ""; };
+        if (!r) {
+          const name = cleanText(body.name, 60);
+          if (!name || !datum) return json(res, 400, { error: "Name und Datum fehlen" });
+          /* Kennung aus dem Namen: "THE CIRCLE No2" -> no2; sonst durchnummeriert. */
+          let id = (name.match(/no\s*(\d+)/i) ? "no" + name.match(/no\s*(\d+)/i)[1] : "") || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 20);
+          if (!id || alle[id]) id = "r" + (Object.keys(alle).length + 1);
+          r = { id, name, datum, beginn: zeit(body.beginn) || "18:00", einlass: zeit(body.einlass) || "17:30",
+                ort: cleanText(body.ort, 80), adresse: cleanText(body.adresse, 160), erstellt: Date.now(), von: wer };
+          alle[id] = r;
+          logEvent("Runde angelegt", r.name, r.datum + " · von " + wer);
+        } else {
+          if (body.name !== undefined) r.name = cleanText(body.name, 60) || r.name;
+          if (datum) r.datum = datum;
+          if (body.beginn !== undefined) r.beginn = zeit(body.beginn) || r.beginn;
+          if (body.einlass !== undefined) r.einlass = zeit(body.einlass) || r.einlass;
+          if (body.ort !== undefined) r.ort = cleanText(body.ort, 80);
+          if (body.adresse !== undefined) r.adresse = cleanText(body.adresse, 160);
+          logEvent("Runde geändert", r.name, r.datum + " · von " + wer);
+        }
+        if (body.aktiv) { rundeSetzen(r.id); logEvent("Runde aktiv", r.name, "von " + wer); }
+        dirty = true;
+        return json(res, 200, { ok: true, runde: r, aktiv: RUNDE });
+      });
+    }
 
     if (url === "/api/admin/pools") {
       return json(res, 200, {
@@ -4306,6 +4566,22 @@ const server = http.createServer((req, res) => {
      * oder zahlt, faellt durch den Rost. Hier passiert es IN der App.
      * Dieselbe Funktion wie der Import, damit es nur eine Regel gibt, wie
      * ein Gast entsteht (Token, Ticketnummer, Wiedererkennung). */
+    /* Ein Gast zum Bearbeiten: alles, was der Monitor im Gast-Editor zeigt,
+     * samt Sitzplaetzen je Gang und der Tischliste zum Auswaehlen. */
+    if (req.method === "GET" && url === "/api/admin/gast") {
+      const inv = findByGid(q.get("gid"));
+      if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+      const t = tische();
+      return json(res, 200, { ok: true, gast: {
+        gid: gid(inv), name: inv.name || "", email: inv.email || "", anrede: inv.anrede || "", firma: inv.firma || "", rolle: inv.rolle || "",
+        pool: inv.pool || "", typ: inv.typ || "ticket", partner: inv.partner || "", partnerLogo: inv.partnerLogo || "",
+        telefon: (inv.daten && inv.daten.phone) || "", status: inv.status || "offen", abgemeldet: !!inv.abgemeldet, runde: rundeVon(inv),
+        ticketNr: inv.ticketNr || "", link: inviteLink(inv.token), appLink: appLink(inv.token), da: !!inv.da,
+        registriert: !!(inv.profil && inv.profil.registriert), rechnungsanschrift: inv.rechnungsanschrift || "",
+        sitz: (t.sitz[gid(inv)] || t.gaenge.map(() => 0)).slice(0, t.gaenge.length),
+        pools: [...new Set(Object.values(state.invites).map(i => i.pool).filter(Boolean))].sort()
+      }, gaenge: t.gaenge, tische: t.liste });
+    }
     if (req.method === "POST" && url === "/api/admin/gast") {
       /* Mit gid: GENAU dieser Gast - ohne Wiedererkennen ueber Adresse oder
        * Name+Pool. Das ist der Weg fuer Korrekturen: Eine neue Adresse legt
@@ -4563,7 +4839,7 @@ const server = http.createServer((req, res) => {
         nr: x.nr, name: x.name || "",
         gaenge: t.gaenge.map((_, g) => imKreisJetzt.filter(i => (t.sitz[gid(i)] || [])[g] === x.nr).length)
       }));
-      return json(res, 200, { ok: true, gaenge: t.gaenge, gang: t.gang, tische: t.liste.length,
+      return json(res, 200, { ok: true, gaenge: t.gaenge, gang: t.gang, tische: t.liste.length, liste: t.liste,
                               imKreis: imKreisJetzt.length, mitPlatz: mitPlatz.length, ohnePlatz: ohne, belegung });
     }
 
@@ -5737,7 +6013,11 @@ const server = http.createServer((req, res) => {
     return serveFile(res, "wand.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
   }
   if (req.method === "GET" && (url === "/monitor" || url === "/monitor.html")) {
-    return serveFile(res, "monitor.html", "text/html; charset=utf-8");
+    /* Wer nur den Einlass darf, landet gleich dort - der Monitor haette fuer
+     * ihn keinen einzigen offenen Reiter. */
+    const n = sessionNutzer(req);
+    if (n && n.rolle === "einlass") { res.writeHead(302, { Location: "/akkreditierung" }); return res.end(); }
+    return serveFile(res, "monitor.html", "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
   }
   if (req.method === "GET" && (url === "/station" || url === "/station.html")) {
     return serveFile(res, "station.html", "text/html; charset=utf-8");
@@ -5993,10 +6273,10 @@ const server = http.createServer((req, res) => {
   if (req.method === "GET" && url === "/termin.ics") {
     res.writeHead(200, {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="the-circle-no1.ics"',
+      "Content-Disposition": 'attachment; filename="the-circle-' + rundeInfo().id + '.ics"',
       "Cache-Control": "public, max-age=3600"
     });
-    return res.end(TERMIN_ICS);
+    return res.end(terminIcs(clean(q.get("runde"), 20) || RUNDE));
   }
 
   res.writeHead(404, { "Content-Type": "text/plain" });

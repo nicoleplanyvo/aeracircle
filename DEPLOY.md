@@ -425,7 +425,27 @@ Der Monitor liegt unter `https://thecircle.planyvo.com/monitor` und zieht seine
 Zahlen aus `/api/admin/pools`. Dort stehen Namen, E-Mail-Adressen und
 Unverträglichkeiten – **ohne Schlüssel wäre das offen im Netz.**
 
-### 3.1 Je Person einen Schlüssel
+### 3.0 Anmeldung mit Name und Passwort (seit 19.09.2026)
+
+Der Schlüssel im Link (`?key=`) ist nur noch der Notzugang. Im Alltag melden
+sich alle unter `/monitor` mit Name und Passwort an – das Cookie hält 30 Tage.
+
+1. Einmal mit dem Schlüssel-Link hinein: `/monitor?key=…`
+2. Reiter **Verwaltung → Nutzer**: den ersten Veranstalter anlegen (Name,
+   E-Mail, Rolle *veranstalter*, Passwort oder leer = wird erzeugt). Das
+   Startpasswort steht genau einmal auf dem Schirm.
+3. Ab dann: `/monitor` ohne Schlüssel → Anmeldemaske. Weitere Nutzer legt ein
+   Veranstalter dort an.
+
+Rollen: **veranstalter** darf alles. **team** pflegt Gäste, Tische, Links,
+Fotos – kein Versand an alle, keine Regie, keine Zahlungen, keine Verwaltung
+(der Server lehnt das mit 403 ab, der Monitor blendet es aus). **einlass**
+landet nach der Anmeldung direkt auf `/akkreditierung` und sieht nur die Liste.
+
+Passwort vergessen: ein Veranstalter setzt unter Verwaltung ein neues. Ein
+neues Passwort meldet alle alten Sitzungen dieses Nutzers ab.
+
+### 3.1 Je Person einen Schlüssel (Notzugang)
 
 Nicht ein gemeinsames Geheimnis, sondern einen pro Person. Dann lässt sich ein
 Zugang entziehen, ohne allen anderen den Link zu ändern.
@@ -901,6 +921,23 @@ unter dem Formular.
 sind nicht im Repo.
 
 ---
+
+## 7b · Die nächste Runde anlegen
+
+Im Monitor unter **Verwaltung → Runden**: Name (z. B. `THE CIRCLE No2`),
+Datum, Beginn, Einlass, Ort, Adresse – „Anlegen und aktiv schalten“.
+
+Was „aktiv“ bedeutet: Neue Gäste (Import, Nachtrag, Stand) fallen in diese
+Runde; Phase (vor · abend · danach), app-freie Fenster, Mail-Platzhalter
+(`{{datum_lang}}`, `{{beginn}}`, `{{ort}}`, `{{adresse}}`, `{{runde_name}}`),
+Kalenderdatei, Rechnung und die Startseite der App richten sich nach ihr.
+Gäste, Tischplan, Galerie, Verbindungen und die Sendungs-Sperre bleiben je
+Runde getrennt – die Gäste von No1 sehen weiter ihre Runde. Handschalter
+(Phase, App-Stufe, Push-Freigabe, Live-Bereiche) werden beim Umschalten
+zurückgesetzt. Zurückschalten geht jederzeit.
+
+`RUNDE` in der Umgebung gilt nur noch, solange der Zustand keine aktive Runde
+kennt.
 
 ## 8 · Der Stand auf showoff.planyvo.com
 

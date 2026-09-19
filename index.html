@@ -1210,7 +1210,7 @@
           <div class="cell"><b class="grad" id="cdM">–</b><span>Min</span></div>
           <div class="cell"><b class="grad" id="cdS">–</b><span>Sek</span></div>
         </div>
-        <p class="venue rv" style="--d:320ms">16.09.2026 · um 18 Uhr · Playa Cologne</p>
+        <p class="venue rv" style="--d:320ms" data-runde="venue">16.09.2026 · um 18 Uhr · Playa Cologne</p>
       </div>
 
       <!-- Stufe "profil": das eigene Profil ist alles, was es jetzt gibt -
@@ -1275,7 +1275,7 @@
 
       <div class="ticker nurvoll" aria-hidden="true">
         <div class="ticker-track">
-          <span class="tgroup"><span>The Circle</span><span class="o">Connecting Generations</span><span>16 · 09 · 2026</span><span class="o">Playa Cologne</span></span><span class="tgroup"><span>The Circle</span><span class="o">Connecting Generations</span><span>16 · 09 · 2026</span><span class="o">Playa Cologne</span></span>
+          <span class="tgroup"><span>The Circle</span><span class="o">Connecting Generations</span><span data-runde="datum_punkte">16 · 09 · 2026</span><span class="o" data-runde="ort">Playa Cologne</span></span><span class="tgroup"><span>The Circle</span><span class="o">Connecting Generations</span><span data-runde="datum_punkte">16 · 09 · 2026</span><span class="o" data-runde="ort">Playa Cologne</span></span>
         </div>
       </div>
 
@@ -1302,7 +1302,7 @@
         <span class="label" style="display:block;margin-bottom:14px">Gut zu wissen</span>
         <div class="facts">
           <div class="row"><span class="k">Beginn</span><span class="v">18:00 Uhr</span></div>
-          <div class="row"><span class="k">Ort</span><span class="v">Playa Cologne · <a href="https://maps.google.com/?q=Playa+Cologne" target="_blank" rel="noopener">Route</a></span></div>
+          <div class="row"><span class="k">Ort</span><span class="v"><span data-runde="ort">Playa Cologne</span> · <a href="https://maps.google.com/?q=Playa+Cologne" target="_blank" rel="noopener" data-runde="route">Route</a></span></div>
           <div class="row"><span class="k">Dresscode</span><span class="v">Come as you are</span></div>
           <div class="row"><span class="k">Foto &amp; Film</span><span class="v">Der Abend wird begleitet</span></div>
           <div class="row nurvoll"><span class="k">Menü</span><span class="v"><a href="#" data-zeige="menu">Drei Gänge ansehen</a></span></div>
@@ -1758,12 +1758,12 @@
 
   <div class="inv-step on" data-step="einladung">
     <img class="logo brandlogo-z" alt="">
-    <span class="label">THE CIRCLE No1</span>
+    <span class="label" data-runde="name">THE CIRCLE No1</span>
     <h1>Du bist<br><span class="grad">eingeladen.</span></h1>
     <p class="who">zu THE CIRCLE — connecting generations</p>
     <div class="inv-facts">
-      <span>16. September 2026 · um 18:00 Uhr</span>
-      <span>Playa Cologne</span>
+      <span data-runde="datum_beginn">16. September 2026 · um 18:00 Uhr</span>
+      <span data-runde="ort">Playa Cologne</span>
       <span>3-Gang-Menü inkl. Getränke</span>
       <span id="invFact3">Dein Link ist persönlich · 1 Platz</span>
     </div>
@@ -1890,7 +1890,7 @@
   </div>
 
   <div class="rg-step" data-rg="zu">
-    <span class="label">THE CIRCLE No1</span>
+    <span class="label" data-runde="name">THE CIRCLE No1</span>
     <h1>Dein Platz ist noch nicht bestätigt.</h1>
     <p class="lede">Die App ist für die Gäste des Abends. Sag über deine Einladung zu – dann bist du hier drin.</p>
     <a class="btn btn--solid btn--full" id="rgZuLink" href="#">Zur Einladung</a>
@@ -2123,6 +2123,10 @@ const CONFIG = {
       desc:"Der Abend endet, wie er begonnen hat: mit Atmosphäre." }
   ]
 };
+/* Die Runde: Name, Datum, Beginn, Ort. Bis der Server antwortet, gelten die
+   Werte aus dem HTML (No1) - danach die der aktiven Runde. Steht hier oben,
+   weil abendText() schon beim Aufbau der Seite darauf zugreift. */
+const RUNDE = { name:"THE CIRCLE No1", datum:CONFIG.eventDate, datum_kurz:"16.09.2026", datum_lang:"16. September 2026", beginn:"18:00", einlass:"17:30", ort:"Playa Cologne", adresse:"Junkersdorfer Str. 1, 50933 Köln" };
 
 /* Fünf Momente. Start-Up-Pitch und Mentor-Minuten stehen nicht mehr im
    Ablauf; an ihre Stelle tritt die Rückmeldung an das Start-up. Die Zahl muss zu
@@ -2797,7 +2801,7 @@ function abendText(){
      "typeof" hilft bei const nicht - dort wirft schon die Abfrage. */
   let kreis = null; try{ kreis = APP.kreis; }catch(e){}
   const parts = [
-    "THE CIRCLE · 16.09.2026 · Playa Cologne",
+    "THE CIRCLE · " + RUNDE.datum_kurz + " · " + RUNDE.ort,
     momentCount() ? "Mein Abend: " + momentCount() + "/" + MOMENTS.length + " Momente im Kreis" : null,
     (kreis && kreis.verbunden.length) ? (kreis.verbunden.length===1 ? "Eine neue Verbindung" : kreis.verbunden.length + " neue Verbindungen") : null,
     S.notes ? "Meine Erkenntnis: „" + S.notes.slice(0,120) + "“" : null,
@@ -2880,9 +2884,26 @@ const LIVE = { on:false, d:null, pending:0, timer:null, post:null };
    Grund ein leeres Feld schickt, darf nicht dazu fuehren, dass die App
    ueberhaupt keine Fenster mehr kennt. Lieber die Werte aus der Datei als
    gar keine. */
+function rundeUebernehmen(r){
+  if(!r || typeof r !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(r.datum || "")) return;
+  Object.assign(RUNDE, r); CONFIG.eventDate = r.datum;
+  const [j, m, t] = r.datum.split("-");
+  const beginnKurz = String(r.beginn || "").replace(/:00$/, "");
+  const werte = {
+    name: r.name, ort: r.ort, datum_punkte: t + " · " + m + " · " + j,
+    venue: r.datum_kurz + " · um " + beginnKurz + " Uhr · " + r.ort,
+    datum_beginn: r.datum_lang + " · um " + r.beginn + " Uhr"
+  };
+  $$("[data-runde]").forEach(e => {
+    const k = e.dataset.runde;
+    if(k === "route") e.href = "https://maps.google.com/?q=" + encodeURIComponent(r.ort + (r.adresse ? ", " + r.adresse : ""));
+    else if(werte[k] != null) e.textContent = werte[k];
+  });
+}
 function zeitenUebernehmen(z){
   if(!z || typeof z !== "object") return;
   uhrAbgleichen(z.jetztMs);
+  rundeUebernehmen(z.runde);
   if(Array.isArray(z.appfrei)) CONFIG.appfrei = z.appfrei.filter(f => !f.aus);
   if(z.gates && typeof z.gates === "object") CONFIG.gates = z.gates;
   if(z.gateHand && typeof z.gateHand === "object") CONFIG.gateHand = z.gateHand;
@@ -3426,7 +3447,7 @@ async function kontaktSpeichern(g){
     g.firma ? "ORG:" + esc(g.firma) : "", g.rolle ? "TITLE:" + esc(g.rolle) : "",
     g.email ? "EMAIL;TYPE=INTERNET:" + esc(g.email) : "", g.telefon ? "TEL;TYPE=CELL:" + esc(g.telefon) : "",
     g.linkedin ? "URL:https://" + esc(g.linkedin) : "",
-    "NOTE:" + esc("THE CIRCLE No1 · 16.09.2026 · Playa Cologne" + (g.notiz ? " – " + g.notiz : "")),
+    "NOTE:" + esc(RUNDE.name + " · " + RUNDE.datum_kurz + " · " + RUNDE.ort + (g.notiz ? " – " + g.notiz : "")),
     "END:VCARD"].filter(Boolean).join("\r\n") + "\r\n";
   const name = (g.name.replace(/[^\wäöüÄÖÜß -]/g, "").trim() || "Kontakt") + ".vcf";
   const file = new File([vc], name, { type:"text/vcard" });
@@ -4192,7 +4213,7 @@ $("#lbTeilen").addEventListener("click", async ()=>{
   try{
     const r = await fetch(lbFoto.w); const blob = await r.blob();
     const file = new File([blob], "the-circle-" + lbFoto.id + ".jpg", { type:"image/jpeg" });
-    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:"THE CIRCLE No1" }); return; }
+    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], title:RUNDE.name }); return; }
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
   }catch(e){ if(e && e.name === "AbortError") return; window.open(lbFoto.w, "_blank", "noopener"); }
 });

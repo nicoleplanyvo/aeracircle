@@ -275,10 +275,16 @@ document.querySelectorAll(".filter button").forEach(b => b.addEventListener("cli
 $("#scannerLink").href = "/einlass";
 
 (async function start(){
+  /* Ohne Schluessel im Link geht es auch angemeldet (Rolle Einlass, Team
+     oder Veranstalter) - der Server prueft das Cookie. Nur wenn beides
+     fehlt, steht hier der Hinweis. */
   if(!K){
-    $("#liste").innerHTML = '<p class="hinweis"><b>Kein Zugang</b>' +
-      'Diesem Link fehlt der Schlüssel. Im Monitor unter Einlass den vollständigen Link holen.</p>';
-    return;
+    let ich = null; try{ ich = await (await fetch("/api/me", { cache:"no-store" })).json(); }catch(e){}
+    if(!ich || !ich.angemeldet){
+      $("#liste").innerHTML = '<p class="hinweis"><b>Kein Zugang</b>' +
+        'Diesem Link fehlt der Schlüssel – oder du bist nicht angemeldet. Im Monitor anmelden oder unter Einlass den vollständigen Link holen.</p>';
+      return;
+    }
   }
   try{
     if(await holen()) zeichnen();

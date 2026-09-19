@@ -292,6 +292,39 @@
   .chip:hover{border-color:var(--blau);color:var(--ivory)}
   .chip[aria-pressed="true"]{background:var(--ivory);border-color:var(--ivory);color:var(--ink);font-weight:600}
   .fussnote{font-size:10px;line-height:1.6;color:var(--faint);margin-top:14px}
+  /* Anmeldung */
+  #login[hidden]{display:none}
+  #login{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;
+         background:linear-gradient(180deg,#0b1730,#122648)}
+  #login form{width:min(380px,100%);border:1px solid var(--line-soft);background:rgba(248,247,244,.04);padding:32px 28px;backdrop-filter:blur(6px)}
+  #login h2{font-family:var(--serif);font-weight:600;font-size:20px;letter-spacing:.05em;text-transform:uppercase;margin:6px 0 4px}
+  #login p{font-size:12.5px;color:var(--muted);margin:0 0 18px}
+  #login label{display:block;font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+  #login input{width:100%;background:rgba(248,247,244,.06);border:1px solid var(--line-soft);color:var(--ivory);padding:11px 12px;font:inherit;font-size:14px}
+  #login input:focus{outline:none;border-color:var(--blau)}
+  #login .fehler{color:#ff8a8b;font-size:12.5px;min-height:18px;margin-top:10px}
+  #login .export.gross{margin-top:16px;width:100%}
+  /* Wer angemeldet ist, steht rechts oben; was seine Rolle nicht darf, ist weg. */
+  .wer{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);letter-spacing:.06em}
+  .wer b{color:var(--ivory);font-weight:500}
+  .wer .rolle{border:1px solid var(--line-soft);border-radius:999px;padding:2px 8px;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase}
+  body[data-rolle="team"] .nurV{display:none !important}
+  /* Runden, Nutzer, Gast-Editor */
+  .vzeile{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line-soft);font-size:12.5px;color:var(--muted)}
+  .vzeile b{color:var(--ivory);font-weight:500;overflow-wrap:anywhere}
+  .vzeile .knoepfe{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .vzeile .aktiv{color:var(--gruen,#7fd2a0)}
+  @media (max-width:640px){ .vzeile{grid-template-columns:minmax(0,1fr)} .vzeile .knoepfe{justify-content:flex-start} }
+  .felder{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px}
+  .felder label{display:block;font-size:9.5px;letter-spacing:.25em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+  .felder input,.felder select{width:100%;background:rgba(248,247,244,.06);border:1px solid var(--line-soft);color:var(--ivory);padding:9px 10px;font:inherit;font-size:13px}
+  .felder input:focus,.felder select:focus{outline:none;border-color:var(--blau)}
+  .felder select option{background:#122648;color:var(--ivory)}
+  .gasttreffer{display:grid;gap:4px;margin-top:8px}
+  .gasttreffer button{text-align:left;background:none;border:1px solid var(--line-soft);color:var(--ivory);padding:8px 10px;font:inherit;font-size:12.5px;cursor:pointer}
+  .gasttreffer button small{color:var(--muted);margin-left:6px}
+  .gasttreffer button:hover{border-color:var(--blau)}
+  .pille{display:inline-block;border:1px solid var(--line-soft);border-radius:999px;padding:2px 8px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-left:6px}
   /* Erklaerender Halbsatz unter einem Knopf oder einer Zeile. Stand bisher
      ohne eigene Regel und damit in voller Textgroesse - er las sich wie
      der Inhalt, nicht wie die Fussnote, die er ist. */
@@ -428,6 +461,19 @@
 </style>
 </head>
 <body>
+<div id="login" hidden>
+  <form id="loginForm" autocomplete="on">
+    <span class="label">planyvo · Monitor</span>
+    <h2>Anmelden</h2>
+    <p id="loginHinweis">Name oder E-Mail und Passwort. Den Zugang legt ein Veranstalter im Monitor an.</p>
+    <label for="loginName">Name oder E-Mail</label>
+    <input id="loginName" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+    <label for="loginPw">Passwort</label>
+    <input id="loginPw" type="password" autocomplete="current-password" required>
+    <div class="fehler" id="loginFehler"></div>
+    <button class="export gross" type="submit">Anmelden</button>
+  </form>
+</div>
 <div class="wrap">
 
   <header>
@@ -435,6 +481,7 @@
     <div class="kopf-rechts">
       <span class="demo-tag" id="quellentag">Demo · Platzhalterdaten</span>
       <span class="stand" id="stand">Keine Verbindung zum Register</span>
+      <span class="wer" id="wer" hidden><b id="werName"></b><span class="rolle" id="werRolle"></span><button class="export" type="button" id="abmelden" style="padding:6px 12px">Abmelden</button></span>
     </div>
   </header>
 
@@ -442,8 +489,9 @@
     <button type="button" data-tab="einladung" class="an">Einladung</button>
     <button type="button" data-tab="vorbereitung">Vorbereitung</button>
     <button type="button" data-tab="einlass">Einlass</button>
-    <button type="button" data-tab="regie">Regie</button>
+    <button type="button" data-tab="regie" class="nurV">Regie</button>
     <button type="button" data-tab="danach">Danach</button>
+    <button type="button" data-tab="verwaltung" class="nurV">Verwaltung</button>
   </nav>
   <span class="label" id="tabLabel">Einladungsmanagement · Lettermint &amp; Stripe</span>
   <h1 id="tabTitel">Einladungs&#8202;-&#8202;Monitor</h1>
@@ -495,6 +543,42 @@
         <span class="wn">Welle 2</span>
         <div class="wt"><b>Der App-Zugang</b><span>app-zugang · nur an Zusagen &amp; bezahlte Tickets</span></div>
         <span class="ws">Geplant</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3b · Ein Gast, von Hand: suchen, bearbeiten, Platz setzen, Link holen.
+       Alles, was bei No1 per API lief - Nachtrag, Platzuebertragung, neue
+       Adresse, Firma, Tisch - in einem Kasten. -->
+  <div class="panel" style="margin-top:8px" id="gastpanel">
+    <span class="label">Ein Gast</span>
+    <h2>Gast bearbeiten oder anlegen</h2>
+    <p class="fnote">Name oder E-Mail eintippen. Wer nicht im Register steht, wird mit „Neu anlegen“ angelegt – mit Pool, Typ und Tisch, Link sofort danach.</p>
+    <div class="mailtools" style="margin-top:10px">
+      <input id="gsSuche" type="text" placeholder="Name oder E-Mail" autocomplete="off" style="max-width:320px">
+      <button class="export" id="gsNeu" type="button">Neu anlegen</button>
+      <span class="fussnote" style="margin:0" id="gsNote"></span>
+    </div>
+    <div class="gasttreffer" id="gsTreffer"></div>
+    <div id="gsForm" hidden>
+      <div class="felder">
+        <div><label>Name</label><input id="geName" type="text" maxlength="60"></div>
+        <div><label>E-Mail</label><input id="geEmail" type="text" maxlength="120" autocapitalize="off"></div>
+        <div><label>Anrede</label><input id="geAnrede" type="text" maxlength="12" placeholder="Hallo / Liebe / Lieber"></div>
+        <div><label>Firma</label><input id="geFirma" type="text" maxlength="80"></div>
+        <div><label>Rolle / Position</label><input id="geRolle" type="text" maxlength="80"></div>
+        <div><label>Telefon</label><input id="geTelefon" type="text" maxlength="30"></div>
+        <div><label>Pool</label><input id="gePool" type="text" maxlength="40" list="gePools"><datalist id="gePools"></datalist></div>
+        <div><label>Typ</label><select id="geTyp"><option value="ehrengast">Ehrengast (zahlt nicht)</option><option value="ticket">Ticket (zahlt)</option></select></div>
+        <div><label>Partner (Logo in der Mail)</label><input id="gePartner" type="text" maxlength="60"></div>
+      </div>
+      <div class="felder" id="geTische"></div>
+      <div class="exportzeile">
+        <button class="export gross" id="geSpeichern" type="button">Speichern</button>
+        <button class="export" id="geLink" type="button">Link kopieren</button>
+        <button class="export" id="geUebertragen" type="button" title="Der Platz geht an eine andere Person – gleicher Zugang, gleiche Zusage, gleiche Zahlung">Platz übertragen</button>
+        <button class="export" id="geAbsagen" type="button">Absagen</button>
+        <span class="fussnote" style="margin:0" id="geStand"></span>
       </div>
     </div>
   </div>
@@ -990,6 +1074,7 @@
     <div class="exportzeile">
       <button class="export" id="nwEntwurf" type="button">Als Entwurf speichern</button>
       <button class="export gross" id="nwVeroeff" type="button">Veröffentlichen</button>
+      <label class="nurV" style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="nwPush"> und als Push an alle senden</label>
       <button class="export" id="nwNeu" type="button" style="display:none">Neuer Beitrag</button>
       <span class="fussnote" style="margin:0" id="nwNote"></span>
     </div>
@@ -1041,6 +1126,54 @@
 
   <!-- 7 · Der Einzelfall. Ganz unten, weil man hierher springt, wenn oben
        etwas auffällt – nicht umgekehrt. -->
+  <!-- 7 · Verwaltung: Runden und Nutzer. Nur Veranstalter. -->
+  <div class="panel" id="verwaltungpanel">
+    <span class="label">Die Runden</span>
+    <h2>Runden</h2>
+    <p class="fnote">Jede Runde hat Datum, Beginn, Einlass und Ort. Die aktive Runde ist die, in die neue Gäste fallen und nach der sich Phase, Mails und App richten. Gäste, Tischplan und Galerie bleiben je Runde getrennt.</p>
+    <div id="rundenListe" style="margin-top:10px"></div>
+    <span class="label" style="display:block;margin-top:22px">Neue Runde</span>
+    <div class="felder">
+      <div><label>Name</label><input id="rnName" type="text" maxlength="60" placeholder="THE CIRCLE No2"></div>
+      <div><label>Datum</label><input id="rnDatum" type="date"></div>
+      <div><label>Beginn</label><input id="rnBeginn" type="time" value="18:00"></div>
+      <div><label>Einlass ab</label><input id="rnEinlass" type="time" value="17:30"></div>
+      <div><label>Ort</label><input id="rnOrt" type="text" maxlength="80" placeholder="Playa Cologne"></div>
+      <div><label>Adresse</label><input id="rnAdresse" type="text" maxlength="160" placeholder="Straße, PLZ Ort"></div>
+    </div>
+    <div class="exportzeile">
+      <button class="export gross" id="rnAnlegen" type="button">Anlegen und aktiv schalten</button>
+      <button class="export" id="rnNurAnlegen" type="button">Nur anlegen</button>
+      <span class="fussnote" style="margin:0" id="rnNote"></span>
+    </div>
+
+    <span class="label" style="display:block;margin-top:34px">Wer arbeitet mit</span>
+    <h2>Nutzer</h2>
+    <p class="fnote">Veranstalter: alles. Team: Gäste, Tische, Links, Fotos – kein Versand an alle, keine Regie, keine Zahlungen. Einlass: nur die Liste an der Tür. Das Startpasswort steht einmal hier – dann persönlich weitergeben.</p>
+    <div id="nutzerListe" style="margin-top:10px"></div>
+    <span class="label" style="display:block;margin-top:22px">Neuer Nutzer</span>
+    <div class="felder">
+      <div><label>Name</label><input id="nuName" type="text" maxlength="60"></div>
+      <div><label>E-Mail (optional)</label><input id="nuEmail" type="text" maxlength="120" autocapitalize="off"></div>
+      <div><label>Rolle</label><select id="nuRolle"><option value="team">Team</option><option value="veranstalter">Veranstalter</option><option value="einlass">Einlass</option></select></div>
+      <div><label>Passwort (leer = wird erzeugt)</label><input id="nuPw" type="text" maxlength="80" autocomplete="off"></div>
+    </div>
+    <div class="exportzeile">
+      <button class="export gross" id="nuAnlegen" type="button">Nutzer anlegen</button>
+      <span class="fussnote" style="margin:0" id="nuNote"></span>
+    </div>
+
+    <span class="label" style="display:block;margin-top:34px">Mein Zugang</span>
+    <div class="felder" id="pwFelder">
+      <div><label>Altes Passwort</label><input id="pwAlt" type="password" autocomplete="current-password"></div>
+      <div><label>Neues Passwort (min. 8)</label><input id="pwNeu" type="password" autocomplete="new-password"></div>
+    </div>
+    <div class="exportzeile">
+      <button class="export" id="pwAendern" type="button">Passwort ändern</button>
+      <span class="fussnote" style="margin:0" id="pwNote"></span>
+    </div>
+  </div>
+
   <div class="panel" id="mailpanel">
     <span class="label">Jede Mail einzeln · aus Versand-Log und Lettermint-Webhooks</span>
     <h2>Gästeliste · Mailstatus</h2>
@@ -1099,6 +1232,18 @@
  * ================================================================ */
 
 const KEY  = new URLSearchParams(location.search).get("key");
+/* Anmeldung ohne Schluessel: Wer ohne ?key= kommt, ist entweder per Passwort
+   angemeldet (Cookie) - oder sieht die Anmeldemaske. Synchron abgefragt, weil
+   der Rest der Seite beim Laden schon wissen muss, ob er Daten holen darf. */
+const ME = (() => {
+  if(KEY) return { angemeldet:true, nutzer:{ name:"Schlüssel", rolle:"veranstalter", schluessel:true } };
+  try{ const x = new XMLHttpRequest(); x.open("GET", "/api/me", false); x.send();
+       const d = JSON.parse(x.responseText || "{}"); return d.angemeldet ? d : { angemeldet:false, nutzerAngelegt:d.nutzerAngelegt || 0 }; }
+  catch(e){ return { angemeldet:false }; }
+})();
+const ANGEMELDET = !!ME.angemeldet;
+const ROLLE = ANGEMELDET ? ((ME.nutzer && ME.nutzer.rolle) || "veranstalter") : "";
+document.body.dataset.rolle = ROLLE;
 const TAKT = 60000;
 
 let live = false;          // Live-Daten aktiv → Demo-Animation stoppt
@@ -1487,7 +1632,7 @@ function fassungenRendern(f){
    Fehler, deshalb kein alert. */
 let rnFaellig = 0;
 async function rechnungenHolen(){
-  if(!KEY || !$("#rechnungpanel")) return;
+  if(!ANGEMELDET || !$("#rechnungpanel")) return;
   try{
     const r = await fetch("/api/admin/rechnungen?key=" + encodeURIComponent(KEY),
                           { method:"POST", headers:{"Content-Type":"application/json"}, body:"{}" });
@@ -1516,7 +1661,7 @@ $("#rnSenden").addEventListener("click", async () => {
 });
 /* Die Entwuerfe vom Stand: Anzahl, die letzten fuenf, CSV. */
 async function standHolen(){
-  if(!KEY || !$("#standpanel")) return;
+  if(!ANGEMELDET || !$("#standpanel")) return;
   $("#standCsv").href = "/api/admin/stand-entwuerfe.csv?key=" + encodeURIComponent(KEY);
   try{
     const r = await fetch("/api/admin/stand-entwuerfe?key=" + encodeURIComponent(KEY));
@@ -1894,7 +2039,7 @@ function appZeichnen(a){
   });
 }
 async function signalSchicken(rumpf, knopf){
-  if(!KEY) return;
+  if(!ANGEMELDET) return;
   if(knopf){ knopf.disabled = true; knopf.dataset.html = knopf.innerHTML; knopf.textContent = "wird gesendet …"; }
   try{
     const c = new AbortController(); const tid = setTimeout(()=>c.abort(), 10000);
@@ -1927,7 +2072,7 @@ $("#raumKnopf").addEventListener("click", () => {
 $$("#schnellsaetze button").forEach(b => b.addEventListener("click", () => signalSchicken({ art:"naechstes", text: b.dataset.satz }, b)));
 $("#signalfrei").addEventListener("click", () => signalSchicken({ art:"frei", rueckgaengig: $("#signalfrei").textContent === "Rückgängig" }));
 async function planSchicken(senden){
-  if(!KEY) return;
+  if(!ANGEMELDET) return;
   const csv = $("#planCsv").value.trim(); if(!csv){ txt($("#planNote"), "Keine CSV."); return; }
   try{
     const r = await fetch("/api/admin/tischplan?key=" + encodeURIComponent(KEY) + (senden ? "&senden=1" : ""), { method:"POST", headers:{"Content-Type":"text/csv"}, body: csv });
@@ -1955,7 +2100,7 @@ try{
 /* ---------- Die Buehne ---------- */
 let buehne = null;
 async function buehneHolen(){
-  if(!KEY) return;
+  if(!ANGEMELDET) return;
   try{
     const r = await fetch("/api/admin/live?key=" + encodeURIComponent(KEY), { cache:"no-store" });
     if(!r.ok) return;
@@ -1984,7 +2129,7 @@ function buehneZeichnen(d){
   const bl = $("#bieterListe"); bl.textContent = (d.bids || []).length ? "Gebote: " + d.bids.map(b => b.amount.toLocaleString("de-DE") + " € (" + (b.name || "ohne Namen") + (b.quelle === "saal" ? ", Saal" : "") + ")").join(" · ") : "";
 }
 async function adminPost(pfad, rumpf){
-  if(!KEY) return null;
+  if(!ANGEMELDET) return null;
   /* Der Pfad darf schon eigene Werte tragen (…?gid=…) - der Schluessel haengt
      sich dann mit & an, nicht mit einem zweiten Fragezeichen. */
   try{ const r = await fetch(pfad + (pfad.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(KEY), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf || {}) });
@@ -2027,7 +2172,7 @@ $("#sitzSetzen").addEventListener("click", async () => {
   if(d && d.ok){ txt($("#planNote"), d.name + " · Gang " + gang + " · " + (tischNameVon(tisch) || "Tisch " + tisch)); $("#sitzWer").value = ""; ohnePlatzHolen(); }
 });
 async function ohnePlatzHolen(){
-  if(!KEY) return;
+  if(!ANGEMELDET) return;
   try{ const r = await fetch("/api/admin/ohneplatz?key=" + encodeURIComponent(KEY), { cache:"no-store" }); const d = await r.json();
     txt($("#ohnePlatz"), d.anzahl ? "Ohne Platz (" + d.anzahl + "): " + d.gaeste.map(g => g.name).join(", ") : ""); }catch(e){}
   planStandHolen();
@@ -2041,7 +2186,7 @@ async function ohnePlatzHolen(){
 let TISCHNAMEN = {};
 function tischNameVon(nr){ return TISCHNAMEN[nr] || ""; }
 async function planStandHolen(){
-  if(!KEY || !$("#planStand")) return;
+  if(!ANGEMELDET || !$("#planStand")) return;
   try{
     const r = await fetch("/api/admin/tischplan?key=" + encodeURIComponent(KEY), { cache:"no-store" });
     const d = await r.json();
@@ -2160,7 +2305,7 @@ $$("#phaseZeile button").forEach(b => b.addEventListener("click", async () => {
 
 /* ---------- Nach dem Abend ---------- */
 async function adminGet(pfad){
-  if(!KEY) return null;
+  if(!ANGEMELDET) return null;
   try{ const r = await fetch(pfad + (pfad.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(KEY), { cache:"no-store" }); if(!r.ok) return null; return await r.json(); }
   catch(e){ return null; }
 }
@@ -2168,7 +2313,7 @@ $("#uploadLink").href = "/upload" + (KEY ? "?key=" + encodeURIComponent(KEY) : "
 $("#fbCsv").href = "/api/admin/feedback?csv=1" + (KEY ? "&key=" + encodeURIComponent(KEY) : "");
 let galStand = null, newsStand = [], newsId = "";
 async function nachHolen(){
-  if(!KEY) return;
+  if(!ANGEMELDET) return;
   const [s, n, g, f] = await Promise.all([adminGet("/api/admin/sendungen"), adminGet("/api/admin/news"), adminGet("/api/admin/galerie"), adminGet("/api/admin/feedback")]);
   if(s) sendungenZeichnen(s.sendungen || []);
   if(n){ newsStand = n.news || []; newsZeichnen(); }
@@ -2233,7 +2378,7 @@ async function lueckeHolen(){
   gruppe("Installiert, aber ohne Push", d.ohnePush, "Ein Tippen in der App: die Karte „Erlaube Benachrichtigungen“.");
 }
 $("#lueckeAuf").addEventListener("click", () => { const w = $("#lueckeBlock"); const auf = w.style.display === "none"; w.style.display = auf ? "" : "none"; txt($("#lueckeAuf"), auf ? "Liste zu" : "Wer fehlt noch?"); if(auf) lueckeHolen(); });
-if(KEY){ lueckeHolen(); setInterval(() => { if(!document.hidden) lueckeHolen(); }, 120000); }
+if(ANGEMELDET){ lueckeHolen(); setInterval(() => { if(!document.hidden) lueckeHolen(); }, 120000); }
 
 /* ---------- Demo fuer das Team ---------- */
 function demoZeichnen(gaeste){
@@ -2257,7 +2402,7 @@ $("#demoAnlegen").addEventListener("click", async () => {
   if(d && d.ok){ txt($("#demoNote"), d.angelegt + " angelegt" + (d.auchEcht && d.auchEcht.length ? " · auch echt im Register (Demo-Kopie getrennt): " + d.auchEcht.join(", ") : "") + " – Links unten, jeden nur persönlich weitergeben."); $("#demoListe").value = ""; demoZeichnen(d.gaeste); }
 });
 $("#demoLoeschen").addEventListener("click", async () => { if(!confirm("Alle Demo-Gäste samt Profilen, Verbindungen und Plätzen löschen?")) return; const d = await adminPost("/api/admin/demo", { loeschen: true }); if(d && d.ok){ txt($("#demoNote"), d.geloescht + " gelöscht."); demoZeichnen([]); } });
-if(KEY) demoHolen();
+if(ANGEMELDET) demoHolen();
 async function senden(probe, trotzdem){
   const rumpf = { art: $("#sdArt").value, kanal: $("#sdKanal").value, ziel: $("#sdZiel").value, titel: $("#sdTitel").value.trim(), text: $("#sdText").value.trim(), url: $("#sdUrl").value.trim() || "/", ctaText: $("#sdCta").value.trim() };
   if(!rumpf.titel || !rumpf.text){ txt($("#sdNote"), "Titel und Text fehlen."); return; }
@@ -2313,7 +2458,13 @@ async function newsSpeichern(veroeffentlicht){
   if(d && d.ok){
     const v = d.news && d.news.vorschau;
     const vor = !rumpf.link ? "" : v && !v.fehler ? " Vorschau: " + (v.quelle || "Seite") + ((d.news.bild || v.bild) ? " mit Bild." : " ohne Bild.") : " Keine Vorschau von der Seite – nur Linktext.";
-    txt($("#nwNote"), (veroeffentlicht ? "Veröffentlicht – steht jetzt in der App." : "Als Entwurf gespeichert.") + vor);
+    let pushSatz = "";
+    if(veroeffentlicht && $("#nwPush").checked){
+      const p = await adminPost("/api/admin/senden", { art: "news-" + d.news.id, kanal: "push", ziel: "alle", titel: d.news.titel, text: d.news.text, url: "/#news", ctaText: "In der App lesen" });
+      pushSatz = p && p.ok ? " Push an " + p.sendung.empfaenger + " Gäste läuft." : " Push nicht gesendet.";
+      $("#nwPush").checked = false;
+    }
+    txt($("#nwNote"), (veroeffentlicht ? "Veröffentlicht – steht jetzt in der App." : "Als Entwurf gespeichert.") + vor + pushSatz);
     newsId = ""; newsFelderLeeren(); nachHolen();
   }
 }
@@ -2368,7 +2519,7 @@ $("#no2Speichern").addEventListener("click", async () => {
 });
 $("#no2Weg").addEventListener("click", async () => { if(confirm("No2-Karte aus der App nehmen?")){ const d = await adminPost("/api/admin/phase", { phase: appStand ? appStand.phaseHand || "" : "", no2: null }); if(d && d.ok){ $("#no2Datum").value = ""; $("#no2Ort").value = ""; $("#no2Text").value = ""; } } });
 
-if(KEY){ nachHolen(); setInterval(() => { if(!document.hidden) nachHolen(); }, 120000); }
+if(ANGEMELDET){ nachHolen(); setInterval(() => { if(!document.hidden) nachHolen(); }, 120000); }
 
 async function zeitenHolen(){
   try{
@@ -2411,7 +2562,7 @@ document.querySelectorAll("button[data-gate]").forEach(b => b.addEventListener("
 }));
 
 async function zeitenSchreiben(rumpf, note){
-  if(!KEY){ txt($("#znote"), "Kein Zugang – Link ohne key."); return; }
+  if(!ANGEMELDET){ txt($("#znote"), "Kein Zugang – nicht angemeldet."); return; }
   try{
     const r = await fetch("/api/admin/zeiten?key=" + encodeURIComponent(KEY), {
       method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf)
@@ -2858,7 +3009,7 @@ let ezTakt = null;
 function ezSichtbar(){ const p = $("#einlasspanel"); return p && !p.classList.contains("tabweg"); }
 
 async function ezHolen(){
-  if(EZ.holt || !KEY) return;
+  if(EZ.holt || !ANGEMELDET) return;
   EZ.holt = true;
   const d = await adminGet("/api/admin/einlass");
   EZ.holt = false;
@@ -2951,7 +3102,7 @@ $$("#ezFilter button").forEach(b => b.addEventListener("click", () => {
    Kamera laeuft nur, solange der Scanner offen ist. */
 let scanStop = null;
 async function scannerOeffnen(){
-  if(!KEY) return alert("Ohne Schl\u00fcssel geht der Einlass nicht.");
+  if(!ANGEMELDET) return alert("Nicht angemeldet.");
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
     return alert("Dieser Browser gibt keine Kamera frei. Der Gast kann seinen Code auch selbst mit der Handykamera scannen.");
 
@@ -3082,7 +3233,7 @@ addEventListener("keydown", e => { if(e.key === "Escape" && scanStop) scanStop()
    Einladung: alles bis zur Zusage. Der Abend: Zeiten, App, Buehne, danach.
    Merkt sich den zuletzt offenen Reiter; #abend im Link oeffnet ihn direkt
    (fuer Mathis am 16.09.: /monitor?key=…#abend). */
-const TAB_VON = { apppanel: "vorbereitung", tischpanel: "vorbereitung", zeitpanel: "vorbereitung", einlasspanel: "einlass", regiepanel: "regie", nachpanel: "danach" };
+const TAB_VON = { apppanel: "vorbereitung", tischpanel: "vorbereitung", zeitpanel: "vorbereitung", einlasspanel: "einlass", regiepanel: "regie", nachpanel: "danach", verwaltungpanel: "verwaltung" };
 const TAB_TEXTE = {
   einladung:    { label: "Einladungsmanagement \u00b7 Lettermint & Stripe", titel: "Einladungs\u200a-\u200aMonitor", sub: $("#sub").textContent },
   vorbereitung: { label: "Die Tage davor", titel: "Vorbereitung",
@@ -3091,8 +3242,10 @@ const TAB_TEXTE = {
                   sub: "Wer ist schon da? Code scannen oder von Hand abhaken \u2013 beides gilt sofort, auch f\u00fcr die App des Gastes." },
   regie:        { label: "Am 16.09. \u00b7 Mathis und Nicole", titel: "Regie",
                   sub: "Der Abend auf einem Bildschirm: was gerade l\u00e4uft, Tischwechsel, Ansagen, Handschalter. Jeder Knopf gilt sofort f\u00fcr alle ge\u00f6ffneten Apps." },
-  danach:       { label: "Nach dem 16.09.", titel: "Danach",
-                  sub: "Feedback-Frage, Fotos und Galerie, News, die eine Nachricht an die Runde \u2013 und THE CIRCLE No2." }
+  danach:       { label: "Nach dem Abend", titel: "Danach",
+                  sub: "Feedback-Frage, Fotos und Galerie, News, die eine Nachricht an die Runde \u2013 und die n\u00e4chste Runde." },
+  verwaltung:   { label: "Runden und Nutzer", titel: "Verwaltung",
+                  sub: "Die n\u00e4chste Runde anlegen und aktiv schalten. Wer mitarbeitet, mit welcher Rolle \u2013 und das eigene Passwort." }
 };
 function tabZeigen(name){
   const t = TAB_TEXTE[name] ? name : "einladung";
@@ -3110,7 +3263,7 @@ function tabZeigen(name){
   /* Der Einlass fragt nur, solange sein Reiter offen ist - sonst laeuft am
      Abend auf jedem Handy eine Abfrage mit, die niemand ansieht. */
   clearInterval(ezTakt); ezTakt = null;
-  if(t === "einlass" && KEY){ ezHolen(); ezTakt = setInterval(() => { if(ezSichtbar()) ezHolen(); }, 5000); }
+  if(t === "einlass" && ANGEMELDET){ ezHolen(); ezTakt = setInterval(() => { if(ezSichtbar()) ezHolen(); }, 5000); }
   if(location.hash !== "#" + t) history.replaceState(null, "", location.pathname + location.search + "#" + t);
   window.scrollTo(0, 0);
 }
@@ -3120,6 +3273,202 @@ window.addEventListener("hashchange", () => tabZeigen(location.hash.slice(1)));
   let gemerkt = ""; try{ gemerkt = localStorage.getItem("circle.mtab") || ""; }catch(e){}
   tabZeigen(location.hash.slice(1) || gemerkt || "einladung");
 }
+/* ================================================================
+ * Anmeldung, Rollen, Verwaltung, Gast-Editor
+ * ================================================================ */
+/* Ohne Schluessel und ohne Cookie: die Maske. Alles andere bleibt darunter
+   stehen, aber holt keine Daten (ANGEMELDET ist false). */
+if(!ANGEMELDET){
+  $("#login").hidden = false;
+  if(ME.nutzerAngelegt === 0) txt($("#loginHinweis"), "Noch kein Nutzer angelegt. Beim ersten Mal mit dem Schlüssel-Link (?key=…) hinein und unter „Verwaltung“ den ersten Veranstalter anlegen.");
+  $("#loginForm").addEventListener("submit", async e => {
+    e.preventDefault(); txt($("#loginFehler"), "");
+    try{
+      const r = await fetch("/api/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ name: $("#loginName").value.trim(), passwort: $("#loginPw").value }) });
+      const d = await r.json();
+      if(!r.ok){ txt($("#loginFehler"), d.error || "Anmeldung fehlgeschlagen"); return; }
+      location.reload();
+    }catch(err){ txt($("#loginFehler"), "Server nicht erreichbar."); }
+  });
+} else {
+  const w = $("#wer"); w.hidden = false;
+  txt($("#werName"), ME.nutzer ? ME.nutzer.name : ""); txt($("#werRolle"), ROLLE);
+  $("#abmelden").addEventListener("click", async () => {
+    if(KEY){ location.href = "/monitor"; return; }
+    await fetch("/api/logout", { method:"POST" }); location.href = "/monitor";
+  });
+  /* Was das Team nicht darf, steht auch nicht auf dem Schirm: der Sendekanal,
+     die Handschalter, der neue Einlass-Zugang, die Verwaltung. */
+  if(ROLLE === "team"){
+    ["#sdArt","#sdKanal","#sdTitel","#sdProbe","#sdZiel","#sdUrl","#sdCta"].forEach(id => { const e = $(id); const k = e && e.closest(".mailtools,.exportzeile"); if(k) k.classList.add("nurV"); });
+    ["#sdText","#phaseZeile","#stufeZeile","#akkNeu","#verwaltungpanel","#regiepanel"].forEach(id => { const e = $(id); if(e) e.classList.add("nurV"); });
+    const lab = $("#sdArt") && $("#sdArt").closest(".panel"); if(lab){ Array.from(lab.querySelectorAll(":scope > .label, :scope > .fnote")).slice(0,2).forEach(e => e.classList.add("nurV")); }
+  }
+  if(KEY) $("#pwFelder").closest(".panel") && (txt($("#pwNote"), "Mit dem Schlüssel-Link gibt es kein eigenes Passwort – dafür einen Nutzer anlegen."));
+}
+
+/* ---------- Runden ---------- */
+async function rundenHolen(){
+  if(!ANGEMELDET || ROLLE !== "veranstalter") return;
+  const d = await adminGet("/api/admin/runden"); if(!d) return;
+  const w = $("#rundenListe"); w.innerHTML = "";
+  d.runden.forEach(r => {
+    const z = document.createElement("div"); z.className = "vzeile";
+    const b = document.createElement("b"); b.textContent = r.name + (r.id === d.aktiv ? " · aktiv" : ""); if(r.id === d.aktiv) b.classList.add("aktiv");
+    const m = document.createElement("span"); m.textContent = r.datum + " · " + r.beginn + " Uhr · " + (r.ort || "–") + " · " + r.imKreis + " im Kreis / " + r.gaeste + " im Register";
+    const k = document.createElement("span"); k.className = "knoepfe";
+    if(r.id !== d.aktiv){
+      const a = document.createElement("button"); a.className = "export"; a.type = "button"; a.textContent = "Aktiv schalten";
+      a.addEventListener("click", async () => { if(!confirm("„" + r.name + "“ aktiv schalten? Neue Gäste, Phase, Mails und App richten sich dann nach dieser Runde.")) return; const x = await adminPost("/api/admin/runden", { id: r.id, aktiv: true }); if(x && x.ok){ txt($("#rnNote"), r.name + " ist jetzt aktiv."); rundenHolen(); } });
+      k.appendChild(a);
+    }
+    const e = document.createElement("button"); e.className = "export"; e.type = "button"; e.textContent = "Bearbeiten";
+    e.addEventListener("click", async () => {
+      const name = prompt("Name der Runde", r.name); if(name === null) return;
+      const datum = prompt("Datum (JJJJ-MM-TT)", r.datum); if(datum === null) return;
+      const beginn = prompt("Beginn (HH:MM)", r.beginn); if(beginn === null) return;
+      const einlass = prompt("Einlass ab (HH:MM)", r.einlass); if(einlass === null) return;
+      const ort = prompt("Ort", r.ort || ""); if(ort === null) return;
+      const adresse = prompt("Adresse", r.adresse || ""); if(adresse === null) return;
+      const x = await adminPost("/api/admin/runden", { id: r.id, name, datum, beginn, einlass, ort, adresse }); if(x && x.ok){ txt($("#rnNote"), "Gespeichert."); rundenHolen(); }
+    });
+    k.appendChild(e); z.appendChild(b); z.appendChild(m); z.appendChild(k); w.appendChild(z);
+  });
+}
+async function rundeAnlegen(aktiv){
+  const rumpf = { name: $("#rnName").value.trim(), datum: $("#rnDatum").value, beginn: $("#rnBeginn").value, einlass: $("#rnEinlass").value, ort: $("#rnOrt").value.trim(), adresse: $("#rnAdresse").value.trim(), aktiv: !!aktiv };
+  if(!rumpf.name || !rumpf.datum){ txt($("#rnNote"), "Name und Datum fehlen."); return; }
+  if(aktiv && !confirm("„" + rumpf.name + "“ anlegen UND aktiv schalten? Ab dann fallen neue Gäste in diese Runde.")) return;
+  const d = await adminPost("/api/admin/runden", rumpf);
+  if(d && d.ok){ txt($("#rnNote"), d.runde.name + " angelegt" + (aktiv ? " und aktiv." : ".")); ["rnName","rnDatum","rnOrt","rnAdresse"].forEach(id => $("#" + id).value = ""); rundenHolen(); }
+}
+$("#rnAnlegen").addEventListener("click", () => rundeAnlegen(true));
+$("#rnNurAnlegen").addEventListener("click", () => rundeAnlegen(false));
+
+/* ---------- Nutzer ---------- */
+async function nutzerHolen(){
+  if(!ANGEMELDET || ROLLE !== "veranstalter") return;
+  const d = await adminGet("/api/admin/nutzer"); if(!d) return;
+  const w = $("#nutzerListe"); w.innerHTML = "";
+  d.nutzer.forEach(n => {
+    const z = document.createElement("div"); z.className = "vzeile";
+    const b = document.createElement("b"); b.textContent = n.name + (n.aktiv ? "" : " · deaktiviert"); if(ME.nutzer && ME.nutzer.id === n.id) b.textContent += " (du)";
+    const m = document.createElement("span"); m.textContent = n.rolle + (n.email ? " · " + n.email : "") + (n.zuletzt ? " · zuletzt " + wann(n.zuletzt) : " · noch nie angemeldet");
+    const k = document.createElement("span"); k.className = "knoepfe";
+    const rolle = document.createElement("select"); rolle.className = "export"; rolle.style.padding = "8px 10px";
+    ["veranstalter","team","einlass"].forEach(r => { const o = document.createElement("option"); o.value = r; o.textContent = r; o.selected = n.rolle === r; rolle.appendChild(o); });
+    rolle.addEventListener("change", async () => { const x = await adminPost("/api/admin/nutzer", { id: n.id, rolle: rolle.value }); if(x && x.ok){ txt($("#nuNote"), n.name + " ist jetzt " + rolle.value + "."); nutzerHolen(); } });
+    const pw = document.createElement("button"); pw.className = "export"; pw.type = "button"; pw.textContent = "Neues Passwort";
+    pw.addEventListener("click", async () => {
+      const neu = prompt("Neues Passwort für " + n.name + " (leer = erzeugen)", ""); if(neu === null) return;
+      const x = await adminPost("/api/admin/nutzer", { id: n.id, passwort: neu || Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6) });
+      if(x && x.ok) txt($("#nuNote"), "Passwort für " + n.name + " gesetzt: " + (neu || x.startPasswort) + " – persönlich weitergeben.");
+    });
+    const ak = document.createElement("button"); ak.className = "export"; ak.type = "button"; ak.textContent = n.aktiv ? "Deaktivieren" : "Aktivieren";
+    ak.addEventListener("click", async () => { const x = await adminPost("/api/admin/nutzer", { id: n.id, aktiv: !n.aktiv }); if(x && x.ok) nutzerHolen(); });
+    const lo = document.createElement("button"); lo.className = "export"; lo.type = "button"; lo.textContent = "Löschen";
+    lo.addEventListener("click", async () => { if(!confirm(n.name + " löschen?")) return; const x = await adminPost("/api/admin/nutzer", { id: n.id, loeschen: true }); if(x && x.ok) nutzerHolen(); });
+    k.appendChild(rolle); k.appendChild(pw); k.appendChild(ak); k.appendChild(lo);
+    z.appendChild(b); z.appendChild(m); z.appendChild(k); w.appendChild(z);
+  });
+  if(!d.nutzer.length){ const p = document.createElement("p"); p.className = "fnote"; p.textContent = "Noch niemand. Den ersten Veranstalter unten anlegen – danach geht der Monitor über /monitor mit Name und Passwort."; w.appendChild(p); }
+}
+$("#nuAnlegen").addEventListener("click", async () => {
+  const rumpf = { name: $("#nuName").value.trim(), email: $("#nuEmail").value.trim(), rolle: $("#nuRolle").value, passwort: $("#nuPw").value };
+  if(!rumpf.name){ txt($("#nuNote"), "Name fehlt."); return; }
+  const d = await adminPost("/api/admin/nutzer", rumpf);
+  if(d && d.ok){ txt($("#nuNote"), d.nutzer.name + " angelegt (" + d.nutzer.rolle + "). Startpasswort: " + d.startPasswort + " – jetzt notieren, es wird nicht noch einmal angezeigt."); $("#nuName").value = ""; $("#nuEmail").value = ""; $("#nuPw").value = ""; nutzerHolen(); }
+});
+$("#pwAendern").addEventListener("click", async () => {
+  const d = await adminPost("/api/admin/passwort", { alt: $("#pwAlt").value, neu: $("#pwNeu").value });
+  if(d && d.ok){ txt($("#pwNote"), "Geändert."); $("#pwAlt").value = ""; $("#pwNeu").value = ""; }
+});
+if(ANGEMELDET && ROLLE === "veranstalter"){ rundenHolen(); nutzerHolen(); }
+
+/* ---------- Gast-Editor ---------- */
+let geGid = "", geDaten = null;
+function gsSuchen(){
+  const q = $("#gsSuche").value.trim().toLowerCase(); const w = $("#gsTreffer"); w.innerHTML = "";
+  if(q.length < 2) return;
+  (alleGaeste || []).filter(g => (g.name || "").toLowerCase().includes(q) || (g.email || "").toLowerCase().includes(q)).slice(0, 8).forEach(g => {
+    const b = document.createElement("button"); b.type = "button";
+    b.innerHTML = ""; b.textContent = g.name; const sm = document.createElement("small"); sm.textContent = [g.email, g.pool, g.status].filter(Boolean).join(" · "); b.appendChild(sm);
+    b.addEventListener("click", () => gastLaden(g.gid)); w.appendChild(b);
+  });
+  if(!w.children.length){ const p = document.createElement("p"); p.className = "fnote"; p.textContent = "Niemand mit „" + q + "“ – oben „Neu anlegen“."; w.appendChild(p); }
+}
+$("#gsSuche").addEventListener("input", gsSuchen);
+async function gastLaden(gid){
+  const d = await adminGet("/api/admin/gast?gid=" + encodeURIComponent(gid)); if(!d || !d.ok) return;
+  geGid = gid; geDaten = d; const g = d.gast;
+  $("#gsTreffer").innerHTML = ""; $("#gsForm").hidden = false;
+  $("#geName").value = g.name; $("#geEmail").value = g.email; $("#geAnrede").value = g.anrede; $("#geFirma").value = g.firma; $("#geRolle").value = g.rolle;
+  $("#geTelefon").value = g.telefon; $("#gePool").value = g.pool; $("#geTyp").value = g.typ; $("#gePartner").value = g.partner;
+  $("#gePools").innerHTML = g.pools.map(p => "<option value=\"" + p.replace(/"/g, "&quot;") + "\"></option>").join("");
+  tischeFelder(d.gaenge, d.tische, g.sitz);
+  txt($("#geStand"), g.status + (g.da ? " · im Haus" : "") + (g.registriert ? " · App eingerichtet" : " · App noch nicht eingerichtet") + (g.ticketNr ? " · " + g.ticketNr : "") + " · Runde " + g.runde);
+  ["geLink","geUebertragen","geAbsagen"].forEach(id => $("#" + id).hidden = false);
+  txt($("#geAbsagen"), g.status === "abgesagt" ? "Absage zurücknehmen" : "Absagen");
+  $("#gsForm").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+function tischeFelder(gaenge, tische, sitz){
+  const w = $("#geTische"); w.innerHTML = "";
+  gaenge.forEach((gang, i) => {
+    const d = document.createElement("div"); const l = document.createElement("label"); l.textContent = "Tisch · " + gang; d.appendChild(l);
+    const sel = document.createElement("select"); sel.dataset.gang = i + 1;
+    const o0 = document.createElement("option"); o0.value = "0"; o0.textContent = "– kein Platz –"; sel.appendChild(o0);
+    tische.forEach(t => { const o = document.createElement("option"); o.value = t.nr; o.textContent = t.name ? t.name + " (" + t.nr + ")" : "Tisch " + t.nr; o.selected = sitz && sitz[i] === t.nr; sel.appendChild(o); });
+    d.appendChild(sel); w.appendChild(d);
+  });
+}
+async function gastSpeichern(){
+  const felder = { name: $("#geName").value.trim(), email: $("#geEmail").value.trim(), anrede: $("#geAnrede").value.trim(), firma: $("#geFirma").value.trim(), rolle: $("#geRolle").value.trim(),
+                   telefon: $("#geTelefon").value.trim(), pool: $("#gePool").value.trim(), typ: $("#geTyp").value, partner: $("#gePartner").value.trim() };
+  if(!felder.name){ txt($("#gsNote"), "Name fehlt."); return null; }
+  const q = new URLSearchParams(felder); if(geGid) q.set("gid", geGid);
+  const d = await adminPost("/api/admin/gast?" + q.toString()); if(!d || !d.ok) return null;
+  const gid = geGid || (d.gast && d.gast.gid);
+  /* Tische je Gang - nur, was sich geaendert hat */
+  for(const sel of $$("#geTische select")){
+    const gang = +sel.dataset.gang, nr = +sel.value, vorher = geDaten && geDaten.gast.sitz ? geDaten.gast.sitz[gang - 1] || 0 : 0;
+    if(nr !== vorher) await adminPost("/api/admin/sitz", { gid, gang, tisch: nr });
+  }
+  return gid;
+}
+$("#geSpeichern").addEventListener("click", async () => {
+  const gid = await gastSpeichern(); if(!gid) return;
+  txt($("#gsNote"), geGid ? "Gespeichert." : "Angelegt – Link mit „Link kopieren“ holen und persönlich weitergeben.");
+  geGid = gid; gaesteHolen(); gastLaden(gid);
+});
+$("#geLink").addEventListener("click", async () => {
+  if(!geDaten) return; const l = geDaten.gast.appLink;
+  try{ await navigator.clipboard.writeText(l); txt($("#gsNote"), "Link kopiert – nur an diesen Gast, nie in eine Gruppe."); }catch(e){ prompt("Persönlicher Link:", l); }
+});
+$("#geUebertragen").addEventListener("click", async () => {
+  if(!geDaten) return;
+  const name = prompt("Wer übernimmt den Platz von " + geDaten.gast.name + "? (Name)"); if(!name) return;
+  const email = prompt("E-Mail der neuen Person (leer = keine Mail, Link von Hand)", ""); if(email === null) return;
+  const firma = prompt("Firma", geDaten.gast.firma || ""); if(firma === null) return;
+  const q = new URLSearchParams({ gid: geGid, name, email, firma, anrede: "Hallo" });
+  const d = await adminPost("/api/admin/gast?" + q.toString());
+  if(d && d.ok){ txt($("#gsNote"), "Platz übertragen an " + name + ". Zugang, Zusage, Tisch und Zahlung bleiben – neuen Link kopieren und persönlich schicken."); gaesteHolen(); gastLaden(geGid); }
+});
+$("#geAbsagen").addEventListener("click", async () => {
+  if(!geDaten) return; const zurueck = geDaten.gast.status === "abgesagt";
+  if(!confirm(zurueck ? "Absage von " + geDaten.gast.name + " zurücknehmen?" : geDaten.gast.name + " absagen? Der Platz wird frei.")) return;
+  const d = await adminPost("/api/admin/absage?gid=" + encodeURIComponent(geGid) + (zurueck ? "&zurueck=1" : ""));
+  if(d && d.ok){ txt($("#gsNote"), zurueck ? "Wieder offen." : "Abgesagt."); gaesteHolen(); gastLaden(geGid); }
+});
+$("#gsNeu").addEventListener("click", async () => {
+  geGid = ""; geDaten = null; $("#gsTreffer").innerHTML = ""; $("#gsForm").hidden = false;
+  ["geName","geEmail","geAnrede","geFirma","geRolle","geTelefon","gePool","gePartner"].forEach(id => $("#" + id).value = "");
+  const such = $("#gsSuche").value.trim(); if(such.includes("@")) $("#geEmail").value = such; else $("#geName").value = such;
+  $("#geTyp").value = "ehrengast"; $("#geAnrede").value = "Hallo";
+  const d = await adminGet("/api/admin/tischplan"); tischeFelder((d && d.gaenge) || ["Vorspeise","Hauptspeise"], (d && d.liste) || [], []);
+  ["geLink","geUebertragen","geAbsagen"].forEach(id => $("#" + id).hidden = true);
+  txt($("#geStand"), "Neuer Gast – fällt in die aktive Runde. Ohne E-Mail bekommt er keine Mail, den Link gibst du von Hand weiter.");
+});
+
 </script>
 </body>
 </html>
