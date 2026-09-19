@@ -1074,7 +1074,14 @@
     <div class="exportzeile">
       <button class="export" id="nwEntwurf" type="button">Als Entwurf speichern</button>
       <button class="export gross" id="nwVeroeff" type="button">Veröffentlichen</button>
-      <label class="nurV" style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="nwPush"> und als Push an alle senden</label>
+      <label class="nurV" style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px">beim Veröffentlichen
+        <select id="nwKanal" class="export" style="padding:7px 10px">
+          <option value="">nichts senden – nur in der App</option>
+          <option value="push">Push an alle mit Push</option>
+          <option value="luecke">Push, Mail nur an die ohne Push</option>
+          <option value="beide">Push + Mail an alle</option>
+          <option value="mail">Nur Mail an alle</option>
+        </select></label>
       <button class="export" id="nwNeu" type="button" style="display:none">Neuer Beitrag</button>
       <span class="fussnote" style="margin:0" id="nwNote"></span>
     </div>
@@ -2460,10 +2467,14 @@ async function newsSpeichern(veroeffentlicht){
     const v = d.news && d.news.vorschau;
     const vor = !rumpf.link ? "" : v && !v.fehler ? " Vorschau: " + (v.quelle || "Seite") + ((d.news.bild || v.bild) ? " mit Bild." : " ohne Bild.") : " Keine Vorschau von der Seite – nur Linktext.";
     let pushSatz = "";
-    if(veroeffentlicht && $("#nwPush").checked){
-      const p = await adminPost("/api/admin/senden", { art: "news-" + d.news.id, kanal: "push", ziel: "alle", titel: d.news.titel, text: d.news.text, url: "/#news", ctaText: "In der App lesen" });
-      pushSatz = p && p.ok ? " Push an " + p.sendung.empfaenger + " Gäste läuft." : " Push nicht gesendet.";
-      $("#nwPush").checked = false;
+    const kanal = $("#nwKanal").value;
+    if(veroeffentlicht && kanal){
+      /* Dieselbe Sendung wie "Nachricht an die Runde": der Beitrag als Push
+         und/oder Mail, Ziel in der App ist der Reiter News. */
+      const p = await adminPost("/api/admin/senden", { art: "news-" + d.news.id, kanal, ziel: "alle", titel: d.news.titel, text: d.news.text, url: "/#news", ctaText: "In der App lesen" });
+      const KANAL = { push: "Push", luecke: "Push, Mail an die ohne Push", beide: "Push + Mail", mail: "Mail" };
+      pushSatz = p && p.ok ? " " + KANAL[kanal] + " an " + p.sendung.empfaenger + " Gäste läuft." : " Nicht gesendet.";
+      $("#nwKanal").value = "";
     }
     txt($("#nwNote"), (veroeffentlicht ? "Veröffentlicht – steht jetzt in der App." : "Als Entwurf gespeichert.") + vor + pushSatz);
     newsId = ""; newsFelderLeeren(); nachHolen();
