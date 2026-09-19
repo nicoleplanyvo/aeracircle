@@ -431,13 +431,14 @@ Der Schlüssel im Link (`?key=`) ist nur noch der Notzugang. Im Alltag melden
 sich alle unter `/monitor` mit Name und Passwort an – das Cookie hält 30 Tage.
 
 1. Einmal mit dem Schlüssel-Link hinein: `/monitor?key=…`
-2. Reiter **Verwaltung → Nutzer**: den ersten Veranstalter anlegen (Name,
-   E-Mail, Rolle *veranstalter*, Passwort oder leer = wird erzeugt). Das
+2. Reiter **Verwaltung → Nutzer**: sich selbst als *admin* anlegen (Name,
+   E-Mail, Passwort oder leer = wird erzeugt), dann die anderen. Das
    Startpasswort steht genau einmal auf dem Schirm.
 3. Ab dann: `/monitor` ohne Schlüssel → Anmeldemaske. Weitere Nutzer legt ein
    Veranstalter dort an.
 
-Rollen: **veranstalter** darf alles. **team** pflegt Gäste, Tische, Links,
+Rollen: **admin** (planyvo – Nicole, Mathis) und **veranstalter** (der Kunde –
+Desi) dürfen alles; Admins legt nur ein Admin an. **team** pflegt Gäste, Tische, Links,
 Fotos – kein Versand an alle, keine Regie, keine Zahlungen, keine Verwaltung
 (der Server lehnt das mit 403 ab, der Monitor blendet es aus). **einlass**
 landet nach der Anmeldung direkt auf `/akkreditierung` und sieht nur die Liste.

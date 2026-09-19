@@ -1149,13 +1149,13 @@
 
     <span class="label" style="display:block;margin-top:34px">Wer arbeitet mit</span>
     <h2>Nutzer</h2>
-    <p class="fnote">Veranstalter: alles. Team: Gäste, Tische, Links, Fotos – kein Versand an alle, keine Regie, keine Zahlungen. Einlass: nur die Liste an der Tür. Das Startpasswort steht einmal hier – dann persönlich weitergeben.</p>
+    <p class="fnote">Admin (planyvo) und Veranstalter: alles – senden, Regie, Zahlungen, Runden, Nutzer; Admins legt nur ein Admin an. Team: Gäste, Tische, Links, Fotos – kein Versand an alle, keine Regie, keine Zahlungen. Einlass: nur die Liste an der Tür. Das Startpasswort steht einmal hier – dann persönlich weitergeben.</p>
     <div id="nutzerListe" style="margin-top:10px"></div>
     <span class="label" style="display:block;margin-top:22px">Neuer Nutzer</span>
     <div class="felder">
       <div><label>Name</label><input id="nuName" type="text" maxlength="60"></div>
       <div><label>E-Mail (optional)</label><input id="nuEmail" type="text" maxlength="120" autocapitalize="off"></div>
-      <div><label>Rolle</label><select id="nuRolle"><option value="team">Team</option><option value="veranstalter">Veranstalter</option><option value="einlass">Einlass</option></select></div>
+      <div><label>Rolle</label><select id="nuRolle"><option value="veranstalter">Veranstalter</option><option value="team">Team</option><option value="einlass">Einlass</option><option value="admin" id="nuRolleAdmin">Admin (planyvo)</option></select></div>
       <div><label>Passwort (leer = wird erzeugt)</label><input id="nuPw" type="text" maxlength="80" autocomplete="off"></div>
     </div>
     <div class="exportzeile">
@@ -1242,7 +1242,8 @@ const ME = (() => {
   catch(e){ return { angemeldet:false }; }
 })();
 const ANGEMELDET = !!ME.angemeldet;
-const ROLLE = ANGEMELDET ? ((ME.nutzer && ME.nutzer.rolle) || "veranstalter") : "";
+const ROLLE = ANGEMELDET ? ((ME.nutzer && ME.nutzer.rolle) || "admin") : "";
+const VOLL = ROLLE === "admin" || ROLLE === "veranstalter";
 document.body.dataset.rolle = ROLLE;
 const TAKT = 60000;
 
@@ -3293,6 +3294,7 @@ if(!ANGEMELDET){
 } else {
   const w = $("#wer"); w.hidden = false;
   txt($("#werName"), ME.nutzer ? ME.nutzer.name : ""); txt($("#werRolle"), ROLLE);
+  if(ROLLE !== "admin"){ const o = $("#nuRolleAdmin"); if(o) o.remove(); }
   $("#abmelden").addEventListener("click", async () => {
     if(KEY){ location.href = "/monitor"; return; }
     await fetch("/api/logout", { method:"POST" }); location.href = "/monitor";
@@ -3309,7 +3311,7 @@ if(!ANGEMELDET){
 
 /* ---------- Runden ---------- */
 async function rundenHolen(){
-  if(!ANGEMELDET || ROLLE !== "veranstalter") return;
+  if(!ANGEMELDET || !VOLL) return;
   const d = await adminGet("/api/admin/runden"); if(!d) return;
   const w = $("#rundenListe"); w.innerHTML = "";
   d.runden.forEach(r => {
@@ -3347,7 +3349,7 @@ $("#rnNurAnlegen").addEventListener("click", () => rundeAnlegen(false));
 
 /* ---------- Nutzer ---------- */
 async function nutzerHolen(){
-  if(!ANGEMELDET || ROLLE !== "veranstalter") return;
+  if(!ANGEMELDET || !VOLL) return;
   const d = await adminGet("/api/admin/nutzer"); if(!d) return;
   const w = $("#nutzerListe"); w.innerHTML = "";
   d.nutzer.forEach(n => {
@@ -3356,7 +3358,8 @@ async function nutzerHolen(){
     const m = document.createElement("span"); m.textContent = n.rolle + (n.email ? " · " + n.email : "") + (n.zuletzt ? " · zuletzt " + wann(n.zuletzt) : " · noch nie angemeldet");
     const k = document.createElement("span"); k.className = "knoepfe";
     const rolle = document.createElement("select"); rolle.className = "export"; rolle.style.padding = "8px 10px";
-    ["veranstalter","team","einlass"].forEach(r => { const o = document.createElement("option"); o.value = r; o.textContent = r; o.selected = n.rolle === r; rolle.appendChild(o); });
+    (d.rollen || ["admin","veranstalter","team","einlass"]).forEach(r => { const o = document.createElement("option"); o.value = r; o.textContent = r; o.selected = n.rolle === r; if(r === "admin" && ROLLE !== "admin") o.disabled = true; rolle.appendChild(o); });
+    if(n.rolle === "admin" && ROLLE !== "admin") rolle.disabled = true;
     rolle.addEventListener("change", async () => { const x = await adminPost("/api/admin/nutzer", { id: n.id, rolle: rolle.value }); if(x && x.ok){ txt($("#nuNote"), n.name + " ist jetzt " + rolle.value + "."); nutzerHolen(); } });
     const pw = document.createElement("button"); pw.className = "export"; pw.type = "button"; pw.textContent = "Neues Passwort";
     pw.addEventListener("click", async () => {
@@ -3383,7 +3386,7 @@ $("#pwAendern").addEventListener("click", async () => {
   const d = await adminPost("/api/admin/passwort", { alt: $("#pwAlt").value, neu: $("#pwNeu").value });
   if(d && d.ok){ txt($("#pwNote"), "Geändert."); $("#pwAlt").value = ""; $("#pwNeu").value = ""; }
 });
-if(ANGEMELDET && ROLLE === "veranstalter"){ rundenHolen(); nutzerHolen(); }
+if(ANGEMELDET && VOLL){ rundenHolen(); nutzerHolen(); }
 
 /* ---------- Gast-Editor ---------- */
 let geGid = "", geDaten = null;

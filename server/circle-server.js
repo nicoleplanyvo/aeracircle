@@ -105,13 +105,16 @@ function adminName(key) {
  * (Rolle Veranstalter) - damit legt man den ersten Nutzer an.
  *
  * Rollen:
- *   veranstalter  alles - senden, Regie, Zahlungen, Nutzer, Runden
+ *   admin         planyvo (Nicole, Mathis): alles, und legt Admins an
+ *   veranstalter  der Kunde (Desi): dieselben Rechte im Event - senden, Regie,
+ *                 Zahlungen, Nutzer, Runden; nur keine Admins anlegen
  *   team          Gaeste pflegen, Tische, Links, Fotos - kein Versand an alle,
  *                 keine Regie, keine Zahlungen
  *   einlass       nur die Akkreditierung (Liste und Haken)
  * Was eine Rolle NICHT darf, prueft der Server je Route - der Monitor blendet
  * nur aus, was ohnehin abgelehnt wuerde. */
-const ROLLEN = ["veranstalter", "team", "einlass"];
+const ROLLEN = ["admin", "veranstalter", "team", "einlass"];
+const VOLL = rolle => rolle === "admin" || rolle === "veranstalter";
 function nutzerAlle() { if (!state.nutzer) state.nutzer = {}; return state.nutzer; }
 function nutzerOhneGeheimnis(n) {
   return { id: n.id, name: n.name, email: n.email || "", rolle: n.rolle, aktiv: n.aktiv !== false,
@@ -173,7 +176,7 @@ function cookieKopf(wert, maxAge) {
  * Einlass: nur die Einlassliste (siehe /api/einlass) - im Monitor nichts. */
 const TEAM_GESPERRT = /^\/api\/admin\/(senden|push-|phase|zeiten|app-stufe|signal|wand|av8|zuschlag|gebot|rechnung|erloes|einlass-key|nutzer|runden|zaehler-null|mailstatus-reset|webhook-log|demo|testgast|stand-|zuschlag|tipps)/;
 function rolleDarf(rolle, url, method) {
-  if (rolle === "veranstalter") return true;
+  if (VOLL(rolle)) return true;
   const pfad = url.split("?")[0];
   if (rolle === "team") {
     if (!TEAM_GESPERRT.test(pfad)) return true;
@@ -4303,7 +4306,7 @@ const server = http.createServer((req, res) => {
    * die ohne Schluessel im Link auskommen soll. */
   if (req.method === "GET" && url === "/api/me") {
     const schl = adminName(q.get("key"));
-    if (schl) return json(res, 200, { ok: true, angemeldet: true, nutzer: { id: "", name: schl, rolle: "veranstalter", schluessel: true }, nutzerAngelegt: Object.keys(nutzerAlle()).length });
+    if (schl) return json(res, 200, { ok: true, angemeldet: true, nutzer: { id: "", name: schl, rolle: "admin", schluessel: true }, nutzerAngelegt: Object.keys(nutzerAlle()).length });
     const n = sessionNutzer(req);
     return json(res, 200, { ok: true, angemeldet: !!n, nutzer: n ? nutzerOhneGeheimnis(n) : null, nutzerAngelegt: Object.keys(nutzerAlle()).length });
   }
@@ -4317,7 +4320,7 @@ const server = http.createServer((req, res) => {
     }
     /* Zwei Wege hinein: der Schluessel im Link (Veranstalter, Notzugang) oder
      * die Anmeldung mit Passwort. Danach zaehlt nur noch die Rolle. */
-    let wer = adminName(q.get("key")), rolle = wer ? "veranstalter" : null, ich = null;
+    let wer = adminName(q.get("key")), rolle = wer ? "admin" : null, ich = null;
     if (!wer) { ich = sessionNutzer(req); if (ich) { wer = ich.name; rolle = ich.rolle; } }
     if (!wer) return json(res, 401, { error: "kein Zugriff" });
     if (!rolleDarf(rolle, url, req.method)) return json(res, 403, { error: "Das darf nur ein Veranstalter." });
@@ -4337,6 +4340,9 @@ const server = http.createServer((req, res) => {
         if (doppelt) return json(res, 409, { error: "Den Namen gibt es schon" });
         if (email && email.indexOf("@") < 1) return json(res, 400, { error: "E-Mail ohne @" });
         if (body.rolle !== undefined && !ROLLEN.includes(body.rolle)) return json(res, 400, { error: "Rolle: " + ROLLEN.join(", ") });
+        /* Admins legt nur ein Admin an oder aendert sie - ein Veranstalter
+         * verwaltet sein Team, nicht planyvo. */
+        if (rolle !== "admin" && (body.rolle === "admin" || (n && n.rolle === "admin"))) return json(res, 403, { error: "Admins verwaltet nur ein Admin." });
         let startPasswort = "";
         if (!n) {
           n = { id: crypto.randomBytes(6).toString("hex"), name, email, rolle: body.rolle || "team", aktiv: true, erstellt: Date.now(), von: wer };
@@ -4354,8 +4360,8 @@ const server = http.createServer((req, res) => {
           logEvent("Nutzer geändert", n.name, n.rolle + (n.aktiv === false ? " · deaktiviert" : "") + " · von " + wer);
         }
         /* Der letzte aktive Veranstalter bleibt - sonst sperrt man sich aus. */
-        const veranstalter = Object.values(alle).filter(x => x.rolle === "veranstalter" && x.aktiv !== false);
-        if (!veranstalter.length && ich && !q.get("key")) return json(res, 409, { error: "Mindestens ein aktiver Veranstalter muss bleiben." });
+        const voll = Object.values(alle).filter(x => VOLL(x.rolle) && x.aktiv !== false);
+        if (!voll.length && ich && !q.get("key")) return json(res, 409, { error: "Mindestens ein aktiver Admin oder Veranstalter muss bleiben." });
         dirty = true;
         return json(res, 200, { ok: true, nutzer: nutzerOhneGeheimnis(n), startPasswort });
       });
