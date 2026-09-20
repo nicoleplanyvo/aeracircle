@@ -575,10 +575,25 @@
       <div class="felder" id="geTische"></div>
       <div class="exportzeile">
         <button class="export gross" id="geSpeichern" type="button">Speichern</button>
-        <button class="export" id="geLink" type="button">Link kopieren</button>
         <button class="export" id="geUebertragen" type="button" title="Der Platz geht an eine andere Person – gleicher Zugang, gleiche Zusage, gleiche Zahlung">Platz übertragen</button>
         <button class="export" id="geAbsagen" type="button">Absagen</button>
         <span class="fussnote" style="margin:0" id="geStand"></span>
+      </div>
+      <div class="exportzeile" id="geVersand">
+        <select id="geLinkArt" class="export" style="padding:9px 12px">
+          <option value="app">App-Link · direkt in die App (Welle 2)</option>
+          <option value="einladung">Einladungslink · Zusageseite (Welle 1)</option>
+        </select>
+        <button class="export" id="geLink" type="button">Link kopieren</button>
+        <span style="width:14px"></span>
+        <select id="geMailArt" class="export" style="padding:9px 12px">
+          <option value="1">Welle 1 · Einladung</option>
+          <option value="2">Welle 2 · App-Zugang</option>
+          <option value="0">Welle 0 · Save the Date</option>
+          <option value="bestaetigung">Bestätigung (Zusage/Zahlung)</option>
+        </select>
+        <button class="export" id="geMail" type="button">Mail an diesen Gast senden</button>
+        <span class="fussnote" style="margin:0" id="geMailNote"></span>
       </div>
     </div>
   </div>
@@ -3421,7 +3436,7 @@ async function gastLaden(gid){
   $("#gePools").innerHTML = g.pools.map(p => "<option value=\"" + p.replace(/"/g, "&quot;") + "\"></option>").join("");
   tischeFelder(d.gaenge, d.tische, g.sitz);
   txt($("#geStand"), g.status + (g.da ? " · im Haus" : "") + (g.registriert ? " · App eingerichtet" : " · App noch nicht eingerichtet") + (g.ticketNr ? " · " + g.ticketNr : "") + " · Runde " + g.runde);
-  ["geLink","geUebertragen","geAbsagen"].forEach(id => $("#" + id).hidden = false);
+  ["geVersand","geUebertragen","geAbsagen"].forEach(id => $("#" + id).hidden = false); txt($("#geMailNote"), "");
   txt($("#geAbsagen"), g.status === "abgesagt" ? "Absage zurücknehmen" : "Absagen");
   $("#gsForm").scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
@@ -3455,8 +3470,33 @@ $("#geSpeichern").addEventListener("click", async () => {
   geGid = gid; gaesteHolen(); gastLaden(gid);
 });
 $("#geLink").addEventListener("click", async () => {
-  if(!geDaten) return; const l = geDaten.gast.appLink;
-  try{ await navigator.clipboard.writeText(l); txt($("#gsNote"), "Link kopiert – nur an diesen Gast, nie in eine Gruppe."); }catch(e){ prompt("Persönlicher Link:", l); }
+  if(!geDaten) return;
+  const art = $("#geLinkArt").value, l = art === "einladung" ? geDaten.gast.link : geDaten.gast.appLink;
+  try{ await navigator.clipboard.writeText(l); txt($("#gsNote"), (art === "einladung" ? "Einladungslink" : "App-Link") + " kopiert – nur an diesen Gast, nie in eine Gruppe."); }catch(e){ prompt("Persönlicher Link:", l); }
+});
+/* Eine Welle an genau diesen Gast. Der Server haelt sich an dieselben Regeln
+   wie der Massenversand (Stand, Versand-Gedaechtnis) und fragt zurueck,
+   wenn etwas dagegen spricht - dann entscheidet der Mensch. */
+async function mailEinzeln(extra){
+  if(!geDaten) return;
+  const welle = $("#geMailArt").value, name = $("#geMailArt").selectedOptions[0].textContent;
+  const rumpf = Object.assign({ gid: geGid, welle }, extra || {});
+  txt($("#geMailNote"), "Sendet …");
+  try{
+    const r = await fetch("/api/admin/welle-einzeln" + (KEY ? "?key=" + encodeURIComponent(KEY) : ""), { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(rumpf) });
+    const d = await r.json();
+    if(r.ok){ txt($("#geMailNote"), d.was + " an " + d.an + " ist raus."); gaesteHolen(); return; }
+    if(r.status === 409 && (d.erneut || d.trotzdem)){
+      if(confirm(d.error + "\n\nTrotzdem senden?")) return mailEinzeln(d.erneut ? { erneut: true } : { trotzdem: true });
+      txt($("#geMailNote"), "Nicht gesendet."); return;
+    }
+    txt($("#geMailNote"), d.error || "Fehlgeschlagen.");
+  }catch(e){ txt($("#geMailNote"), "Server nicht erreichbar."); }
+}
+$("#geMail").addEventListener("click", () => {
+  if(!geDaten) return;
+  if(!confirm($("#geMailArt").selectedOptions[0].textContent + " jetzt an " + geDaten.gast.name + " (" + (geDaten.gast.email || "keine Adresse") + ") senden?")) return;
+  mailEinzeln();
 });
 $("#geUebertragen").addEventListener("click", async () => {
   if(!geDaten) return;
@@ -3479,7 +3519,7 @@ $("#gsNeu").addEventListener("click", async () => {
   const such = $("#gsSuche").value.trim(); if(such.includes("@")) $("#geEmail").value = such; else $("#geName").value = such;
   $("#geTyp").value = "ehrengast"; $("#geAnrede").value = "Hallo";
   const d = await adminGet("/api/admin/tischplan"); tischeFelder((d && d.gaenge) || ["Vorspeise","Hauptspeise"], (d && d.liste) || [], []);
-  ["geLink","geUebertragen","geAbsagen"].forEach(id => $("#" + id).hidden = true);
+  ["geVersand","geUebertragen","geAbsagen"].forEach(id => $("#" + id).hidden = true);
   txt($("#geStand"), "Neuer Gast – fällt in die aktive Runde. Ohne E-Mail bekommt er keine Mail, den Link gibst du von Hand weiter.");
 });
 

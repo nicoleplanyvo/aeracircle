@@ -4572,6 +4572,52 @@ const server = http.createServer((req, res) => {
      * oder zahlt, faellt durch den Rost. Hier passiert es IN der App.
      * Dieselbe Funktion wie der Import, damit es nur eine Regel gibt, wie
      * ein Gast entsteht (Token, Ticketnummer, Wiedererkennung). */
+    /* Eine Welle an EINEN Gast - aus dem Monitor, ohne Kommandozeile.
+     * Bei No1 hiess "Johannes braucht seine Einladung" ein SSH-Terminal und
+     * `welle 1 --nur=johannes@… --senden`. Dieselbe Mail, dasselbe Versand-
+     * Gedaechtnis (einmal je Welle, mit erneut=true noch einmal), nur von
+     * Hand fuer einen. welle: 0 | 1 | 2 | "bestaetigung". */
+    if (req.method === "POST" && url === "/api/admin/welle-einzeln") {
+      return readBody(req, res, body => {
+        const inv = findByGid(body.gid);
+        if (!inv) return json(res, 404, { error: "Gast nicht gefunden" });
+        if (!inv.email) return json(res, 400, { error: "Der Gast hat keine E-Mail-Adresse – Link von Hand weitergeben." });
+        if (inv.abgemeldet) return json(res, 409, { error: "Der Gast hat sich von E-Mails abgemeldet." });
+        if (!LETTERMINT_TOKEN) return json(res, 503, { error: "Kein Mailversand konfiguriert (LETTERMINT_TOKEN fehlt)." });
+        if (body.welle === "bestaetigung") {
+          if (!(inv.status === "zugesagt" || inv.status === "bezahlt")) return json(res, 409, { error: "Eine Bestätigung gibt es erst nach Zusage oder Zahlung." });
+          inv.bestaetigung = Date.now(); dirty = true;
+          bestaetigungAbschicken(inv);
+          logEvent("Bestätigung erneut", inv.name, "von " + wer);
+          return json(res, 200, { ok: true, was: "Bestätigung", an: inv.email });
+        }
+        const nr = Number(body.welle);
+        const w = [0, 1, 2].includes(nr) ? WELLEN[nr] : null;
+        if (!w) return json(res, 400, { error: "welle: 0, 1, 2 oder bestaetigung" });
+        if (!w.gilt(inv) && !body.trotzdem) {
+          const grund = nr === 2 ? "Welle 2 geht nur an Bestätigte (Ehrengast ab Zusage, Ticket ab Zahlung)"
+                      : nr === 1 ? "Die Einladung geht nur an Gäste mit Stand „offen“ – dieser hat schon geantwortet"
+                      : "Save the Date geht nicht an Absagen";
+          return json(res, 409, { error: grund + ". Mit trotzdem=true geht sie doch raus.", trotzdem: true });
+        }
+        let log;
+        try { log = JSON.parse(fs.readFileSync(VERSAND_LOG, "utf8")); }
+        catch (e) { if (e.code === "ENOENT") log = {}; else return json(res, 500, { error: "Versand-Gedächtnis unlesbar – erst prüfen, sonst droht Doppelversand." }); }
+        const vorher = log[inv.token] && log[inv.token][nr];
+        if (vorher && !body.erneut) return json(res, 409, { error: w.name + " ging schon am " + new Date(vorher).toLocaleString("de-DE") + " an " + inv.email + ". Mit erneut=true noch einmal.", erneut: true });
+        let datei, html, text;
+        try { datei = w.vorlage(inv); html = renderMail(inv, datei); text = textFassung(inv, nr); }
+        catch (e) { return json(res, 500, { error: "Vorlage bricht: " + e.message }); }
+        lettermintSenden({ to: inv.email, subject: w.betreff(inv), html, text, abmeldeUrl: abmeldeLink(inv.token),
+                           metadata: { token: inv.token, welle: nr, pool: inv.pool || "" } }, (err, antwort) => {
+          if (err) return json(res, 502, { error: "Lettermint: " + err.message });
+          log[inv.token] = log[inv.token] || {}; log[inv.token][nr] = Date.now();
+          try { versandLogSchreiben(log); vlogCache.t = 0; } catch (e) { console.error("Versand-Gedächtnis nicht schreibbar: " + e.message); }
+          logEvent(w.name + " einzeln", inv.name, inv.email + " · von " + wer);
+          return json(res, 200, { ok: true, was: w.name, vorlage: datei, an: inv.email, messageId: (antwort && antwort.message_id) || "" });
+        });
+      });
+    }
     /* Ein Gast zum Bearbeiten: alles, was der Monitor im Gast-Editor zeigt,
      * samt Sitzplaetzen je Gang und der Tischliste zum Auswaehlen. */
     if (req.method === "GET" && url === "/api/admin/gast") {
