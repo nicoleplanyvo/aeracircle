@@ -139,3 +139,10 @@ test("Auswertung zaehlt Begegnungen, Matches und Themen", () => {
   assert.equal(a.quote, 3);
   assert.ok(Array.isArray(a.themen));
 });
+
+test("speed-dating.html traegt speed-dating-matching.js wortgleich eingebettet", () => {
+  const fs = require("node:fs"), path = require("node:path");
+  const html = fs.readFileSync(path.join(__dirname, "..", "speed-dating.html"), "utf8");
+  const mod = fs.readFileSync(path.join(__dirname, "..", "speed-dating-matching.js"), "utf8");
+  assert.ok(html.includes(mod), "Modul in der HTML veraltet: Inhalt von speed-dating-matching.js in <script id=\"matching\"> uebernehmen");
+});
