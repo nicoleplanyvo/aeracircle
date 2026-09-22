@@ -835,6 +835,11 @@
   body[data-live="aus"] nav::after{content:"";flex:1}
   body[data-stufe="profil"] .nurvoll{display:none!important}
   body:not([data-stufe="profil"]) .nurprofil{display:none!important}
+  /* Die Momente sind ein Spiel fuer den Abend selbst. Danach zaehlt niemand
+     mehr Striche nach - ein halb geschlossener Kreis waere dann nur noch
+     eine Bilanz ueber etwas, das man nicht mehr aendern kann. Also ruht der
+     Ring nach dem Abend; am naechsten Abend ist er von selbst wieder da. */
+  body[data-phase="danach"] .nurabend{display:none!important}
   .profilkarte{display:flex;gap:14px;align-items:center;margin-top:14px}
   .profilkarte .avatar{width:64px;height:64px;font-size:16px}
   .profilkarte .pk-text{min-width:0;flex:1}
@@ -1178,7 +1183,7 @@
       <img class="brandlogo" alt="THE CIRCLE – connecting generations">
     </div>
     <div class="rechts">
-      <div id="ringMini" title="Dein Kreis">
+      <div id="ringMini" class="nurabend" title="Dein Kreis">
         <canvas id="ensoMini" width="76" height="76" aria-hidden="true"></canvas>
         <span id="ringMiniNum">0/5</span>
       </div>
@@ -1235,7 +1240,6 @@
       <div class="danach" id="danachBlock">
         <div class="abendzahlen rv" id="abendZahlen">
           <div><b id="azVerb">0</b><span>Verbindungen</span></div>
-          <div><b id="azMom">0</b><span>Momente</span></div>
           <div id="azFotosBox"><b id="azFotos">0</b><span>Deine Fotos</span></div>
         </div>
         <div class="panel rv" id="fbKarte" style="display:none">
@@ -1279,7 +1283,7 @@
         </div>
       </div>
 
-      <div class="enso-block rv nurvoll">
+      <div class="enso-block rv nurvoll nurabend">
         <div class="ensowrap">
           <canvas id="ensoBig" width="248" height="248" aria-hidden="true"></canvas>
           <div class="num"><span id="ringBigNum">0<small>&hairsp;/&hairsp;5</small></span></div>
@@ -1289,7 +1293,7 @@
           <p><span data-momente>Fünf</span> Momente, ein Strich pro Moment. Sammle sie – und schließe deinen Kreis.</p>
         </div>
       </div>
-      <div class="chips rv nurvoll" id="momentDots" style="--d:80ms"></div>
+      <div class="chips rv nurvoll nurabend" id="momentDots" style="--d:80ms"></div>
 
       <div class="piece rv nurvoll" id="nextUpCard" style="margin-top:10px">
         <span class="label">Als Nächstes</span>
@@ -1653,6 +1657,9 @@
         <span class="label rv">Der Abend in Bildern</span>
         <h2 class="display grad rv" style="--d:60ms">Galerie</h2>
         <p class="lede rv" style="--d:120ms" id="galLede">Die Bilder des Abends. Antippen zum Ansehen, Teilen und Speichern.</p>
+        <!-- Der Credit steht oben, nicht im Kleingedruckten am Ende: Wer ein
+             Bild nimmt, soll wissen, wessen Bild es ist, bevor er es nimmt. -->
+        <p class="fnote rv" style="--d:160ms;margin-top:12px" id="galCredit">Die Fotos sind von <b style="font-weight:500;color:var(--muted)">Vanessa Schröder</b>. Du darfst sie gern verwenden – privat wie geschäftlich. Bitte nenne sie dabei als Fotografin.</p>
       </div>
       <div id="galMeine" style="display:none">
         <span class="label" style="display:block;padding:0 24px 8px">Deine Fotos</span>
@@ -2796,13 +2803,18 @@ $("#werkInput").addEventListener("keydown", e => { if(e.key === "Enter") $("#wer
 renderWerk();
 
 /* ================= RECAP: MEIN ABEND ================= */
+/* Laeuft auch, bevor APP steht - darum am body ablesen und nicht an APP. */
+function istDanach(){ return document.body.dataset.phase === "danach"; }
 function abendText(){
   /* Wird auch beim Aufbau der Seite gerufen, bevor APP steht. Ein
      "typeof" hilft bei const nicht - dort wirft schon die Abfrage. */
   let kreis = null; try{ kreis = APP.kreis; }catch(e){}
   const parts = [
     "THE CIRCLE · " + RUNDE.datum_kurz + " · " + RUNDE.ort,
-    momentCount() ? "Mein Abend: " + momentCount() + "/" + MOMENTS.length + " Momente im Kreis" : null,
+    /* Nach dem Abend keine Momente-Bilanz: Der Kreis ruht dann (siehe
+       .nurabend), und was in der App nicht mehr steht, soll auch nicht
+       im geteilten Text stehen. */
+    (istDanach() || !momentCount()) ? null : "Mein Abend: " + momentCount() + "/" + MOMENTS.length + " Momente im Kreis",
     (kreis && kreis.verbunden.length) ? (kreis.verbunden.length===1 ? "Eine neue Verbindung" : kreis.verbunden.length + " neue Verbindungen") : null,
     S.notes ? "Meine Erkenntnis: „" + S.notes.slice(0,120) + "“" : null,
     "connecting generations."
@@ -4078,12 +4090,6 @@ function renderDanach(){
   const ich = APP.ich || {};
   $("#azVerb").textContent = APP.kreis ? APP.kreis.verbunden.length : 0;
   renderTeilenVorschau();
-  $("#azMom").textContent = momentCount();
-  /* Der Ring wird zur Erinnerung: kein "Sammle sie" mehr. */
-  {
-    const es = document.querySelector(".enso-side p");
-    if(es){ const n = momentCount(); es.textContent = n >= MOMENTS.length ? "Dein Kreis ist geschlossen – alle Momente des Abends." : "So sah dein Abend aus: " + n + " von " + MOMENTS.length + " Momenten."; }
-  }
   /* Ohne Zuordnung gibt es keine "eigenen" Bilder - dann steht hier auch
      keine Null. Die Kachel kommt zurueck, sobald jemandem Bilder
      zugeordnet sind (Entscheidung vom 22.09.: die Galerie ist gesammelt). */
@@ -4203,6 +4209,7 @@ function renderGalerie(){
   $("#galLede").textContent = g.highlights.length
     ? "Die Bilder des Abends – und oben deine eigenen. Antippen zum Ansehen, Teilen und Speichern."
     : "Die Bilder des Abends. Antippen zum Ansehen, Teilen und Speichern.";
+  $("#galCredit").style.display = g.fotos.length ? "" : "none";
   $("#galMehr").style.display = g.seiten > galSeite + 1 ? "" : "none";
   $("#galHinweis").textContent = !APP.token ? "Mit deinem persönlichen Link siehst du hier die Bilder deiner Runde."
     : !g.offen ? "Die Galerie öffnet sich ein paar Tage nach dem Abend – du bekommst eine Nachricht."
