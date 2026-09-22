@@ -1071,8 +1071,12 @@
       <span class="fussnote" style="margin:6px 0 0" id="sdMailsZahl"></span>
     </div>
     <div class="mailtools">
-      <input id="sdCc" type="text" placeholder="Kopie an (CC) – z. B. hello@…, sichtbar für den Empfänger" style="max-width:340px" autocomplete="off" maxlength="200">
-      <span class="fussnote" style="margin:0">Leer lassen, wenn niemand mitlesen soll. Antworten gehen ohnehin an den Absender.</span>
+      <input id="sdCc" type="text" placeholder="Kopie an – z. B. hello@…" style="max-width:300px" autocomplete="off" maxlength="200">
+      <select id="sdKopieArt">
+        <option value="cc">sichtbar (CC)</option>
+        <option value="bcc">still (BCC)</option>
+      </select>
+      <span class="fussnote" style="margin:0">Der Versand läuft über Lettermint, nicht über ein Postfach – ohne Kopie liegt die Mail nirgends im „Gesendet“. Antworten gehen an den Absender.</span>
     </div>
     <div class="mailtools">
       <input id="sdTitel" type="text" placeholder="Titel (Betreff der Mail, Überschrift der Push)" maxlength="120">
@@ -2362,7 +2366,18 @@ function sendungenZeichnen(liste){
     const d = document.createElement("div"); d.className = "sendung";
     d.innerHTML = "<b></b> · <span></span>";
     d.querySelector("b").textContent = (s.probe ? "Probe · " : "") + s.art + (s.ziel && s.ziel !== "alle" ? " · nur " + s.ziel : "") + " · " + s.titel;
-    d.querySelector("span").textContent = wann(s.t) + " · " + s.kanal + " · " + s.empfaenger + " Empfänger · Push " + s.push.gesendet + (s.push.ohne ? " (" + s.push.ohne + " ohne Abo)" : "") + (s.push.fehler ? " · " + s.push.fehler + " Push-Fehler" : "") + " · Mail " + s.mail.gesendet + (s.mail.ohne ? " (" + s.mail.ohne + " ohne Adresse)" : "") + (s.mail.fehler ? " · " + s.mail.fehler + " Mail-Fehler" : "") + (s.laeuft ? " · läuft …" : "") + (s.wer ? " · von " + s.wer : "");
+    d.querySelector("span").textContent = wann(s.t) + " · " + s.kanal + " · " + s.empfaenger + " Empfänger · Push " + s.push.gesendet + (s.push.ohne ? " (" + s.push.ohne + " ohne Abo)" : "") + (s.push.fehler ? " · " + s.push.fehler + " Push-Fehler" : "") + " · Mail " + s.mail.gesendet + (s.mail.ohne ? " (" + s.mail.ohne + " ohne Adresse)" : "") + (s.mail.fehler ? " · " + s.mail.fehler + " Mail-Fehler" : "") + ((s.cc || []).length ? " · Kopie (" + (s.kopieArt === "bcc" ? "still" : "sichtbar") + ") an " + s.cc.join(", ") : "") + (s.laeuft ? " · läuft …" : "") + (s.wer ? " · von " + s.wer : "");
+    /* Bei einer Auswahl: an wen genau. Die Mail liegt in keinem
+       "Gesendet"-Ordner, also ist diese Zeile das Gedaechtnis. */
+    if((s.empfaengerListe || []).length){
+      const det = document.createElement("details");
+      const zus = document.createElement("summary"); zus.className = "fussnote";
+      zus.textContent = "an " + s.empfaengerListe.length + " Adressen ansehen" + ((s.fehlend || []).length ? " · " + s.fehlend.length + " nicht im Register" : "");
+      det.appendChild(zus);
+      const p = document.createElement("p"); p.className = "fussnote"; p.style.margin = "4px 0 0";
+      p.textContent = s.empfaengerListe.join(", ") + ((s.fehlend || []).length ? " · nicht gefunden: " + s.fehlend.join(", ") : "");
+      det.appendChild(p); d.appendChild(det);
+    }
     w.appendChild(d);
   });
 }
@@ -2462,7 +2477,7 @@ async function senden(probe, trotzdem){
     rumpf.mails = sdMailsListe();
     if(!rumpf.mails.length){ txt($("#sdNote"), "Erst die Adressen eintragen."); return; }
   }
-  const cc = $("#sdCc").value.trim(); if(cc) rumpf.cc = cc;
+  const cc = $("#sdCc").value.trim(); if(cc){ rumpf.cc = cc; rumpf.kopieArt = $("#sdKopieArt").value; }
   if(probe) rumpf.probe = probe; if(trotzdem) rumpf.trotzdem = true;
   txt($("#sdNote"), "wird gesendet …");
   try{
@@ -2473,7 +2488,7 @@ async function senden(probe, trotzdem){
     /* Adressen, die nicht im Register stehen, gehoeren benannt - sonst
        glaubt man, 15 Partner angeschrieben zu haben, und es waren 13. */
     const fehlt = (d.sendung.fehlend || []).length ? " · nicht im Register: " + d.sendung.fehlend.join(", ") : "";
-    const kopie = (d.sendung.cc || []).length ? " · Kopie an " + d.sendung.cc.join(", ") : "";
+    const kopie = (d.sendung.cc || []).length ? " · Kopie (" + (d.sendung.kopieArt === "bcc" ? "still" : "sichtbar") + ") an " + d.sendung.cc.join(", ") : "";
     txt($("#sdNote"), (probe ? "Probe raus an " + probe : "Raus an " + d.sendung.empfaenger + " Gäste") + kopie + fehlt + " – Protokoll unten.");
     setTimeout(nachHolen, 1500); setTimeout(nachHolen, 8000);
   }catch(e){ txt($("#sdNote"), "Server nicht erreichbar."); }

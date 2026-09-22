@@ -5330,6 +5330,10 @@ const server = http.createServer((req, res) => {
          * Sendung, die an einer Tippfehleradresse haengen bleibt. */
         const cc = String(body.cc || "").split(/[,;\s]+/).map(x => x.trim().toLowerCase())
           .filter(x => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x)).slice(0, 5);
+        /* Sichtbar (cc) oder still (bcc). Sichtbar ist die ehrlichere
+         * Voreinstellung; still ist richtig, wenn das mitlesende Postfach
+         * nur ein Archiv ist und den Empfaenger nichts angeht. */
+        const kopieArt = body.kopieArt === "bcc" ? "bcc" : "cc";
         /* Ziel: alle der Runde, eine der drei Luecken (Erinnerung
          * "App einrichten" an genau die, die sie brauchen) - oder eine
          * Auswahl von Hand: Adressen aus der Gaesteliste, z.B. die Partner.
@@ -5362,7 +5366,13 @@ const server = http.createServer((req, res) => {
         const vorher = (state.sendungen || []).find(x => x.art === art && x.runde === runde && (x.ziel || "alle") === ziel
           && (x.auswahlSchluessel || "") === auswahlSchluessel && !x.probe);
         if (vorher && !body.trotzdem && !probeInv) return json(res, 409, { error: "Schon gesendet: " + art + " am " + new Date(vorher.t).toLocaleString("de-DE") + " an " + vorher.empfaenger + " Gäste. Mit trotzdem=true erneut." });
-        const sendung = { id: crypto.randomBytes(5).toString("hex"), art, runde, ziel, auswahlSchluessel, cc, fehlend, titel, text, url: zielPfad, kanal, t: Date.now(), wer, probe: !!probeInv,
+        /* Bei einer Auswahl gehoert die Empfaengerliste ins Protokoll: Die
+         * Mails gehen ueber Lettermint und liegen in keinem "Gesendet"-
+         * Ordner - ohne diese Zeile weiss hinterher niemand mehr, wer
+         * angeschrieben wurde. Bei "alle" waeren es 94 Adressen ohne
+         * Erkenntniswert, deshalb nur hier. */
+        const empfaengerListe = ziel === "auswahl" ? liste.map(i => i.email).filter(Boolean).slice(0, 60) : [];
+        const sendung = { id: crypto.randomBytes(5).toString("hex"), art, runde, ziel, auswahlSchluessel, cc, kopieArt, fehlend, empfaengerListe, titel, text, url: zielPfad, kanal, t: Date.now(), wer, probe: !!probeInv,
                           empfaenger: liste.length, laeuft: true, push: { gesendet: 0, tot: 0, fehler: 0, ohne: 0 }, mail: { gesendet: 0, fehler: 0, ohne: 0 } };
         if (!state.sendungen) state.sendungen = [];
         state.sendungen.unshift(sendung); state.sendungen = state.sendungen.slice(0, 50); dirty = true;
@@ -5395,7 +5405,8 @@ const server = http.createServer((req, res) => {
                   html = renderMail(inv, "nachricht.html", { titel, text_html: esc(text).replace(/\n/g, "<br>"), cta_text: ctaText, cta_url: PUBLIC_URL + appUrl });
                   txt = inv.anrede + " " + (inv.name || "").split(" ")[0] + ",\n\n" + titel + "\n\n" + text + "\n\n" + ctaText + ": " + PUBLIC_URL + appUrl + "\n";
                 } catch (e) { sendung.mail.fehler++; return ok(); }
-                lettermintSenden({ to: inv.email, cc, subject: titel, html, text: txt }, err => { if (err) sendung.mail.fehler++; else sendung.mail.gesendet++; setTimeout(ok, 200); });
+                const kopie = kopieArt === "bcc" ? { bcc: cc } : { cc };
+                lettermintSenden(Object.assign({ to: inv.email, subject: titel, html, text: txt }, kopie), err => { if (err) sendung.mail.fehler++; else sendung.mail.gesendet++; setTimeout(ok, 200); });
               });
             } else sendung.mail.ohne++;
           }

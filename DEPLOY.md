@@ -917,10 +917,15 @@ seinen Tipp noch abgeben kann.
    ausgewählte Adressen“**, dann die Adressen in das Feld darunter –
    eine pro Zeile oder mit Komma. Es gehen nur Mails raus, und nur an
    Adressen, die im Register stehen; die übrigen nennt der Monitor nach
-   dem Senden beim Namen. **Kopie an (CC)** schickt dieselbe Mail sichtbar
-   an ein zweites Postfach, etwa `hello@…`, damit das Nachfassen dort
-   ankommt und nicht in einem persönlichen Posteingang liegt. Der Anlass
-   *Partner · Bilder + Feedback* bringt Text, Ziel und CC schon mit.
+   dem Senden beim Namen. **Kopie an** schickt dieselbe Mail an ein zweites
+   Postfach, etwa `hello@…` – wahlweise *sichtbar (CC)* oder *still (BCC)*.
+   Das ist keine Spielerei: Der Versand läuft über Lettermint, nicht über
+   ein Postfach, also liegt keine dieser Mails in einem „Gesendet“-Ordner.
+   Ohne Kopie sieht `hello@` nur die Antworten, nie das Verschickte.
+   Nachvollziehbar bleibt es trotzdem: Bei einer Auswahl steht im Protokoll
+   unter dem Formular, an welche Adressen es ging und welche nicht im
+   Register standen. Der Anlass *Partner · Bilder + Feedback* bringt Text,
+   Ziel und Kopie schon mit.
 
 Jeder Anlass geht **einmal** an die Runde; ein zweiter Versand fragt nach.
 Bei einer Auswahl zählt die Liste mit: dieselben Adressen ein zweites Mal
