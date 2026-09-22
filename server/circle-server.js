@@ -2231,6 +2231,12 @@ function lettermintSenden(mail, cb) {
   const antwortAn = mail.replyTo !== undefined ? mail.replyTo : MAIL_REPLY_TO;
   if (route) nutzlast.route = route;
   if (antwortAn) nutzlast.reply_to = [antwortAn];
+  /* Kopie an ein Postfach, das mitlesen soll - bei den Partnermails geht
+   * hello@ mit in Kopie, damit das Nachfassen zentral ankommt und nicht in
+   * einem persoenlichen Postfach haengt. Sichtbar (cc), nicht heimlich:
+   * Der Partner soll sehen, wer sonst noch liest. */
+  if (mail.cc && mail.cc.length) nutzlast.cc = mail.cc;
+  if (mail.bcc && mail.bcc.length) nutzlast.bcc = mail.bcc;
   /* Anhaenge (z. B. die Rechnung als PDF): filename, content als Base64,
    * content_type - so will es /v1/send. */
   if (mail.anhaenge && mail.anhaenge.length) nutzlast.attachments = mail.anhaenge;
@@ -5318,17 +5324,45 @@ const server = http.createServer((req, res) => {
         const ctaText = cleanText(body.ctaText, 40) || "In der App ansehen";
         const runde = clean(body.runde, 20) || RUNDE;
         if (!titel || !text) return json(res, 400, { error: "titel und text" });
-        /* Ziel: alle der Runde, oder nur eine der drei Luecken (Erinnerung
-         * "App einrichten" an genau die, die sie brauchen). */
-        const ziel = ["alle", "nichtRegistriert", "ohneApp", "ohnePush"].includes(body.ziel) ? body.ziel : "alle";
-        const empf = ziel === "alle" ? Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === runde && !i.abgemeldet) : appLuecke(runde)[ziel];
+        /* Kopie fuer ein Postfach, das mitlesen soll (hello@ bei den
+         * Partnermails). Mehrere Adressen mit Komma; was nicht wie eine
+         * Adresse aussieht, faellt still weg - lieber keine Kopie als eine
+         * Sendung, die an einer Tippfehleradresse haengen bleibt. */
+        const cc = String(body.cc || "").split(/[,;\s]+/).map(x => x.trim().toLowerCase())
+          .filter(x => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(x)).slice(0, 5);
+        /* Ziel: alle der Runde, eine der drei Luecken (Erinnerung
+         * "App einrichten" an genau die, die sie brauchen) - oder eine
+         * Auswahl von Hand: Adressen aus der Gaesteliste, z.B. die Partner.
+         * Die Auswahl kommt als Adressen und nicht als Haken in einer Liste,
+         * weil sie meist schon woanders steht (Tabelle, Mail) und dann nur
+         * noch hineinkopiert wird. */
+        const auswahl = Array.isArray(body.mails) ? body.mails : String(body.mails || "").split(/[,;\s]+/);
+        const gewaehlt = auswahl.map(x => String(x).trim().toLowerCase()).filter(Boolean);
+        const ziel = gewaehlt.length ? "auswahl"
+          : (["alle", "nichtRegistriert", "ohneApp", "ohnePush"].includes(body.ziel) ? body.ziel : "alle");
+        let fehlend = [];
+        let empf;
+        if (ziel === "auswahl") {
+          const nachMail = {};
+          for (const i of Object.values(state.invites)) if (i.email && rundeVon(i) === runde) nachMail[i.email.toLowerCase()] = i;
+          empf = [];
+          for (const m of gewaehlt) { const i = nachMail[m]; if (i && !i.abgemeldet && !empf.includes(i)) empf.push(i); else if (!i) fehlend.push(m); }
+          if (!empf.length) return json(res, 404, { error: "Keine dieser Adressen steht im Register" + (fehlend.length ? ": " + fehlend.join(", ") : "") + "." });
+        } else {
+          empf = ziel === "alle" ? Object.values(state.invites).filter(i => imKreis(i) && rundeVon(i) === runde && !i.abgemeldet) : appLuecke(runde)[ziel];
+        }
         /* Probe: nur an einen Gast (per E-Mail oder gid). */
         const probeInv = body.probe ? (findByGid(body.probe) || empf.find(i => i.email && i.email.toLowerCase() === String(body.probe).toLowerCase())) : null;
         if (body.probe && !probeInv) return json(res, 404, { error: "Probe-Gast nicht gefunden" });
         const liste = probeInv ? [probeInv] : empf;
-        const vorher = (state.sendungen || []).find(x => x.art === art && x.runde === runde && (x.ziel || "alle") === ziel && !x.probe);
+        /* Merkmal der Auswahl, damit die Doppelversand-Sperre "dieselben
+         * 15 Partner" erkennt, eine andere Auswahl aber durchlaesst. */
+        const auswahlSchluessel = ziel === "auswahl"
+          ? crypto.createHash("sha1").update(empf.map(i => i.email.toLowerCase()).sort().join(",")).digest("hex").slice(0, 10) : "";
+        const vorher = (state.sendungen || []).find(x => x.art === art && x.runde === runde && (x.ziel || "alle") === ziel
+          && (x.auswahlSchluessel || "") === auswahlSchluessel && !x.probe);
         if (vorher && !body.trotzdem && !probeInv) return json(res, 409, { error: "Schon gesendet: " + art + " am " + new Date(vorher.t).toLocaleString("de-DE") + " an " + vorher.empfaenger + " Gäste. Mit trotzdem=true erneut." });
-        const sendung = { id: crypto.randomBytes(5).toString("hex"), art, runde, ziel, titel, text, url: zielPfad, kanal, t: Date.now(), wer, probe: !!probeInv,
+        const sendung = { id: crypto.randomBytes(5).toString("hex"), art, runde, ziel, auswahlSchluessel, cc, fehlend, titel, text, url: zielPfad, kanal, t: Date.now(), wer, probe: !!probeInv,
                           empfaenger: liste.length, laeuft: true, push: { gesendet: 0, tot: 0, fehler: 0, ohne: 0 }, mail: { gesendet: 0, fehler: 0, ohne: 0 } };
         if (!state.sendungen) state.sendungen = [];
         state.sendungen.unshift(sendung); state.sendungen = state.sendungen.slice(0, 50); dirty = true;
@@ -5361,7 +5395,7 @@ const server = http.createServer((req, res) => {
                   html = renderMail(inv, "nachricht.html", { titel, text_html: esc(text).replace(/\n/g, "<br>"), cta_text: ctaText, cta_url: PUBLIC_URL + appUrl });
                   txt = inv.anrede + " " + (inv.name || "").split(" ")[0] + ",\n\n" + titel + "\n\n" + text + "\n\n" + ctaText + ": " + PUBLIC_URL + appUrl + "\n";
                 } catch (e) { sendung.mail.fehler++; return ok(); }
-                lettermintSenden({ to: inv.email, subject: titel, html, text: txt }, err => { if (err) sendung.mail.fehler++; else sendung.mail.gesendet++; setTimeout(ok, 200); });
+                lettermintSenden({ to: inv.email, cc, subject: titel, html, text: txt }, err => { if (err) sendung.mail.fehler++; else sendung.mail.gesendet++; setTimeout(ok, 200); });
               });
             } else sendung.mail.ohne++;
           }

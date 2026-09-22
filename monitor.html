@@ -1040,6 +1040,7 @@
       <select id="sdArt">
         <option value="erinnerung">Erinnerung · App einrichten</option>
         <option value="galerie">Galerie ist offen</option>
+        <option value="partner">Partner · Bilder + Feedback</option>
         <option value="news">News</option>
         <option value="feedback">Feedback-Frage</option>
         <option value="savethedate">Save the Date · No2</option>
@@ -1059,8 +1060,19 @@
         <option value="nichtRegistriert">Nur an die, die noch nicht registriert sind</option>
         <option value="ohneApp">Nur an die ohne App auf dem Startbildschirm</option>
         <option value="ohnePush">Nur an die ohne Push</option>
+        <option value="auswahl">Nur an ausgewählte Adressen</option>
       </select>
       <span class="fussnote" style="margin:0" id="sdZielZahl"></span>
+    </div>
+    <!-- Die Auswahl von Hand: Adressen hineinkopieren, z. B. die Partner aus
+         der Gaesteliste. CC ist das Postfach, das mitlesen soll. -->
+    <div class="mailtools" id="sdAuswahlBox" style="display:none;flex-direction:column;align-items:stretch">
+      <textarea id="sdMails" class="plancsv" rows="3" placeholder="E-Mail-Adressen, eine pro Zeile oder mit Komma getrennt – genau diese Gäste bekommen die Mail."></textarea>
+      <span class="fussnote" style="margin:6px 0 0" id="sdMailsZahl"></span>
+    </div>
+    <div class="mailtools">
+      <input id="sdCc" type="text" placeholder="Kopie an (CC) – z. B. hello@…, sichtbar für den Empfänger" style="max-width:340px" autocomplete="off" maxlength="200">
+      <span class="fussnote" style="margin:0">Leer lassen, wenn niemand mitlesen soll. Antworten gehen ohnehin an den Absender.</span>
     </div>
     <div class="mailtools">
       <input id="sdTitel" type="text" placeholder="Titel (Betreff der Mail, Überschrift der Push)" maxlength="120">
@@ -2358,6 +2370,9 @@ let luecke = null;   // /api/admin/app-luecke, fuer Ziel-Zahl und Namensliste
 const SD_VORLAGEN = {
   erinnerung:  { titel:"Zwei Minuten für den Abend: deine THE CIRCLE App", text:"Am 16.09. sagt dir die App, an welchem Tisch du sitzt und wann der Tischwechsel kommt – wenn sie auf deinem Startbildschirm liegt. Öffne deinen persönlichen Link, vervollständige dein Profil und folge den zwei Schritten „Zum Startbildschirm“ und „Benachrichtigungen erlauben“. Danach: das Gästebuch mit allen, die kommen.", url:"/", cta:"App einrichten · 2 Minuten", ziel:"ohneApp" },
   galerie:     { titel:"Die Bilder vom Abend sind da", text:"Der ganze Abend in Bildern liegt jetzt in der App – zum Ansehen, Speichern und Teilen.\n\nDie Fotos sind von Vanessa Schröder. Du darfst sie gern verwenden, bitte nenne sie dabei.", url:"/#galerie", cta:"Zur Galerie" },
+  /* Die Partnermail geht an eine Auswahl und mit Kopie an hello@ - beides
+     traegt die Vorlage gleich mit, damit es niemand von Hand nachstellt. */
+  partner:     { titel:"Die Bilder sind da – und eine Bitte", text:"die Fotos vom Abend liegen jetzt in der App – für dich und für deine Gäste. Ihr dürft sie gern verwenden, für LinkedIn, die Website, was ihr mögt; bitte nennt dabei Vanessa Schröder, die fotografiert hat.\n\nUnd weil wir schon dabei sind: Wir würden gern von dir hören, wie der Abend bei euch angekommen ist. Nicht als Formular, sondern ganz direkt –\n\n– Was hat dir gefallen?\n– Was hat dir nicht gefallen?\n– Was sollten wir beim nächsten Mal anders machen?\n– Und: Was haben deine Gäste gesagt?\n\nSchreib einfach zurück, ein paar Sätze reichen völlig. Alles, was jetzt kommt, fließt in den nächsten Circle mit ein.\n\nDanke dir – und noch mal: Schön, dass ihr dabei wart.", url:"/#galerie", cta:"Zu den Bildern", ziel:"auswahl", cc:"hello@planyvo.com" },
   news:        { titel:"Neues aus dem Kreis", text:"", url:"/#news", cta:"In der App lesen" },
   feedback:    { titel:"Eine Frage zum Abend", text:"Wie war THE CIRCLE für dich? Ein Daumen, ein Satz – zwei Minuten. Es prägt die nächste Runde.", url:"/", cta:"Antworten" },
   savethedate: { titel:"THE CIRCLE No2 – Save the Date", text:"Der Kreis öffnet sich wieder. Datum und Ort stehen in der App – du bist als Gast der ersten Runde zuerst eingeladen.", url:"/", cta:"In der App ansehen" },
@@ -2366,12 +2381,20 @@ const SD_VORLAGEN = {
 $("#sdArt").addEventListener("change", () => {
   const v = SD_VORLAGEN[$("#sdArt").value]; if(!v) return;
   $("#sdTitel").value = v.titel; $("#sdText").value = v.text; $("#sdUrl").value = v.url; $("#sdCta").value = v.cta;
+  $("#sdCc").value = v.cc || "";
   $("#sdZiel").value = v.ziel || "alle"; zielZahlZeigen();
 });
 $("#sdArt").dispatchEvent(new Event("change"));
 /* Wie viele traefe die Auswahl? Steht neben dem Ziel, bevor jemand drueckt. */
 function zielZahlZeigen(){
   const z = $("#sdZiel").value;
+  /* Die Auswahl von Hand zaehlt sich selbst - die Luecken-Zahlen sagen
+     darueber nichts. */
+  $("#sdAuswahlBox").style.display = z === "auswahl" ? "flex" : "none";
+  /* "An alle senden" waere bei einer Auswahl das Gegenteil dessen, was
+     passiert - der Knopf sagt, was er tut. */
+  txt($("#sdAlle"), z === "auswahl" ? "An die Auswahl senden" : "An alle senden");
+  if(z === "auswahl"){ $("#sdKanal").value = "mail"; mailsZahlZeigen(); txt($("#sdZielZahl"), "genau die Adressen unten · nur per Mail"); return; }
   if(!luecke){ txt($("#sdZielZahl"), ""); return; }
   const n = z === "alle" ? luecke.im : (luecke[z] || []).length;
   /* Wer keine App oder keine Push hat, ist nur per Mail zu erreichen -
@@ -2379,6 +2402,12 @@ function zielZahlZeigen(){
   if(z !== "alle") $("#sdKanal").value = "mail";
   txt($("#sdZielZahl"), n + (n === 1 ? " Gast" : " Gäste") + (z !== "alle" ? " · nur per Mail erreichbar, Kanal steht auf Mail" : ""));
 }
+function sdMailsListe(){ return $("#sdMails").value.split(/[,;\s]+/).map(x=>x.trim()).filter(Boolean); }
+function mailsZahlZeigen(){
+  const n = sdMailsListe().length;
+  txt($("#sdMailsZahl"), n ? n + (n === 1 ? " Adresse" : " Adressen") + " – wer nicht im Register steht, wird beim Senden genannt." : "Noch keine Adresse.");
+}
+$("#sdMails").addEventListener("input", mailsZahlZeigen);
 $("#sdZiel").addEventListener("change", zielZahlZeigen);
 async function lueckeHolen(){
   const d = await adminGet("/api/admin/app-luecke"); if(!d) return;
@@ -2429,6 +2458,11 @@ if(ANGEMELDET) demoHolen();
 async function senden(probe, trotzdem){
   const rumpf = { art: $("#sdArt").value, kanal: $("#sdKanal").value, ziel: $("#sdZiel").value, titel: $("#sdTitel").value.trim(), text: $("#sdText").value.trim(), url: $("#sdUrl").value.trim() || "/", ctaText: $("#sdCta").value.trim() };
   if(!rumpf.titel || !rumpf.text){ txt($("#sdNote"), "Titel und Text fehlen."); return; }
+  if(rumpf.ziel === "auswahl"){
+    rumpf.mails = sdMailsListe();
+    if(!rumpf.mails.length){ txt($("#sdNote"), "Erst die Adressen eintragen."); return; }
+  }
+  const cc = $("#sdCc").value.trim(); if(cc) rumpf.cc = cc;
   if(probe) rumpf.probe = probe; if(trotzdem) rumpf.trotzdem = true;
   txt($("#sdNote"), "wird gesendet …");
   try{
@@ -2436,14 +2470,19 @@ async function senden(probe, trotzdem){
     const d = await r.json();
     if(r.status === 409){ if(confirm(d.error + "\n\nTrotzdem noch einmal an alle senden?")) return senden(probe, true); txt($("#sdNote"), "Nicht gesendet."); return; }
     if(!r.ok){ txt($("#sdNote"), d.error || "Fehlgeschlagen"); return; }
-    txt($("#sdNote"), (probe ? "Probe raus an " + probe : "Raus an " + d.sendung.empfaenger + " Gäste") + " – Protokoll unten.");
+    /* Adressen, die nicht im Register stehen, gehoeren benannt - sonst
+       glaubt man, 15 Partner angeschrieben zu haben, und es waren 13. */
+    const fehlt = (d.sendung.fehlend || []).length ? " · nicht im Register: " + d.sendung.fehlend.join(", ") : "";
+    const kopie = (d.sendung.cc || []).length ? " · Kopie an " + d.sendung.cc.join(", ") : "";
+    txt($("#sdNote"), (probe ? "Probe raus an " + probe : "Raus an " + d.sendung.empfaenger + " Gäste") + kopie + fehlt + " – Protokoll unten.");
     setTimeout(nachHolen, 1500); setTimeout(nachHolen, 8000);
   }catch(e){ txt($("#sdNote"), "Server nicht erreichbar."); }
 }
 $("#sdProbeKnopf").addEventListener("click", () => { const p = $("#sdProbe").value.trim(); if(!p){ txt($("#sdNote"), "Erst eine Probe-Adresse eintragen."); return; } senden(p); });
 $("#sdAlle").addEventListener("click", () => {
   const z = $("#sdZiel").value;
-  const n = luecke ? (z === "alle" ? luecke.im : (luecke[z] || []).length) : (appStand ? appStand.im : "alle");
+  const n = z === "auswahl" ? sdMailsListe().length
+    : luecke ? (z === "alle" ? luecke.im : (luecke[z] || []).length) : (appStand ? appStand.im : "alle");
   if(!confirm("„" + $("#sdTitel").value.trim() + "“ jetzt an " + n + " Gäste senden – " + $("#sdZiel").selectedOptions[0].textContent.toLowerCase() + " (" + $("#sdKanal").selectedOptions[0].textContent + ")?")) return;
   senden("");
 });

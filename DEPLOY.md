@@ -913,7 +913,18 @@ seinen Tipp noch abgeben kann.
    No2 die Karte unter „THE CIRCLE No2“ füllen – sie steht dann auf der
    Startseite jedes Gastes.
 
+5. **An eine Auswahl schreiben** (z. B. die Partner): Ziel **„Nur an
+   ausgewählte Adressen“**, dann die Adressen in das Feld darunter –
+   eine pro Zeile oder mit Komma. Es gehen nur Mails raus, und nur an
+   Adressen, die im Register stehen; die übrigen nennt der Monitor nach
+   dem Senden beim Namen. **Kopie an (CC)** schickt dieselbe Mail sichtbar
+   an ein zweites Postfach, etwa `hello@…`, damit das Nachfassen dort
+   ankommt und nicht in einem persönlichen Posteingang liegt. Der Anlass
+   *Partner · Bilder + Feedback* bringt Text, Ziel und CC schon mit.
+
 Jeder Anlass geht **einmal** an die Runde; ein zweiter Versand fragt nach.
+Bei einer Auswahl zählt die Liste mit: dieselben Adressen ein zweites Mal
+fragen nach, eine andere Auswahl geht ohne Rückfrage durch.
 Das Protokoll (Push gesendet / ohne Abo, Mail gesendet / ohne Adresse) steht
 unter dem Formular.
 
