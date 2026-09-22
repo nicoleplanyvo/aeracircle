@@ -1236,7 +1236,7 @@
         <div class="abendzahlen rv" id="abendZahlen">
           <div><b id="azVerb">0</b><span>Verbindungen</span></div>
           <div><b id="azMom">0</b><span>Momente</span></div>
-          <div><b id="azFotos">0</b><span>Deine Fotos</span></div>
+          <div id="azFotosBox"><b id="azFotos">0</b><span>Deine Fotos</span></div>
         </div>
         <div class="panel rv" id="fbKarte" style="display:none">
           <span class="label">Eine Frage</span>
@@ -1652,7 +1652,7 @@
       <div class="sect">
         <span class="label rv">Der Abend in Bildern</span>
         <h2 class="display grad rv" style="--d:60ms">Galerie</h2>
-        <p class="lede rv" style="--d:120ms">Die Bilder des Abends – und oben deine eigenen. Antippen zum Ansehen, Teilen und Speichern.</p>
+        <p class="lede rv" style="--d:120ms" id="galLede">Die Bilder des Abends. Antippen zum Ansehen, Teilen und Speichern.</p>
       </div>
       <div id="galMeine" style="display:none">
         <span class="label" style="display:block;padding:0 24px 8px">Deine Fotos</span>
@@ -4084,7 +4084,12 @@ function renderDanach(){
     const es = document.querySelector(".enso-side p");
     if(es){ const n = momentCount(); es.textContent = n >= MOMENTS.length ? "Dein Kreis ist geschlossen – alle Momente des Abends." : "So sah dein Abend aus: " + n + " von " + MOMENTS.length + " Momenten."; }
   }
-  $("#azFotos").textContent = APP.galerie ? APP.galerie.highlights.length : 0;
+  /* Ohne Zuordnung gibt es keine "eigenen" Bilder - dann steht hier auch
+     keine Null. Die Kachel kommt zurueck, sobald jemandem Bilder
+     zugeordnet sind (Entscheidung vom 22.09.: die Galerie ist gesammelt). */
+  const eigene = APP.galerie ? APP.galerie.highlights.length : 0;
+  $("#azFotos").textContent = eigene;
+  $("#azFotosBox").style.display = eigene ? "" : "none";
   /* EINE Handlung: erst die Frage, dann die Fotos. */
   const fb = ich.feedback;
   $("#fbKarte").style.display = fb ? "none" : "";
@@ -4195,6 +4200,9 @@ function renderGalerie(){
   g.highlights.forEach(f => mg.appendChild(galBild(f)));
   g.fotos.forEach(f => ag.appendChild(galBild(f)));
   $("#galAlleLabel").style.display = g.fotos.length ? "" : "none";
+  $("#galLede").textContent = g.highlights.length
+    ? "Die Bilder des Abends – und oben deine eigenen. Antippen zum Ansehen, Teilen und Speichern."
+    : "Die Bilder des Abends. Antippen zum Ansehen, Teilen und Speichern.";
   $("#galMehr").style.display = g.seiten > galSeite + 1 ? "" : "none";
   $("#galHinweis").textContent = !APP.token ? "Mit deinem persönlichen Link siehst du hier die Bilder deiner Runde."
     : !g.offen ? "Die Galerie öffnet sich ein paar Tage nach dem Abend – du bekommst eine Nachricht."
