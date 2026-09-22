@@ -432,6 +432,37 @@ Alles läuft ohne Backend – der Stand jedes Gastes liegt lokal auf seinem Ger�
 > Platzhalter neben dem Menü: der **Dresscode** („Smart Elegant“) und die
 > Programm-Uhrzeiten sind Vorschläge – bitte final bestätigen.
 
+## Business Speed Dating ohne Tische (Prototyp)
+
+Ein eigenes Modul für Netzwerkabende im Stehempfang, entstanden für den
+Pitch an RP LIVE (Düsseldorf IN). Läuft ohne Server als Demo auf dem Handy:
+`speed-dating.html?demo=1` (Profil vorbelegt, Opt-in gesetzt), `?regie=1`
+öffnet direkt die Regie, `?reset=1` löscht den Demo-Stand.
+
+**Mechanik:** Tische gibt es nicht, die Begegnung hängt an der Person. Pro
+Runde bekommt jedes Paar einen **Anker** (bleibt stehen, hält das Handy
+hoch) und einen **Läufer** (geht hin), ein **Erkennungszeichen** (Farbe +
+Symbol, auf beiden Handys gleich, in der Runde eindeutig, Vollbild per Tipp)
+und einen **Gesprächsöffner** aus den Themen („Ich suche" / „Ich biete").
+Nach jeder Runde: „Kontakt behalten?" Nur bei beidseitigem Ja wandert die
+Karte in „Meine Kontakte" (vCard-Download), ein Nein bleibt unsichtbar.
+„Nicht gefunden" bringt beide in den freien Pool, der sofort neu gepaart
+wird. Zweiter Modus für alle Gäste: drei Vorschläge im Gästebuch, Verbindung
+per Anfrage oder gegenseitigem Code-Scan.
+
+| Datei | Zweck |
+|---|---|
+| `speed-dating.html` | Demo-App: Profil, Opt-in mit Kontingent und Warteliste, Runden mit Timer, Zeichen, Entscheidung, Gästebuch mit Vorschlägen und Scan, Kontakte, Regie mit Live-Zahlen, Auswertung, Rundenplan und CSV. Manrope eingebettet, Icons als SVG, läuft offline. |
+| `speed-dating-matching.js` | Das Matching, gemeinsam für Browser und Node: `planen()` (Runden, Rollen, Zeichen, Gründe), `nachpaaren()` (freier Pool), `vorschlaege()`, `auswertung()`. Greedy nach Passung plus Tausch-Reparatur, nie dieselbe Firma, nie derselbe Partner zweimal, Rollen ausbalanciert, seed-reproduzierbar. |
+| `server/speed-dating-test.js` | `node --test server/speed-dating-test.js` – neun Prüfungen zu Paarung, Zeichen, Rollen, Aussetzern, Nachpaaren, Vorschlägen, Auswertung. |
+| `pitch/speed-dating.html` | Pitch-Dokument für RP LIVE, sieben Seiten A4, Quelle des PDFs |
+| `pitch/Planyvo-Business-Speed-Dating.pdf` | Das PDF (Chromium-Druck aus der HTML-Seite) |
+
+Regie-Tempo „Demo" fährt 40 s Runde / 10 s Wechsel, „Echt" 5 min / 1 min.
+Der Demo-Server steckt in der Seite (Antworten der anderen Gäste werden
+simuliert); im Livebetrieb übernimmt `circle-server.js` Plan, Uhr und
+Antworten über den vorhandenen SSE-Kanal.
+
 ## Logos
 
 Das **offizielle THE-CIRCLE-Logo** (`logo-horizontal-neg-rgb.svg` von der
