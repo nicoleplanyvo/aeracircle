@@ -2387,7 +2387,7 @@ const SD_VORLAGEN = {
   galerie:     { titel:"Die Bilder vom Abend sind da", text:"Der ganze Abend in Bildern liegt jetzt in der App – zum Ansehen, Speichern und Teilen.\n\nDie Fotos sind von Vanessa Schröder. Du darfst sie gern verwenden, bitte nenne sie dabei.", url:"/#galerie", cta:"Zur Galerie" },
   /* Die Partnermail geht an eine Auswahl und mit Kopie an hello@ - beides
      traegt die Vorlage gleich mit, damit es niemand von Hand nachstellt. */
-  partner:     { titel:"Die Bilder sind da – und eine Bitte", text:"die Fotos vom Abend liegen jetzt in der App – für dich und für deine Gäste. Ihr dürft sie gern verwenden, für LinkedIn, die Website, was ihr mögt; bitte nennt dabei Vanessa Schröder, die fotografiert hat.\n\nUnd weil wir schon dabei sind: Wir würden gern von dir hören, wie der Abend bei euch angekommen ist. Nicht als Formular, sondern ganz direkt –\n\n– Was hat dir gefallen?\n– Was hat dir nicht gefallen?\n– Was sollten wir beim nächsten Mal anders machen?\n– Und: Was haben deine Gäste gesagt?\n\nSchreib einfach zurück, ein paar Sätze reichen völlig. Alles, was jetzt kommt, fließt in den nächsten Circle mit ein.\n\nDanke dir – und noch mal: Schön, dass ihr dabei wart.", url:"/#galerie", cta:"Zu den Bildern", ziel:"auswahl", cc:"hello@planyvo.com" },
+  partner:     { titel:"Die Bilder sind da – und eine Bitte", text:"die Fotos vom Abend liegen jetzt in der App – für dich und für deine Gäste. Ihr dürft sie gern verwenden, für LinkedIn, die Website, was ihr mögt; bitte nennt dabei Vanessa Schröder, die fotografiert hat.\n\nUnd weil wir schon dabei sind: Wir würden gern von dir hören, wie der Abend bei euch angekommen ist. Nicht als Formular, sondern ganz direkt –\n\n– Was hat dir gefallen?\n– Was hat dir nicht gefallen?\n– Was sollten wir beim nächsten Mal anders machen?\n– Und: Was haben deine Gäste gesagt?\n\nSchreib einfach zurück, ein paar Sätze reichen völlig. Alles, was jetzt kommt, fließt in den nächsten Circle mit ein.\n\nDanke dir – und noch mal: Schön, dass ihr dabei wart.", url:"/#galerie", cta:"Zu den Bildern", ziel:"auswahl", cc:"hello@the-circle-cologne.de", kopieArt:"bcc" },
   news:        { titel:"Neues aus dem Kreis", text:"", url:"/#news", cta:"In der App lesen" },
   feedback:    { titel:"Eine Frage zum Abend", text:"Wie war THE CIRCLE für dich? Ein Daumen, ein Satz – zwei Minuten. Es prägt die nächste Runde.", url:"/", cta:"Antworten" },
   savethedate: { titel:"THE CIRCLE No2 – Save the Date", text:"Der Kreis öffnet sich wieder. Datum und Ort stehen in der App – du bist als Gast der ersten Runde zuerst eingeladen.", url:"/", cta:"In der App ansehen" },
@@ -2396,7 +2396,7 @@ const SD_VORLAGEN = {
 $("#sdArt").addEventListener("change", () => {
   const v = SD_VORLAGEN[$("#sdArt").value]; if(!v) return;
   $("#sdTitel").value = v.titel; $("#sdText").value = v.text; $("#sdUrl").value = v.url; $("#sdCta").value = v.cta;
-  $("#sdCc").value = v.cc || "";
+  $("#sdCc").value = v.cc || ""; $("#sdKopieArt").value = v.kopieArt || "cc";
   $("#sdZiel").value = v.ziel || "alle"; zielZahlZeigen();
 });
 $("#sdArt").dispatchEvent(new Event("change"));
