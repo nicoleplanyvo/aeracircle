@@ -53,7 +53,7 @@
 <body>
   <span class="label">THE CIRCLE · Galerie</span>
   <h1>Fotos hochladen</h1>
-  <p>Die Bilder werden hier im Browser auf 1600 px verkleinert und dann übertragen – Originale bleiben bei dir. Heißt eine Datei <code>vorname@firma.de_01.jpg</code>, landet sie automatisch bei diesem Gast als persönliches Highlight.</p>
+  <p>Die Bilder werden hier im Browser auf 1600 px verkleinert und dann übertragen – Originale bleiben bei dir. Die Vorschau baut sich nach und nach auf; eine Kachel, die noch leer ist, sagt nichts über das hochgeladene Bild. Heißt eine Datei <code>vorname@firma.de_01.jpg</code>, landet sie automatisch bei diesem Gast als persönliches Highlight.</p>
 
   <div id="warn">Kein Zugang: Die Seite braucht den Link mit <code>?key=</code> aus dem Monitor.</div>
 
@@ -118,9 +118,28 @@ function aufnehmen(files){
   }
   zeichneStand();
 }
-async function vorschau(w){
-  try{ const bm = await bild(w.file); const c = skalieren(bm, 240); w.img.src = c.toDataURL("image/jpeg", .7); }catch(e){}
+/* Die Vorschauen NICHT alle auf einmal: Bei 300 Fotos waeren das 300
+   gleichzeitig dekodierte Bilder zu je 20-40 Megapixel. Dann geht dem
+   Browser der Speicher aus und er liefert fuer einige eine leere
+   Zeichenflaeche - schwarze Kacheln, obwohl das Bild in Ordnung ist
+   (22.09., beim Hochladen der Galerie von No1). Zwei gleichzeitig
+   genuegen, und jedes Bitmap wird danach freigegeben. */
+const vSchlange = [];
+let vLaeuft = 0;
+function vorschau(w){ vSchlange.push(w); vWeiter(); }
+function vWeiter(){
+  while(vLaeuft < 2 && vSchlange.length){
+    const w = vSchlange.shift(); vLaeuft++;
+    (async () => {
+      let bm = null;
+      try{ bm = await bild(w.file); const c = skalieren(bm, 240); w.img.src = c.toDataURL("image/jpeg", .7); }
+      catch(e){}
+      finally{ schliessen(bm); vLaeuft--; vWeiter(); }
+    })();
+  }
 }
+/* Ein ImageBitmap haelt den dekodierten Speicher, bis es geschlossen wird. */
+function schliessen(bm){ try{ if(bm && bm.close) bm.close(); }catch(e){} }
 
 /* Bild laden - mit Drehung aus den EXIF-Daten, wo der Browser das kann. */
 async function bild(file){
@@ -138,6 +157,16 @@ function skalieren(bm, maxSeite){
 }
 /* JPEG so gross wie noetig, so klein wie moeglich - der Server nimmt
    900 kB fuer die Ansicht und 120 kB fuers Raster. */
+/* Ist die Zeichenflaeche komplett schwarz, ist beim Dekodieren etwas
+   schiefgegangen - ein echtes Foto hat nie ueberall exakt 0. Lieber ein
+   Fehler in der Liste als ein schwarzes Bild in der Galerie. */
+function istLeer(c){
+  try{
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+    for(let i = 0; i < d.length; i += 4 * 97) if(d[i] || d[i+1] || d[i+2]) return false;
+    return true;
+  }catch(e){ return false; }
+}
 function jpeg(c, grenze){
   let q = .84, d = c.toDataURL("image/jpeg", q);
   while(d.length * .75 > grenze && q > .4){ q -= .08; d = c.toDataURL("image/jpeg", q); }
@@ -145,9 +174,11 @@ function jpeg(c, grenze){
 }
 
 async function hochladen(w){
+  let bm = null;
   try{
-    const bm = await bild(w.file);
+    bm = await bild(w.file);
     const gross = skalieren(bm, 1600), klein = skalieren(bm, 400);
+    if(istLeer(gross)) throw new Error("kam leer an – „Hochladen“ versucht es erneut");
     const body = { runde: $("#runde").value.trim() || "no1", datei: w.file.name, breit: bm.width > bm.height,
                    bild: jpeg(gross, 880_000), mini: jpeg(klein, 115_000) };
     const r = await fetch("/api/admin/galerie/upload?key=" + encodeURIComponent(KEY), { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
@@ -158,6 +189,7 @@ async function hochladen(w){
   }catch(e){
     w.fertig = false; w.el.classList.add("fehler"); w.sp.textContent = w.file.name + " – " + (e.message || "Fehler"); zahl.fehler++;
   }
+  finally{ schliessen(bm); }
   zeichneStand();
 }
 
