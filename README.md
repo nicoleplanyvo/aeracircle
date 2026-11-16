@@ -566,8 +566,10 @@ Gast legt nur auf, das Handy kann in der Tasche bleiben.
 - **Demo:** Jede Station hat einen Knopf „Tap simulieren“ (rotierende Demo-Gäste),
   um die Stationen ohne Armband vorzuführen – ideal fürs Pitch-Gespräch.
 
-Endpunkte: `POST /api/station/register {band,name}` · `POST /api/station/tap
-{band,station[,inc]}` · `GET /api/guest?band=…`.
+Endpunkte: `POST /api/station/register {band,name,k}` · `POST /api/station/tap
+{band,station[,inc],k}` · `GET /api/guest?band=…`. `k` ist der Zugang der
+Stationsgeräte: Der Link dazu (`/station?k=…`) steht im Monitor unter „Zugang
+für die Stationen“ und lässt sich dort erneuern.
 
 ## Deployment
 
