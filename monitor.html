@@ -1025,6 +1025,16 @@
       <button class="export" id="akkNeu" type="button">Neuen Zugang erzeugen</button>
     </div>
     <div id="akkKasten" style="display:none;margin-top:10px"></div>
+
+    <!-- Dasselbe fuer die Stationsgeraete (station.html): eigener Link,
+         hier zu zeigen und zu erneuern. -->
+    <span class="label" style="display:block;margin-top:24px">Zugang für die Stationen</span>
+    <p class="fnote">Der Link für die Stationsgeräte. Nur Geräte mit diesem Link können Bänder melden. Geht ein Gerät verloren, hier einen neuen erzeugen; der alte gilt dann nicht mehr.</p>
+    <div class="exportzeile">
+      <button class="export" id="stzZeigen" type="button">Zugang zeigen</button>
+      <button class="export" id="stzNeu" type="button">Neuen Zugang erzeugen</button>
+    </div>
+    <div id="stzKasten" style="display:none;margin-top:10px"></div>
   </div>
 
   <!-- 6f · Nach dem Abend. Der eine Sendekanal (Push und Mail), die News,
@@ -2250,8 +2260,8 @@ try{
 /* ---------- Zugang fuers Einlass-Tablet ----------
    Ein eigener Schluessel, der nur die Gaesteliste lesen und Haken setzen
    darf. Wird angezeigt, nicht versteckt: Er soll weitergegeben werden. */
-async function akkZeichnen(d){
-  const k = $("#akkKasten");
+async function akkZeichnen(d, ziel){
+  const k = $(ziel || "#akkKasten");
   k.innerHTML = "";
   const feld = document.createElement("input");
   feld.type = "text"; feld.readOnly = true; feld.value = d.link;
@@ -2283,6 +2293,18 @@ $("#akkNeu").addEventListener("click", async () => {
   if(!confirm("Neuen Zugang erzeugen? Der alte Link hört sofort auf zu funktionieren – auch auf Geräten, die gerade offen sind.")) return;
   const d = await adminPost("/api/admin/einlass-key", {});
   if(d) akkZeichnen(d);
+});
+
+$("#stzZeigen").addEventListener("click", async () => {
+  const k = $("#stzKasten");
+  if(k.style.display !== "none"){ k.style.display = "none"; return; }
+  const d = await adminGet("/api/admin/station-key");
+  if(d) akkZeichnen(d, "#stzKasten");
+});
+$("#stzNeu").addEventListener("click", async () => {
+  if(!confirm("Neuen Zugang erzeugen? Der alte Link hört sofort auf zu funktionieren – auch auf Geräten, die gerade offen sind.")) return;
+  const d = await adminPost("/api/admin/station-key", {});
+  if(d) akkZeichnen(d, "#stzKasten");
 });
 
 /* ---------- QR-Code fuer den Check-in ---------- */
@@ -3383,7 +3405,7 @@ if(!ANGEMELDET){
      die Handschalter, der neue Einlass-Zugang, die Verwaltung. */
   if(ROLLE === "team"){
     ["#sdArt","#sdKanal","#sdTitel","#sdProbe","#sdZiel","#sdUrl","#sdCta"].forEach(id => { const e = $(id); const k = e && e.closest(".mailtools,.exportzeile"); if(k) k.classList.add("nurV"); });
-    ["#sdText","#phaseZeile","#stufeZeile","#akkNeu","#verwaltungpanel","#regiepanel"].forEach(id => { const e = $(id); if(e) e.classList.add("nurV"); });
+    ["#sdText","#phaseZeile","#stufeZeile","#akkNeu","#stzZeigen","#stzNeu","#verwaltungpanel","#regiepanel"].forEach(id => { const e = $(id); if(e) e.classList.add("nurV"); });
     const lab = $("#sdArt") && $("#sdArt").closest(".panel"); if(lab){ Array.from(lab.querySelectorAll(":scope > .label, :scope > .fnote")).slice(0,2).forEach(e => e.classList.add("nurV")); }
   }
   if(KEY) $("#pwFelder").closest(".panel") && (txt($("#pwNote"), "Mit dem Schlüssel-Link gibt es kein eigenes Passwort – dafür einen Nutzer anlegen."));

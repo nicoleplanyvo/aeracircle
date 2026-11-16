@@ -174,7 +174,7 @@ function cookieKopf(wert, maxAge) {
 }
 /* Welche Admin-Routen eine Rolle nicht aufrufen darf. Veranstalter: alles.
  * Einlass: nur die Einlassliste (siehe /api/einlass) - im Monitor nichts. */
-const TEAM_GESPERRT = /^\/api\/admin\/(senden|push-|phase|zeiten|app-stufe|signal|wand|av8|zuschlag|gebot|rechnung|erloes|einlass-key|nutzer|runden|zaehler-null|mailstatus-reset|webhook-log|demo|testgast|stand-|zuschlag|tipps)/;
+const TEAM_GESPERRT = /^\/api\/admin\/(senden|push-|phase|zeiten|app-stufe|signal|wand|av8|zuschlag|gebot|rechnung|erloes|einlass-key|station-key|nutzer|runden|zaehler-null|mailstatus-reset|webhook-log|demo|testgast|stand-|zuschlag|tipps)/;
 function rolleDarf(rolle, url, method) {
   if (VOLL(rolle)) return true;
   const pfad = url.split("?")[0];
@@ -512,9 +512,24 @@ const RL = new Map();
  * abgrasen), regelt anfrageErlaubt() je Token. */
 const LIMIT_APP  = [6000, 60_000];
 const LIMIT_LIVE = [1500, 10_000];
+/* Die Adresse des Anfragenden. Aus X-Forwarded-For zaehlt nur, was der
+ * EIGENE Proxy angehaengt hat - das ist der letzte Eintrag (bei mehreren
+ * eigenen Proxys der n-te von hinten). TRUST_PROXY nennt deren Zahl:
+ * 1 = Vorgabe (nginx/Plesk, Caddy), 0 = kein Proxy davor, dann zaehlt nur
+ * die Adresse der Verbindung. */
+const TRUST_PROXY = (() => {
+  const n = parseInt(process.env.TRUST_PROXY == null ? "1" : process.env.TRUST_PROXY, 10);
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, 10) : 1;
+})();
+function clientIp(req) {
+  const direkt = (req.socket && req.socket.remoteAddress) || "?";
+  if (TRUST_PROXY === 0) return direkt;
+  const teile = String(req.headers["x-forwarded-for"] || "").split(",").map(t => t.trim()).filter(Boolean);
+  if (!teile.length) return direkt;
+  return teile[Math.max(0, teile.length - TRUST_PROXY)].slice(0, 64);
+}
 function rateLimit(req, res, schluessel, max, fensterMs) {
-  const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() ||
-    (req.socket && req.socket.remoteAddress) || "?";
+  const ip = clientIp(req);
   const k = schluessel + ":" + ip;
   const jetzt = Date.now();
   let e = RL.get(k);
@@ -523,6 +538,16 @@ function rateLimit(req, res, schluessel, max, fensterMs) {
   if (RL.size > 5000) for (const [kk, vv] of RL) if (vv.resetAt < jetzt) RL.delete(kk);
   if (e.count > max) { json(res, 429, { error: "zu viele Anfragen" }); return false; }
   return true;
+}
+
+/* Gebote je Gast: hoechstens 12 in der Minute. */
+const GEBOTE = new Map();
+function gebotErlaubt(token) {
+  const jetzt = Date.now();
+  let e = GEBOTE.get(token);
+  if (!e || e.resetAt < jetzt) { e = { n: 0, resetAt: jetzt + 60_000 }; GEBOTE.set(token, e); }
+  e.n++;
+  return e.n <= 12;
 }
 
 function guestCount() { return Object.keys(state.guests).length; }
@@ -1011,6 +1036,64 @@ function einlassOk(k) {
   if (!k) return false;
   const a = Buffer.from(String(k)), b = Buffer.from(einlassKey());
   return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+/* Dasselbe Muster fuer die Stationen (station.html): ein eigener Schluessel
+ * im Zustand, der im Link des Stationsgeraets steht (?k=) und sich im
+ * Monitor erneuern laesst. Ohne ihn nimmt /api/station/* nichts an. */
+function stationKey() {
+  if (!state.stationKey) { state.stationKey = crypto.randomBytes(16).toString("hex"); dirty = true; }
+  return state.stationKey;
+}
+function stationOk(k) {
+  if (!k) return false;
+  const a = Buffer.from(String(k)), b = Buffer.from(stationKey());
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+const LIMIT_STATION = [600, 60_000];
+
+/* Zugang wiederfinden: Der Link geht per Mail an die hinterlegte Adresse.
+ * Dazu ein kurzer Code fuer die installierte App (dort oeffnet ein Link aus
+ * der Mail den Browser, nicht die App). Code: 8 Zeichen, 20 Minuten,
+ * fuenf Versuche. Je Gast hoechstens drei Mails pro Stunde. */
+const ZUGANG_CODES = new Map();   // token -> { code, bis, versuche }
+const ZUGANG_MAILS = new Map();   // token -> { n, resetAt }
+const ZUGANG_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function zugangCodeNeu() {
+  let c = "";
+  for (let i = 0; i < 8; i++) c += ZUGANG_ALPHABET[crypto.randomInt(0, ZUGANG_ALPHABET.length)];
+  return c;
+}
+function zugangMailErlaubt(token) {
+  const jetzt = Date.now();
+  let e = ZUGANG_MAILS.get(token);
+  if (!e || e.resetAt < jetzt) { e = { n: 0, resetAt: jetzt + 3_600_000 }; ZUGANG_MAILS.set(token, e); }
+  e.n++;
+  return e.n <= 3;
+}
+const ZUGANG_ANTWORT = "Wenn die Angaben zu einem Gast im Kreis passen, ist dein Zugang jetzt per E-Mail unterwegs. Öffne den Link aus der Mail – oder gib hier den Code aus der Mail ein.";
+const normName = s => String(s || "").toLowerCase().replace(/ß/g, "ss").replace(/[äöü]/g, c => ({ ä: "ae", ö: "oe", ü: "ue" }[c])).replace(/[^a-z]/g, "");
+function zugangSuchen(mail, nach) {
+  const treffer = Object.values(state.invites).filter(i =>
+    (i.email || "").toLowerCase() === mail && imKreis(i) &&
+    normName(i.name).endsWith(normName(nach)) && normName(nach).length >= 2);
+  return treffer.length === 1 ? treffer[0] : null;
+}
+function zugangMailSenden(inv) {
+  const code = zugangCodeNeu();
+  ZUGANG_CODES.set(inv.token, { code, bis: Date.now() + 20 * 60_000, versuche: 0 });
+  const titel = "Dein Zugang zum Abend";
+  const text = "du hast deinen Zugang zur App angefordert. Mit dem Knopf öffnest du die App direkt mit deinem Profil.\n\n" +
+    "Nutzt du die App vom Startbildschirm, gib dort diesen Code ein: " + code.slice(0, 4) + "-" + code.slice(4) + " (20 Minuten gültig).\n\n" +
+    "Warst du das nicht, musst du nichts tun.";
+  let html;
+  try {
+    html = renderMail(inv, "nachricht.html", { titel, text_html: esc(text).replace(/\n/g, "<br>"), cta_text: "App öffnen", cta_url: appLink(inv.token) });
+  } catch (e) { console.error("Zugangsmail: Vorlage fehlt (" + e.message + ")"); return; }
+  const txt = (inv.anrede || "Hallo") + " " + (inv.name || "").split(" ")[0] + ",\n\n" + text + "\n\nApp öffnen: " + appLink(inv.token) + "\n";
+  lettermintSenden({ to: inv.email, subject: titel, html, text: txt }, err => {
+    if (err) console.error("Zugangsmail fehlgeschlagen: " + err.message);
+  });
 }
 
 /* Profil-Anteil, der zum Gast dazukommt, wenn er die App registriert.
@@ -2720,7 +2803,17 @@ function bildDurchreichen(ziel, res, tiefe) {
   require("dns").lookup(u.hostname, { all: true }, (err, adr) => {
     if (err || !adr.length || adr.some(a => adressePrivat(a.address))) { res.writeHead(403); return res.end("nicht erlaubt"); }
     const mod = u.protocol === "https:" ? https : http;
+    /* Verbunden wird genau mit der Adresse, die eben geprueft wurde - der
+     * Name wird fuer die Verbindung nicht ein zweites Mal aufgeloest.
+     * Hostname bleibt fuer Host-Kopf und Zertifikat (SNI) stehen. */
+    const ziel0 = adr[0];
+    const festeAdresse = (host, opts, cb) => {
+      if (typeof opts === "function") { cb = opts; opts = {}; }
+      if (opts && opts.all) return cb(null, [{ address: ziel0.address, family: ziel0.family }]);
+      cb(null, ziel0.address, ziel0.family);
+    };
     const r2 = mod.request({ hostname: u.hostname, port: u.port || undefined, path: u.pathname + u.search,
+      lookup: festeAdresse,
       method: "GET", timeout: 6000,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; planyvo-Stand/1.0)", "Accept": "image/*,*/*" } }, a => {
       if (a.statusCode >= 300 && a.statusCode < 400 && a.headers.location) {
@@ -3099,6 +3192,11 @@ const server = http.createServer((req, res) => {
   if (req.method === "POST" && url === "/api/live/bid") {
     if (!rateLimit(req, res, "live", LIMIT_LIVE[0], LIMIT_LIVE[1])) return;
     return readBody(req, res, body => {
+      /* Geboten wird nur als Gast im Kreis, mit dem eigenen Token - und je
+       * Gast nicht oefter, als ein Mensch tippt. */
+      const bieter = findInvite(body.t);
+      if (!bieter || !imKreis(bieter)) return json(res, 401, { error: "Bieten geht nur aus der App mit deinem Zugang." });
+      if (!gebotErlaubt(bieter.token)) return json(res, 429, { error: "zu viele Gebote – einen Moment bitte" });
       const amount = parseInt(body.amount, 10) || 0;
       const current = state.bid ? state.bid.amount : 0;
       // Sprung nach oben deckeln: ein einzelnes Gebot darf current nicht um mehr
@@ -3109,15 +3207,13 @@ const server = http.createServer((req, res) => {
       }
       /* Nach dem Zuschlag ist Schluss - egal, was noch aus der App kommt. */
       if (state.auktion && state.auktion.zu) return json(res, 409, { error: "Die Auktion ist beendet.", bid: state.bid });
-      /* Mit Token: Bieterkarte und Name kommen vom Gast selbst - die
-       * Kreisnummer ist eindeutig, ein Hash aus dem Namen war es nicht
-       * (88 Nummern fuer 130 Gaeste). Ohne Token (Demo, Station) wie
-       * bisher aus dem Rumpf. */
-      const bieter = findInvite(body.t);
+      /* Bieterkarte und Name kommen vom Gast selbst - die Kreisnummer ist
+       * eindeutig, ein Hash aus dem Namen war es nicht (88 Nummern fuer
+       * 130 Gaeste). */
       state.bid = {
         amount,
-        paddle: bieter ? String(bieter.ticketNr || "").replace(/\D/g, "") : clean(body.paddle, 4),
-        name: bieter ? (bieter.name || "").split(" ")[0] : clean(body.name, 30),
+        paddle: String(bieter.ticketNr || "").replace(/\D/g, ""),
+        name: (bieter.name || "").split(" ")[0],
         t: Date.now()
       };
       state.bids.unshift(state.bid);
@@ -3131,7 +3227,9 @@ const server = http.createServer((req, res) => {
 
   // Band einem Gast zuordnen (Self-Service-Check-in am Tablet)
   if (req.method === "POST" && url === "/api/station/register") {
+    if (!rateLimit(req, res, "station", LIMIT_STATION[0], LIMIT_STATION[1])) return;
     return readBody(req, res, body => {
+      if (!stationOk(body.k || req.headers["x-station-key"]) && !sessionNutzer(req)) return json(res, 401, { error: "kein Zugang" });
       const band = clean(body.band, 40);
       const name = clean(body.name, 40);
       if (!band || !name || RESERVED.has(band)) return json(res, 400, { error: "band und name nötig" });
@@ -3147,7 +3245,9 @@ const server = http.createServer((req, res) => {
 
   // Ein Band an einer Station auflegen
   if (req.method === "POST" && url === "/api/station/tap") {
+    if (!rateLimit(req, res, "station", LIMIT_STATION[0], LIMIT_STATION[1])) return;
     return readBody(req, res, body => {
+      if (!stationOk(body.k || req.headers["x-station-key"]) && !sessionNutzer(req)) return json(res, 401, { error: "kein Zugang" });
       const band = clean(body.band, 40);
       const station = clean(body.station, 30);
       if (!band || RESERVED.has(band)) return json(res, 400, { error: "kein band" });
@@ -3217,24 +3317,45 @@ const server = http.createServer((req, res) => {
   /* Den eigenen Zugang wiederfinden - fuer die App, die ohne Token startet
    * (Startbildschirm-Kachel von vor dem 14.09., geloeschter Verlauf, neues
    * Handy). E-Mail-Adresse UND Nachname muessen zu einem Gast im Kreis
-   * passen; dann bekommt die App seinen Token und laeuft weiter wie ueber
-   * den Link. Scharf begrenzt: zehn Versuche pro Stunde und Adresse des
-   * Anfragenden - das reicht fuer Tippfehler, nicht fuer Raten. */
+   * passen; dann geht der Zugangslink per Mail an die Adresse aus dem
+   * Register. Begrenzt auf zehn Versuche pro Stunde und Adresse des
+   * Anfragenden und drei Mails pro Stunde je Gast. */
   if (req.method === "POST" && url === "/api/app/finden") {
     if (!rateLimit(req, res, "finden", 10, 3_600_000)) return;
     return readBody(req, res, body => {
       const mail = clean(String(body.email || ""), 120).toLowerCase();
       const nach = cleanText(String(body.nachname || ""), 40).toLowerCase();
       if (!mail || !nach) return json(res, 400, { error: "E-Mail-Adresse und Nachname bitte." });
-      const norm = s => String(s || "").toLowerCase().replace(/ß/g, "ss").replace(/[äöü]/g, c => ({ ä: "ae", ö: "oe", ü: "ue" }[c])).replace(/[^a-z]/g, "");
-      const treffer = Object.values(state.invites).filter(i =>
-        (i.email || "").toLowerCase() === mail && imKreis(i) &&
-        norm(i.name).endsWith(norm(nach)) && norm(nach).length >= 2);
-      if (treffer.length !== 1) {
-        logEvent("Zugang gesucht", mail, treffer.length ? "mehrdeutig" : "kein Treffer");
-        return json(res, 404, { error: "Dazu finden wir keinen Gast im Kreis. Prüfe die Adresse, an die deine Einladung ging – oder öffne den Link aus der Mail „Dein Zugang zum Abend“." });
+      /* Die Antwort ist immer dieselbe. Der Zugang selbst geht nur per Mail
+       * an die Adresse, die im Register steht. */
+      const inv = zugangSuchen(mail, nach);
+      if (!inv) logEvent("Zugang gesucht", mail, "kein Treffer");
+      else if (!zugangMailErlaubt(inv.token)) logEvent("Zugang gesucht", inv.name, "zu oft");
+      else { logEvent("Zugang angefordert", inv.name, inv.pool); zugangMailSenden(inv); }
+      return json(res, 200, { ok: true, gesendet: true, hinweis: ZUGANG_ANTWORT });
+    });
+  }
+
+  /* Der Code aus der Zugangsmail - fuer die installierte App. Adresse,
+   * Nachname und Code muessen zusammenpassen; nach fuenf Fehlversuchen ist
+   * der Code verbraucht. */
+  if (req.method === "POST" && url === "/api/app/finden-code") {
+    if (!rateLimit(req, res, "findencode", 20, 3_600_000)) return;
+    return readBody(req, res, body => {
+      const mail = clean(String(body.email || ""), 120).toLowerCase();
+      const nach = cleanText(String(body.nachname || ""), 40).toLowerCase();
+      const code = String(body.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 16);
+      const falsch = () => json(res, 404, { error: "Der Code passt nicht oder ist abgelaufen. Fordere bitte einen neuen an." });
+      if (!mail || !nach || !code) return falsch();
+      const inv = zugangSuchen(mail, nach);
+      const e = inv && ZUGANG_CODES.get(inv.token);
+      if (!e || e.bis < Date.now()) { if (inv) ZUGANG_CODES.delete(inv.token); return falsch(); }
+      const a = Buffer.from(code), b = Buffer.from(e.code);
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        if (++e.versuche >= 5) ZUGANG_CODES.delete(inv.token);
+        return falsch();
       }
-      const inv = treffer[0];
+      ZUGANG_CODES.delete(inv.token);
       logEvent("Zugang wiedergefunden", inv.name, inv.pool);
       return json(res, 200, { ok: true, token: inv.token, vorname: (inv.name || "").split(" ")[0] });
     });
@@ -5425,6 +5546,16 @@ const server = http.createServer((req, res) => {
       }
       const k = einlassKey();
       return json(res, 200, { ok: true, key: k, link: PUBLIC_URL + "/akkreditierung?k=" + k });
+    }
+    /* Der Zugang fuer die Stationsgeraete - wie beim Einlass. */
+    if (url === "/api/admin/station-key") {
+      if (req.method === "POST") {
+        state.stationKey = crypto.randomBytes(16).toString("hex");
+        dirty = true;
+        logEvent("Stations-Zugang", wer, "erneuert");
+      }
+      const k = stationKey();
+      return json(res, 200, { ok: true, key: k, link: PUBLIC_URL + "/station?k=" + k });
     }
     if (req.method === "GET" && url === "/api/admin/sendungen") {
       return json(res, 200, { ok: true, sendungen: state.sendungen || [] });

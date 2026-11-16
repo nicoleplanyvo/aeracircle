@@ -1883,6 +1883,13 @@
     </div>
     <button class="btn btn--solid btn--full" type="submit" id="obKnopf">Mein Profil holen</button>
     <p class="sub" id="obFehler" style="text-transform:none;letter-spacing:0;font-size:13px;line-height:1.5;color:var(--coral);min-height:1em"></p>
+    <!-- Nach dem Absenden: der Zugang kommt per Mail. Der Link darin oeffnet
+         die App; in der installierten App genuegt der Code aus der Mail. -->
+    <div id="obCodeBox" style="display:none">
+      <label for="obCode">Code aus der E-Mail</label>
+      <input id="obCode" type="text" autocomplete="one-time-code" autocapitalize="characters" maxlength="9" placeholder="XXXX-XXXX">
+      <button class="btn btn--solid btn--full" type="button" id="obCodeKnopf" style="margin-top:12px">Code einlösen</button>
+    </div>
   </form>
 </div>
 
@@ -4282,9 +4289,9 @@ async function appStarten(t){
 }
 
 /* ================= ONBOARDING ================= */
-/* Zugang wiederfinden: Adresse + Nachname an den Server, zurueck kommt der
-   Token - und die App startet damit neu, genau wie ueber den Link. Von da
-   an liegt der Token im Speicher DIESER App (auch der installierten). */
+/* Zugang wiederfinden: Adresse + Nachname an den Server, der Zugang kommt
+   per Mail. Der Link darin startet die App wie gewohnt; in der
+   installierten App loest der Code aus der Mail dasselbe aus. */
 $("#obForm").addEventListener("submit", async e=>{
   e.preventDefault();
   const knopf = $("#obKnopf"), fehler = $("#obFehler");
@@ -4293,10 +4300,27 @@ $("#obForm").addEventListener("submit", async e=>{
     const r = await fetch("/api/app/finden", { method:"POST", headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ email: $("#obMail").value.trim(), nachname: $("#obNachname").value.trim() }) });
     const d = await r.json();
+    if(!r.ok){ fehler.textContent = d.error || "Das hat nicht geklappt – bitte noch einmal."; return; }
+    fehler.textContent = d.hinweis || "Wenn die Angaben passen, ist dein Zugang jetzt per E-Mail unterwegs.";
+    $("#obCodeBox").style.display = "block";
+    $("#obCode").focus();
+  }catch(err){ fehler.textContent = "Netz gerade weg – gleich noch einmal."; }
+  finally{ knopf.disabled = false; knopf.textContent = "Mein Profil holen"; }
+});
+$("#obCode").addEventListener("keydown", e=>{ if(e.key === "Enter"){ e.preventDefault(); $("#obCodeKnopf").click(); } });
+$("#obCodeKnopf").addEventListener("click", async ()=>{
+  const knopf = $("#obCodeKnopf"), fehler = $("#obFehler");
+  const code = $("#obCode").value.trim();
+  if(!code){ $("#obCode").focus(); return; }
+  knopf.disabled = true; fehler.textContent = "";
+  try{
+    const r = await fetch("/api/app/finden-code", { method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ email: $("#obMail").value.trim(), nachname: $("#obNachname").value.trim(), code }) });
+    const d = await r.json();
     if(!r.ok || !d.token){ fehler.textContent = d.error || "Das hat nicht geklappt – bitte noch einmal."; return; }
     location.replace("/?t=" + encodeURIComponent(d.token));
   }catch(err){ fehler.textContent = "Netz gerade weg – gleich noch einmal."; }
-  finally{ knopf.disabled = false; knopf.textContent = "Mein Profil holen"; }
+  finally{ knopf.disabled = false; }
 });
 /* Ein Name allein reicht nicht mehr: Das alte Namensformular hat auf
    Kacheln ohne Token ein Scheinprofil hinterlassen, das nirgends hinfuehrt.

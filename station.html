@@ -202,6 +202,9 @@ const STATIONS = {
 
 const params = new URLSearchParams(location.search);
 const stationKey = params.get("station");
+// Zugang des Stationsgeraets: steht im Link (?k=), wird einmal gemerkt und bei jedem Aufruf mitgeschickt
+let ZUGANG = params.get("k") || "";
+try{ if(ZUGANG) localStorage.setItem("station.k", ZUGANG); else ZUGANG = localStorage.getItem("station.k") || ""; }catch(e){}
 const cfg = STATIONS[stationKey];
 
 if(!cfg){
@@ -209,7 +212,7 @@ if(!cfg){
   const grid = $("#chooserGrid");
   Object.entries(STATIONS).forEach(([k,v])=>{
     const a = document.createElement("a");
-    a.href = "?station=" + k;
+    a.href = "?station=" + k + (ZUGANG ? "&k=" + encodeURIComponent(ZUGANG) : "");
     a.innerHTML = "<b>"+v.name+"</b><span>"+v.tag+"</span>";
     grid.appendChild(a);
   });
@@ -247,9 +250,10 @@ function initStation(){
     try{
       const r = await fetch("/api/station/tap", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ band, station: stationKey, inc: cfg.inc })
+        body: JSON.stringify({ band, station: stationKey, inc: cfg.inc, k: ZUGANG })
       });
       const d = await r.json();
+      if(r.status === 401){ $("#nfcState").textContent = "Kein Zugang · Link aus dem Monitor öffnen"; return; }
       if(d.needName){ askName(band); return; }
       if(d.ok) showOverlay(d.name, d.message, d.moments, d.momentsTotal);
     }catch(e){ $("#nfcState").textContent = "Server nicht erreichbar"; }
@@ -271,7 +275,7 @@ function initStation(){
     try{
       const r = await fetch("/api/station/register", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ band: pendingBand, name })
+        body: JSON.stringify({ band: pendingBand, name, k: ZUGANG })
       });
       const d = await r.json();
       $("#dlg").classList.remove("show");
@@ -306,7 +310,7 @@ function initStation(){
     try{
       await fetch("/api/station/register", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ band:g.band, name:g.name })
+        body: JSON.stringify({ band:g.band, name:g.name, k: ZUGANG })
       });
     }catch(e){}
     tap(g.band);
