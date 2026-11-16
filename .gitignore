@@ -4,3 +4,9 @@ server/versand-log.json
 server/fotos/
 server/galerie/
 server/rechnungen/
+
+# Listen: nur die beiden Vorlagen werden versioniert
+gaeste*.csv
+server/gaesteliste-*.csv
+!server/gaesteliste-vorlage.csv
+!server/gaesteliste-partner-vorlage.csv
